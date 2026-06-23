@@ -8,6 +8,8 @@ type AuthContextValue = {
   user: User | null;
   roles: AppRole[];
   loading: boolean;
+  pacienteId: string | null;
+  isPaciente: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -18,6 +20,8 @@ const AuthContext = React.createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = React.useState<Session | null>(null);
   const [roles, setRoles] = React.useState<AppRole[]>([]);
+  const [pacienteId, setPacienteId] = React.useState<string | null>(null);
+  const [isPaciente, setIsPaciente] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -28,6 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => loadRoles(s.user.id), 0);
       } else {
         setRoles([]);
+        setPacienteId(null);
+        setIsPaciente(false);
       }
     });
 
@@ -41,16 +47,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function loadRoles(userId: string) {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (error) {
-      console.error("loadRoles", error);
-      setRoles([]);
-      return;
+    const [rolesResult, pacResult] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      (supabase as any).from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
+    ]);
+
+    if (rolesResult.error) {
+      console.error("loadRoles", rolesResult.error);
     }
-    setRoles(((data ?? []) as { role: AppRole }[]).map((r) => r.role));
+
+    const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
+    setRoles(fetchedRoles);
+
+    const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
+    setPacienteId(pacId);
+    setIsPaciente(pacId !== null && fetchedRoles.length === 0);
   }
 
   const value: AuthContextValue = {
@@ -58,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: session?.user ?? null,
     roles,
     loading,
+    pacienteId,
+    isPaciente,
     signIn: async (email, password) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;

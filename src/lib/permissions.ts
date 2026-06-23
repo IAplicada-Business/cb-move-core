@@ -5,6 +5,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   gestao: "Gestão",
   recepcao: "Recepção",
   fisio: "Fisioterapeuta",
+  paciente: "Paciente",
 };
 
 export function hasRole(roles: AppRole[], required: AppRole | AppRole[]): boolean {

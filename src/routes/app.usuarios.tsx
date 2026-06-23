@@ -51,6 +51,7 @@ const ROLE_MAP: Record<AppRole, { label: string; cls: string }> = {
   gestao:   { label: "Gestão",   cls: "bg-[#F5F3FF] text-cb-purple border-[#DDD6FE]" },
   recepcao: { label: "Recepção", cls: "bg-[#FFF7ED] text-cb-orange border-[#FED7AA]" },
   fisio:    { label: "Fisio",    cls: "bg-[#F7FEE7] text-cb-lime border-[#BEF264]" },
+  paciente: { label: "Paciente", cls: "bg-slate-100 text-slate-600 border-slate-200" },
 };
 
 function RoleBadge({ role }: { role: AppRole | null }) {
@@ -89,8 +90,9 @@ async function fetchUsers(): Promise<UserWithRole[]> {
 
 async function updateUserRole(userId: string, role: AppRole) {
   // upsert: delete existing then insert new
-  await supabase.from("user_roles").delete().eq("user_id", userId);
-  const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
+  const db = supabase as any;
+  await db.from("user_roles").delete().eq("user_id", userId);
+  const { error } = await db.from("user_roles").insert({ user_id: userId, role });
   if (error) throw error;
 }
 

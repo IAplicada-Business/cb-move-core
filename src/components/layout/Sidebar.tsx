@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown, LayoutDashboard, Users, FileText, Calendar, ClipboardCheck,
   Receipt, FileSpreadsheet, BarChart3, Stethoscope, UserCog, Settings, Building2,
-  Wrench, FilePlus2, Plug, LogOut,
+  Wrench, FilePlus2, Plug, LogOut, HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -37,6 +37,9 @@ const GROUPS: Group[] = [
     { to: "/app/configuracoes/templates", label: "Templates", icon: FilePlus2 },
     { to: "/app/configuracoes/integracoes", label: "Integrações", icon: Plug },
   ]},
+  { id: "ajuda", label: "Suporte", items: [
+    { to: "/app/ajuda", label: "Ajuda", icon: HelpCircle },
+  ]},
 ];
 
 export function Sidebar() {
@@ -44,7 +47,7 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mode, setMode] = React.useState<"admin" | "paciente">("admin");
   const [open, setOpen] = React.useState<Record<string, boolean>>({
-    op: true, fin: true, team: true, cfg: false,
+    op: true, fin: true, team: true, cfg: false, ajuda: false,
   });
 
   const userName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "Usuário";

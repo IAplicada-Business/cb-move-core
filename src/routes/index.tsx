@@ -12,8 +12,18 @@ function Splash() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      navigate({ to: data.session ? "/app" : "/login", replace: true });
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) {
+        navigate({ to: "/login", replace: true });
+        return;
+      }
+      // Verifica se é paciente
+      const { data: pac } = await (supabase as any)
+        .from("pacientes")
+        .select("id")
+        .eq("user_id", data.session.user.id)
+        .maybeSingle();
+      navigate({ to: pac ? "/portal" : "/app", replace: true });
     });
   }, [navigate]);
 
