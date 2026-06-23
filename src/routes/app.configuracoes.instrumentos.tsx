@@ -1,16 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { FlaskConical } from "lucide-react";
+import { useState } from "react";
+import { FlaskConical, Eye } from "lucide-react";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDate } from "@/lib/format";
 
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/configuracoes/instrumentos")({
   head: () => ({ meta: [{ title: "Instrumentos clínicos · CB MOVE" }] }),
@@ -18,6 +30,15 @@ export const Route = createFileRoute("/app/configuracoes/instrumentos")({
 });
 
 // ─── types ───────────────────────────────────────────────────────────────────
+
+type CampoInstrumento = {
+  id: string;
+  label: string;
+  tipo: string;
+  opcoes?: string[];
+  min?: number;
+  max?: number;
+};
 
 type Instrumento = {
   id: string;
@@ -27,7 +48,7 @@ type Instrumento = {
   descricao: string | null;
   versao: number;
   status: string;
-  created_at: string;
+  campos: CampoInstrumento[] | null;
 };
 
 // ─── queries ─────────────────────────────────────────────────────────────────
@@ -35,11 +56,82 @@ type Instrumento = {
 async function fetchInstrumentos(): Promise<Instrumento[]> {
   const { data, error } = await supabase
     .from("instrumentos_clinicos")
-    .select("id, codigo, nome, categoria, descricao, versao, status, created_at")
+    .select("id, codigo, nome, categoria, descricao, versao, status, campos")
     .order("categoria")
     .order("nome");
   if (error) throw error;
-  return (data ?? []) as Instrumento[];
+  return (data ?? []) as unknown as Instrumento[];
+}
+
+// ─── subcomponentes ───────────────────────────────────────────────────────────
+
+const TIPO_LABEL: Record<string, string> = {
+  select: "Seleção",
+  number: "Número",
+  textarea: "Texto longo",
+  text: "Texto",
+};
+
+function CamposDialog({
+  instrumento,
+  onClose,
+}: {
+  instrumento: Instrumento | null;
+  onClose: () => void;
+}) {
+  if (!instrumento) return null;
+  const campos = instrumento.campos ?? [];
+
+  return (
+    <Dialog open={!!instrumento} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {instrumento.nome}{" "}
+            <span className="text-muted-foreground font-normal text-sm">
+              — {instrumento.codigo}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        {instrumento.descricao && (
+          <p className="text-sm text-muted-foreground">{instrumento.descricao}</p>
+        )}
+        <div className="space-y-3 mt-2">
+          {campos.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">Sem campos configurados.</p>
+          ) : (
+            campos.map((campo) => (
+              <div key={campo.id} className="rounded-lg border bg-muted/30 p-3 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{campo.label}</span>
+                  <span className="text-xs rounded-full bg-muted px-2 py-0.5 font-mono">
+                    {TIPO_LABEL[campo.tipo] ?? campo.tipo}
+                  </span>
+                </div>
+                {campo.tipo === "number" && (campo.min !== undefined || campo.max !== undefined) && (
+                  <p className="text-xs text-muted-foreground">
+                    Intervalo: {campo.min ?? "—"} a {campo.max ?? "—"}
+                  </p>
+                )}
+                {campo.opcoes && campo.opcoes.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {campo.opcoes.map((op) => (
+                      <span
+                        key={op}
+                        className="text-xs rounded-md border bg-background px-2 py-0.5"
+                      >
+                        {op}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
@@ -49,6 +141,8 @@ function InstrumentosPage() {
     queryKey: queryKeys.instrumentos.all,
     queryFn: fetchInstrumentos,
   });
+
+  const [viewingInstrumento, setViewingInstrumento] = useState<Instrumento | null>(null);
 
   return (
     <div className="space-y-6">
@@ -64,8 +158,8 @@ function InstrumentosPage() {
       ) : instrumentos.length === 0 ? (
         <EmptyState
           icon={<FlaskConical className="h-8 w-8" />}
-          title="Em breve"
-          description="Catálogo de instrumentos de avaliação neurológica — em desenvolvimento."
+          title="Sem instrumentos cadastrados"
+          description="Nenhum instrumento de avaliação neurológica cadastrado ainda."
         />
       ) : (
         <div className="rounded-xl border bg-card overflow-hidden">
@@ -77,43 +171,62 @@ function InstrumentosPage() {
                 <TableHead>Categoria</TableHead>
                 <TableHead>Versão</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
+                <TableHead>Campos</TableHead>
+                <TableHead className="w-[80px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {instrumentos.map((inst) => (
-                <TableRow key={inst.id}>
-                  <TableCell className="font-mono text-xs">{inst.codigo}</TableCell>
-                  <TableCell className="font-medium">{inst.nome}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{inst.categoria}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                      v{inst.versao}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
-                      inst.status === "ativo"
-                        ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
-                        : "bg-muted text-muted-foreground border-border"
-                    }`}>
-                      {inst.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{formatDate(inst.created_at)}</TableCell>
-                </TableRow>
-              ))}
+              {instrumentos.map((inst) => {
+                const numCampos = Array.isArray(inst.campos) ? inst.campos.length : 0;
+                return (
+                  <TableRow key={inst.id}>
+                    <TableCell className="font-mono text-xs">{inst.codigo}</TableCell>
+                    <TableCell className="font-medium">{inst.nome}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{inst.categoria}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                        v{inst.versao}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+                          inst.status === "ativo"
+                            ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
+                        {inst.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {numCampos} {numCampos === 1 ? "campo" : "campos"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setViewingInstrumento(inst)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Ver campos
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       )}
 
-      <div className="rounded-xl border border-dashed bg-card p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          O catálogo completo de instrumentos de avaliação neurológica estará disponível em breve.
-          Cada instrumento inclui campos personalizados, versão e histórico de aplicações por paciente.
-        </p>
-      </div>
+      <CamposDialog
+        instrumento={viewingInstrumento}
+        onClose={() => setViewingInstrumento(null)}
+      />
     </div>
   );
 }
