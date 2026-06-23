@@ -32,8 +32,8 @@ export async function fetchKpis(): Promise<DashboardKpis> {
       .from("notas_fiscais")
       .select("*", { count: "exact", head: true })
       .eq("status", "emitida")
-      .gte("emitida_em", new Date(ano, now.getMonth(), 1).toISOString())
-      .lt("emitida_em", new Date(ano, now.getMonth() + 1, 1).toISOString()),
+      .gte("emissao", `${ano}-${String(mes).padStart(2, "0")}-01`)
+      .lt("emissao", `${String(mes === 12 ? ano + 1 : ano)}-${String(mes === 12 ? 1 : mes + 1).padStart(2, "0")}-01`),
   ]);
 
   if (cobResult.error) throw cobResult.error;
