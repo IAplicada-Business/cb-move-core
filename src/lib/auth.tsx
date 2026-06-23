@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function loadRoles(userId: string) {
     const { data, error } = await supabase
-      .from("user_roles" as never)
+      .from("user_roles")
       .select("role")
       .eq("user_id", userId);
     if (error) {
