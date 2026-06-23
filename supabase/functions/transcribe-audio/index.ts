@@ -6,21 +6,37 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const SYSTEM_PROMPT = `Você é um assistente clínico especializado em fisioterapia neurológica.
+Recebe uma transcrição bruta de evolução clínica ditada pelo fisioterapeuta e deve estruturá-la no formato SOAP.
+
+Retorne APENAS um objeto JSON válido com exatamente estas chaves:
+{
+  "subjetivo": "queixa principal, relato do paciente, sensações, humor",
+  "objetivo": "achados clínicos, escalas aplicadas, medidas, observações diretas do fisio",
+  "plano": "condutas realizadas, exercícios, metas para próxima sessão"
+}
+
+Se a transcrição não tiver conteúdo claro para um campo, deixe a string vazia.
+Não inclua mais nenhuma chave ou texto fora do JSON.`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
-    const formData = await req.formData();
-    const audioFile = formData.get("audio") as File | null;
-    if (!audioFile) throw new Error("Campo 'audio' ausente");
+    const body = await req.json();
+    const transcricao_raw: string = body.transcricao_raw ?? "";
 
-    // Sem credencial → retorna mock estruturado
-    if (!OPENAI_API_KEY) {
+    if (!transcricao_raw.trim()) {
+      throw new Error("Campo 'transcricao_raw' ausente ou vazio");
+    }
+
+    // Sem credencial → devolve transcrição bruta sem estruturação S/O/P
+    if (!ANTHROPIC_API_KEY) {
       return new Response(
         JSON.stringify({
-          transcricao_raw: "[placeholder — aguardando credencial OpenAI]",
+          transcricao_raw,
           subjetivo: "",
           objetivo: "",
           plano: "",
@@ -29,58 +45,56 @@ serve(async (req) => {
       );
     }
 
-    // Transcrição via Whisper
-    const whisperForm = new FormData();
-    whisperForm.append("file", audioFile, "audio.webm");
-    whisperForm.append("model", "whisper-1");
-    whisperForm.append("language", "pt");
-
-    const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: whisperForm,
-    });
-    if (!whisperRes.ok) throw new Error(`Whisper error: ${await whisperRes.text()}`);
-    const { text: transcricao_raw } = await whisperRes.json();
-
-    // Estruturação S/O/P via GPT-4o-mini
-    const chatRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Estruturação S/O/P via Claude Haiku
+    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        response_format: { type: "json_object" },
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
         messages: [
           {
-            role: "system",
-            content: `Você é um assistente clínico de fisioterapia neurológica.
-Estruture a transcrição de evolução clínica no formato SOAP em JSON.
-Retorne: {"subjetivo": "...", "objetivo": "...", "plano": "..."}
-- Subjetivo: queixa do paciente, relato, sensações
-- Objetivo: achados clínicos, escalas, medidas, observações do fisio
-- Plano: condutas realizadas, exercícios, objetivos próxima sessão`,
+            role: "user",
+            content: `Transcrição da evolução:\n\n${transcricao_raw}`,
           },
-          { role: "user", content: transcricao_raw },
         ],
+        system: SYSTEM_PROMPT,
       }),
     });
-    if (!chatRes.ok) throw new Error(`GPT error: ${await chatRes.text()}`);
-    const chatData = await chatRes.json();
-    const soap = JSON.parse(chatData.choices[0].message.content);
 
-    // Registra uso de IA (ignora erro se tabela não existir)
+    if (!anthropicRes.ok) {
+      const err = await anthropicRes.text();
+      throw new Error(`Anthropic error: ${err}`);
+    }
+
+    const anthropicData = await anthropicRes.json();
+    const rawContent = anthropicData.content?.[0]?.text ?? "{}";
+
+    let soap = { subjetivo: "", objetivo: "", plano: "" };
+    try {
+      soap = JSON.parse(rawContent);
+    } catch {
+      // Se Claude não retornou JSON puro, coloca tudo no subjetivo
+      soap.subjetivo = rawContent;
+    }
+
+    // Registra uso (custo Haiku: $0.25/MTok input, $1.25/MTok output)
     try {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       await supabase.from("creditos_ia_uso").insert({
-        tipo: "transcricao_audio",
-        tokens_entrada: chatData.usage?.prompt_tokens ?? 0,
-        tokens_saida: chatData.usage?.completion_tokens ?? 0,
+        tipo: "estruturacao_soap",
+        tokens_entrada: anthropicData.usage?.input_tokens ?? 0,
+        tokens_saida: anthropicData.usage?.output_tokens ?? 0,
+        custo_estimado_usd:
+          ((anthropicData.usage?.input_tokens ?? 0) * 0.00000025) +
+          ((anthropicData.usage?.output_tokens ?? 0) * 0.00000125),
       });
     } catch { /* silencia */ }
 
