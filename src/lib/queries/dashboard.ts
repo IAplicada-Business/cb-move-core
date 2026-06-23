@@ -40,7 +40,7 @@ export async function fetchKpis(): Promise<DashboardKpis> {
 
   const cobs = cobResult.data ?? [];
   const receitaMes = cobs
-    .filter((c) => c.status === "pago" && c.pago_em >= inicioMes && c.pago_em <= fimMes)
+    .filter((c) => c.status === "pago" && c.pago_em != null && c.pago_em >= inicioMes && c.pago_em <= fimMes)
     .reduce((s, c) => s + Number(c.valor), 0);
 
   const aReceber = cobs
