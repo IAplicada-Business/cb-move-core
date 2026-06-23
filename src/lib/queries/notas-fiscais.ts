@@ -4,7 +4,7 @@ export async function countNotasMonth(year: number, month: number): Promise<numb
   const start = new Date(year, month, 1).toISOString();
   const end = new Date(year, month + 1, 1).toISOString();
   const { count, error } = await supabase
-    .from("notas_fiscais" as never)
+    .from("notas_fiscais")
     .select("*", { count: "exact", head: true })
     .eq("status", "emitida")
     .gte("emitida_em", start)

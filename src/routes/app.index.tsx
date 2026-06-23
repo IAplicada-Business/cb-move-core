@@ -9,10 +9,9 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
-import { fetchAllCobrancas, fetchRecentCobrancas } from "@/lib/queries/cobrancas";
-import { countNotasMonth } from "@/lib/queries/notas-fiscais";
+import { fetchRecentCobrancas } from "@/lib/queries/cobrancas";
+import { fetchKpis, fetchReceitaMensal } from "@/lib/queries/dashboard";
 import { queryKeys } from "@/lib/queries";
-import { agregarPorMes, calcularKpis } from "@/lib/domain/faturamento";
 import { brl, formatDate } from "@/lib/format";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -25,16 +24,24 @@ export const Route = createFileRoute("/app/")({
 
 function Dashboard() {
   const now = new Date();
-  const all = useQuery({ queryKey: queryKeys.cobrancas.all, queryFn: fetchAllCobrancas });
-  const recent = useQuery({ queryKey: queryKeys.cobrancas.recent(10), queryFn: () => fetchRecentCobrancas(10) });
-  const nfCount = useQuery({
-    queryKey: queryKeys.notasFiscais.monthCount(now.getFullYear(), now.getMonth()),
-    queryFn: () => countNotasMonth(now.getFullYear(), now.getMonth()),
+  const ano = now.getFullYear();
+
+  const kpis = useQuery({
+    queryKey: queryKeys.dashboard.kpis(ano, now.getMonth() + 1),
+    queryFn: fetchKpis,
   });
 
-  const kpis = calcularKpis(all.data ?? []);
-  const chartData = agregarPorMes(all.data ?? [], 6);
-  const hasChartData = chartData.some((d) => d.total > 0);
+  const receita = useQuery({
+    queryKey: queryKeys.dashboard.receitaMensal(ano, ano),
+    queryFn: () => fetchReceitaMensal(ano, ano),
+  });
+
+  const recent = useQuery({
+    queryKey: queryKeys.cobrancas.recent(10),
+    queryFn: () => fetchRecentCobrancas(10),
+  });
+
+  const hasChartData = (receita.data ?? []).some((d) => d.total > 0);
 
   return (
     <div className="space-y-6">
@@ -44,25 +51,52 @@ function Dashboard() {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Receita do mês" value={brl(kpis.receita)} accent="cyan" icon={<DollarSign className="h-4 w-4 text-cb-cyan-600" />} />
-        <KpiCard label="A receber" value={brl(kpis.aReceber)} accent="orange" icon={<Clock className="h-4 w-4 text-cb-orange" />} />
-        <KpiCard label="Inadimplência" value={brl(kpis.inadimplencia)} accent="magenta" icon={<AlertTriangle className="h-4 w-4 text-cb-magenta" />} />
-        <KpiCard label="NFs emitidas" value={nfCount.data ?? 0} accent="lime" icon={<FileCheck2 className="h-4 w-4" style={{ color: "var(--cb-lime)" }} />} />
+        <KpiCard
+          label="Receita do mês"
+          value={brl(kpis.data?.receitaMes ?? 0)}
+          accent="cyan"
+          icon={<DollarSign className="h-4 w-4 text-cb-cyan-600" />}
+        />
+        <KpiCard
+          label="A receber"
+          value={brl(kpis.data?.aReceber ?? 0)}
+          accent="orange"
+          icon={<Clock className="h-4 w-4 text-cb-orange" />}
+        />
+        <KpiCard
+          label="Inadimplência"
+          value={brl(kpis.data?.inadimplencia ?? 0)}
+          accent="magenta"
+          icon={<AlertTriangle className="h-4 w-4 text-cb-magenta" />}
+        />
+        <KpiCard
+          label="NFs emitidas"
+          value={kpis.data?.nfsEmitidas ?? 0}
+          accent="lime"
+          icon={<FileCheck2 className="h-4 w-4" style={{ color: "var(--cb-lime)" }} />}
+        />
       </div>
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold text-foreground">Receita por mês × tipo</h2>
-        {all.isLoading ? (
+        {receita.isLoading ? (
           <LoadingState />
         ) : !hasChartData ? (
-          <EmptyState title="Sem faturamento" description="Quando houver cobranças, o gráfico aparece aqui." />
+          <EmptyState
+            title="Sem faturamento"
+            description="Quando houver cobranças, o gráfico aparece aqui."
+          />
         ) : (
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart data={receita.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--cb-line)" />
                 <XAxis dataKey="mes" stroke="var(--cb-muted)" fontSize={12} />
-                <YAxis stroke="var(--cb-muted)" fontSize={12} tickFormatter={(v) => brl(v).replace("R$", "")} />
+                <YAxis
+                  stroke="var(--cb-muted)"
+                  fontSize={12}
+                  tickFormatter={(v) => brl(v).replace("R$ ", "")}
+                />
                 <Tooltip formatter={(v: number) => brl(v)} />
                 <Legend />
                 <Bar dataKey="particular" stackId="a" fill="var(--cb-cyan-600)" name="Particular" />
@@ -83,7 +117,10 @@ function Dashboard() {
           <div className="p-5"><LoadingState /></div>
         ) : (recent.data ?? []).length === 0 ? (
           <div className="p-5">
-            <EmptyState title="Sem cobranças" description="Crie a primeira cobrança em Financeiro › Cobranças." />
+            <EmptyState
+              title="Sem cobranças"
+              description="Crie a primeira cobrança em Financeiro › Cobranças."
+            />
           </div>
         ) : (
           <Table>

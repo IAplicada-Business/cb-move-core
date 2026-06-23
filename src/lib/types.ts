@@ -1,4 +1,17 @@
 export type AppRole = "admin" | "gestao" | "recepcao" | "fisio";
 export type PacienteTipo = "particular" | "judicial" | "convenio" | "puc";
-export type CobrancaStatus = "pendente" | "pago" | "atrasado" | "cancelado";
-export type NfStatus = "pendente" | "emitida" | "cancelada";
+export type RegimeCobranca = "mensalista" | "por_sessao";
+export type FormaPagamento = "boleto" | "deposito" | "transferencia" | "alvara_judicial" | "convenio_direto";
+export type CobrancaStatus =
+  | "pendente"
+  | "pago"
+  | "atrasado"
+  | "cancelado"
+  | "vencido"
+  | "aguardando_convenio"
+  | "aguardando_alvara"
+  | "regularizar_retroativa";
+export type NfStatus = "pendente" | "emitida" | "cancelada" | "erro" | "regularizada_retroativa";
+export type StatusAgendamento = "agendado" | "confirmado" | "realizado" | "faltou" | "cancelado";
+export type FrequenciaSigla = "P" | "F" | "FJ" | "NJ" | "RC" | "NR";
+export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint";
