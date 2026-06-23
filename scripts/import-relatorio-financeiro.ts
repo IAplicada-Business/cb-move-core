@@ -53,26 +53,38 @@ function parseDatasRetroativas(
   anoAtual: number,
 ): Array<{ mes: number; ano: number }> {
   const found: Array<{ mes: number; ano: number }> = [];
-  // "falta 022026 e 032026", "022026", "02/2026", "02/26"
-  const patterns = [
-    /\b(0?[1-9]|1[0-2])\/?(\d{4})\b/g,   // MM/YYYY ou MMYYYY
-    /\b(0?[1-9]|1[0-2])\/(\d{2})\b/g,    // MM/YY
+  const dedup = (mes: number, ano: number) => {
+    if (ano > anoAtual || (ano === anoAtual && mes >= mesAtual)) return;
+    if (ano < 2020 || ano > 2030) return;
+    if (!found.some(f => f.mes === mes && f.ano === ano)) found.push({ mes, ano });
+  };
+
+  // padrão numérico: "022026", "02/2026", "02/26"
+  const patsNum = [
+    /\b(0?[1-9]|1[0-2])\/?(\d{4})\b/g,
+    /\b(0?[1-9]|1[0-2])\/(\d{2})\b/g,
   ];
-  for (const pat of patterns) {
+  for (const pat of patsNum) {
     let m: RegExpExecArray | null;
     while ((m = pat.exec(sit)) !== null) {
-      const mes = parseInt(m[1]);
       const anoRaw = parseInt(m[2]);
-      const ano = anoRaw < 100 ? 2000 + anoRaw : anoRaw;
-      // só aceita datas passadas (não o mês atual)
-      if (ano > anoAtual || (ano === anoAtual && mes >= mesAtual)) continue;
-      if (ano < 2020 || ano > 2030) continue;
-      // dedup
-      if (!found.some(f => f.mes === mes && f.ano === ano)) {
-        found.push({ mes, ano });
-      }
+      dedup(parseInt(m[1]), anoRaw < 100 ? 2000 + anoRaw : anoRaw);
     }
   }
+
+  // padrão por extenso PT-BR: "dezembro 2025", "referente a novembro 2025"
+  const MESES_PT: Record<string, number> = {
+    janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6,
+    julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12,
+  };
+  const patExtenso = /\b(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(\d{4})\b/gi;
+  let mx: RegExpExecArray | null;
+  while ((mx = patExtenso.exec(sit)) !== null) {
+    const key = mx[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ ]/g, '');
+    const mesNum = MESES_PT[key === 'marco' ? 'marco' : key];
+    if (mesNum) dedup(mesNum, parseInt(mx[2]));
+  }
+
   return found;
 }
 
