@@ -13,6 +13,21 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppUsuariosRouteImport } from './routes/app.usuarios'
+import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
+import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
+import { Route as AppNotasFiscaisRouteImport } from './routes/app.notas-fiscais'
+import { Route as AppFrequenciaRouteImport } from './routes/app.frequencia'
+import { Route as AppFisiosRouteImport } from './routes/app.fisios'
+import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
+import { Route as AppCobrancasRouteImport } from './routes/app.cobrancas'
+import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
+import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
+import { Route as AppConfiguracoesIntegracoesRouteImport } from './routes/app.configuracoes.integracoes'
+import { Route as AppConfiguracoesInstrumentosRouteImport } from './routes/app.configuracoes.instrumentos'
+import { Route as AppConfiguracoesConveniosRouteImport } from './routes/app.configuracoes.convenios'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -34,31 +49,210 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppUsuariosRoute = AppUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProntuarioRoute = AppProntuarioRouteImport.update({
+  id: '/prontuario',
+  path: '/prontuario',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPacientesRoute = AppPacientesRouteImport.update({
+  id: '/pacientes',
+  path: '/pacientes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotasFiscaisRoute = AppNotasFiscaisRouteImport.update({
+  id: '/notas-fiscais',
+  path: '/notas-fiscais',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFrequenciaRoute = AppFrequenciaRouteImport.update({
+  id: '/frequencia',
+  path: '/frequencia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFisiosRoute = AppFisiosRouteImport.update({
+  id: '/fisios',
+  path: '/fisios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCobrancasRoute = AppCobrancasRouteImport.update({
+  id: '/cobrancas',
+  path: '/cobrancas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgendaRoute = AppAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppConfiguracoesRoute,
+} as any)
+const AppConfiguracoesTemplatesRoute =
+  AppConfiguracoesTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppConfiguracoesIntegracoesRoute =
+  AppConfiguracoesIntegracoesRouteImport.update({
+    id: '/integracoes',
+    path: '/integracoes',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppConfiguracoesInstrumentosRoute =
+  AppConfiguracoesInstrumentosRouteImport.update({
+    id: '/instrumentos',
+    path: '/instrumentos',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppConfiguracoesConveniosRoute =
+  AppConfiguracoesConveniosRouteImport.update({
+    id: '/convenios',
+    path: '/convenios',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/agenda': typeof AppAgendaRoute
+  '/app/cobrancas': typeof AppCobrancasRoute
+  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/fisios': typeof AppFisiosRoute
+  '/app/frequencia': typeof AppFrequenciaRoute
+  '/app/notas-fiscais': typeof AppNotasFiscaisRoute
+  '/app/pacientes': typeof AppPacientesRoute
+  '/app/prontuario': typeof AppProntuarioRoute
+  '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/usuarios': typeof AppUsuariosRoute
   '/app/': typeof AppIndexRoute
+  '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
+  '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
+  '/app/configuracoes/integracoes': typeof AppConfiguracoesIntegracoesRoute
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
+  '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/app/agenda': typeof AppAgendaRoute
+  '/app/cobrancas': typeof AppCobrancasRoute
+  '/app/fisios': typeof AppFisiosRoute
+  '/app/frequencia': typeof AppFrequenciaRoute
+  '/app/notas-fiscais': typeof AppNotasFiscaisRoute
+  '/app/pacientes': typeof AppPacientesRoute
+  '/app/prontuario': typeof AppProntuarioRoute
+  '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/usuarios': typeof AppUsuariosRoute
   '/app': typeof AppIndexRoute
+  '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
+  '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
+  '/app/configuracoes/integracoes': typeof AppConfiguracoesIntegracoesRoute
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
+  '/app/configuracoes': typeof AppConfiguracoesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/app/agenda': typeof AppAgendaRoute
+  '/app/cobrancas': typeof AppCobrancasRoute
+  '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/fisios': typeof AppFisiosRoute
+  '/app/frequencia': typeof AppFrequenciaRoute
+  '/app/notas-fiscais': typeof AppNotasFiscaisRoute
+  '/app/pacientes': typeof AppPacientesRoute
+  '/app/prontuario': typeof AppProntuarioRoute
+  '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/usuarios': typeof AppUsuariosRoute
   '/app/': typeof AppIndexRoute
+  '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
+  '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
+  '/app/configuracoes/integracoes': typeof AppConfiguracoesIntegracoesRoute
+  '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
+  '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/login' | '/app/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/agenda'
+    | '/app/cobrancas'
+    | '/app/configuracoes'
+    | '/app/fisios'
+    | '/app/frequencia'
+    | '/app/notas-fiscais'
+    | '/app/pacientes'
+    | '/app/prontuario'
+    | '/app/relatorios'
+    | '/app/usuarios'
+    | '/app/'
+    | '/app/configuracoes/convenios'
+    | '/app/configuracoes/instrumentos'
+    | '/app/configuracoes/integracoes'
+    | '/app/configuracoes/templates'
+    | '/app/configuracoes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/app'
-  id: '__root__' | '/' | '/app' | '/login' | '/app/'
+  to:
+    | '/'
+    | '/login'
+    | '/app/agenda'
+    | '/app/cobrancas'
+    | '/app/fisios'
+    | '/app/frequencia'
+    | '/app/notas-fiscais'
+    | '/app/pacientes'
+    | '/app/prontuario'
+    | '/app/relatorios'
+    | '/app/usuarios'
+    | '/app'
+    | '/app/configuracoes/convenios'
+    | '/app/configuracoes/instrumentos'
+    | '/app/configuracoes/integracoes'
+    | '/app/configuracoes/templates'
+    | '/app/configuracoes'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/app/agenda'
+    | '/app/cobrancas'
+    | '/app/configuracoes'
+    | '/app/fisios'
+    | '/app/frequencia'
+    | '/app/notas-fiscais'
+    | '/app/pacientes'
+    | '/app/prontuario'
+    | '/app/relatorios'
+    | '/app/usuarios'
+    | '/app/'
+    | '/app/configuracoes/convenios'
+    | '/app/configuracoes/instrumentos'
+    | '/app/configuracoes/integracoes'
+    | '/app/configuracoes/templates'
+    | '/app/configuracoes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -97,14 +291,158 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/usuarios': {
+      id: '/app/usuarios'
+      path: '/usuarios'
+      fullPath: '/app/usuarios'
+      preLoaderRoute: typeof AppUsuariosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/relatorios': {
+      id: '/app/relatorios'
+      path: '/relatorios'
+      fullPath: '/app/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prontuario': {
+      id: '/app/prontuario'
+      path: '/prontuario'
+      fullPath: '/app/prontuario'
+      preLoaderRoute: typeof AppProntuarioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/pacientes': {
+      id: '/app/pacientes'
+      path: '/pacientes'
+      fullPath: '/app/pacientes'
+      preLoaderRoute: typeof AppPacientesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/notas-fiscais': {
+      id: '/app/notas-fiscais'
+      path: '/notas-fiscais'
+      fullPath: '/app/notas-fiscais'
+      preLoaderRoute: typeof AppNotasFiscaisRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/frequencia': {
+      id: '/app/frequencia'
+      path: '/frequencia'
+      fullPath: '/app/frequencia'
+      preLoaderRoute: typeof AppFrequenciaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/fisios': {
+      id: '/app/fisios'
+      path: '/fisios'
+      fullPath: '/app/fisios'
+      preLoaderRoute: typeof AppFisiosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/configuracoes': {
+      id: '/app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/app/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/cobrancas': {
+      id: '/app/cobrancas'
+      path: '/cobrancas'
+      fullPath: '/app/cobrancas'
+      preLoaderRoute: typeof AppCobrancasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/agenda': {
+      id: '/app/agenda'
+      path: '/agenda'
+      fullPath: '/app/agenda'
+      preLoaderRoute: typeof AppAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/configuracoes/': {
+      id: '/app/configuracoes/'
+      path: '/'
+      fullPath: '/app/configuracoes/'
+      preLoaderRoute: typeof AppConfiguracoesIndexRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/templates': {
+      id: '/app/configuracoes/templates'
+      path: '/templates'
+      fullPath: '/app/configuracoes/templates'
+      preLoaderRoute: typeof AppConfiguracoesTemplatesRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/integracoes': {
+      id: '/app/configuracoes/integracoes'
+      path: '/integracoes'
+      fullPath: '/app/configuracoes/integracoes'
+      preLoaderRoute: typeof AppConfiguracoesIntegracoesRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/instrumentos': {
+      id: '/app/configuracoes/instrumentos'
+      path: '/instrumentos'
+      fullPath: '/app/configuracoes/instrumentos'
+      preLoaderRoute: typeof AppConfiguracoesInstrumentosRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/convenios': {
+      id: '/app/configuracoes/convenios'
+      path: '/convenios'
+      fullPath: '/app/configuracoes/convenios'
+      preLoaderRoute: typeof AppConfiguracoesConveniosRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
   }
 }
 
+interface AppConfiguracoesRouteChildren {
+  AppConfiguracoesConveniosRoute: typeof AppConfiguracoesConveniosRoute
+  AppConfiguracoesInstrumentosRoute: typeof AppConfiguracoesInstrumentosRoute
+  AppConfiguracoesIntegracoesRoute: typeof AppConfiguracoesIntegracoesRoute
+  AppConfiguracoesTemplatesRoute: typeof AppConfiguracoesTemplatesRoute
+  AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
+}
+
+const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
+  AppConfiguracoesConveniosRoute: AppConfiguracoesConveniosRoute,
+  AppConfiguracoesInstrumentosRoute: AppConfiguracoesInstrumentosRoute,
+  AppConfiguracoesIntegracoesRoute: AppConfiguracoesIntegracoesRoute,
+  AppConfiguracoesTemplatesRoute: AppConfiguracoesTemplatesRoute,
+  AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
+}
+
+const AppConfiguracoesRouteWithChildren =
+  AppConfiguracoesRoute._addFileChildren(AppConfiguracoesRouteChildren)
+
 interface AppRouteChildren {
+  AppAgendaRoute: typeof AppAgendaRoute
+  AppCobrancasRoute: typeof AppCobrancasRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
+  AppFisiosRoute: typeof AppFisiosRoute
+  AppFrequenciaRoute: typeof AppFrequenciaRoute
+  AppNotasFiscaisRoute: typeof AppNotasFiscaisRoute
+  AppPacientesRoute: typeof AppPacientesRoute
+  AppProntuarioRoute: typeof AppProntuarioRoute
+  AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppUsuariosRoute: typeof AppUsuariosRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAgendaRoute: AppAgendaRoute,
+  AppCobrancasRoute: AppCobrancasRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
+  AppFisiosRoute: AppFisiosRoute,
+  AppFrequenciaRoute: AppFrequenciaRoute,
+  AppNotasFiscaisRoute: AppNotasFiscaisRoute,
+  AppPacientesRoute: AppPacientesRoute,
+  AppProntuarioRoute: AppProntuarioRoute,
+  AppRelatoriosRoute: AppRelatoriosRoute,
+  AppUsuariosRoute: AppUsuariosRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -118,3 +456,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
