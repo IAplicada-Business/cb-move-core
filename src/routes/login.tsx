@@ -13,11 +13,10 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn, signUp, session } = useAuth();
+  const { signIn, session } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = React.useState<"signin" | "signup">("signin");
   const [loading, setLoading] = React.useState(false);
-  const [form, setForm] = React.useState({ email: "", password: "", fullName: "" });
+  const [form, setForm] = React.useState({ email: "", password: "" });
 
   React.useEffect(() => {
     if (session) navigate({ to: "/app" });
@@ -27,16 +26,10 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "signin") {
-        await signIn(form.email, form.password);
-        toast.success("Bem-vindo de volta");
-        navigate({ to: "/app" });
-      } else {
-        await signUp(form.email, form.password, form.fullName);
-        toast.success("Conta criada. Verifique seu e-mail se necessário.");
-      }
+      await signIn(form.email, form.password);
+      navigate({ to: "/app" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro inesperado";
+      const msg = err instanceof Error ? err.message : "Credenciais inválidas";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -48,7 +41,7 @@ function LoginPage() {
       <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="cb-rainbow-strip h-[3px]" />
         <div className="p-8">
-          <div className="mb-6 flex items-center gap-3">
+          <div className="mb-8 flex items-center gap-3">
             <div className="cb-pin-halo grid h-12 w-12 place-items-center rounded-full p-[2px]">
               <div className="grid h-full w-full place-items-center rounded-full bg-white text-cb-cyan-600">
                 <span className="text-2xl font-bold leading-none">∞</span>
@@ -60,37 +53,7 @@ function LoginPage() {
             </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 rounded-md border bg-muted p-0.5 text-sm">
-            {[
-              { id: "signin", label: "Entrar" },
-              { id: "signup", label: "Criar conta" },
-            ].map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setMode(t.id as "signin" | "signup")}
-                className={cn(
-                  "rounded-[5px] py-1.5 font-medium transition-colors",
-                  mode === t.id ? "bg-card text-cb-cyan-900 shadow-sm" : "text-muted-foreground",
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
           <form onSubmit={onSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="fullName">Nome completo</Label>
-                <Input
-                  id="fullName"
-                  value={form.fullName}
-                  onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-                  required
-                />
-              </div>
-            )}
             <div className="space-y-1.5">
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -107,7 +70,7 @@ function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                autoComplete="current-password"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 required
@@ -115,9 +78,13 @@ function LoginPage() {
               />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Aguarde…" : mode === "signin" ? "Entrar" : "Criar conta"}
+              {loading ? "Aguarde…" : "Entrar"}
             </Button>
           </form>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Acesso restrito a usuários cadastrados pela administração.
+          </p>
         </div>
       </div>
     </div>
