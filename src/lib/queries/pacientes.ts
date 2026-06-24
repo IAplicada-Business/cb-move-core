@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { FormaPagamento, PacienteTipo, RegimeCobranca } from "../types";
+import type { FormaPagamento, ModeloRelatorio, PacienteTipo, RegimeCobranca } from "../types";
 
 export type Paciente = {
   id: string;
@@ -9,9 +9,11 @@ export type Paciente = {
   email: string | null;
   tipo: PacienteTipo;
   regimeCobranca: RegimeCobranca;
+  modeloRelatorio: ModeloRelatorio | null;
   valorMensal: number | null;
   valorSessao: number | null;
   convenioId: string | null;
+  convenioNome: string | null;
   fisioterapeutaId: string | null;
   numeroProcesso: string | null;
   advogadoNome: string | null;
@@ -30,6 +32,7 @@ type Row = {
   email: string | null;
   tipo: PacienteTipo;
   regime_cobranca: RegimeCobranca;
+  modelo_relatorio_preferido: ModeloRelatorio | null;
   valor_mensal: number | null;
   valor_sessao: number | null;
   convenio_id: string | null;
@@ -41,6 +44,7 @@ type Row = {
   ativo: boolean;
   observacoes: string | null;
   created_at: string;
+  convenios?: { nome: string } | null;
 };
 
 const map = (r: Row): Paciente => ({
@@ -51,9 +55,11 @@ const map = (r: Row): Paciente => ({
   email: r.email,
   tipo: r.tipo,
   regimeCobranca: r.regime_cobranca,
+  modeloRelatorio: r.modelo_relatorio_preferido,
   valorMensal: r.valor_mensal,
   valorSessao: r.valor_sessao,
   convenioId: r.convenio_id,
+  convenioNome: r.convenios?.nome ?? null,
   fisioterapeutaId: r.fisioterapeuta_id,
   numeroProcesso: r.numero_processo,
   advogadoNome: r.advogado_nome,
@@ -72,7 +78,7 @@ export async function fetchPacientes(filters?: {
 }): Promise<Paciente[]> {
   let query = supabase
     .from("pacientes")
-    .select("*")
+    .select("*, convenios(nome)")
     .order("nome", { ascending: true });
 
   if (filters?.tipo) query = query.eq("tipo", filters.tipo);
@@ -92,15 +98,16 @@ export async function fetchPacientes(filters?: {
 export async function fetchPaciente(id: string): Promise<Paciente | null> {
   const { data, error } = await supabase
     .from("pacientes")
-    .select("*")
+    .select("*, convenios(nome)")
     .eq("id", id)
     .single();
   if (error) throw error;
   return data ? map(data as unknown as Row) : null;
 }
 
-export async function createPaciente(input: Omit<Paciente, "id" | "createdAt">): Promise<Paciente> {
-  const { data, error } = await supabase
+export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | "convenioNome">): Promise<Paciente> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from("pacientes")
     .insert({
       nome: input.nome,
@@ -109,6 +116,7 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt">):
       email: input.email,
       tipo: input.tipo,
       regime_cobranca: input.regimeCobranca,
+      modelo_relatorio_preferido: input.modeloRelatorio ?? null,
       valor_mensal: input.valorMensal,
       valor_sessao: input.valorSessao,
       convenio_id: input.convenioId,
@@ -116,18 +124,22 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt">):
       numero_processo: input.numeroProcesso,
       advogado_nome: input.advogadoNome,
       advogado_email: input.advogadoEmail,
-      forma_pagamento_preferida: input.formaPagamentoPreferida,
+      forma_pagamento_preferida: input.formaPagamentoPreferida ?? null,
       ativo: input.ativo,
       observacoes: input.observacoes,
     })
-    .select("*")
+    .select("*, convenios(nome)")
     .single();
   if (error) throw error;
   return map(data as unknown as Row);
 }
 
-export async function updatePaciente(id: string, input: Partial<Omit<Paciente, "id" | "createdAt">>): Promise<void> {
-  const { error } = await supabase
+export async function updatePaciente(
+  id: string,
+  input: Partial<Omit<Paciente, "id" | "createdAt" | "convenioNome">>
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from("pacientes")
     .update({
       nome: input.nome,
@@ -136,6 +148,7 @@ export async function updatePaciente(id: string, input: Partial<Omit<Paciente, "
       email: input.email,
       tipo: input.tipo,
       regime_cobranca: input.regimeCobranca,
+      modelo_relatorio_preferido: input.modeloRelatorio ?? null,
       valor_mensal: input.valorMensal,
       valor_sessao: input.valorSessao,
       convenio_id: input.convenioId,
@@ -143,7 +156,7 @@ export async function updatePaciente(id: string, input: Partial<Omit<Paciente, "
       numero_processo: input.numeroProcesso,
       advogado_nome: input.advogadoNome,
       advogado_email: input.advogadoEmail,
-      forma_pagamento_preferida: input.formaPagamentoPreferida,
+      forma_pagamento_preferida: input.formaPagamentoPreferida ?? null,
       ativo: input.ativo,
       observacoes: input.observacoes,
     })

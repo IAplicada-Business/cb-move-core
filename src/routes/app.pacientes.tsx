@@ -12,14 +12,13 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
-import { formatCPF, formatPhone } from "@/lib/format";
+import { formatPhone } from "@/lib/format";
 import { fetchPacientes, createPaciente, updatePaciente, type Paciente } from "@/lib/queries/pacientes";
 import { supabase } from "@/integrations/supabase/client";
-import type { PacienteTipo, ModeloRelatorio, RegimeCobranca, FormaPagamento } from "@/lib/types";
+import type { PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -45,7 +44,6 @@ export const Route = createFileRoute("/app/pacientes")({
 const schema = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
   cpf: z.string().nullable().optional(),
-  data_nascimento: z.string().nullable().optional(),
   telefone: z.string().nullable().optional(),
   email: z.string().email("E-mail inválido").nullable().optional().or(z.literal("")),
   tipo: z.enum(["particular", "judicial", "convenio", "puc"] as const),
@@ -64,23 +62,10 @@ type FormValues = z.infer<typeof schema>;
 function maskCPF(cpf: string | null | undefined) {
   if (!cpf) return "—";
   const v = cpf.replace(/\D/g, "").padStart(11, "0").slice(0, 11);
-  // show only last 6 digits: ***.***.XXX-XX
   const part3 = v.slice(6, 9);
   const part4 = v.slice(9, 11);
   return `***.***.${part3}-${part4}`;
 }
-
-function modeloLabel(m: string | null | undefined) {
-  if (!m) return null;
-  const map: Record<string, string> = {
-    convencional: "Convencional",
-    unimed: "Unimed",
-    sharepoint: "SharePoint",
-  };
-  return map[m] ?? m;
-}
-
-// ─── queries helpers ────────────────────────────────────────────────────────
 
 async function fetchConvenios() {
   const { data, error } = await supabase.from("convenios").select("id, nome").eq("ativo", true).order("nome");
@@ -94,7 +79,6 @@ function PacientesPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState<PacienteTipo | "todos">("todos");
-  const [filterModelo, setFilterModelo] = useState<string>("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Paciente | null>(null);
 
@@ -140,6 +124,7 @@ function PacientesPage() {
         email: vals.email || null,
         tipo: vals.tipo,
         regimeCobranca: vals.regimeCobranca,
+        modeloRelatorio: vals.modeloRelatorio ?? null,
         convenioId: vals.convenioId || null,
         numeroProcesso: vals.numeroProcesso || null,
         observacoes: vals.observacoes || null,
@@ -192,7 +177,7 @@ function PacientesPage() {
       email: p.email ?? "",
       tipo: p.tipo,
       regimeCobranca: p.regimeCobranca,
-      modeloRelatorio: null,
+      modeloRelatorio: p.modeloRelatorio ?? null,
       convenioId: p.convenioId ?? null,
       numeroProcesso: p.numeroProcesso ?? null,
       observacoes: p.observacoes ?? "",
@@ -211,12 +196,6 @@ function PacientesPage() {
   const nParticular = pacientes.filter((p) => p.tipo === "particular").length;
   const nConvenio = pacientes.filter((p) => p.tipo === "convenio").length;
   const nJudicial = pacientes.filter((p) => p.tipo === "judicial").length;
-
-  // filtered display
-  const displayed = pacientes.filter((p) => {
-    if (filterModelo !== "todos") return false; // placeholder - no modelo field in Paciente type yet
-    return true;
-  });
 
   return (
     <div className="space-y-6">
@@ -247,7 +226,7 @@ function PacientesPage() {
           />
         </div>
         <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v as PacienteTipo | "todos")}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-44">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
@@ -263,7 +242,7 @@ function PacientesPage() {
       {/* Table */}
       {isLoading ? (
         <LoadingState />
-      ) : displayed.length === 0 ? (
+      ) : pacientes.length === 0 ? (
         <EmptyState
           title="Nenhum paciente encontrado"
           description="Crie o primeiro paciente ou ajuste os filtros."
@@ -277,23 +256,25 @@ function PacientesPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>CPF</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead>Convênio</TableHead>
-                <TableHead>Nº Processo</TableHead>
+                <TableHead>Convênio / Processo</TableHead>
                 <TableHead>Telefone</TableHead>
+                <TableHead>Modelo relatório</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayed.map((p) => (
+              {pacientes.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.nome}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{maskCPF(p.cpf)}</TableCell>
                   <TableCell><TipoBadge value={p.tipo} /></TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {p.convenioId ? <span className="text-foreground">—</span> : "—"}
+                    {p.convenioNome ?? p.numeroProcesso ?? "—"}
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{p.numeroProcesso ?? "—"}</TableCell>
                   <TableCell className="text-sm">{formatPhone(p.telefone) || "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground capitalize">
+                    {p.modeloRelatorio ?? "convencional"}
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -340,7 +321,7 @@ function PacientesPage() {
                 <FormField control={form.control} name="telefone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="(11) 99999-0000" /></FormControl>
+                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="(51) 99999-0000" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -386,7 +367,22 @@ function PacientesPage() {
                 )} />
               </div>
 
-              {(tipoWatch === "convenio") && (
+              <FormField control={form.control} name="modeloRelatorio" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Modelo de relatório</FormLabel>
+                  <Select value={field.value ?? "convencional"} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="convencional">Convencional</SelectItem>
+                      <SelectItem value="unimed">Unimed</SelectItem>
+                      <SelectItem value="sharepoint">SharePoint (judicial)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {tipoWatch === "convenio" && (
                 <FormField control={form.control} name="convenioId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Convênio</FormLabel>
