@@ -208,8 +208,16 @@ function AgendaPage() {
         servico: vals.servico || null,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.agendamentos.all });
+      qc.invalidateQueries({ queryKey: queryKeys.agendamentos.semana(inicioSemana) });
       toast.success("Agendamento criado");
+      form.reset({
+        pacienteId: "",
+        fisioId: "",
+        data: toDateStr(today),
+        horaInicio: "08:00",
+        duracao: 60,
+        servico: "",
+      });
       setModalOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -219,7 +227,7 @@ function AgendaPage() {
     mutationFn: ({ id, status }: { id: string; status: StatusAgendamento }) =>
       updateStatus(id, status),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.agendamentos.all });
+      qc.invalidateQueries({ queryKey: queryKeys.agendamentos.semana(inicioSemana) });
       toast.success("Status atualizado");
       setSelectedAgend(null);
     },
@@ -234,7 +242,7 @@ function AgendaPage() {
   // Build week days (Mon–Fri)
   const weekDays = DIAS_SEMANA.map((offset) => addDays(semanaBase, offset - 1));
 
-  // Map agendamentos to grid
+  // Map agendamentos to grid — all appointments starting within this hour
   function getAgendamentosForSlot(day: Date, hour: number): Agendamento[] {
     const dayStr = toDateStr(day);
     return filtered.filter((a) => {

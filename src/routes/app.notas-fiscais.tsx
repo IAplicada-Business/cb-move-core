@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -112,25 +112,30 @@ function ModalEmitirNF({ open, onClose }: { open: boolean; onClose: () => void }
   const pacienteSelecionado = pacientes.data?.find(p => p.id === watchPacienteId);
   const isJudicial = pacienteSelecionado?.tipo === "judicial";
 
-  // auto-preenche destinatário ao selecionar paciente
-  if (pacienteSelecionado) {
-    const curr = form.getValues();
+  // auto-preenche destinatário ao selecionar paciente (executa só quando pacienteId muda)
+  useEffect(() => {
+    if (!pacienteSelecionado) return;
     const nomeAuto = destinatarioPadraoNome(pacienteSelecionado);
-    if (!curr.destinatarioNome && nomeAuto) {
-      form.setValue("destinatarioNome", nomeAuto);
-    }
-    if (!curr.destinatarioDocumento && pacienteSelecionado.cpf && pacienteSelecionado.tipo === "particular") {
+    if (nomeAuto) form.setValue("destinatarioNome", nomeAuto);
+    if (pacienteSelecionado.cpf && pacienteSelecionado.tipo === "particular") {
       form.setValue("destinatarioDocumento", pacienteSelecionado.cpf);
+    } else {
+      form.setValue("destinatarioDocumento", "");
     }
-    if (!curr.valor && pacienteSelecionado.valorMensal) {
+    if (pacienteSelecionado.valorMensal) {
       form.setValue("valor", pacienteSelecionado.valorMensal);
     }
-    if (isJudicial && !curr.corpoPacienteNome) {
+    if (pacienteSelecionado.tipo === "judicial") {
       form.setValue("corpoPacienteNome", pacienteSelecionado.nome);
-      if (pacienteSelecionado.cpf) form.setValue("corpoPacienteCpf", pacienteSelecionado.cpf);
-      if (pacienteSelecionado.numeroProcesso) form.setValue("corpoNumeroProcesso", pacienteSelecionado.numeroProcesso);
+      form.setValue("corpoPacienteCpf", pacienteSelecionado.cpf ?? "");
+      form.setValue("corpoNumeroProcesso", pacienteSelecionado.numeroProcesso ?? "");
+    } else {
+      form.setValue("corpoPacienteNome", "");
+      form.setValue("corpoPacienteCpf", "");
+      form.setValue("corpoNumeroProcesso", "");
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchPacienteId]);
 
   const mutation = useMutation({
     mutationFn: (data: EmitirNFForm) =>
@@ -151,14 +156,18 @@ function ModalEmitirNF({ open, onClose }: { open: boolean; onClose: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
       toast.success("NF criada com sucesso");
-      form.reset();
-      onClose();
+      handleClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  function handleClose() {
+    form.reset();
+    onClose();
+  }
+
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Emitir Nota Fiscal</DialogTitle>
@@ -330,7 +339,7 @@ function ModalEmitirNF({ open, onClose }: { open: boolean; onClose: () => void }
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={handleClose}>Cancelar</Button>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? "Salvando…" : "Emitir NF"}
               </Button>

@@ -507,6 +507,12 @@ function ModalExtrato({
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [processando, setProcessando] = useState(false);
 
+  function resetExtrato() {
+    setMatches([]);
+    setSelecionados(new Set());
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -530,6 +536,7 @@ function ModalExtrato({
       setMatches(result);
       setSelecionados(new Set(result.filter(m => m.confianca === "alta").map(m => m.cobrancaId)));
       setProcessando(false);
+      if (fileRef.current) fileRef.current.value = "";
     };
     reader.readAsText(file);
   }
@@ -542,8 +549,7 @@ function ModalExtrato({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
       toast.success(`${selecionados.size} cobrança(s) marcada(s) como pagas`);
-      setMatches([]);
-      setSelecionados(new Set());
+      resetExtrato();
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -558,7 +564,7 @@ function ModalExtrato({
   }
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) { setMatches([]); setSelecionados(new Set()); onClose(); } }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) { resetExtrato(); onClose(); } }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Conciliação — Extrato Bradesco</DialogTitle>
@@ -639,7 +645,7 @@ function ModalExtrato({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => { setMatches([]); setSelecionados(new Set()); onClose(); }}>
+          <Button type="button" variant="outline" onClick={() => { resetExtrato(); onClose(); }}>
             Fechar
           </Button>
           {matches.length > 0 && (

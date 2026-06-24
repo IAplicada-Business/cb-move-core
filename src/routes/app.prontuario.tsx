@@ -913,6 +913,7 @@ function ProntuarioPage() {
           </DialogHeader>
           {selectedId && (
             <EvolucaoEditor
+              key={editingEvolucao?.id ?? "nova"}
               evolucao={editingEvolucao ?? undefined}
               fisios={fisios}
               pacienteId={selectedId}

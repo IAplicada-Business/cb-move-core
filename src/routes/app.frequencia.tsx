@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
@@ -97,6 +97,11 @@ function FrequenciaPage() {
   const [obsEdits, setObsEdits] = useState<Record<string, string>>({});
 
   const queryKey = ["sessoes", "dia", date];
+
+  // Limpa edições locais de observações ao mudar de data
+  useEffect(() => {
+    setObsEdits({});
+  }, [date]);
 
   const { data: sessoes = [], isLoading } = useQuery({
     queryKey,
