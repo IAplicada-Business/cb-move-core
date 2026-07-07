@@ -54,6 +54,9 @@ export const Route = createFileRoute("/app/cobrancas")({
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+/** Radix Select não aceita value="" em SelectItem — use "todos" como sentinela. */
+const FILTRO_TODOS = "todos";
+
 const MESES_FULL = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
@@ -831,12 +834,15 @@ function CobrancasPage() {
           />
         </div>
 
-        <Select value={filtroComp} onValueChange={setFiltroComp}>
+        <Select
+          value={filtroComp || FILTRO_TODOS}
+          onValueChange={v => setFiltroComp(v === FILTRO_TODOS ? "" : v)}
+        >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Competência" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os meses</SelectItem>
+            <SelectItem value={FILTRO_TODOS}>Todos os meses</SelectItem>
             {compOpts.map(o => (
               <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
                 {o.label}
@@ -846,14 +852,14 @@ function CobrancasPage() {
         </Select>
 
         <Select
-          value={filtroStatus}
-          onValueChange={v => setFiltroStatus(v as CobrancaStatus | "")}
+          value={filtroStatus || FILTRO_TODOS}
+          onValueChange={v => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as CobrancaStatus))}
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os status</SelectItem>
+            <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
             <SelectItem value="pago">Pago</SelectItem>
             <SelectItem value="vencido">Vencido</SelectItem>
@@ -866,14 +872,14 @@ function CobrancasPage() {
         </Select>
 
         <Select
-          value={filtroFormaPgto}
-          onValueChange={v => setFiltroFormaPgto(v as FormaPagamento | "")}
+          value={filtroFormaPgto || FILTRO_TODOS}
+          onValueChange={v => setFiltroFormaPgto(v === FILTRO_TODOS ? "" : (v as FormaPagamento))}
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Forma pgto" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas as formas</SelectItem>
+            <SelectItem value={FILTRO_TODOS}>Todas as formas</SelectItem>
             <SelectItem value="boleto">Boleto</SelectItem>
             <SelectItem value="deposito">Depósito</SelectItem>
             <SelectItem value="transferencia">Transferência</SelectItem>

@@ -54,6 +54,9 @@ const MESES_FULL = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+/** Radix Select não aceita value="" em SelectItem — use "todos" como sentinela. */
+const FILTRO_TODOS = "todos";
+
 function competenciaOpcoes() {
   const now = new Date();
   const opts: { label: string; mes: number; ano: number }[] = [];
@@ -486,10 +489,13 @@ function NotasFiscaisPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar por paciente, nº ou destinatário…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
         </div>
-        <Select value={filtroStatus} onValueChange={(v) => setFiltroStatus(v as NfStatus | "")}>
+        <Select
+          value={filtroStatus || FILTRO_TODOS}
+          onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as NfStatus))}
+        >
           <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os status</SelectItem>
+            <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
             <SelectItem value="emitida">Emitida</SelectItem>
             <SelectItem value="cancelada">Cancelada</SelectItem>
@@ -504,10 +510,13 @@ function NotasFiscaisPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as PacienteTipo | "")}>
+        <Select
+          value={filtroTipo || FILTRO_TODOS}
+          onValueChange={(v) => setFiltroTipo(v === FILTRO_TODOS ? "" : (v as PacienteTipo))}
+        >
           <SelectTrigger className="w-36"><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value={FILTRO_TODOS}>Todos</SelectItem>
             <SelectItem value="particular">Particular</SelectItem>
             <SelectItem value="convenio">Convênio</SelectItem>
             <SelectItem value="judicial">Judicial</SelectItem>
