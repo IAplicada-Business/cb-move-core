@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -92,7 +94,9 @@ export type Database = {
           cora_invoice_id?: string | null
           created_at?: string
           descricao?: string | null
-          forma_pagamento?: Database["public"]["Enums"]["forma_pagamento"] | null
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
           observacoes?: string | null
           paciente_id: string
@@ -113,7 +117,9 @@ export type Database = {
           cora_invoice_id?: string | null
           created_at?: string
           descricao?: string | null
-          forma_pagamento?: Database["public"]["Enums"]["forma_pagamento"] | null
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
           observacoes?: string | null
           paciente_id?: string
@@ -140,26 +146,167 @@ export type Database = {
       convenios: {
         Row: {
           ativo: boolean
+          cnpj: string | null
           created_at: string
+          email_nf: string | null
           id: string
           nome: string
+          razao_social: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          cnpj?: string | null
           created_at?: string
+          email_nf?: string | null
           id?: string
           nome: string
+          razao_social?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          cnpj?: string | null
           created_at?: string
+          email_nf?: string | null
           id?: string
           nome?: string
+          razao_social?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      creditos_ia_uso: {
+        Row: {
+          created_at: string | null
+          custo_estimado_usd: number | null
+          id: string
+          tipo: string
+          tokens_entrada: number | null
+          tokens_saida: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custo_estimado_usd?: number | null
+          id?: string
+          tipo: string
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custo_estimado_usd?: number | null
+          id?: string
+          tipo?: string
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      exercicios: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          criado_por: string | null
+          descricao: string | null
+          fisioterapeuta_id: string | null
+          frequencia_semanal: number | null
+          id: string
+          midia_url: string | null
+          nome: string
+          paciente_id: string
+          repeticoes: number | null
+          series: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          fisioterapeuta_id?: string | null
+          frequencia_semanal?: number | null
+          id?: string
+          midia_url?: string | null
+          nome: string
+          paciente_id: string
+          repeticoes?: number | null
+          series?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          criado_por?: string | null
+          descricao?: string | null
+          fisioterapeuta_id?: string | null
+          frequencia_semanal?: number | null
+          id?: string
+          midia_url?: string | null
+          nome?: string
+          paciente_id?: string
+          repeticoes?: number | null
+          series?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercicios_fisioterapeuta_id_fkey"
+            columns: ["fisioterapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "fisioterapeutas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercicios_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exercicios_realizados: {
+        Row: {
+          data: string
+          exercicio_id: string
+          id: string
+          observacoes_paciente: string | null
+          paciente_id: string
+          realizado_em: string | null
+        }
+        Insert: {
+          data?: string
+          exercicio_id: string
+          id?: string
+          observacoes_paciente?: string | null
+          paciente_id: string
+          realizado_em?: string | null
+        }
+        Update: {
+          data?: string
+          exercicio_id?: string
+          id?: string
+          observacoes_paciente?: string | null
+          paciente_id?: string
+          realizado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercicios_realizados_exercicio_id_fkey"
+            columns: ["exercicio_id"]
+            isOneToOne: false
+            referencedRelation: "exercicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercicios_realizados_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fisioterapeutas: {
         Row: {
@@ -272,9 +419,29 @@ export type Database = {
         }
         Relationships: []
       }
+      integracao_config: {
+        Row: {
+          atualizado_em: string
+          chave: string
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string
+          chave: string
+          valor: string
+        }
+        Update: {
+          atualizado_em?: string
+          chave?: string
+          valor?: string
+        }
+        Relationships: []
+      }
       notas_fiscais: {
         Row: {
           cobranca_id: string | null
+          competencia_ano: number | null
+          competencia_mes: number | null
           corpo_dias_atendidos: string | null
           corpo_numero_processo: string | null
           corpo_paciente_cpf: string | null
@@ -286,6 +453,7 @@ export type Database = {
           destinatario_nome: string | null
           emissao: string | null
           emitida_em: string | null
+          fiscal_provider: string | null
           id: string
           numero: string | null
           paciente_id: string | null
@@ -298,6 +466,8 @@ export type Database = {
         }
         Insert: {
           cobranca_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
           corpo_dias_atendidos?: string | null
           corpo_numero_processo?: string | null
           corpo_paciente_cpf?: string | null
@@ -309,6 +479,7 @@ export type Database = {
           destinatario_nome?: string | null
           emissao?: string | null
           emitida_em?: string | null
+          fiscal_provider?: string | null
           id?: string
           numero?: string | null
           paciente_id?: string | null
@@ -321,6 +492,8 @@ export type Database = {
         }
         Update: {
           cobranca_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
           corpo_dias_atendidos?: string | null
           corpo_numero_processo?: string | null
           corpo_paciente_cpf?: string | null
@@ -332,6 +505,7 @@ export type Database = {
           destinatario_nome?: string | null
           emissao?: string | null
           emitida_em?: string | null
+          fiscal_provider?: string | null
           id?: string
           numero?: string | null
           paciente_id?: string | null
@@ -364,6 +538,7 @@ export type Database = {
           assunto: string
           destinatarios: string[]
           enviado_em: string
+          event_id: string | null
           id: string
           nota_fiscal_id: string
         }
@@ -371,6 +546,7 @@ export type Database = {
           assunto: string
           destinatarios: string[]
           enviado_em?: string
+          event_id?: string | null
           id?: string
           nota_fiscal_id: string
         }
@@ -378,6 +554,7 @@ export type Database = {
           assunto?: string
           destinatarios?: string[]
           enviado_em?: string
+          event_id?: string | null
           id?: string
           nota_fiscal_id?: string
         }
@@ -402,8 +579,13 @@ export type Database = {
           criado_em: string
           email: string | null
           fisioterapeuta_id: string | null
-          forma_pagamento_preferida: Database["public"]["Enums"]["forma_pagamento"] | null
+          forma_pagamento_preferida:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id: string
+          modelo_relatorio_preferido:
+            | Database["public"]["Enums"]["modelo_relatorio"]
+            | null
           nome: string
           numero_processo: string | null
           observacoes: string | null
@@ -411,6 +593,7 @@ export type Database = {
           telefone: string | null
           tipo: Database["public"]["Enums"]["paciente_tipo"]
           updated_at: string
+          user_id: string | null
           valor_mensal: number | null
           valor_sessao: number | null
         }
@@ -424,8 +607,13 @@ export type Database = {
           criado_em?: string
           email?: string | null
           fisioterapeuta_id?: string | null
-          forma_pagamento_preferida?: Database["public"]["Enums"]["forma_pagamento"] | null
+          forma_pagamento_preferida?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
+          modelo_relatorio_preferido?:
+            | Database["public"]["Enums"]["modelo_relatorio"]
+            | null
           nome: string
           numero_processo?: string | null
           observacoes?: string | null
@@ -433,6 +621,7 @@ export type Database = {
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["paciente_tipo"]
           updated_at?: string
+          user_id?: string | null
           valor_mensal?: number | null
           valor_sessao?: number | null
         }
@@ -446,8 +635,13 @@ export type Database = {
           criado_em?: string
           email?: string | null
           fisioterapeuta_id?: string | null
-          forma_pagamento_preferida?: Database["public"]["Enums"]["forma_pagamento"] | null
+          forma_pagamento_preferida?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           id?: string
+          modelo_relatorio_preferido?:
+            | Database["public"]["Enums"]["modelo_relatorio"]
+            | null
           nome?: string
           numero_processo?: string | null
           observacoes?: string | null
@@ -455,6 +649,7 @@ export type Database = {
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["paciente_tipo"]
           updated_at?: string
+          user_id?: string | null
           valor_mensal?: number | null
           valor_sessao?: number | null
         }
@@ -545,6 +740,76 @@ export type Database = {
           },
         ]
       }
+      prontuario_evolucoes: {
+        Row: {
+          created_at: string | null
+          criado_por: string | null
+          data: string
+          fisioterapeuta_id: string | null
+          fonte: string | null
+          id: string
+          objetivo: string | null
+          paciente_id: string
+          plano: string | null
+          sessao_id: string | null
+          subjetivo: string | null
+          transcricao_raw: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          criado_por?: string | null
+          data?: string
+          fisioterapeuta_id?: string | null
+          fonte?: string | null
+          id?: string
+          objetivo?: string | null
+          paciente_id: string
+          plano?: string | null
+          sessao_id?: string | null
+          subjetivo?: string | null
+          transcricao_raw?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          criado_por?: string | null
+          data?: string
+          fisioterapeuta_id?: string | null
+          fonte?: string | null
+          id?: string
+          objetivo?: string | null
+          paciente_id?: string
+          plano?: string | null
+          sessao_id?: string | null
+          subjetivo?: string | null
+          transcricao_raw?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prontuario_evolucoes_fisioterapeuta_id_fkey"
+            columns: ["fisioterapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "fisioterapeutas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prontuario_evolucoes_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prontuario_evolucoes_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relatorios_atendimento: {
         Row: {
           assinado: boolean
@@ -553,10 +818,12 @@ export type Database = {
           competencia_ano: number
           competencia_mes: number
           created_at: string
+          fisioterapeuta_id: string | null
           id: string
           modelo: Database["public"]["Enums"]["modelo_relatorio"]
           paciente_id: string
           pdf_url: string | null
+          status: string | null
           template_versionado_id: string | null
         }
         Insert: {
@@ -566,10 +833,12 @@ export type Database = {
           competencia_ano: number
           competencia_mes: number
           created_at?: string
+          fisioterapeuta_id?: string | null
           id?: string
           modelo: Database["public"]["Enums"]["modelo_relatorio"]
           paciente_id: string
           pdf_url?: string | null
+          status?: string | null
           template_versionado_id?: string | null
         }
         Update: {
@@ -579,13 +848,22 @@ export type Database = {
           competencia_ano?: number
           competencia_mes?: number
           created_at?: string
+          fisioterapeuta_id?: string | null
           id?: string
           modelo?: Database["public"]["Enums"]["modelo_relatorio"]
           paciente_id?: string
           pdf_url?: string | null
+          status?: string | null
           template_versionado_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "relatorios_atendimento_fisioterapeuta_id_fkey"
+            columns: ["fisioterapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "fisioterapeutas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "relatorios_atendimento_paciente_id_fkey"
             columns: ["paciente_id"]
@@ -718,12 +996,66 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atualizar_cobrancas_vencidas: { Args: never; Returns: number }
+      cobrancas_sem_nf: {
+        Args: { p_ano: number; p_mes: number }
+        Returns: {
+          cobranca_id: string
+          competencia_ano: number
+          competencia_mes: number
+          destinatario_documento: string
+          destinatario_nome: string
+          paciente_id: string
+          paciente_nome: string
+          status: Database["public"]["Enums"]["cobranca_status"]
+          tipo: Database["public"]["Enums"]["paciente_tipo"]
+          valor: number
+        }[]
+      }
+      criar_nf_de_cobranca: { Args: { p_cobranca_id: string }; Returns: string }
+      financeiro_kpis: {
+        Args: { p_ano: number; p_mes: number }
+        Returns: {
+          pago: number
+          pendente: number
+          qtd_pago: number
+          qtd_pendente: number
+          qtd_total: number
+          qtd_vencido: number
+          total: number
+          vencido: number
+        }[]
+      }
+      financeiro_kpis_por_tipo: {
+        Args: { p_ano: number; p_mes: number }
+        Returns: {
+          pacientes: number
+          tipo: Database["public"]["Enums"]["paciente_tipo"]
+          valor: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      paciente_logado: { Args: never; Returns: string }
+      relatorio_receita_convenio: {
+        Args: { p_ano: number; p_mes: number }
+        Returns: {
+          convenio: string
+          faturado: number
+          nfs_emitidas: number
+          pacientes: number
+          recebido: number
+          sessoes: number
+        }[]
+      }
+      resolver_destinatario_nf: {
+        Args: { p_cobranca_id: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -906,10 +1238,22 @@ export const Constants = {
       ],
       frequencia_sigla: ["P", "F", "FJ", "NJ", "RC", "NR"],
       modelo_relatorio: ["convencional", "unimed", "sharepoint"],
-      nf_status: ["pendente", "emitida", "cancelada", "erro", "regularizada_retroativa"],
+      nf_status: [
+        "pendente",
+        "emitida",
+        "cancelada",
+        "erro",
+        "regularizada_retroativa",
+      ],
       paciente_tipo: ["particular", "judicial", "convenio", "puc"],
       regime_cobranca: ["mensalista", "por_sessao"],
-      status_agendamento: ["agendado", "confirmado", "realizado", "faltou", "cancelado"],
+      status_agendamento: [
+        "agendado",
+        "confirmado",
+        "realizado",
+        "faltou",
+        "cancelado",
+      ],
     },
   },
 } as const
