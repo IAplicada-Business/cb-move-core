@@ -24,10 +24,10 @@ export function agregarPorMes(cobrancas: Cobranca[], meses = 6): MesFaturamento[
   }
   for (const c of cobrancas) {
     if (!["pago", "pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status)) continue;
-    const d = new Date(c.createdAt);
+    if (!c.competenciaMes || !c.competenciaAno) continue;
     const idx = buckets.findIndex((_, i) => {
       const ref = new Date(now.getFullYear(), now.getMonth() - (meses - 1 - i), 1);
-      return d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear();
+      return c.competenciaMes === ref.getMonth() + 1 && c.competenciaAno === ref.getFullYear();
     });
     if (idx < 0) continue;
     if (TIPOS.includes(c.tipo)) buckets[idx][c.tipo] += c.valor;
@@ -38,11 +38,11 @@ export function agregarPorMes(cobrancas: Cobranca[], meses = 6): MesFaturamento[
 
 export function calcularKpis(cobrancas: Cobranca[]) {
   const now = new Date();
-  const inMonth = (c: Cobranca) => {
-    const d = new Date(c.createdAt);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  };
-  const monthly = cobrancas.filter(inMonth);
+  const mes = now.getMonth() + 1;
+  const ano = now.getFullYear();
+  const monthly = cobrancas.filter(
+    (c) => c.competenciaMes === mes && c.competenciaAno === ano,
+  );
   const receita = monthly.filter((c) => c.status === "pago").reduce((a, c) => a + c.valor, 0);
   const aReceber = monthly
     .filter((c) => ["pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status))

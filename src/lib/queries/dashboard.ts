@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchFinanceiroKpis } from "./financeiro";
 
 export type DashboardKpis = {
   receitaMes: number;
@@ -20,14 +21,9 @@ export async function fetchKpis(): Promise<DashboardKpis> {
   const now = new Date();
   const mes = now.getMonth() + 1;
   const ano = now.getFullYear();
-  const inicioMes = new Date(ano, now.getMonth(), 1).toISOString().split("T")[0];
-  const fimMes = new Date(ano, now.getMonth() + 1, 0).toISOString().split("T")[0];
 
-  const [cobResult, nfResult] = await Promise.all([
-    supabase
-      .from("cobrancas")
-      .select("valor, status, pago_em, competencia_mes, competencia_ano")
-      .or(`competencia_mes.eq.${mes}.and.competencia_ano.eq.${ano},and(pago_em.gte.${inicioMes},pago_em.lte.${fimMes})`),
+  const [financeiro, nfResult] = await Promise.all([
+    fetchFinanceiroKpis(mes, ano),
     supabase
       .from("notas_fiscais")
       .select("*", { count: "exact", head: true })
@@ -36,25 +32,12 @@ export async function fetchKpis(): Promise<DashboardKpis> {
       .lt("emissao", `${String(mes === 12 ? ano + 1 : ano)}-${String(mes === 12 ? 1 : mes + 1).padStart(2, "0")}-01`),
   ]);
 
-  if (cobResult.error) throw cobResult.error;
-
-  const cobs = cobResult.data ?? [];
-  const receitaMes = cobs
-    .filter((c) => c.status === "pago" && c.pago_em != null && c.pago_em >= inicioMes && c.pago_em <= fimMes)
-    .reduce((s, c) => s + Number(c.valor), 0);
-
-  const aReceber = cobs
-    .filter((c) => ["pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status))
-    .reduce((s, c) => s + Number(c.valor), 0);
-
-  const inadimplencia = cobs
-    .filter((c) => c.status === "vencido" || c.status === "atrasado")
-    .reduce((s, c) => s + Number(c.valor), 0);
+  if (nfResult.error) throw nfResult.error;
 
   return {
-    receitaMes,
-    aReceber,
-    inadimplencia,
+    receitaMes: financeiro.pago,
+    aReceber: financeiro.pendente,
+    inadimplencia: financeiro.vencido,
     nfsEmitidas: nfResult.count ?? 0,
   };
 }

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Plus, Search, MoreHorizontal, FileText, X, ExternalLink,
+  Plus, Search, MoreHorizontal, FileText, X, ExternalLink, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,12 +15,20 @@ import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
-import { fetchNFs, createNF, type NotaFiscal } from "@/lib/queries/notas-fiscais";
-import { fetchPacientes, type Paciente } from "@/lib/queries/pacientes";
+import {
+  fetchNFs, createNF, emitNfManual, sendNfEmail, updateNF, uploadNfPdf,
+  type NotaFiscal,
+} from "@/lib/queries/notas-fiscais";
+import { fetchPacientes } from "@/lib/queries/pacientes";
+import {
+  criarNfDeCobranca, fetchCobrancasSemNf, resolverDestinatarioNf,
+  type CobrancaSemNf,
+} from "@/lib/queries/financeiro";
 import type { NfStatus, PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -40,8 +48,6 @@ export const Route = createFileRoute("/app/notas-fiscais")({
   component: NotasFiscaisPage,
 });
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MESES_FULL = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -53,33 +59,21 @@ function competenciaOpcoes() {
   const opts: { label: string; mes: number; ano: number }[] = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
-      mes: d.getMonth() + 1,
-      ano: d.getFullYear(),
-    });
+    opts.push({ label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`, mes: d.getMonth() + 1, ano: d.getFullYear() });
   }
   return opts;
 }
 
-// Retorna destinatário default conforme tipo
-function destinatarioPadraoNome(paciente: Paciente | undefined): string {
-  if (!paciente) return "";
-  if (paciente.tipo === "particular" || paciente.tipo === "puc") return paciente.nome;
-  // judicial/convenio: será preenchido manualmente ou autopreenchido com o convênio
-  return "";
-}
-
-// ─── schema ──────────────────────────────────────────────────────────────────
-
 const emitirNFSchema = z.object({
   pacienteId: z.string().min(1, "Selecione o paciente"),
+  cobrancaId: z.string().optional(),
   competenciaMes: z.coerce.number().min(1).max(12),
   competenciaAno: z.coerce.number().min(2020).max(2100),
   valor: z.coerce.number().positive("Valor deve ser positivo"),
   destinatarioNome: z.string().min(1, "Informe o destinatário"),
   destinatarioDocumento: z.string().optional(),
-  // campos judiciais
+  modo: z.enum(["manual", "automatico"]),
+  numeroNf: z.string().optional(),
   corpoPacienteNome: z.string().optional(),
   corpoPacienteCpf: z.string().optional(),
   corpoNumeroProcesso: z.string().optional(),
@@ -88,11 +82,17 @@ const emitirNFSchema = z.object({
 
 type EmitirNFForm = z.infer<typeof emitirNFSchema>;
 
-// ─── Modal Emitir NF ─────────────────────────────────────────────────────────
 
-function ModalEmitirNF({ open, onClose }: { open: boolean; onClose: () => void }) {
+type ModalEmitirProps = {
+  open: boolean;
+  onClose: () => void;
+  prefill?: CobrancaSemNf | null;
+};
+
+function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
   const qc = useQueryClient();
   const now = new Date();
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   const pacientes = useQuery({
     queryKey: queryKeys.pacientes.list(),
@@ -105,243 +105,231 @@ function ModalEmitirNF({ open, onClose }: { open: boolean; onClose: () => void }
     defaultValues: {
       competenciaMes: now.getMonth() + 1,
       competenciaAno: now.getFullYear(),
+      modo: "manual",
     },
   });
 
   const watchPacienteId = form.watch("pacienteId");
-  const pacienteSelecionado = pacientes.data?.find(p => p.id === watchPacienteId);
+  const watchCobrancaId = form.watch("cobrancaId");
+  const watchModo = form.watch("modo");
+  const pacienteSelecionado = pacientes.data?.find((p) => p.id === watchPacienteId);
   const isJudicial = pacienteSelecionado?.tipo === "judicial";
+  const isParticular = pacienteSelecionado?.tipo === "particular";
 
-  // auto-preenche destinatário ao selecionar paciente (executa só quando pacienteId muda)
   useEffect(() => {
-    if (!pacienteSelecionado) return;
-    const nomeAuto = destinatarioPadraoNome(pacienteSelecionado);
-    if (nomeAuto) form.setValue("destinatarioNome", nomeAuto);
-    if (pacienteSelecionado.cpf && pacienteSelecionado.tipo === "particular") {
-      form.setValue("destinatarioDocumento", pacienteSelecionado.cpf);
-    } else {
-      form.setValue("destinatarioDocumento", "");
+    if (!open) return;
+    if (prefill) {
+      form.reset({
+        pacienteId: prefill.pacienteId,
+        cobrancaId: prefill.cobrancaId,
+        competenciaMes: prefill.competenciaMes ?? now.getMonth() + 1,
+        competenciaAno: prefill.competenciaAno ?? now.getFullYear(),
+        valor: prefill.valor,
+        destinatarioNome: prefill.destinatarioNome ?? "",
+        destinatarioDocumento: prefill.destinatarioDocumento ?? "",
+        modo: "manual",
+      });
+      return;
     }
-    if (pacienteSelecionado.valorMensal) {
-      form.setValue("valor", pacienteSelecionado.valorMensal);
+    form.reset({
+      competenciaMes: now.getMonth() + 1,
+      competenciaAno: now.getFullYear(),
+      modo: "manual",
+    });
+  }, [open, prefill, form, now]);
+
+  useEffect(() => {
+    if (!watchCobrancaId || !open) return;
+    resolverDestinatarioNf(watchCobrancaId).then((d) => {
+      form.setValue("destinatarioNome", d.destinatarioNome);
+      form.setValue("destinatarioDocumento", d.destinatarioDocumento ?? "");
+      form.setValue("valor", d.valor);
+      form.setValue("competenciaMes", d.competenciaMes ?? form.getValues("competenciaMes"));
+      form.setValue("competenciaAno", d.competenciaAno ?? form.getValues("competenciaAno"));
+      if (d.corpoPacienteNome) form.setValue("corpoPacienteNome", d.corpoPacienteNome);
+      if (d.corpoPacienteCpf) form.setValue("corpoPacienteCpf", d.corpoPacienteCpf);
+      if (d.corpoNumeroProcesso) form.setValue("corpoNumeroProcesso", d.corpoNumeroProcesso);
+      if (d.corpoTotalSessoes) form.setValue("corpoTotalSessoes", d.corpoTotalSessoes);
+    }).catch((e: Error) => toast.error(e.message));
+  }, [watchCobrancaId, open, form]);
+
+  useEffect(() => {
+    if (!pacienteSelecionado || watchCobrancaId) return;
+    if (pacienteSelecionado.tipo === "particular") {
+      form.setValue("destinatarioNome", pacienteSelecionado.nome);
+      form.setValue("destinatarioDocumento", pacienteSelecionado.cpf ?? "");
     }
+    if (pacienteSelecionado.valorMensal) form.setValue("valor", pacienteSelecionado.valorMensal);
     if (pacienteSelecionado.tipo === "judicial") {
       form.setValue("corpoPacienteNome", pacienteSelecionado.nome);
       form.setValue("corpoPacienteCpf", pacienteSelecionado.cpf ?? "");
       form.setValue("corpoNumeroProcesso", pacienteSelecionado.numeroProcesso ?? "");
-    } else {
-      form.setValue("corpoPacienteNome", "");
-      form.setValue("corpoPacienteCpf", "");
-      form.setValue("corpoNumeroProcesso", "");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchPacienteId]);
+  }, [watchPacienteId, pacienteSelecionado, watchCobrancaId, form]);
 
   const mutation = useMutation({
-    mutationFn: (data: EmitirNFForm) =>
-      createNF({
-        pacienteId: data.pacienteId,
-        tipo: (pacienteSelecionado?.tipo ?? "particular") as PacienteTipo,
-        destinatarioNome: data.destinatarioNome,
-        destinatarioDocumento: data.destinatarioDocumento,
-        valor: data.valor,
-        emissao: new Date().toISOString().split("T")[0],
-        competenciaMes: data.competenciaMes,
-        competenciaAno: data.competenciaAno,
-        corpoPacienteNome: data.corpoPacienteNome,
-        corpoPacienteCpf: data.corpoPacienteCpf,
-        corpoNumeroProcesso: data.corpoNumeroProcesso,
-        corpoTotalSessoes: data.corpoTotalSessoes,
-      }),
+    mutationFn: async (data: EmitirNFForm) => {
+      const tipo = (pacienteSelecionado?.tipo ?? "particular") as PacienteTipo;
+      let nfId: string;
+
+      if (data.cobrancaId) {
+        nfId = await criarNfDeCobranca(data.cobrancaId);
+      } else {
+        const nf = await createNF({
+          pacienteId: data.pacienteId,
+          tipo,
+          destinatarioNome: data.destinatarioNome,
+          destinatarioDocumento: data.destinatarioDocumento,
+          valor: data.valor,
+          competenciaMes: data.competenciaMes,
+          competenciaAno: data.competenciaAno,
+          corpoPacienteNome: data.corpoPacienteNome,
+          corpoPacienteCpf: data.corpoPacienteCpf,
+          corpoNumeroProcesso: data.corpoNumeroProcesso,
+          corpoTotalSessoes: data.corpoTotalSessoes,
+        });
+        nfId = nf.id;
+      }
+
+      if (data.modo === "manual") {
+        if (!data.numeroNf || !pdfFile) throw new Error("Informe número da NF e PDF");
+        const pdfUrl = await uploadNfPdf(pdfFile, data.competenciaAno, data.numeroNf);
+        await emitNfManual(nfId, data.numeroNf, pdfUrl);
+      } else {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { error } = await supabase.functions.invoke("emit-nf", {
+          body: { nf_id: nfId, modo: "automatico" },
+        });
+        if (error) throw new Error(error.message ?? "Emissão automática indisponível");
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
-      toast.success("NF criada com sucesso");
-      handleClose();
+      qc.invalidateQueries({ queryKey: ["financeiro"] });
+      toast.success("NF processada com sucesso");
+      setPdfFile(null);
+      onClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function handleClose() {
-    form.reset();
-    onClose();
-  }
-
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) handleClose(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setPdfFile(null); onClose(); } }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Emitir Nota Fiscal</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Emitir Nota Fiscal</DialogTitle></DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(d => mutation.mutate(d))} className="space-y-4">
-            {/* Paciente */}
-            <FormField
-              control={form.control}
-              name="pacienteId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Paciente</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione…" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {pacientes.isLoading && (
-                        <SelectItem value="__loading" disabled>Carregando…</SelectItem>
-                      )}
-                      {(pacientes.data ?? []).map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.nome}
-                          <span className="ml-2 text-xs text-muted-foreground capitalize">({p.tipo})</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+            <FormField control={form.control} name="pacienteId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Paciente</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={!!prefill}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {(pacientes.data ?? []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            {/* Tipo — readonly, vem do paciente */}
             {pacienteSelecionado && (
-              <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                Tipo: <span className="font-medium text-foreground capitalize">{pacienteSelecionado.tipo}</span>
+              <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                Tipo: <span className="font-medium capitalize">{pacienteSelecionado.tipo}</span>
               </div>
             )}
 
-            {/* Competência */}
             <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="competenciaMes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mês</FormLabel>
-                    <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {MESES_FULL.map((m, i) => (
-                          <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="competenciaAno"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ano</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} min={2020} max={2100} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="competenciaMes" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mês</FormLabel>
+                  <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value)}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {MESES_FULL.map((m, i) => <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="competenciaAno" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ano</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                </FormItem>
+              )} />
             </div>
 
-            {/* Valor */}
-            <FormField
-              control={form.control}
-              name="valor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (R$)</FormLabel>
-                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="valor" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor (R$)</FormLabel>
+                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+              </FormItem>
+            )} />
 
-            {/* Destinatário */}
-            <FormField
-              control={form.control}
-              name="destinatarioNome"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Destinatário — Nome</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="destinatarioDocumento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Destinatário — CPF / CNPJ</FormLabel>
-                  <FormControl><Input {...field} placeholder="000.000.000-00 ou 00.000.000/0001-00" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="destinatarioNome" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Destinatário — Nome</FormLabel>
+                <FormControl><Input {...field} readOnly={isParticular} /></FormControl>
+              </FormItem>
+            )} />
 
-            {/* Campos extras para judicial */}
+            <FormField control={form.control} name="destinatarioDocumento" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Destinatário — CPF / CNPJ</FormLabel>
+                <FormControl>
+                  <Input {...field} readOnly={isParticular} placeholder={isParticular ? "CPF do paciente" : "000.000.000/0001-00"} />
+                </FormControl>
+                {isParticular && (
+                  <p className="text-xs text-muted-foreground">Particular: tomador é o paciente (CPF bloqueado).</p>
+                )}
+              </FormItem>
+            )} />
+
             {isJudicial && (
               <div className="rounded-md border border-dashed p-4 space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Corpo da NF — Judicial
-                </p>
-                <FormField
-                  control={form.control}
-                  name="corpoPacienteNome"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do paciente (corpo)</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="corpoPacienteCpf"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CPF do paciente</FormLabel>
-                        <FormControl><Input {...field} placeholder="000.000.000-00" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="corpoTotalSessoes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total de sessões</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="corpoNumeroProcesso"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Número do processo</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Corpo da NF — Judicial</p>
+                <FormField control={form.control} name="corpoPacienteNome" render={({ field }) => (
+                  <FormItem><FormLabel>Nome do paciente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
+                <FormField control={form.control} name="corpoNumeroProcesso" render={({ field }) => (
+                  <FormItem><FormLabel>Processo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
               </div>
+            )}
+
+            <FormField control={form.control} name="modo" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Modo de emissão</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual (número + PDF)</SelectItem>
+                    <SelectItem value="automatico">Automático (Focus NFe)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
+
+            {watchModo === "manual" && (
+              <>
+                <FormField control={form.control} name="numeroNf" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número da NF</FormLabel>
+                    <FormControl><Input {...field} placeholder="NF-001284" /></FormControl>
+                  </FormItem>
+                )} />
+                <div>
+                  <Label>Upload PDF</Label>
+                  <Input type="file" accept=".pdf" className="mt-1" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
+                </div>
+              </>
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Salvando…" : "Emitir NF"}
+                {mutation.isPending ? "Processando…" : "Emitir NF"}
               </Button>
             </DialogFooter>
           </form>
@@ -351,23 +339,35 @@ function ModalEmitirNF({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-// ─── Linha da tabela ──────────────────────────────────────────────────────────
 
 function NFRow({ nf }: { nf: NotaFiscal }) {
+  const qc = useQueryClient();
   const isJudicial = nf.tipo === "judicial";
+
+  const reenviar = useMutation({
+    mutationFn: () => sendNfEmail(nf.id, nf.tipo),
+    onSuccess: () => toast.success("E-mail enfileirado via n8n"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const cancelar = useMutation({
+    mutationFn: () => updateNF(nf.id, { status: "cancelada" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
+      toast.success("NF cancelada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <TableRow>
-      <TableCell className="font-mono text-sm text-muted-foreground">
-        {nf.numero ?? "—"}
-      </TableCell>
+      <TableCell className="font-mono text-sm text-muted-foreground">{nf.numero ?? "—"}</TableCell>
       <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>
       <TableCell>
         <div>{nf.destinatarioNome ?? "—"}</div>
         {isJudicial && nf.corpoPacienteNome && (
           <div className="text-xs text-muted-foreground mt-0.5">
-            Corpo: {nf.corpoPacienteNome}
-            {nf.corpoNumeroProcesso && ` · proc. ${nf.corpoNumeroProcesso}`}
+            Corpo: {nf.corpoPacienteNome}{nf.corpoNumeroProcesso && ` · proc. ${nf.corpoNumeroProcesso}`}
           </div>
         )}
       </TableCell>
@@ -378,20 +378,24 @@ function NFRow({ nf }: { nf: NotaFiscal }) {
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {nf.pdfUrl && (
               <DropdownMenuItem onClick={() => window.open(nf.pdfUrl!, "_blank")}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Ver PDF
+                <ExternalLink className="h-4 w-4 mr-2" />Ver PDF
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem disabled className="text-muted-foreground text-xs">
-              Emissão Safe Notas (pendente config.)
-            </DropdownMenuItem>
+            {nf.status === "emitida" && (
+              <DropdownMenuItem onClick={() => reenviar.mutate()} disabled={reenviar.isPending}>
+                <Mail className="h-4 w-4 mr-2" />Reenviar por e-mail
+              </DropdownMenuItem>
+            )}
+            {nf.status !== "cancelada" && nf.status !== "emitida" && (
+              <DropdownMenuItem onClick={() => cancelar.mutate()} className="text-destructive">
+                <X className="h-4 w-4 mr-2" />Cancelar NF
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -399,18 +403,44 @@ function NFRow({ nf }: { nf: NotaFiscal }) {
   );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+function LinhaAEmitir({ row, onEmitir }: { row: CobrancaSemNf; onEmitir: () => void }) {
+  return (
+    <TableRow className="bg-amber-50/50 dark:bg-amber-950/20">
+      <TableCell className="font-mono text-sm text-muted-foreground">—</TableCell>
+      <TableCell className="font-medium">{row.pacienteNome}</TableCell>
+      <TableCell>
+        <div>{row.destinatarioNome ?? "—"}</div>
+        {row.destinatarioDocumento && (
+          <div className="text-xs text-muted-foreground">{row.destinatarioDocumento}</div>
+        )}
+      </TableCell>
+      <TableCell><TipoBadge value={row.tipo} /></TableCell>
+      <TableCell className="text-sm">—</TableCell>
+      <TableCell>
+        <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 border-amber-200">
+          A emitir
+        </span>
+      </TableCell>
+      <TableCell className="text-right font-medium tabular-nums">{brl(row.valor)}</TableCell>
+      <TableCell>
+        <Button size="sm" variant="outline" onClick={onEmitir}>Emitir</Button>
+      </TableCell>
+    </TableRow>
+  );
+}
 
 function NotasFiscaisPage() {
+  const now = new Date();
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<NfStatus | "">("");
   const [filtroTipo, setFiltroTipo] = useState<PacienteTipo | "">("");
-  const [filtroComp, setFiltroComp] = useState<string>("");
+  const [filtroComp, setFiltroComp] = useState(`${now.getMonth() + 1}-${now.getFullYear()}`);
   const [modalEmitir, setModalEmitir] = useState(false);
+  const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
 
   const compOpts = competenciaOpcoes();
-  const compMes = filtroComp ? Number(filtroComp.split("-")[0]) : undefined;
-  const compAno = filtroComp ? Number(filtroComp.split("-")[1]) : undefined;
+  const compMes = filtroComp ? Number(filtroComp.split("-")[0]) : now.getMonth() + 1;
+  const compAno = filtroComp ? Number(filtroComp.split("-")[1]) : now.getFullYear();
 
   const filters = {
     search: search || undefined,
@@ -425,67 +455,57 @@ function NotasFiscaisPage() {
     queryFn: () => fetchNFs(filters),
   });
 
+  const semNfQuery = useQuery({
+    queryKey: queryKeys.financeiro.cobrancasSemNf(compAno, compMes),
+    queryFn: () => fetchCobrancasSemNf(compMes, compAno),
+  });
+
   const nfs = query.data ?? [];
-  const temFiltro = !!(search || filtroStatus || filtroTipo || filtroComp);
+  const aEmitir = semNfQuery.data ?? [];
+  const temFiltro = !!(search || filtroStatus || filtroTipo);
+
+  function abrirEmitir(row?: CobrancaSemNf) {
+    setPrefill(row ?? null);
+    setModalEmitir(true);
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Notas Fiscais</h1>
           <p className="text-sm text-muted-foreground">Gestão de notas fiscais emitidas</p>
         </div>
-        <Button size="sm" onClick={() => setModalEmitir(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Emitir NF
+        <Button size="sm" onClick={() => abrirEmitir()}>
+          <Plus className="h-4 w-4 mr-1" />Emitir NF
         </Button>
       </header>
 
-      {/* Toolbar */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por paciente, nº ou destinatário…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-8"
-          />
+          <Input placeholder="Buscar por paciente, nº ou destinatário…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
         </div>
-
-        <Select value={filtroStatus} onValueChange={v => setFiltroStatus(v as NfStatus | "")}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
+        <Select value={filtroStatus} onValueChange={(v) => setFiltroStatus(v as NfStatus | "")}>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="">Todos os status</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
             <SelectItem value="emitida">Emitida</SelectItem>
             <SelectItem value="cancelada">Cancelada</SelectItem>
             <SelectItem value="erro">Erro</SelectItem>
-            <SelectItem value="regularizada_retroativa">Regularizada</SelectItem>
           </SelectContent>
         </Select>
-
         <Select value={filtroComp} onValueChange={setFiltroComp}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Competência" />
-          </SelectTrigger>
+          <SelectTrigger className="w-40"><SelectValue placeholder="Competência" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas</SelectItem>
-            {compOpts.map(o => (
-              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
-                {o.label}
-              </SelectItem>
+            {compOpts.map((o) => (
+              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>{o.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-
-        <Select value={filtroTipo} onValueChange={v => setFiltroTipo(v as PacienteTipo | "")}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
+        <Select value={filtroTipo} onValueChange={(v) => setFiltroTipo(v as PacienteTipo | "")}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="">Todos</SelectItem>
             <SelectItem value="particular">Particular</SelectItem>
@@ -494,70 +514,78 @@ function NotasFiscaisPage() {
             <SelectItem value="puc">PUC</SelectItem>
           </SelectContent>
         </Select>
-
         {temFiltro && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearch("");
-              setFiltroStatus("");
-              setFiltroTipo("");
-              setFiltroComp("");
-            }}
-          >
-            <X className="h-4 w-4 mr-1" />
-            Limpar
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFiltroStatus(""); setFiltroTipo(""); }}>
+            <X className="h-4 w-4 mr-1" />Limpar
           </Button>
         )}
       </div>
 
-      {/* Tabela */}
       {query.isLoading ? (
         <LoadingState />
-      ) : nfs.length === 0 ? (
+      ) : nfs.length === 0 && aEmitir.length === 0 ? (
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title="Sem notas fiscais"
-          description={
-            temFiltro
-              ? "Nenhuma NF encontrada para os filtros selecionados."
-              : "Emita a primeira nota fiscal com o botão acima."
-          }
-          action={
-            !temFiltro ? (
-              <Button size="sm" onClick={() => setModalEmitir(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Emitir NF
-              </Button>
-            ) : undefined
-          }
+          description="Emita a primeira nota fiscal ou verifique cobranças pendentes de NF."
+          action={<Button size="sm" onClick={() => abrirEmitir()}><Plus className="h-4 w-4 mr-1" />Emitir NF</Button>}
         />
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Nº</TableHead>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Destinatário</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Emissão</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {nfs.map(nf => (
-                <NFRow key={nf.id} nf={nf} />
-              ))}
-            </TableBody>
-          </Table>
+        <div className="space-y-4">
+          {aEmitir.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-card shadow-sm overflow-hidden">
+              <div className="px-4 py-2 border-b bg-amber-50/80 text-sm font-semibold text-amber-900">
+                A emitir — {aEmitir.length} cobrança(s) sem NF
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Nº</TableHead>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Destinatário</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Emissão</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="w-24"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {aEmitir.map((row) => (
+                    <LinhaAEmitir key={row.cobrancaId} row={row} onEmitir={() => abrirEmitir(row)} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-24">Nº</TableHead>
+                  <TableHead>Paciente</TableHead>
+                  <TableHead>Destinatário</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Emissão</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {nfs.map((nf) => <NFRow key={nf.id} nf={nf} />)}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
-      <ModalEmitirNF open={modalEmitir} onClose={() => setModalEmitir(false)} />
+      <ModalEmitirNF
+        open={modalEmitir}
+        onClose={() => { setModalEmitir(false); setPrefill(null); }}
+        prefill={prefill}
+      />
     </div>
   );
 }

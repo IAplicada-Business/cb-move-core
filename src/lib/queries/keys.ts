@@ -47,6 +47,12 @@ export const queryKeys = {
     all: ["templates_versionados"] as const,
     byTipo: (tipo: string) => ["templates_versionados", tipo] as const,
   },
+  financeiro: {
+    kpis: (year: number, month: number) => ["financeiro", "kpis", year, month] as const,
+    kpisPorTipo: (year: number, month: number) => ["financeiro", "kpisPorTipo", year, month] as const,
+    receitaConvenio: (year: number, month: number) => ["financeiro", "receitaConvenio", year, month] as const,
+    cobrancasSemNf: (year: number, month: number) => ["financeiro", "cobrancasSemNf", year, month] as const,
+  },
   dashboard: {
     kpis: (year: number, month: number) => ["dashboard", "kpis", year, month] as const,
     receitaMensal: (anoInicio: number, anoFim: number) => ["dashboard", "receitaMensal", anoInicio, anoFim] as const,

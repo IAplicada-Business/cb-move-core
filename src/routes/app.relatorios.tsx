@@ -5,13 +5,17 @@ import { Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
+import { KpiCard } from "@/components/domain/KpiCard";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { queryKeys } from "@/lib/queries";
 import { brl } from "@/lib/format";
-import {
-  fetchReceitaPorConvenio, fetchNFsPorPacienteAno,
-} from "@/lib/queries/notas-fiscais";
+import { fetchNFsPorPacienteAno } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
+import {
+  fetchFinanceiroKpisPorTipo,
+  fetchRelatorioReceitaConvenio,
+} from "@/lib/queries/financeiro";
+import type { PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,90 +31,128 @@ export const Route = createFileRoute("/app/relatorios")({
   component: RelatoriosPage,
 });
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+const TIPO_KPI: Record<PacienteTipo, { label: string; accent: "cyan" | "magenta" | "purple" | "orange" }> = {
+  particular: { label: "Particular", accent: "cyan" },
+  judicial: { label: "Judicial", accent: "magenta" },
+  convenio: { label: "Convênio", accent: "purple" },
+  puc: { label: "PUC", accent: "orange" },
+};
+
+function competenciaOpcoes() {
+  const now = new Date();
+  const opts: { label: string; mes: number; ano: number }[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    opts.push({
+      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
+      mes: d.getMonth() + 1,
+      ano: d.getFullYear(),
+    });
+  }
+  return opts;
+}
 
 function anosDisponiveis() {
   const now = new Date().getFullYear();
   return Array.from({ length: 5 }, (_, i) => now - i);
 }
 
-// ─── Aba: Receita por convênio ────────────────────────────────────────────────
-
 function TabReceitaConvenio() {
-  const [ano, setAno] = useState(new Date().getFullYear());
-  const anos = anosDisponiveis();
+  const now = new Date();
+  const [mes, setMes] = useState(now.getMonth() + 1);
+  const [ano, setAno] = useState(now.getFullYear());
+  const compOpts = competenciaOpcoes();
 
-  const query = useQuery({
-    queryKey: ["relatorios", "receita_convenio", ano],
-    queryFn: () => fetchReceitaPorConvenio(ano),
+  const kpisQuery = useQuery({
+    queryKey: queryKeys.financeiro.kpisPorTipo(ano, mes),
+    queryFn: () => fetchFinanceiroKpisPorTipo(mes, ano),
   });
 
-  const dados = query.data ?? [];
+  const tabelaQuery = useQuery({
+    queryKey: queryKeys.financeiro.receitaConvenio(ano, mes),
+    queryFn: () => fetchRelatorioReceitaConvenio(mes, ano),
+  });
+
+  const kpis = kpisQuery.data ?? [];
+  const dados = tabelaQuery.data ?? [];
+  const loading = kpisQuery.isLoading || tabelaQuery.isLoading;
+
+  const kpiMap = Object.fromEntries(kpis.map((k) => [k.tipo, k]));
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Receita por convênio / tipo × competência</h2>
-        <Select value={String(ano)} onValueChange={v => setAno(Number(v))}>
-          <SelectTrigger className="w-28">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="text-base font-semibold">Receita por convênio</h2>
+        <Select
+          value={`${mes}-${ano}`}
+          onValueChange={(v) => {
+            const [m, a] = v.split("-");
+            setMes(Number(m));
+            setAno(Number(a));
+          }}
+        >
+          <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {anos.map(a => (
-              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+            {compOpts.map((o) => (
+              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
+                {o.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {query.isLoading ? (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
+          const cfg = TIPO_KPI[tipo];
+          const k = kpiMap[tipo];
+          return (
+            <KpiCard
+              key={tipo}
+              label={cfg.label}
+              value={brl(k?.valor ?? 0)}
+              accent={cfg.accent}
+              hint={`${k?.pacientes ?? 0} paciente(s)`}
+            />
+          );
+        })}
+      </div>
+
+      {loading ? (
         <LoadingState />
       ) : dados.length === 0 ? (
         <EmptyState
           title="Sem dados"
-          description="Não há cobranças registradas para este ano."
+          description="Não há cobranças registradas para esta competência."
         />
       ) : (
         <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-36">Convênio / Tipo</TableHead>
-                {MESES_ABREV.map((m, i) => (
-                  <TableHead key={i} className="text-right w-20">{m}</TableHead>
-                ))}
-                <TableHead className="text-right min-w-24">Total</TableHead>
+                <TableHead>Convênio</TableHead>
+                <TableHead className="text-right">Pacientes</TableHead>
+                <TableHead className="text-right">Sessões</TableHead>
+                <TableHead className="text-right">NFs emitidas</TableHead>
+                <TableHead className="text-right">Faturado</TableHead>
+                <TableHead className="text-right">Recebido</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dados.map(d => (
+              {dados.map((d) => (
                 <TableRow key={d.convenio}>
-                  <TableCell className="font-medium capitalize">{d.convenio}</TableCell>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <TableCell key={i} className="text-right text-sm tabular-nums">
-                      {d.meses[i + 1] ? brl(d.meses[i + 1]) : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right font-semibold tabular-nums">{brl(d.total)}</TableCell>
+                  <TableCell className="font-medium">{d.convenio}</TableCell>
+                  <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
+                  <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
+                  <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
+                  <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">{brl(d.recebido)}</TableCell>
                 </TableRow>
               ))}
-              {/* Linha de totais */}
-              <TableRow className="bg-muted/40 font-semibold">
-                <TableCell>Total geral</TableCell>
-                {Array.from({ length: 12 }, (_, i) => {
-                  const tot = dados.reduce((s, d) => s + (d.meses[i + 1] ?? 0), 0);
-                  return (
-                    <TableCell key={i} className="text-right tabular-nums">
-                      {tot > 0 ? brl(tot) : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-right tabular-nums">
-                  {brl(dados.reduce((s, d) => s + d.total, 0))}
-                </TableCell>
-              </TableRow>
             </TableBody>
           </Table>
         </div>
@@ -118,8 +160,6 @@ function TabReceitaConvenio() {
     </div>
   );
 }
-
-// ─── Aba: NFs por paciente (IR) ───────────────────────────────────────────────
 
 function TabNFsPorPaciente() {
   const [pacienteId, setPacienteId] = useState<string>("");
@@ -140,7 +180,7 @@ function TabNFsPorPaciente() {
 
   const nfs = nfsQuery.data ?? [];
   const total = nfs.reduce((s, n) => s + n.valor, 0);
-  const paciente = pacientes.data?.find(p => p.id === pacienteId);
+  const paciente = pacientes.data?.find((p) => p.id === pacienteId);
 
   async function exportarIR() {
     if (!pacienteId) return;
@@ -151,7 +191,6 @@ function TabNFsPorPaciente() {
         body: { paciente_id: pacienteId, ano },
       });
       if (error) throw new Error(error.message);
-      // Abre os dados como JSON por enquanto (PDF quando a Edge Function for implementada)
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -172,12 +211,12 @@ function TabNFsPorPaciente() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-base font-semibold">NFs por paciente — Declaração de IR</h2>
         <div className="flex items-center gap-2">
-          <Select value={String(ano)} onValueChange={v => setAno(Number(v))}>
+          <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
             <SelectTrigger className="w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {anos.map(a => (
+              {anos.map((a) => (
                 <SelectItem key={a} value={String(a)}>{a}</SelectItem>
               ))}
             </SelectContent>
@@ -191,7 +230,7 @@ function TabNFsPorPaciente() {
               {pacientes.isLoading && (
                 <SelectItem value="__loading" disabled>Carregando…</SelectItem>
               )}
-              {(pacientes.data ?? []).map(p => (
+              {(pacientes.data ?? []).map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
               ))}
             </SelectContent>
@@ -221,7 +260,6 @@ function TabNFsPorPaciente() {
         />
       ) : (
         <div className="space-y-2">
-          {/* Cabeçalho com info do paciente */}
           {paciente && (
             <div className="rounded-lg border bg-card px-4 py-3 text-sm flex gap-6 flex-wrap">
               <div>
@@ -257,7 +295,7 @@ function TabNFsPorPaciente() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {nfs.map(nf => (
+                {nfs.map((nf) => (
                   <TableRow key={nf.id}>
                     <TableCell className="font-mono text-sm">{nf.numero ?? "—"}</TableCell>
                     <TableCell className="text-sm">
@@ -274,7 +312,6 @@ function TabNFsPorPaciente() {
                     <TableCell className="text-right tabular-nums font-medium">{brl(nf.valor)}</TableCell>
                   </TableRow>
                 ))}
-                {/* Total */}
                 <TableRow className="bg-muted/40">
                   <TableCell colSpan={4} className="font-semibold">Total</TableCell>
                   <TableCell className="text-right font-bold tabular-nums">{brl(total)}</TableCell>
@@ -292,13 +329,11 @@ function TabNFsPorPaciente() {
   );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
-
 function RelatoriosPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-foreground">Relatórios</h1>
+        <h1 className="text-2xl font-bold text-foreground">Relatórios consolidados</h1>
         <p className="text-sm text-muted-foreground">Análises e exportações financeiras</p>
       </header>
 

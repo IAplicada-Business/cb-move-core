@@ -7,30 +7,48 @@ export const Route = createFileRoute("/app/configuracoes/integracoes")({
   component: IntegracoesPage,
 });
 
-// ─── static integration cards ────────────────────────────────────────────────
-
 const INTEGRACOES = [
   {
     id: "cora",
     nome: "Cora",
-    descricao: "Emissão e gestão de boletos bancários.",
     categoria: "Financeiro",
+    descricao: "Emissão e gestão de boletos bancários.",
+    status: "Aguardando credenciais",
+    secrets: "CORA_CLIENT_ID, CORA_CLIENT_SECRET",
   },
   {
-    id: "safe-notas",
-    nome: "Safe Notas",
-    descricao: "Emissão automática de notas fiscais de serviços (NFS-e).",
+    id: "focus-nfe",
+    nome: "Focus NFe",
     categoria: "Fiscal",
+    descricao: "NFS-e Nacional POA (substitui Safe Notas). Nuvem Fiscal encerra em 31/07/2026.",
+    status: "Criar conta e spike POA",
+    secrets: "FOCUSNFE_TOKEN",
+  },
+  {
+    id: "n8n",
+    nome: "n8n",
+    categoria: "Automação",
+    descricao: "Orquestra envio de e-mails de NF com templates RQ.GPS.08 por tipo.",
+    status: "Configurar workflow",
+    secrets: "N8N_WEBHOOK_NF_EMAIL, N8N_WEBHOOK_SECRET",
   },
   {
     id: "resend",
     nome: "Resend",
-    descricao: "Envio transacional de e-mails (cobranças, NFs, relatórios).",
     categoria: "Comunicação",
+    descricao: "Entrega SMTP dos e-mails (via n8n).",
+    status: "Aguardando API key",
+    secrets: "RESEND_API_KEY (no n8n)",
+  },
+  {
+    id: "bradesco",
+    nome: "Bradesco",
+    categoria: "Financeiro",
+    descricao: "Conciliação por import de extratos CSV/OFX.",
+    status: "Ativo (parser client)",
+    secrets: "—",
   },
 ];
-
-// ─── page ─────────────────────────────────────────────────────────────────────
 
 function IntegracoesPage() {
   return (
@@ -44,38 +62,30 @@ function IntegracoesPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {INTEGRACOES.map((integ) => (
-          <div
-            key={integ.id}
-            className="rounded-xl border bg-card p-5 shadow-sm flex flex-col gap-3"
-          >
+          <div key={integ.id} className="rounded-xl border bg-card p-5 shadow-sm flex flex-col gap-3">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="font-semibold text-foreground">{integ.nome}</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">{integ.categoria}</p>
               </div>
               <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground border-border">
-                Aguardando credenciais
+                {integ.status}
               </span>
             </div>
-
             <p className="text-sm text-muted-foreground flex-1">{integ.descricao}</p>
-
-            <Button
-              variant="outline"
-              size="sm"
-              disabled
-              className="w-full"
-            >
-              Configurar
-            </Button>
+            <p className="text-xs text-muted-foreground font-mono">{integ.secrets}</p>
+            {integ.id === "n8n" && (
+              <p className="text-xs text-muted-foreground">NF emitida → send-nf-email → n8n → Resend</p>
+            )}
+            <Button variant="outline" size="sm" disabled className="w-full">Configurar</Button>
           </div>
         ))}
       </div>
 
       <div className="rounded-xl border border-dashed bg-card p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          As credenciais das integrações são configuradas diretamente nas variáveis de ambiente do servidor.
-          Entre em contato com o suporte técnico para ativar uma integração.
+          Credenciais configuradas via variáveis de ambiente do servidor.
+          Workflow n8n: <code className="text-xs">docs/n8n/workflow_nf_email.json</code>
         </p>
       </div>
     </div>

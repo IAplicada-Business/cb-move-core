@@ -30,3 +30,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cursor / local tooling
+.cursor/
+
+# Supabase CLI temp
+supabase/.temp/
+
+# Import scripts — dados sensíveis e artefatos gerados
+scripts/__pycache__/
+scripts/drive_import/
+scripts/cpf_import_report.json
+scripts/cpf_import_apply.sql
+scripts/cpf_extracao.json
+scripts/nf_import_apply.sql
+scripts/nf_import_report.json
+scripts/_batch*.py
+scripts/_clean.py
+scripts/_fix*.py
+scripts/_prep.py
+scripts/_sync_webhook_secret.py
+scripts/_nf_page_content.txt
