@@ -15,42 +15,11 @@ type Props = {
   onResult: (r: TranscricaoResult) => void;
 };
 
-// Declaração de tipo para a Web Speech API (não existe nas definições padrão do TS)
+// Web Speech API types are provided by lib.dom.d.ts in recent TS versions.
+// We only need to declare the webkit-prefixed constructor on Window.
 declare global {
   interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
-  interface SpeechRecognition extends EventTarget {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    start(): void;
-    stop(): void;
-    onresult: ((e: SpeechRecognitionEvent) => void) | null;
-    onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
-    onend: (() => void) | null;
-  }
-  interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-  }
-  interface SpeechRecognitionResultList {
-    readonly length: number;
-    item(index: number): SpeechRecognitionResult;
-    [index: number]: SpeechRecognitionResult;
-  }
-  interface SpeechRecognitionResult {
-    readonly isFinal: boolean;
-    readonly length: number;
-    item(index: number): SpeechRecognitionAlternative;
-    [index: number]: SpeechRecognitionAlternative;
-  }
-  interface SpeechRecognitionAlternative {
-    readonly transcript: string;
-    readonly confidence: number;
-  }
-  interface SpeechRecognitionErrorEvent extends Event {
-    readonly error: string;
+    webkitSpeechRecognition: typeof SpeechRecognition;
   }
 }
 
