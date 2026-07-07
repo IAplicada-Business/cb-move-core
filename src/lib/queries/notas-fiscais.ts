@@ -18,6 +18,8 @@ export type NotaFiscal = {
   corpoNumeroProcesso: string | null;
   valor: number;
   emissao: string | null;
+  competenciaMes: number | null;
+  competenciaAno: number | null;
   status: NfStatus;
   pdfUrl: string | null;
   createdAt: string;
@@ -39,6 +41,8 @@ type Row = {
   corpo_numero_processo: string | null;
   valor: number | string;
   emissao: string | null;
+  competencia_mes: number | null;
+  competencia_ano: number | null;
   status: NfStatus;
   pdf_url: string | null;
   created_at: string;
@@ -62,6 +66,8 @@ const map = (r: Row): NotaFiscal => ({
   corpoNumeroProcesso: r.corpo_numero_processo,
   valor: Number(r.valor) || 0,
   emissao: r.emissao,
+  competenciaMes: r.competencia_mes,
+  competenciaAno: r.competencia_ano,
   status: r.status,
   pdfUrl: r.pdf_url,
   createdAt: r.created_at,
@@ -82,14 +88,9 @@ export async function fetchNFs(filters?: {
   if (filters?.status) query = query.eq("status", filters.status);
   if (filters?.tipo) query = query.eq("tipo", filters.tipo);
   if (filters?.competenciaMes && filters?.competenciaAno) {
-    const mes = String(filters.competenciaMes).padStart(2, "0");
-    const ano = filters.competenciaAno;
     query = query
-      .gte("emissao", `${ano}-${mes}-01`)
-      .lt("emissao", mes === "12"
-        ? `${ano + 1}-01-01`
-        : `${ano}-${String(filters.competenciaMes + 1).padStart(2, "0")}-01`
-      );
+      .eq("competencia_mes", filters.competenciaMes)
+      .eq("competencia_ano", filters.competenciaAno);
   }
 
   const { data, error } = await query;
@@ -133,6 +134,8 @@ export async function createNF(input: {
       destinatario_documento: input.destinatarioDocumento ?? null,
       valor: input.valor,
       emissao: input.emissao ?? new Date().toISOString().split("T")[0],
+      competencia_mes: input.competenciaMes ?? null,
+      competencia_ano: input.competenciaAno ?? null,
       status: "pendente",
       corpo_paciente_nome: input.corpoPacienteNome ?? null,
       corpo_paciente_cpf: input.corpoPacienteCpf ?? null,
@@ -143,6 +146,60 @@ export async function createNF(input: {
     .single();
   if (error) throw error;
   return map(data as unknown as Row);
+}
+
+export async function updateNF(
+  id: string,
+  patch: Partial<{
+    numero: string;
+    status: NfStatus;
+    pdfUrl: string;
+    emissao: string;
+    destinatarioNome: string;
+    destinatarioDocumento: string;
+  }>,
+): Promise<NotaFiscal> {
+  const { data, error } = await supabase
+    .from("notas_fiscais")
+    .update({
+      ...(patch.numero != null ? { numero: patch.numero } : {}),
+      ...(patch.status != null ? { status: patch.status } : {}),
+      ...(patch.pdfUrl != null ? { pdf_url: patch.pdfUrl } : {}),
+      ...(patch.emissao != null ? { emissao: patch.emissao } : {}),
+      ...(patch.destinatarioNome != null ? { destinatario_nome: patch.destinatarioNome } : {}),
+      ...(patch.destinatarioDocumento != null ? { destinatario_documento: patch.destinatarioDocumento } : {}),
+    })
+    .eq("id", id)
+    .select("*, pacientes(nome)")
+    .single();
+  if (error) throw error;
+  return map(data as unknown as Row);
+}
+
+export async function uploadNfPdf(file: File, ano: number, numero: string): Promise<string> {
+  const path = `nf/${ano}/${numero}.pdf`;
+  const { error } = await supabase.storage.from("notas-fiscais").upload(path, file, {
+    upsert: true,
+    contentType: "application/pdf",
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("notas-fiscais").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function sendNfEmail(nfId: string, tipo: PacienteTipo): Promise<{ ok: boolean; queued: boolean }> {
+  const { data, error } = await supabase.functions.invoke("send-nf-email", {
+    body: { nf_id: nfId, tipo, event_id: `nf-email-${nfId}` },
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? { ok: false, queued: false }) as { ok: boolean; queued: boolean };
+}
+
+export async function emitNfManual(nfId: string, numero: string, pdfUrl: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("emit-nf", {
+    body: { nf_id: nfId, modo: "manual", numero, pdf_url: pdfUrl },
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function countNotasMonth(year: number, month: number): Promise<number> {
@@ -174,35 +231,4 @@ export async function fetchNFsPorPacienteAno(
     .order("emissao");
   if (error) throw error;
   return ((data ?? []) as unknown as Row[]).map(map);
-}
-
-export async function fetchReceitaPorConvenio(ano: number): Promise<{
-  convenio: string;
-  meses: Record<number, number>;
-  total: number;
-}[]> {
-  const { data, error } = await supabase
-    .from("cobrancas")
-    .select("valor, tipo, competencia_mes, competencia_ano, pacientes(convenio_id, convenios(nome))")
-    .eq("competencia_ano", ano)
-    .in("status", ["pago", "pendente", "aguardando_convenio", "aguardando_alvara"]);
-
-  if (error) throw error;
-
-  // Agrupa por tipo/convênio
-  const buckets: Map<string, { convenio: string; meses: Record<number, number>; total: number }> = new Map();
-
-  for (const c of data ?? []) {
-    const nome = (c as unknown as { pacientes?: { convenios?: { nome?: string } } }).pacientes?.convenios?.nome
-      || c.tipo;
-    if (!buckets.has(nome)) {
-      buckets.set(nome, { convenio: nome, meses: {}, total: 0 });
-    }
-    const b = buckets.get(nome)!;
-    const mes = c.competencia_mes ?? 0;
-    b.meses[mes] = (b.meses[mes] ?? 0) + Number(c.valor);
-    b.total += Number(c.valor);
-  }
-
-  return Array.from(buckets.values()).sort((a, b) => b.total - a.total);
 }

@@ -21,6 +21,7 @@ import {
   fetchCobrancas, createCobranca, marcarComoPago, updateCobranca,
   type Cobranca,
 } from "@/lib/queries/cobrancas";
+import { fetchFinanceiroKpis } from "@/lib/queries/financeiro";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import type { CobrancaStatus, FormaPagamento, PacienteTipo, RegimeCobranca } from "@/lib/types";
 import {
@@ -89,19 +90,6 @@ function competenciaOpcoes() {
     });
   }
   return opts;
-}
-
-function calcKpis(cobrancas: Cobranca[], mes: number, ano: number) {
-  const doMes = cobrancas.filter(c => c.competenciaMes === mes && c.competenciaAno === ano);
-  const total = doMes.reduce((s, c) => s + c.valor, 0);
-  const pago = doMes.filter(c => c.status === "pago").reduce((s, c) => s + c.valor, 0);
-  const pendente = doMes
-    .filter(c => ["pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status))
-    .reduce((s, c) => s + c.valor, 0);
-  const vencido = doMes
-    .filter(c => ["vencido", "atrasado"].includes(c.status))
-    .reduce((s, c) => s + c.valor, 0);
-  return { total, pago, pendente, vencido };
 }
 
 // ─── schemas ────────────────────────────────────────────────────────────────
@@ -770,19 +758,15 @@ function CobrancasPage() {
     queryFn: () => fetchCobrancas(filters),
   });
 
-  // KPIs sempre do mês atual (sem filtros)
+  const mesAtual = now.getMonth() + 1;
+  const anoAtual = now.getFullYear();
+
   const kpisQuery = useQuery({
-    queryKey: queryKeys.cobrancas.list({
-      competenciaMes: now.getMonth() + 1,
-      competenciaAno: now.getFullYear(),
-    }),
-    queryFn: () => fetchCobrancas({
-      competenciaMes: now.getMonth() + 1,
-      competenciaAno: now.getFullYear(),
-    }),
+    queryKey: queryKeys.financeiro.kpis(anoAtual, mesAtual),
+    queryFn: () => fetchFinanceiroKpis(mesAtual, anoAtual),
   });
 
-  const kpis = calcKpis(kpisQuery.data ?? [], now.getMonth() + 1, now.getFullYear());
+  const kpis = kpisQuery.data ?? { total: 0, pago: 0, pendente: 0, vencido: 0 };
   const cobrancas = query.data ?? [];
   const temFiltro = !!(search || filtroStatus || filtroFormaPgto || filtroComp);
 

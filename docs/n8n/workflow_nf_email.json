@@ -1,0 +1,56 @@
+{
+  "name": "CB MOVE - NF Email",
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Webhook NF Email",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "path": "nf-email",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "id": "fetch-nf",
+      "name": "Buscar NF",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "resend",
+      "name": "Enviar Resend",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "log",
+      "name": "Log envio",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {},
+  "meta": {
+    "templateCaution": "Placeholder export \u2014 configure credenciais Supabase e Resend no n8n."
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
