@@ -245,7 +245,7 @@ Cobranças do mês com status elegível (`pago`, `pendente`, `aguardando_*`) **s
 | Destinatário — Nome | sim | auto via `resolver_destinatario_nf` |
 | Destinatário — CPF/CNPJ | sim | CPF paciente ou CNPJ convênio |
 | Corpo judicial | se tipo = judicial | nome, CPF, processo, total sessões |
-| Modo de emissão | sim | **Manual** (número + PDF) ou **Automático** (Nuvem Fiscal pós-homologação) |
+| Modo de emissão | sim | **Manual** (número + PDF) ou **Automático** (Focus NFe pós-homologação POA) |
 | Número NF | se manual | texto |
 | Data emissão | sim | default hoje |
 | Upload PDF | se manual | Storage `notas-fiscais/nf/{ano}/{numero}.pdf` |
@@ -414,7 +414,7 @@ Manter implementação atual com melhorias:
 │ Header: "Integrações" + subtítulo                           │
 ├─────────────────────────────────────────────────────────────┤
 │ Grid de cards (2–3 colunas)                                 │
-│   Cora · Nuvem Fiscal · n8n · Resend · Bradesco             │
+│   Cora · Focus NFe · n8n · Resend · Bradesco                │
 ├─────────────────────────────────────────────────────────────┤
 │ Rodapé: credenciais via env / suporte técnico               │
 └─────────────────────────────────────────────────────────────┘
@@ -425,12 +425,12 @@ Manter implementação atual com melhorias:
 | Card | Categoria | Descrição | Status exemplo | Secrets / config |
 |------|-----------|-----------|----------------|------------------|
 | **Cora** | Financeiro | Emissão e gestão de boletos bancários | Aguardando credenciais | `CORA_CLIENT_ID`, `CORA_CLIENT_SECRET` |
-| **Nuvem Fiscal** | Fiscal | NFS-e automática POA (substitui Safe Notas) | Spike em andamento | `NUVEMFISCAL_*` ou `FOCUSNFE_TOKEN` |
+| **Focus NFe** | Fiscal | NFS-e Nacional POA (substitui Safe Notas) | Aguardando conta responsável | `FOCUSNFE_TOKEN` |
 | **n8n** | Automação | Orquestra envio de e-mails de NF (templates por tipo) | Configurar workflow | `N8N_WEBHOOK_NF_EMAIL`, `N8N_WEBHOOK_SECRET` |
 | **Resend** | Comunicação | Entrega SMTP dos e-mails (via n8n) | Aguardando API key | `RESEND_API_KEY` (no n8n) |
 | **Bradesco** | Financeiro | Conciliação por import de extratos CSV/OFX | Ativo (parser client) | — |
 
-**Remover do card fiscal:** Safe Notas (substituído por Nuvem Fiscal / Focus NFe no plano).
+**Remover do card fiscal:** Safe Notas (substituído por Focus NFe). Nuvem Fiscal encerra 31/07/2026 — não usar.
 
 ### 5.3 Card n8n — detalhe de conteúdo
 
@@ -453,10 +453,10 @@ NF emitida → send-nf-email → n8n → Resend → ✓ E-mail enviado
 
 | Item | Código hoje | Spec / protótipo |
 |------|-------------|------------------|
-| Cards | Cora, Safe Notas, Resend | Cora, **Nuvem Fiscal**, **n8n**, Resend, Bradesco |
+| Cards | Cora, Safe Notas, Resend | Cora, **Focus NFe**, **n8n**, Resend, Bradesco |
 | Safe Notas | Presente | **Remover** |
 | n8n | Ausente | **Adicionar** |
-| Nuvem Fiscal | Ausente | **Adicionar** |
+| Focus NFe | Ausente | **Adicionar** (após conta da responsável) |
 | Bradesco | Ausente | **Adicionar** (conciliação) |
 
 ---
@@ -474,7 +474,7 @@ NF emitida → send-nf-email → n8n → Resend → ✓ E-mail enviado
 | Modal emitir completo | N/A | Falta modo manual + upload | N/A |
 | Sub-aba IR | N/A | N/A | OK (parcial) |
 | RPC backend | Parcial | **Falta** resolver_destinatario | **Falta** kpis_por_tipo + receita_convenio |
-| **Integrações** | Cards estáticos (Safe Notas) | **Falta** n8n, Nuvem Fiscal, Bradesco | Atualizar `app.configuracoes.integracoes.tsx` |
+| **Integrações** | Cards estáticos (Safe Notas) | **Falta** n8n, Focus NFe, Bradesco | Atualizar `app.configuracoes.integracoes.tsx` |
 
 ---
 
@@ -509,7 +509,7 @@ NF emitida → send-nf-email → n8n → Resend → ✓ E-mail enviado
 - [ ] Diego confirma: PUC, CCG judicial, sessões RC no corpo
 
 ### Integrações
-- [ ] Cards exibem Cora, Nuvem Fiscal, n8n, Resend, Bradesco (sem Safe Notas)
+- [ ] Cards exibem Cora, Focus NFe, n8n, Resend, Bradesco (sem Safe Notas)
 - [ ] Status de cada integração reflete estado real (credenciais / spike)
 - [ ] Workflow n8n documentado em `docs/n8n/workflow_nf_email.json`
 
@@ -549,7 +549,7 @@ NF emitida → send-nf-email → n8n → Resend → ✓ E-mail enviado
 | 3 | Refatorar `app.relatorios.tsx` (KPIs + tabela mockup) | RPCs |
 | 4 | Adicionar linhas "A emitir" + Importar PDF em NF | RPC resolver_destinatario |
 | 5 | **Workflow n8n e-mail NF + refatorar send-nf-email** | Webhook URL |
-| 6 | Atualizar tela Integrações (cards n8n, Nuvem Fiscal) | Aprovação spec |
+| 6 | Atualizar tela Integrações (cards n8n, Focus NFe) | Aprovação spec |
 | 7 | Painel conciliação inline em Cobranças | Parser (já existe) |
 | 6 | Seed opcional: 5 NFs exemplo pós-aprovação | Ambiente dev |
 | 7 | Conectar adapter fiscal (pós-spike POA) | Credenciais Diego |
