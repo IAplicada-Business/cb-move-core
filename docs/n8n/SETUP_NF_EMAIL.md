@@ -94,11 +94,9 @@ send-nf-email (Edge) → POST webhook n8n (payload completo)
 
 ## 6. Cron cobranças vencidas
 
-Edge Function `atualizar-cobrancas-vencidas` chama RPC `atualizar_cobrancas_vencidas()`.
+Ver guia completo: [`docs/SETUP_CRON_COBRANCAS.md`](../SETUP_CRON_COBRANCAS.md).
 
-Autorização: `Authorization: Bearer <SERVICE_ROLE_KEY>` ou header `x-cron-secret` (configurar `CRON_SECRET` em `integracao_config`).
-
-Agendar no Supabase Dashboard → Edge Functions → Cron, ou n8n diário.
+Resumo: Edge Function `atualizar-cobrancas-vencidas` → RPC `atualizar_cobrancas_vencidas()`. Auth via `x-cron-secret` (`CRON_SECRET` em `integracao_config`) ou service role.
 
 ## Pendências pós-MVP
 
