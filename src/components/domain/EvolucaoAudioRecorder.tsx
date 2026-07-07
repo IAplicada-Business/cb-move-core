@@ -15,24 +15,31 @@ type Props = {
   onResult: (r: TranscricaoResult) => void;
 };
 
-// Web Speech API types are provided by lib.dom.d.ts in recent TS versions.
-// We only need to declare the webkit-prefixed constructor on Window.
-declare global {
-  interface Window {
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
-}
+// Minimal typing for the Web Speech API (SpeechRecognition isn't in every TS lib).
+type SpeechRecognitionInstance = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((e: SpeechRecognitionEvent) => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+};
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
 
-const SpeechRecognitionClass =
+const SpeechRecognitionClass: SpeechRecognitionCtor | null =
   typeof window !== "undefined"
-    ? window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null
+    ? ((window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition ??
+       (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition ??
+       null)
     : null;
 
 export function EvolucaoAudioRecorder({ pacienteId, onResult }: Props) {
   const [recording, setRecording] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
   const [liveText, setLiveText] = React.useState("");
-  const recognitionRef = React.useRef<SpeechRecognition | null>(null);
+  const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
   const finalTextRef = React.useRef("");
 
   if (!SpeechRecognitionClass) {
