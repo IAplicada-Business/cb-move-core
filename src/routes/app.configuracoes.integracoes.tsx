@@ -20,9 +20,9 @@ const INTEGRACOES = [
     id: "focus-nfe",
     nome: "Focus NFe",
     categoria: "Fiscal",
-    descricao: "NFS-e Nacional POA (substitui Safe Notas). Nuvem Fiscal encerra em 31/07/2026.",
-    status: "Criar conta e spike POA",
-    secrets: "FOCUSNFE_TOKEN",
+    descricao: "NFS-e Nacional POA — emissão automática via emit-nf.",
+    status: "Configurar token API",
+    secrets: "FOCUSNFE_TOKEN, FOCUSNFE_CNPJ_PRESTADOR, FOCUSNFE_AMBIENTE",
   },
   {
     id: "n8n",
@@ -76,6 +76,9 @@ function IntegracoesPage() {
             <p className="text-xs text-muted-foreground font-mono">{integ.secrets}</p>
             {integ.id === "n8n" && (
               <p className="text-xs text-muted-foreground">NF emitida → send-nf-email → n8n → Resend</p>
+            )}
+            {integ.id === "focus-nfe" && (
+              <p className="text-xs text-muted-foreground">Ver docs/SETUP_FOCUS_NFE.md</p>
             )}
             <Button variant="outline" size="sm" disabled className="w-full">Configurar</Button>
           </div>
