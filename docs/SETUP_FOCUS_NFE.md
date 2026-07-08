@@ -13,17 +13,30 @@ Provedor fiscal alvo do CB MOVE (substitui Safe Notas / Nuvem Fiscal).
 
 ## 2. Token da API (não é email/senha)
 
-| Onde | Valor |
-|------|-------|
-| Menu | **Painel API → Tokens** |
-| Testes | **Token de Homologação** |
-| Produção | **Token de Produção** |
+| Tipo | Uso |
+|------|-----|
+| **Token revenda** (conta) | Cadastrar empresas via `POST /v2/empresas` |
+| **Token homologação** (por empresa) | Emitir NFS-e de teste em `homologacao.focusnfe.com.br` |
+| **Token produção** (por empresa) | Emitir NFS-e válidas em `api.focusnfe.com.br` |
 
-Autenticação HTTP Basic: usuário = token, senha vazia.
+O `emit-nf` usa **token da empresa** (`FOCUSNFE_TOKEN`), não o token revenda.
+
+Após criar a empresa no painel ou via API, copie em **Empresas → Tokens**:
+- Homologação → `FOCUSNFE_AMBIENTE=homologacao`
+- Produção → `FOCUSNFE_AMBIENTE=producao`
 
 ```bash
-curl -u 'SEU_TOKEN:' https://homologacao.focusnfe.com.br/v2/empresas
+curl -u 'SEU_TOKEN:' https://homologacao.focusnfe.com.br/v2/nfsen/{ref}
 ```
+
+### CB MOVE (cadastrada 08/07/2026)
+
+| Campo | Valor |
+|-------|-------|
+| Empresa Focus ID | `230418` |
+| CNPJ | `42.082.795/0001-74` |
+| NFS-e Nacional | homologação + produção habilitadas |
+| Certificado A1 | **pendente** — necessário para autorização real |
 
 ## 3. Configurar no Supabase
 
