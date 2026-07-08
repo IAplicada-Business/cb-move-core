@@ -2,8 +2,9 @@
 -- NÃO commite tokens reais no repositório.
 --
 -- O login do painel (email/senha) NÃO é o token da API.
--- Obtenha em: Painel API → Tokens → Token de Homologação (testes)
---              ou Token de Produção (notas válidas).
+-- Substitua:
+--   <TOKEN_EMPRESA_HOMOLOG> — token da empresa em Empresas → Tokens → Homologação
+--   (NÃO use o token revenda da conta).
 
 INSERT INTO public.integracao_config (chave, valor)
 VALUES
