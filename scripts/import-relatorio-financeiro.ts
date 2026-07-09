@@ -187,6 +187,8 @@ type CobrancaRow = {
   status: string;
   formaPgto: string;
   qtdSessoes: number | null;
+  frequencia: string | null;
+  diasSemana: string | null;
   obs: string;
   isRetroativa: boolean;
   alertas: string[];
@@ -250,6 +252,7 @@ async function main() {
 
       const nome       = String(row[0]).trim();
       const frequencia = String(row[2] ?? '').trim();
+      const diasSemana = String(row[3] ?? '').trim();
       const plano      = String(row[5] ?? '').trim();
       const valorRaw   = row[7];
       const sit        = String(row[9] ?? '').trim();
@@ -308,6 +311,8 @@ async function main() {
           status: 'regularizar_retroativa',
           formaPgto: inferFormaPgto(sit),
           qtdSessoes: null,
+          frequencia: frequencia || null,
+          diasSemana: diasSemana || null,
           obs: `Retroativa detectada no relatório financeiro | ${baseObs}`,
           isRetroativa: true,
           alertas: [],
@@ -331,6 +336,8 @@ async function main() {
         status: inferStatus(sit, temRetro),
         formaPgto: inferFormaPgto(sit),
         qtdSessoes: isNaN(qtd as number) ? null : qtd,
+        frequencia: frequencia || null,
+        diasSemana: diasSemana || null,
         obs: baseObs,
         isRetroativa: false,
         alertas,
@@ -426,7 +433,13 @@ async function main() {
     if (!pacId) {
       const { data: np, error: ne } = await supabase
         .from('pacientes')
-        .insert({ nome: c.pacienteNome, tipo: c.tipo, modelo_relatorio_preferido: c.modelo })
+        .insert({
+          nome: c.pacienteNome,
+          tipo: c.tipo,
+          modelo_relatorio_preferido: c.modelo,
+          frequencia_atendimento: c.frequencia,
+          dias_semana: c.diasSemana,
+        })
         .select('id')
         .single();
       if (ne || !np) { erros.push(`CRIARPAC ${c.pacienteNome}: ${ne?.message}`); continue; }
@@ -447,6 +460,8 @@ async function main() {
       vencimento:      c.vencimento,
       status:          c.status,
       qtd_sessoes:     c.qtdSessoes,
+      frequencia_atendimento: c.frequencia,
+      dias_semana:     c.diasSemana,
       observacoes:     c.obs,
     });
 

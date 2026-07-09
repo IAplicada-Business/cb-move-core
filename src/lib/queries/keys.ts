@@ -53,6 +53,7 @@ export const queryKeys = {
     kpisPorTipo: (year: number, month: number) => ["financeiro", "kpisPorTipo", year, month] as const,
     receitaConvenio: (year: number, month: number) => ["financeiro", "receitaConvenio", year, month] as const,
     cobrancasSemNf: (year: number, month: number) => ["financeiro", "cobrancasSemNf", year, month] as const,
+    extrato: (year: number, month: number) => ["financeiro", "extrato", year, month] as const,
   },
   dashboard: {
     kpis: (year: number, month: number) => ["dashboard", "kpis", year, month] as const,

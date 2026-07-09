@@ -18,6 +18,9 @@ export type Cobranca = {
   pagoEm: string | null;
   boletoUrl: string | null;
   observacoes: string | null;
+  frequenciaAtendimento: string | null;
+  diasSemana: string | null;
+  qtdSessoes: number | null;
   createdAt: string;
 };
 
@@ -37,6 +40,9 @@ type Row = {
   pago_em: string | null;
   boleto_url: string | null;
   observacoes: string | null;
+  frequencia_atendimento: string | null;
+  dias_semana: string | null;
+  qtd_sessoes: number | null;
   created_at: string;
   pacientes?: { nome: string } | null;
 };
@@ -58,6 +64,9 @@ const map = (r: Row): Cobranca => ({
   pagoEm: r.pago_em,
   boletoUrl: r.boleto_url,
   observacoes: r.observacoes,
+  frequenciaAtendimento: r.frequencia_atendimento,
+  diasSemana: r.dias_semana,
+  qtdSessoes: r.qtd_sessoes,
   createdAt: r.created_at,
 });
 
@@ -120,6 +129,8 @@ export async function createCobranca(input: {
   competenciaMes?: number;
   competenciaAno?: number;
   qtdSessoes?: number;
+  frequenciaAtendimento?: string;
+  diasSemana?: string;
   observacoes?: string;
 }): Promise<Cobranca> {
   const { data, error } = await supabase
@@ -135,6 +146,8 @@ export async function createCobranca(input: {
       competencia_mes: input.competenciaMes,
       competencia_ano: input.competenciaAno,
       qtd_sessoes: input.qtdSessoes,
+      frequencia_atendimento: input.frequenciaAtendimento || null,
+      dias_semana: input.diasSemana || null,
       observacoes: input.observacoes,
     })
     .select("*, pacientes(nome)")
@@ -149,6 +162,9 @@ export async function updateCobranca(id: string, input: Partial<{
   boletoUrl: string;
   coraInvoiceId: string;
   observacoes: string;
+  frequenciaAtendimento: string | null;
+  diasSemana: string | null;
+  qtdSessoes: number | null;
 }>): Promise<void> {
   const { error } = await supabase
     .from("cobrancas")
@@ -158,6 +174,9 @@ export async function updateCobranca(id: string, input: Partial<{
       boleto_url: input.boletoUrl,
       cora_invoice_id: input.coraInvoiceId,
       observacoes: input.observacoes,
+      frequencia_atendimento: input.frequenciaAtendimento,
+      dias_semana: input.diasSemana,
+      qtd_sessoes: input.qtdSessoes,
     })
     .eq("id", id);
   if (error) throw error;

@@ -1,14 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Download, FileText } from "lucide-react";
+import { useRef, useState } from "react";
+import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { queryKeys } from "@/lib/queries";
+import { downloadCSV } from "@/lib/csv";
+import {
+  competenciaLabel,
+  extratoToCsvRows,
+} from "@/lib/domain/extrato-financeiro";
 import { brl } from "@/lib/format";
+import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
 import { fetchNFsPorPacienteAno } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import {
@@ -329,6 +335,222 @@ function TabNFsPorPaciente() {
   );
 }
 
+function TabExtratoFinanceiro() {
+  const now = new Date();
+  const [mes, setMes] = useState(now.getMonth() + 1);
+  const [ano, setAno] = useState(now.getFullYear());
+  const printRef = useRef<HTMLDivElement>(null);
+  const compOpts = competenciaOpcoes();
+
+  const extratoQuery = useQuery({
+    queryKey: queryKeys.financeiro.extrato(ano, mes),
+    queryFn: () => fetchExtratoFinanceiro(mes, ano),
+  });
+
+  const extrato = extratoQuery.data;
+  const linhas = extrato?.linhas ?? [];
+  const loading = extratoQuery.isLoading;
+
+  function exportarCsv() {
+    if (!extrato || linhas.length === 0) return;
+    const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
+    downloadCSV(`extrato-financeiro-${mesNome}-${ano}.csv`, extratoToCsvRows(extrato));
+    toast.success("Extrato exportado em CSV");
+  }
+
+  function imprimir() {
+    if (!printRef.current) return;
+    const conteudo = printRef.current.innerHTML;
+    const janela = window.open("", "_blank", "noopener,noreferrer,width=1100,height=800");
+    if (!janela) {
+      toast.error("Permita pop-ups para imprimir o extrato");
+      return;
+    }
+    janela.document.write(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Extrato financeiro · ${competenciaLabel(mes, ano)}</title>
+          <style>
+            body { font-family: Calibri, Arial, sans-serif; font-size: 11px; margin: 24px; color: #111; }
+            h1 { font-size: 16px; margin: 0 0 4px; }
+            p { margin: 0 0 16px; color: #555; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; font-weight: 700; }
+            .num { text-align: right; white-space: nowrap; }
+            .total td { font-weight: 700; background: #f9fafb; }
+            .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; }
+          </style>
+        </head>
+        <body>${conteudo}</body>
+      </html>
+    `);
+    janela.document.close();
+    janela.focus();
+    janela.print();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-semibold">Extrato financeiro mensal</h2>
+          <p className="text-sm text-muted-foreground">
+            Formato alinhado ao Relatório Financeiro 2026 da clínica
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select
+            value={`${mes}-${ano}`}
+            onValueChange={(v) => {
+              const [m, a] = v.split("-");
+              setMes(Number(m));
+              setAno(Number(a));
+            }}
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {compOpts.map((o) => (
+                <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportarCsv}
+            disabled={!extrato || linhas.length === 0}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Exportar CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={imprimir}
+            disabled={!extrato || linhas.length === 0}
+          >
+            <Printer className="h-4 w-4 mr-1" />
+            Imprimir / PDF
+          </Button>
+        </div>
+      </div>
+
+      {extrato && linhas.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <KpiCard
+            label="R$ Previsto"
+            value={brl(extrato.totalPrevisto)}
+            accent="cyan"
+            hint={`${extrato.qtdLinhas} linha(s)`}
+          />
+          <KpiCard
+            label="R$ Recebido"
+            value={brl(extrato.totalRecebido)}
+            accent="purple"
+            hint={
+              extrato.totalPrevisto > 0
+                ? `${Math.round((extrato.totalRecebido / extrato.totalPrevisto) * 100)}% do previsto`
+                : "—"
+            }
+          />
+          <KpiCard
+            label="A receber"
+            value={brl(Math.max(extrato.totalPrevisto - extrato.totalRecebido, 0))}
+            accent="orange"
+            hint={competenciaLabel(mes, ano)}
+          />
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingState />
+      ) : extratoQuery.isError ? (
+        <EmptyState
+          title="Erro ao carregar extrato"
+          description={extratoQuery.error instanceof Error ? extratoQuery.error.message : "Tente novamente."}
+        />
+      ) : linhas.length === 0 ? (
+        <EmptyState
+          icon={<FileSpreadsheet className="h-8 w-8" />}
+          title="Sem cobranças nesta competência"
+          description="Não há linhas para gerar o extrato financeiro do período selecionado."
+        />
+      ) : (
+        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+          <div ref={printRef}>
+            <div className="px-4 py-3 border-b bg-muted/30 print:block">
+              <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
+              <p className="text-xs text-muted-foreground">
+                CB MOVE Neuroscience · Relatório Financeiro
+              </p>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome do Paciente</TableHead>
+                  <TableHead>Avaliação</TableHead>
+                  <TableHead>Frequência</TableHead>
+                  <TableHead>Dias da Semana</TableHead>
+                  <TableHead className="text-right">Nº Sessões</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead className="text-right">R$ Sessão/Mês</TableHead>
+                  <TableHead className="text-right">R$ Previsto</TableHead>
+                  <TableHead className="text-right">R$ Recebido</TableHead>
+                  <TableHead>SITUAÇÃO</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.map((l) => (
+                  <TableRow key={l.cobrancaId}>
+                    <TableCell className="font-medium whitespace-nowrap">{l.pacienteNome}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{l.avaliacao ?? "—"}</TableCell>
+                    <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
+                    <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{l.numSessoes ?? "—"}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap">
+                      {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
+                      {l.valorPrevisto > 0 ? brl(l.valorPrevisto) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap">
+                      {l.valorRecebido != null ? brl(l.valorRecebido) : ""}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-xs">{l.situacao}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/40">
+                  <TableCell colSpan={7} className="font-semibold">Total</TableCell>
+                  <TableCell className="text-right font-bold tabular-nums">
+                    {brl(extrato!.totalPrevisto)}
+                  </TableCell>
+                  <TableCell className="text-right font-bold tabular-nums">
+                    {brl(extrato!.totalRecebido)}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground px-1">
+        Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao criar a cobrança.
+      </p>
+    </div>
+  );
+}
+
 function RelatoriosPage() {
   return (
     <div className="space-y-6">
@@ -337,11 +559,16 @@ function RelatoriosPage() {
         <p className="text-sm text-muted-foreground">Análises e exportações financeiras</p>
       </header>
 
-      <Tabs defaultValue="receita-convenio">
+      <Tabs defaultValue="extrato-financeiro">
         <TabsList>
+          <TabsTrigger value="extrato-financeiro">Extrato financeiro</TabsTrigger>
           <TabsTrigger value="receita-convenio">Receita por convênio</TabsTrigger>
           <TabsTrigger value="nfs-ir">NFs por paciente (IR)</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="extrato-financeiro" className="mt-4">
+          <TabExtratoFinanceiro />
+        </TabsContent>
 
         <TabsContent value="receita-convenio" className="mt-4">
           <TabReceitaConvenio />

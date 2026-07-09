@@ -12,6 +12,8 @@ export type Paciente = {
   modeloRelatorio: ModeloRelatorio | null;
   valorMensal: number | null;
   valorSessao: number | null;
+  frequenciaAtendimento: string | null;
+  diasSemana: string | null;
   convenioId: string | null;
   convenioNome: string | null;
   fisioterapeutaId: string | null;
@@ -35,6 +37,8 @@ type Row = {
   modelo_relatorio_preferido: ModeloRelatorio | null;
   valor_mensal: number | null;
   valor_sessao: number | null;
+  frequencia_atendimento: string | null;
+  dias_semana: string | null;
   convenio_id: string | null;
   fisioterapeuta_id: string | null;
   numero_processo: string | null;
@@ -58,6 +62,8 @@ const map = (r: Row): Paciente => ({
   modeloRelatorio: r.modelo_relatorio_preferido,
   valorMensal: r.valor_mensal,
   valorSessao: r.valor_sessao,
+  frequenciaAtendimento: r.frequencia_atendimento,
+  diasSemana: r.dias_semana,
   convenioId: r.convenio_id,
   convenioNome: r.convenios?.nome ?? null,
   fisioterapeutaId: r.fisioterapeuta_id,
@@ -119,6 +125,8 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | 
       modelo_relatorio_preferido: input.modeloRelatorio ?? null,
       valor_mensal: input.valorMensal,
       valor_sessao: input.valorSessao,
+      frequencia_atendimento: input.frequenciaAtendimento,
+      dias_semana: input.diasSemana,
       convenio_id: input.convenioId,
       fisioterapeuta_id: input.fisioterapeutaId,
       numero_processo: input.numeroProcesso,
@@ -151,6 +159,8 @@ export async function updatePaciente(
       modelo_relatorio_preferido: input.modeloRelatorio ?? null,
       valor_mensal: input.valorMensal,
       valor_sessao: input.valorSessao,
+      frequencia_atendimento: input.frequenciaAtendimento,
+      dias_semana: input.diasSemana,
       convenio_id: input.convenioId,
       fisioterapeuta_id: input.fisioterapeutaId,
       numero_processo: input.numeroProcesso,
