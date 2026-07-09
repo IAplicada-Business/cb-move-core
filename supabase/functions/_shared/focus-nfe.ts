@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getIntegracaoConfigValue } from "./integracao-config.ts";
+import { queueNfEmail } from "./nf-email-queue.ts";
+
+export const FOCUS_REF_PREFIX = "cbmove-";
 
 /** Porto Alegre / RS — IBGE */
 export const POA_CODIGO_MUNICIPIO = 4314902;
@@ -200,6 +203,31 @@ async function focusRequest(
   return data;
 }
 
+export function focusRefFromNfId(nfId: string): string {
+  return `${FOCUS_REF_PREFIX}${nfId}`;
+}
+
+export function nfIdFromFocusRef(ref: string | null | undefined): string | null {
+  if (!ref || !ref.startsWith(FOCUS_REF_PREFIX)) return null;
+  const id = ref.slice(FOCUS_REF_PREFIX.length);
+  return id.length >= 32 ? id : null;
+}
+
+export async function verifyFocusWebhookSecret(
+  admin: SupabaseClient,
+  req: Request,
+): Promise<boolean> {
+  const expected = await getIntegracaoConfigValue(admin, "FOCUSNFE_WEBHOOK_SECRET");
+  if (!expected) return true;
+
+  const header =
+    req.headers.get("X-Webhook-Secret") ??
+    req.headers.get("x-webhook-secret") ??
+    req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+
+  return header === expected;
+}
+
 function extractNumero(data: Record<string, unknown>): string | null {
   const candidates = [
     data.numero,
@@ -229,45 +257,183 @@ function extractPdfUrl(data: Record<string, unknown>): string | null {
 
 function isAuthorized(status: string): boolean {
   const s = status.toLowerCase();
-  return s.includes("autoriz") && !s.includes("erro");
+  return s === "autorizado" || s === "autorizada";
+}
+
+function isProcessing(status: string): boolean {
+  const s = status.toLowerCase();
+  return s === "processando_autorizacao" || s === "processando";
 }
 
 function isError(status: string): boolean {
   const s = status.toLowerCase();
-  return s.includes("erro") || s.includes("deneg") || s.includes("cancel");
+  return s.includes("erro") || s.includes("deneg") || s === "cancelado";
 }
 
-export async function emitFocusNfsen(
+function formatFocusError(data: Record<string, unknown>): string {
+  const erros = data.erros;
+  if (Array.isArray(erros) && erros.length > 0) {
+    const first = erros[0] as Record<string, unknown>;
+    return String(first.mensagem ?? first.codigo ?? "Erro na autorização NFS-e");
+  }
+  return String(
+    data.mensagem_sefaz ?? data.mensagem ?? data.erro ?? "Erro na autorização NFS-e",
+  );
+}
+
+export async function submitFocusNfsen(
   config: FocusNfeConfig,
   ref: string,
   nf: NfForFocus,
 ): Promise<FocusEmitResult> {
   const payload = buildFocusNfsenPayload(nf, config);
-  await focusRequest(config, "POST", `/v2/nfsen?ref=${encodeURIComponent(ref)}`, payload);
+  const data = await focusRequest(
+    config,
+    "POST",
+    `/v2/nfsen?ref=${encodeURIComponent(ref)}`,
+    payload,
+  );
 
-  const maxAttempts = 15;
-  const delayMs = 2000;
+  return {
+    ref,
+    status: String(data.status ?? "processando_autorizacao"),
+    numero: extractNumero(data),
+    pdfUrl: extractPdfUrl(data),
+    raw: data,
+  };
+}
+
+export async function getFocusNfsen(
+  config: FocusNfeConfig,
+  ref: string,
+): Promise<FocusEmitResult> {
+  const data = await focusRequest(config, "GET", `/v2/nfsen/${encodeURIComponent(ref)}`);
+  return {
+    ref,
+    status: String(data.status ?? "processando_autorizacao"),
+    numero: extractNumero(data),
+    pdfUrl: extractPdfUrl(data),
+    raw: data,
+  };
+}
+
+export type ApplyFocusWebhookResult = {
+  nf_id: string | null;
+  focus_status: string;
+  nf_status?: string;
+  skipped?: string;
+  email?: { ok: boolean; queued?: boolean; error?: string };
+};
+
+export async function applyFocusNfsenWebhook(
+  admin: SupabaseClient,
+  payload: unknown,
+): Promise<ApplyFocusWebhookResult> {
+  const data = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
+  const ref = String(data.ref ?? "");
+  const nfId = nfIdFromFocusRef(ref);
+  if (!nfId) {
+    return { nf_id: null, focus_status: String(data.status ?? "desconhecido"), skipped: "ref_invalida" };
+  }
+
+  const status = String(data.status ?? "processando_autorizacao");
+
+  if (isProcessing(status)) {
+    await admin
+      .from("notas_fiscais")
+      .update({ status: "processando", fiscal_provider: "focus_nfe" })
+      .eq("id", nfId)
+      .in("status", ["pendente", "processando", "erro"]);
+
+    return { nf_id: nfId, focus_status: status, nf_status: "processando" };
+  }
+
+  if (isError(status)) {
+    await admin
+      .from("notas_fiscais")
+      .update({ status: "erro", fiscal_provider: "focus_nfe" })
+      .eq("id", nfId);
+
+    return { nf_id: nfId, focus_status: status, nf_status: "erro" };
+  }
+
+  if (!isAuthorized(status)) {
+    return { nf_id: nfId, focus_status: status, skipped: "status_ignorado" };
+  }
+
+  const { data: nf } = await admin
+    .from("notas_fiscais")
+    .select("id, tipo, competencia_ano, status")
+    .eq("id", nfId)
+    .maybeSingle();
+
+  if (!nf) {
+    return { nf_id: nfId, focus_status: status, skipped: "nf_nao_encontrada" };
+  }
+
+  if (nf.status === "emitida") {
+    return { nf_id: nfId, focus_status: status, nf_status: "emitida", skipped: "ja_emitida" };
+  }
+
+  const ano = nf.competencia_ano ?? new Date().getFullYear();
+  const numeroNf = extractNumero(data) ?? `REF-${ref.slice(0, 12)}`;
+  let pdfStorageUrl: string | null = extractPdfUrl(data);
+
+  if (pdfStorageUrl) {
+    try {
+      pdfStorageUrl = await uploadPdfFromUrl(admin, pdfStorageUrl, `nf/${ano}/${numeroNf}.pdf`);
+    } catch {
+      // mantém URL Focus se upload falhar
+    }
+  }
+
+  const emissao = new Date().toISOString().split("T")[0];
+  const { error: updErr } = await admin
+    .from("notas_fiscais")
+    .update({
+      numero: numeroNf,
+      pdf_url: pdfStorageUrl,
+      status: "emitida",
+      emissao,
+      emitida_em: new Date().toISOString(),
+      fiscal_provider: "focus_nfe",
+    })
+    .eq("id", nfId);
+
+  if (updErr) throw updErr;
+
+  const email = await queueNfEmail(admin, nfId, {
+    tipo: nf.tipo,
+    eventId: `nf-emit-${nfId}`,
+  });
+
+  return {
+    nf_id: nfId,
+    focus_status: status,
+    nf_status: "emitida",
+    email,
+  };
+}
+
+/** Polling opcional (scripts/legado). Produção usa webhook. */
+export async function emitFocusNfsen(
+  config: FocusNfeConfig,
+  ref: string,
+  nf: NfForFocus,
+): Promise<FocusEmitResult> {
+  await submitFocusNfsen(config, ref, nf);
+
+  const maxAttempts = 45;
+  const delayMs = 3000;
 
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((r) => setTimeout(r, delayMs));
-    const data = await focusRequest(config, "GET", `/v2/nfsen/${encodeURIComponent(ref)}`);
-    const status = String(data.status ?? "processando");
+    const result = await getFocusNfsen(config, ref);
 
-    if (isAuthorized(status)) {
-      return {
-        ref,
-        status,
-        numero: extractNumero(data),
-        pdfUrl: extractPdfUrl(data),
-        raw: data,
-      };
-    }
+    if (isAuthorized(result.status)) return result;
 
-    if (isError(status)) {
-      const msg = String(
-        data.mensagem_sefaz ?? data.erros ?? data.mensagem ?? "Erro na autorização NFS-e",
-      );
-      throw new Error(`Focus NFe rejeitou: ${msg}`);
+    if (isError(result.status)) {
+      throw new Error(`Focus NFe rejeitou: ${formatFocusError(result.raw)}`);
     }
   }
 

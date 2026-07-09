@@ -14,6 +14,7 @@ const COBRANCA: Record<CobrancaStatus, { label: string; cls: string }> = {
 
 const NF: Record<NfStatus, { label: string; cls: string }> = {
   pendente:               { label: "Pendente",           cls: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-100" },
+  processando:            { label: "Processando",        cls: "bg-[#F3F0FF] text-[#6D28D9] border-[#DDD6FE]" },
   emitida:                { label: "Emitida",            cls: "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]" },
   cancelada:              { label: "Cancelada",          cls: "bg-muted text-muted-foreground border-border" },
   erro:                   { label: "Erro",               cls: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },

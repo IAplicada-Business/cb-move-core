@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authErrorResponse, requireFinanceUser } from "../_shared/auth.ts";
 import {
-  emitFocusNfsen,
+  focusRefFromNfId,
+  getFocusNfsen,
   loadFocusNfeConfig,
-  uploadPdfFromUrl,
+  submitFocusNfsen,
   type NfForFocus,
 } from "../_shared/focus-nfe.ts";
 
@@ -106,11 +107,31 @@ serve(async (req) => {
       );
     }
 
-    const ref = `cbmove-${nf_id}`;
+    if (nf.status === "emitida") {
+      throw new Error("NF já emitida");
+    }
+
+    if (nf.status === "processando") {
+      const ref = focusRefFromNfId(nf_id);
+      const current = await getFocusNfsen(focusConfig, ref);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          nf_id,
+          status: "processando",
+          fiscal_provider: "focus_nfe",
+          focus_status: current.status,
+          message: "NF já enviada à Focus — aguardando webhook ou consulta",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const ref = focusRefFromNfId(nf_id);
     let result;
 
     try {
-      result = await emitFocusNfsen(focusConfig, ref, nf as NfForFocus);
+      result = await submitFocusNfsen(focusConfig, ref, nf as NfForFocus);
     } catch (focusErr) {
       await admin
         .from("notas_fiscais")
@@ -120,48 +141,24 @@ serve(async (req) => {
       throw focusErr;
     }
 
-    const emissao = new Date().toISOString().split("T")[0];
-    const ano = nf.competencia_ano ?? new Date().getFullYear();
-    const numeroNf = result.numero ?? `REF-${ref.slice(0, 8)}`;
-
-    let pdfStorageUrl: string | null = null;
-    if (result.pdfUrl) {
-      try {
-        pdfStorageUrl = await uploadPdfFromUrl(
-          admin,
-          result.pdfUrl,
-          `nf/${ano}/${numeroNf}.pdf`,
-        );
-      } catch {
-        pdfStorageUrl = result.pdfUrl;
-      }
-    }
-
     const { error: updErr } = await admin
       .from("notas_fiscais")
       .update({
-        numero: numeroNf,
-        pdf_url: pdfStorageUrl,
-        status: "emitida",
-        emissao,
-        emitida_em: new Date().toISOString(),
+        status: "processando",
         fiscal_provider: "focus_nfe",
       })
       .eq("id", nf_id);
     if (updErr) throw updErr;
 
-    const emailResult = await triggerSendNfEmail(nf_id, nf.tipo, authHeader);
-
     return new Response(
       JSON.stringify({
         ok: true,
         nf_id,
-        status: "emitida",
-        numero: numeroNf,
+        status: "processando",
         fiscal_provider: "focus_nfe",
         focus_status: result.status,
-        pdf_url: pdfStorageUrl,
-        email: emailResult,
+        focus_ref: ref,
+        message: "DPS enviado à Focus — autorização via webhook",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

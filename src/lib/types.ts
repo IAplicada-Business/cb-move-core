@@ -11,7 +11,7 @@ export type CobrancaStatus =
   | "aguardando_convenio"
   | "aguardando_alvara"
   | "regularizar_retroativa";
-export type NfStatus = "pendente" | "emitida" | "cancelada" | "erro" | "regularizada_retroativa";
+export type NfStatus = "pendente" | "processando" | "emitida" | "cancelada" | "erro" | "regularizada_retroativa";
 export type StatusAgendamento =
   | "agendado"
   | "confirmado"
