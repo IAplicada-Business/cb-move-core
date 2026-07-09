@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
+import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { FilterChip } from "@/components/domain/FilterChip";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -17,6 +19,7 @@ import {
   fetchAgendamentoHistorico,
   remarcarAgendamento,
   updateAgendamentoStatus,
+  contarEscopoRemanejamento,
   type EscopoRemanejamento,
   type HistoricoRow,
 } from "@/lib/queries/agenda";
@@ -40,7 +43,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { formatDateDDMMYY, formatDateTimeDDMMYY } from "@/lib/format";
+import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, isoToHHMM, parseDDMMYYToISO } from "@/lib/format";
 
 export const Route = createFileRoute("/app/agenda")({
   head: () => ({ meta: [{ title: "Agenda · CB MOVE" }] }),
@@ -107,7 +110,7 @@ function formatHHMM(d: Date) {
 }
 
 function formatDayHeader(d: Date) {
-  return `${DIAS_PT[d.getDay()]} ${d.getDate()}`;
+  return `${DIAS_PT[d.getDay()]} ${formatDateDDMMYY(d)}`;
 }
 
 function shortName(full: string) {
@@ -291,8 +294,8 @@ function TipoLegend() {
 const schema = z.object({
   pacienteId: z.string().min(1, "Selecione um paciente"),
   fisioId: z.string().min(1, "Selecione um fisioterapeuta"),
-  data: z.string().min(1, "Data obrigatória"),
-  horaInicio: z.string().min(1, "Hora obrigatória"),
+  data: z.string().refine((v) => parseDDMMYYToISO(v) !== null, "Use dd/mm/aa"),
+  horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
   duracao: z.coerce.number().min(15),
   servico: z.string().nullable().optional(),
 });
@@ -301,8 +304,8 @@ type FormValues = z.infer<typeof schema>;
 // ─── page ────────────────────────────────────────────────────────────────────
 
 type RemarcarFormValues = {
-  data: string;
-  horaInicio: string;
+  data: string; // dd/mm/yy
+  horaInicio: string; // HH:mm
   fisioId: string;
   duracao: number;
   escopo: EscopoRemanejamento;
@@ -353,12 +356,22 @@ function AgendaPage() {
 
   const remarcarForm = useForm<RemarcarFormValues>({
     defaultValues: {
-      data: toDateStr(today),
+      data: formatDateDDMMYY(today),
       horaInicio: "09:00",
       fisioId: "",
       duracao: 50,
       escopo: "pontual",
     },
+  });
+
+  const { data: contagensEscopo } = useQuery({
+    queryKey: ["agenda-escopo-counts", remarcarTarget?.id],
+    queryFn: async () => ({
+      pontual: await contarEscopoRemanejamento(remarcarTarget!.id, "pontual"),
+      semana: await contarEscopoRemanejamento(remarcarTarget!.id, "semana"),
+      serie_mes: await contarEscopoRemanejamento(remarcarTarget!.id, "serie_mes"),
+    }),
+    enabled: !!remarcarTarget && remarcarOpen,
   });
 
   const { data: historico = [] } = useQuery({
@@ -372,7 +385,7 @@ function AgendaPage() {
     defaultValues: {
       pacienteId: "",
       fisioId: "",
-      data: toDateStr(today),
+      data: formatDateDDMMYY(today),
       horaInicio: "08:00",
       duracao: 50,
       servico: "Fisioterapia neurológica",
@@ -384,21 +397,24 @@ function AgendaPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (vals: FormValues) =>
-      createAgendamento({
+    mutationFn: (vals: FormValues) => {
+      const isoDate = parseDDMMYYToISO(vals.data);
+      if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
+      return createAgendamento({
         paciente_id: vals.pacienteId,
         fisioterapeuta_id: vals.fisioId,
-        inicio: `${vals.data}T${vals.horaInicio}:00-03:00`,
+        inicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
         duracao_min: vals.duracao,
         servico: vals.servico || null,
-      }),
+      });
+    },
     onSuccess: () => {
       invalidateAgenda();
       toast.success("Agendamento criado");
       form.reset({
         pacienteId: "",
         fisioId: "",
-        data: toDateStr(today),
+        data: formatDateDDMMYY(today),
         horaInicio: "08:00",
         duracao: 50,
         servico: "Fisioterapia neurológica",
@@ -421,15 +437,19 @@ function AgendaPage() {
   });
 
   const remarcarMutation = useMutation({
-    mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) =>
-      remarcarAgendamento({
+    mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) => {
+      const isoDate = parseDDMMYYToISO(vals.data);
+      if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
+      if (!/^\d{2}:\d{2}$/.test(vals.horaInicio)) throw new Error("Hora inválida — use HH:mm");
+      return remarcarAgendamento({
         agendamentoId: vals.agendamentoId,
-        novoInicio: `${vals.data}T${vals.horaInicio}:00-03:00`,
+        novoInicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
         novoFisioId: vals.fisioId || undefined,
         duracaoMin: vals.duracao,
         escopo: vals.escopo,
         usuarioId: user?.id ?? null,
-      }),
+      });
+    },
     onSuccess: async (result) => {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
@@ -464,10 +484,9 @@ function AgendaPage() {
   );
 
   function abrirRemarcar(ag: Agendamento) {
-    const d = new Date(ag.inicio);
     remarcarForm.reset({
-      data: toDateStr(d),
-      horaInicio: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      data: isoToDDMMYY(ag.inicio),
+      horaInicio: isoToHHMM(ag.inicio),
       fisioId: ag.fisioterapeuta_id ?? "",
       duracao: ag.duracao_min,
       escopo: "pontual",
@@ -862,17 +881,30 @@ function AgendaPage() {
               )}
             >
               <p className="text-sm text-muted-foreground">
-                {remarcarTarget.pacientes?.nome ?? "Paciente"} · novo horário
+                {remarcarTarget.pacientes?.nome ?? "Paciente"} · horário atual{" "}
+                {formatDateTimeDDMMYY(remarcarTarget.inicio)}
               </p>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="remarcar-data">Nova data</Label>
-                  <Input id="remarcar-data" type="date" {...remarcarForm.register("data")} />
+                  <Controller
+                    control={remarcarForm.control}
+                    name="data"
+                    render={({ field }) => (
+                      <DateInputDDMMYY id="remarcar-data" {...field} />
+                    )}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="remarcar-hora">Nova hora</Label>
-                  <Input id="remarcar-hora" type="time" {...remarcarForm.register("horaInicio")} />
+                  <Controller
+                    control={remarcarForm.control}
+                    name="horaInicio"
+                    render={({ field }) => (
+                      <TimeInputHHMM id="remarcar-hora" {...field} />
+                    )}
+                  />
                 </div>
               </div>
 
@@ -900,26 +932,33 @@ function AgendaPage() {
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="pontual" id="escopo-pontual" />
-                    <Label htmlFor="escopo-pontual" className="font-normal">Só este horário</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem
-                      value="semana"
-                      id="escopo-semana"
-                      disabled={!remarcarTarget.serie_id}
-                    />
-                    <Label htmlFor="escopo-semana" className={cn("font-normal", !remarcarTarget.serie_id && "opacity-50")}>
-                      Demais futuros da mesma semana (série)
+                    <Label htmlFor="escopo-pontual" className="font-normal">
+                      Só este horário
+                      {contagensEscopo && (
+                        <span className="ml-1 text-muted-foreground">({contagensEscopo.pontual} horário)</span>
+                      )}
                     </Label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <RadioGroupItem
-                      value="serie_mes"
-                      id="escopo-mes"
-                      disabled={!remarcarTarget.serie_id}
-                    />
-                    <Label htmlFor="escopo-mes" className={cn("font-normal", !remarcarTarget.serie_id && "opacity-50")}>
-                      Demais futuros da série até fim do mês
+                    <RadioGroupItem value="semana" id="escopo-semana" />
+                    <Label htmlFor="escopo-semana" className="font-normal">
+                      Demais futuros do paciente na mesma semana
+                      {contagensEscopo && (
+                        <span className="ml-1 text-muted-foreground">
+                          ({contagensEscopo.semana} horário{contagensEscopo.semana !== 1 ? "s" : ""})
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="serie_mes" id="escopo-mes" />
+                    <Label htmlFor="escopo-mes" className="font-normal">
+                      Demais futuros do paciente até fim do mês
+                      {contagensEscopo && (
+                        <span className="ml-1 text-muted-foreground">
+                          ({contagensEscopo.serie_mes} horário{contagensEscopo.serie_mes !== 1 ? "s" : ""})
+                        </span>
+                      )}
                     </Label>
                   </div>
                 </RadioGroup>
@@ -979,14 +1018,18 @@ function AgendaPage() {
                 <FormField control={form.control} name="data" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Data *</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormControl>
+                      <DateInputDDMMYY {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="horaInicio" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Hora início *</FormLabel>
-                    <FormControl><Input type="time" {...field} /></FormControl>
+                    <FormControl>
+                      <TimeInputHHMM {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

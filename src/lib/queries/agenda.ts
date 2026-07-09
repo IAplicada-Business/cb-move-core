@@ -122,7 +122,8 @@ function filtrarPorEscopo(
   const origemDate = new Date(origem.inicio);
   const fimMes = endOfMonth(origemDate);
 
-  return candidatos.filter((ag) => {
+  const filtrados = candidatos.filter((ag) => {
+    if (ag.id === origem.id) return true;
     const agDate = new Date(ag.inicio);
     if (agDate < origemDate) return false;
     if (!STATUS_ATIVOS.includes(ag.status)) return false;
@@ -130,6 +131,46 @@ function filtrarPorEscopo(
     if (escopo === "serie_mes") return agDate <= fimMes;
     return false;
   });
+
+  const map = new Map(filtrados.map((a) => [a.id, a]));
+  map.set(origem.id, origem);
+  return [...map.values()];
+}
+
+async function buscarCandidatosEscopo(
+  origem: AgendamentoRow,
+  escopo: EscopoRemanejamento,
+): Promise<AgendamentoRow[]> {
+  if (escopo === "pontual") return [origem];
+
+  const { data, error } = await supabase
+    .from("agendamentos")
+    .select("id, paciente_id, fisioterapeuta_id, inicio, duracao_min, servico, status, serie_id")
+    .eq("paciente_id", origem.paciente_id!)
+    .gte("inicio", origem.inicio)
+    .in("status", STATUS_ATIVOS);
+  if (error) throw error;
+
+  let candidatos = (data ?? []) as AgendamentoRow[];
+  if (origem.serie_id) {
+    candidatos = candidatos.filter((c) => c.serie_id === origem.serie_id);
+  }
+
+  return filtrarPorEscopo(origem, candidatos, escopo);
+}
+
+export async function contarEscopoRemanejamento(
+  agendamentoId: string,
+  escopo: EscopoRemanejamento,
+): Promise<number> {
+  const { data: origem, error } = await supabase
+    .from("agendamentos")
+    .select("id, paciente_id, fisioterapeuta_id, inicio, duracao_min, servico, status, serie_id")
+    .eq("id", agendamentoId)
+    .single();
+  if (error) throw error;
+  const afetados = await buscarCandidatosEscopo(origem as AgendamentoRow, escopo);
+  return afetados.length;
 }
 
 export async function remarcarAgendamento(params: {
@@ -159,20 +200,7 @@ export async function remarcarAgendamento(params: {
   const fisioDestino = novoFisioId ?? origemRow.fisioterapeuta_id;
   const duracao = duracaoMin ?? origemRow.duracao_min;
 
-  let afetados: AgendamentoRow[] = [origemRow];
-
-  if (escopo !== "pontual" && origemRow.serie_id) {
-    const { data: serieRows, error: serieErr } = await supabase
-      .from("agendamentos")
-      .select("id, paciente_id, fisioterapeuta_id, inicio, duracao_min, servico, status, serie_id")
-      .eq("serie_id", origemRow.serie_id)
-      .gte("inicio", origemRow.inicio);
-    if (serieErr) throw serieErr;
-    afetados = filtrarPorEscopo(origemRow, (serieRows ?? []) as AgendamentoRow[], escopo);
-    if (!afetados.some((a) => a.id === origemRow.id)) {
-      afetados = [origemRow, ...afetados];
-    }
-  }
+  let afetados: AgendamentoRow[] = await buscarCandidatosEscopo(origemRow, escopo);
 
   const db = supabase as any;
   let count = 0;
