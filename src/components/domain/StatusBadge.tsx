@@ -26,6 +26,7 @@ const AGENDA: Record<StatusAgendamento, { label: string; cls: string }> = {
   realizado:  { label: "Realizado",  cls: "bg-muted text-muted-foreground border-border" },
   faltou:     { label: "Faltou",     cls: "bg-[#FDF2F8] text-cb-magenta border-[#FBCFE8]" },
   cancelado:  { label: "Cancelado",  cls: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
+  remarcacao: { label: "Remarcação", cls: "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]" },
 };
 
 export function StatusBadge({

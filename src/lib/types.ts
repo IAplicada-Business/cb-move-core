@@ -12,6 +12,12 @@ export type CobrancaStatus =
   | "aguardando_alvara"
   | "regularizar_retroativa";
 export type NfStatus = "pendente" | "emitida" | "cancelada" | "erro" | "regularizada_retroativa";
-export type StatusAgendamento = "agendado" | "confirmado" | "realizado" | "faltou" | "cancelado";
+export type StatusAgendamento =
+  | "agendado"
+  | "confirmado"
+  | "realizado"
+  | "faltou"
+  | "cancelado"
+  | "remarcacao";
 export type FrequenciaSigla = "P" | "F" | "FJ" | "NJ" | "RC" | "NR";
 export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint";

@@ -1,18 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
+import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { FilterChip } from "@/components/domain/FilterChip";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
+import {
+  fetchAgendamentoHistorico,
+  remarcarAgendamento,
+  updateAgendamentoStatus,
+  contarEscopoRemanejamento,
+  type EscopoRemanejamento,
+  type HistoricoRow,
+} from "@/lib/queries/agenda";
+import { useAuth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
 
@@ -28,7 +40,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, isoToHHMM, parseDDMMYYToISO } from "@/lib/format";
 
 export const Route = createFileRoute("/app/agenda")({
   head: () => ({ meta: [{ title: "Agenda · CB MOVE" }] }),
@@ -60,6 +75,7 @@ const STATUS_LABEL: Record<StatusAgendamento, string> = {
   realizado: "Realizado",
   faltou: "Faltou",
   cancelado: "Cancelado",
+  remarcacao: "Remarcação",
 };
 
 const HOURS: number[] = [];
@@ -94,7 +110,7 @@ function formatHHMM(d: Date) {
 }
 
 function formatDayHeader(d: Date) {
-  return `${DIAS_PT[d.getDay()]} ${d.getDate()}`;
+  return `${DIAS_PT[d.getDay()]} ${formatDateDDMMYY(d)}`;
 }
 
 function shortName(full: string) {
@@ -150,6 +166,7 @@ type Agendamento = {
   duracao_min: number;
   servico: string | null;
   status: StatusAgendamento;
+  serie_id?: string | null;
   pacientes?: { nome: string; tipo: PacienteTipo } | null;
   fisioterapeutas?: { nome: string } | null;
 };
@@ -199,9 +216,13 @@ async function createAgendamento(input: {
   if (error) throw error;
 }
 
-async function updateStatus(id: string, status: StatusAgendamento): Promise<void> {
-  const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id);
-  if (error) throw error;
+async function updateStatus(
+  id: string,
+  status: StatusAgendamento,
+  usuarioId?: string | null,
+  statusAnterior?: StatusAgendamento,
+): Promise<void> {
+  await updateAgendamentoStatus(id, status, usuarioId, statusAnterior);
 }
 
 // ─── slot UI ─────────────────────────────────────────────────────────────────
@@ -219,7 +240,10 @@ function AgendaSlot({
 }) {
   const tipo = ag.pacientes?.tipo ?? "particular";
   const fisio = fisioFirstName(ag.fisioterapeutas?.nome ?? "—");
-  const dimmed = ag.status === "realizado" || ag.status === "cancelado";
+  const dimmed =
+    ag.status === "realizado" ||
+    ag.status === "cancelado" ||
+    ag.status === "remarcacao";
   const cls = cn(
     "w-full rounded-md px-2 py-1 text-left text-[11.5px] leading-tight",
     TIPO_SLOT[tipo],
@@ -270,8 +294,8 @@ function TipoLegend() {
 const schema = z.object({
   pacienteId: z.string().min(1, "Selecione um paciente"),
   fisioId: z.string().min(1, "Selecione um fisioterapeuta"),
-  data: z.string().min(1, "Data obrigatória"),
-  horaInicio: z.string().min(1, "Hora obrigatória"),
+  data: z.string().refine((v) => parseDDMMYYToISO(v) !== null, "Use dd/mm/aa"),
+  horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
   duracao: z.coerce.number().min(15),
   servico: z.string().nullable().optional(),
 });
@@ -279,8 +303,18 @@ type FormValues = z.infer<typeof schema>;
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
+type RemarcarFormValues = {
+  data: string; // dd/mm/yy
+  horaInicio: string; // HH:mm
+  fisioId: string;
+  duracao: number;
+  escopo: EscopoRemanejamento;
+};
+
 function AgendaPage() {
   const qc = useQueryClient();
+  const { user, roles } = useAuth();
+  const podeGerir = can.manageAgenda(roles);
   const today = new Date();
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(today));
   const [mesRef, setMesRef] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -289,6 +323,8 @@ function AgendaPage() {
   const [filterTipo, setFilterTipo] = useState(FILTRO_TODOS);
   const [selectedAgend, setSelectedAgend] = useState<Agendamento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [remarcarOpen, setRemarcarOpen] = useState(false);
+  const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
 
   const periodo = useMemo(() => {
     if (visao === "mes") {
@@ -318,12 +354,38 @@ function AgendaPage() {
     queryFn: fetchPacientes,
   });
 
+  const remarcarForm = useForm<RemarcarFormValues>({
+    defaultValues: {
+      data: formatDateDDMMYY(today),
+      horaInicio: "09:00",
+      fisioId: "",
+      duracao: 50,
+      escopo: "pontual",
+    },
+  });
+
+  const { data: contagensEscopo } = useQuery({
+    queryKey: ["agenda-escopo-counts", remarcarTarget?.id],
+    queryFn: async () => ({
+      pontual: await contarEscopoRemanejamento(remarcarTarget!.id, "pontual"),
+      semana: await contarEscopoRemanejamento(remarcarTarget!.id, "semana"),
+      serie_mes: await contarEscopoRemanejamento(remarcarTarget!.id, "serie_mes"),
+    }),
+    enabled: !!remarcarTarget && remarcarOpen,
+  });
+
+  const { data: historico = [] } = useQuery({
+    queryKey: ["agendamento-historico", selectedAgend?.id],
+    queryFn: () => fetchAgendamentoHistorico(selectedAgend!.id),
+    enabled: !!selectedAgend?.id,
+  });
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       pacienteId: "",
       fisioId: "",
-      data: toDateStr(today),
+      data: formatDateDDMMYY(today),
       horaInicio: "08:00",
       duracao: 50,
       servico: "Fisioterapia neurológica",
@@ -335,21 +397,24 @@ function AgendaPage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (vals: FormValues) =>
-      createAgendamento({
+    mutationFn: (vals: FormValues) => {
+      const isoDate = parseDDMMYYToISO(vals.data);
+      if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
+      return createAgendamento({
         paciente_id: vals.pacienteId,
         fisioterapeuta_id: vals.fisioId,
-        inicio: `${vals.data}T${vals.horaInicio}:00`,
+        inicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
         duracao_min: vals.duracao,
         servico: vals.servico || null,
-      }),
+      });
+    },
     onSuccess: () => {
       invalidateAgenda();
       toast.success("Agendamento criado");
       form.reset({
         pacienteId: "",
         fisioId: "",
-        data: toDateStr(today),
+        data: formatDateDDMMYY(today),
         horaInicio: "08:00",
         duracao: 50,
         servico: "Fisioterapia neurológica",
@@ -360,25 +425,84 @@ function AgendaPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StatusAgendamento }) =>
-      updateStatus(id, status),
+    mutationFn: ({ id, status, anterior }: { id: string; status: StatusAgendamento; anterior: StatusAgendamento }) =>
+      updateStatus(id, status, user?.id ?? null, anterior),
     onSuccess: () => {
       invalidateAgenda();
+      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
       toast.success("Status atualizado");
       setSelectedAgend(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const remarcarMutation = useMutation({
+    mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) => {
+      const isoDate = parseDDMMYYToISO(vals.data);
+      if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
+      if (!/^\d{2}:\d{2}$/.test(vals.horaInicio)) throw new Error("Hora inválida — use HH:mm");
+      return remarcarAgendamento({
+        agendamentoId: vals.agendamentoId,
+        novoInicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
+        novoFisioId: vals.fisioId || undefined,
+        duracaoMin: vals.duracao,
+        escopo: vals.escopo,
+        usuarioId: user?.id ?? null,
+      });
+    },
+    onSuccess: async (result) => {
+      invalidateAgenda();
+      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
+      toast.success(result.count > 1 ? `${result.count} horários remarcados` : "Agendamento remarcado");
+      setRemarcarOpen(false);
+      setRemarcarTarget(null);
+
+      if (result.primeiroNovoId) {
+        const { data, error } = await supabase
+          .from("agendamentos")
+          .select("*, pacientes(nome, tipo), fisioterapeutas(nome)")
+          .eq("id", result.primeiroNovoId)
+          .single();
+        if (!error && data) {
+          setSelectedAgend(data as unknown as Agendamento);
+        }
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const filtered = useMemo(
     () =>
-      agendamentos.filter((a) => {
+      agendamentos
+        .filter((a) => a.status !== "remarcacao")
+        .filter((a) => {
         if (filterFisio !== FILTRO_TODOS && a.fisioterapeuta_id !== filterFisio) return false;
         if (filterTipo !== FILTRO_TODOS && a.pacientes?.tipo !== filterTipo) return false;
         return true;
       }),
     [agendamentos, filterFisio, filterTipo],
   );
+
+  function abrirRemarcar(ag: Agendamento) {
+    remarcarForm.reset({
+      data: isoToDDMMYY(ag.inicio),
+      horaInicio: isoToHHMM(ag.inicio),
+      fisioId: ag.fisioterapeuta_id ?? "",
+      duracao: ag.duracao_min,
+      escopo: "pontual",
+    });
+    setRemarcarTarget(ag);
+    setRemarcarOpen(true);
+  }
+
+  function labelHistorico(item: HistoricoRow) {
+    if (item.acao === "remanejamento") {
+      const de = item.inicio_anterior ? formatDateTimeDDMMYY(item.inicio_anterior) : "—";
+      const para = item.inicio_novo ? formatDateTimeDDMMYY(item.inicio_novo) : "—";
+      return `Remanejamento (${item.escopo ?? "pontual"}): ${de} → ${para}`;
+    }
+    return `Status: ${item.status_anterior ?? "—"} → ${item.status_novo ?? "—"}`;
+  }
 
   const weekDays = DIAS_SEMANA.map((offset) => addDays(semanaBase, offset - 1));
   const monthWeeks = useMemo(
@@ -622,14 +746,9 @@ function AgendaPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Horário</p>
                   <p className="font-medium">
-                    {new Date(selectedAgend.inicio).toLocaleString("pt-BR", {
-                      weekday: "short",
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    · {selectedAgend.duracao_min}min
+                    {formatDateTimeDDMMYY(selectedAgend.inicio)}
+                    {" · "}
+                    {selectedAgend.duracao_min}min
                   </p>
                 </div>
                 <div>
@@ -643,43 +762,104 @@ function AgendaPage() {
                   </div>
                 )}
 
-                <div className="pt-4 flex flex-col gap-2">
-                  {selectedAgend.status !== "confirmado" && selectedAgend.status !== "realizado" && (
+                {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                  <div className="pt-4 space-y-2 border-t">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Fluxo de status
+                    </p>
+                    {selectedAgend.status === "agendado" && (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: selectedAgend.id,
+                            status: "confirmado",
+                            anterior: selectedAgend.status,
+                          })
+                        }
+                      >
+                        Confirmar
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "confirmado" })}
-                    >
-                      Confirmar
-                    </Button>
-                  )}
-                  {selectedAgend.status !== "realizado" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "realizado" })}
-                    >
-                      Marcar como realizado
-                    </Button>
-                  )}
-                  {selectedAgend.status !== "faltou" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "faltou" })}
-                    >
-                      Marcar faltou
-                    </Button>
-                  )}
-                  {selectedAgend.status !== "cancelado" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive border-destructive/30 hover:bg-destructive/5"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "cancelado" })}
+                      className="w-full text-destructive border-destructive/30 hover:bg-destructive/5"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: "cancelado",
+                          anterior: selectedAgend.status,
+                        })
+                      }
                     >
                       Cancelar
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => abrirRemarcar(selectedAgend)}
+                    >
+                      Remarcar
+                    </Button>
+                  </div>
+                )}
+
+                {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Registro de sessão
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: "realizado",
+                          anterior: selectedAgend.status,
+                        })
+                      }
+                    >
+                      Marcar como realizado
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: "faltou",
+                          anterior: selectedAgend.status,
+                        })
+                      }
+                    >
+                      Marcar faltou
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-2 border-t pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Histórico
+                  </p>
+                  {historico.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum evento registrado.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {historico.map((h) => (
+                        <li key={h.id} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                          <p className="font-medium text-foreground">{labelHistorico(h)}</p>
+                          <p className="text-muted-foreground">
+                            {formatDateTimeDDMMYY(h.created_at)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </div>
@@ -687,6 +867,115 @@ function AgendaPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={remarcarOpen} onOpenChange={(o) => { setRemarcarOpen(o); if (!o) setRemarcarTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remarcar agendamento</DialogTitle>
+          </DialogHeader>
+          {remarcarTarget && (
+            <form
+              className="space-y-4"
+              onSubmit={remarcarForm.handleSubmit((vals) =>
+                remarcarMutation.mutate({ ...vals, agendamentoId: remarcarTarget.id }),
+              )}
+            >
+              <p className="text-sm text-muted-foreground">
+                {remarcarTarget.pacientes?.nome ?? "Paciente"} · horário atual{" "}
+                {formatDateTimeDDMMYY(remarcarTarget.inicio)}
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="remarcar-data">Nova data</Label>
+                  <Controller
+                    control={remarcarForm.control}
+                    name="data"
+                    render={({ field }) => (
+                      <DateInputDDMMYY id="remarcar-data" {...field} />
+                    )}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="remarcar-hora">Nova hora</Label>
+                  <Controller
+                    control={remarcarForm.control}
+                    name="horaInicio"
+                    render={({ field }) => (
+                      <TimeInputHHMM id="remarcar-hora" {...field} />
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Fisioterapeuta</Label>
+                <Select
+                  value={remarcarForm.watch("fisioId")}
+                  onValueChange={(v) => remarcarForm.setValue("fisioId", v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                  <SelectContent>
+                    {fisios.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Escopo do remanejamento</Label>
+                <RadioGroup
+                  value={remarcarForm.watch("escopo")}
+                  onValueChange={(v) => remarcarForm.setValue("escopo", v as EscopoRemanejamento)}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="pontual" id="escopo-pontual" />
+                    <Label htmlFor="escopo-pontual" className="font-normal">
+                      Só este horário
+                      {contagensEscopo && (
+                        <span className="ml-1 text-muted-foreground">({contagensEscopo.pontual} horário)</span>
+                      )}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="semana" id="escopo-semana" />
+                    <Label htmlFor="escopo-semana" className="font-normal">
+                      Demais futuros do paciente na mesma semana
+                      {contagensEscopo && (
+                        <span className="ml-1 text-muted-foreground">
+                          ({contagensEscopo.semana} horário{contagensEscopo.semana !== 1 ? "s" : ""})
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="serie_mes" id="escopo-mes" />
+                    <Label htmlFor="escopo-mes" className="font-normal">
+                      Demais futuros do paciente até fim do mês
+                      {contagensEscopo && (
+                        <span className="ml-1 text-muted-foreground">
+                          ({contagensEscopo.serie_mes} horário{contagensEscopo.serie_mes !== 1 ? "s" : ""})
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setRemarcarOpen(false)}>
+                  Voltar
+                </Button>
+                <Button type="submit" disabled={remarcarMutation.isPending}>
+                  {remarcarMutation.isPending ? "Salvando…" : "Confirmar remarcação"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
@@ -729,14 +1018,18 @@ function AgendaPage() {
                 <FormField control={form.control} name="data" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Data *</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormControl>
+                      <DateInputDDMMYY {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="horaInicio" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Hora início *</FormLabel>
-                    <FormControl><Input type="time" {...field} /></FormControl>
+                    <FormControl>
+                      <TimeInputHHMM {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

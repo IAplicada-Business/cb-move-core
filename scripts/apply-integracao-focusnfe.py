@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 import sys
 
+from load_app_env import load_app_env
+
 try:
     from supabase import create_client
 except ImportError:
@@ -14,9 +16,13 @@ except ImportError:
 REQUIRED = ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "FOCUSNFE_TOKEN", "FOCUSNFE_CNPJ_PRESTADOR")
 
 def main() -> None:
+    load_app_env()
     missing = [k for k in REQUIRED if not os.environ.get(k)]
     if missing:
-        print(f"Defina: {', '.join(missing)}", file=sys.stderr)
+        print(
+            f"Defina em .env.app (veja .env.app.example): {', '.join(missing)}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     url = os.environ["SUPABASE_URL"]
