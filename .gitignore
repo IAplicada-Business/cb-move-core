@@ -51,3 +51,7 @@ scripts/_fix*.py
 scripts/_prep.py
 scripts/_sync_webhook_secret.py
 scripts/_nf_page_content.txt
+
+# Tokens locais Focus / integrações — nunca commitar
+scripts/_local_*.sql
+scripts/_local_*.env

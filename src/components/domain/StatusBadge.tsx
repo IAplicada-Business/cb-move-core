@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { CobrancaStatus, NfStatus } from "@/lib/types";
+import type { CobrancaStatus, NfStatus, StatusAgendamento } from "@/lib/types";
 
 const COBRANCA: Record<CobrancaStatus, { label: string; cls: string }> = {
   pendente:                { label: "Pendente",          cls: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-100" },
@@ -20,14 +20,27 @@ const NF: Record<NfStatus, { label: string; cls: string }> = {
   regularizada_retroativa:{ label: "Regularizada",       cls: "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]" },
 };
 
+const AGENDA: Record<StatusAgendamento, { label: string; cls: string }> = {
+  agendado:   { label: "Agendado",   cls: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-100" },
+  confirmado: { label: "Confirmado", cls: "bg-[#F7FEE7] text-cb-lime border-[#BEF264]" },
+  realizado:  { label: "Realizado",  cls: "bg-muted text-muted-foreground border-border" },
+  faltou:     { label: "Faltou",     cls: "bg-[#FDF2F8] text-cb-magenta border-[#FBCFE8]" },
+  cancelado:  { label: "Cancelado",  cls: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
+};
+
 export function StatusBadge({
   kind = "cobranca",
   value,
 }: {
-  kind?: "cobranca" | "nf";
-  value: CobrancaStatus | NfStatus;
+  kind?: "cobranca" | "nf" | "agenda";
+  value: CobrancaStatus | NfStatus | StatusAgendamento;
 }) {
-  const cfg = kind === "nf" ? NF[value as NfStatus] : COBRANCA[value as CobrancaStatus];
+  const cfg =
+    kind === "nf"
+      ? NF[value as NfStatus]
+      : kind === "agenda"
+        ? AGENDA[value as StatusAgendamento]
+        : COBRANCA[value as CobrancaStatus];
   if (!cfg) return null;
   return (
     <span
