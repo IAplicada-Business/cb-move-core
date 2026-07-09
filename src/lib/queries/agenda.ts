@@ -261,3 +261,23 @@ export async function remarcarAgendamento(params: {
 
   return { count, primeiroNovoId };
 }
+
+export async function fetchAgendaAviso(data: string): Promise<string> {
+  const db = supabase as any;
+  const { data: row, error } = await db
+    .from("agenda_avisos")
+    .select("texto")
+    .eq("data", data)
+    .maybeSingle();
+  if (error) throw error;
+  return String(row?.texto ?? "").trim();
+}
+
+export async function upsertAgendaAviso(data: string, texto: string): Promise<void> {
+  const db = supabase as any;
+  const { error } = await db.from("agenda_avisos").upsert(
+    { data, texto: texto.trim(), updated_at: new Date().toISOString() },
+    { onConflict: "data" },
+  );
+  if (error) throw error;
+}
