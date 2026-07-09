@@ -23,6 +23,9 @@ export type Database = {
           id: string
           inicio: string
           paciente_id: string | null
+          remarcado_de_id: string | null
+          remarcado_para_id: string | null
+          serie_id: string | null
           servico: string | null
           status: Database["public"]["Enums"]["status_agendamento"]
         }
@@ -34,6 +37,9 @@ export type Database = {
           id?: string
           inicio: string
           paciente_id?: string | null
+          remarcado_de_id?: string | null
+          remarcado_para_id?: string | null
+          serie_id?: string | null
           servico?: string | null
           status?: Database["public"]["Enums"]["status_agendamento"]
         }
@@ -45,6 +51,9 @@ export type Database = {
           id?: string
           inicio?: string
           paciente_id?: string | null
+          remarcado_de_id?: string | null
+          remarcado_para_id?: string | null
+          serie_id?: string | null
           servico?: string | null
           status?: Database["public"]["Enums"]["status_agendamento"]
         }
@@ -1091,6 +1100,7 @@ export type Database = {
         | "realizado"
         | "faltou"
         | "cancelado"
+        | "remarcacao"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1253,6 +1263,7 @@ export const Constants = {
         "realizado",
         "faltou",
         "cancelado",
+        "remarcacao",
       ],
     },
   },

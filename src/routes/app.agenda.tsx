@@ -13,6 +13,15 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
+import {
+  fetchAgendamentoHistorico,
+  remarcarAgendamento,
+  updateAgendamentoStatus,
+  type EscopoRemanejamento,
+  type HistoricoRow,
+} from "@/lib/queries/agenda";
+import { useAuth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
 
@@ -28,6 +37,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/agenda")({
@@ -60,6 +71,7 @@ const STATUS_LABEL: Record<StatusAgendamento, string> = {
   realizado: "Realizado",
   faltou: "Faltou",
   cancelado: "Cancelado",
+  remarcacao: "Remarcação",
 };
 
 const HOURS: number[] = [];
@@ -150,6 +162,7 @@ type Agendamento = {
   duracao_min: number;
   servico: string | null;
   status: StatusAgendamento;
+  serie_id?: string | null;
   pacientes?: { nome: string; tipo: PacienteTipo } | null;
   fisioterapeutas?: { nome: string } | null;
 };
@@ -199,9 +212,13 @@ async function createAgendamento(input: {
   if (error) throw error;
 }
 
-async function updateStatus(id: string, status: StatusAgendamento): Promise<void> {
-  const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id);
-  if (error) throw error;
+async function updateStatus(
+  id: string,
+  status: StatusAgendamento,
+  usuarioId?: string | null,
+  statusAnterior?: StatusAgendamento,
+): Promise<void> {
+  await updateAgendamentoStatus(id, status, usuarioId, statusAnterior);
 }
 
 // ─── slot UI ─────────────────────────────────────────────────────────────────
@@ -219,7 +236,10 @@ function AgendaSlot({
 }) {
   const tipo = ag.pacientes?.tipo ?? "particular";
   const fisio = fisioFirstName(ag.fisioterapeutas?.nome ?? "—");
-  const dimmed = ag.status === "realizado" || ag.status === "cancelado";
+  const dimmed =
+    ag.status === "realizado" ||
+    ag.status === "cancelado" ||
+    ag.status === "remarcacao";
   const cls = cn(
     "w-full rounded-md px-2 py-1 text-left text-[11.5px] leading-tight",
     TIPO_SLOT[tipo],
@@ -279,8 +299,18 @@ type FormValues = z.infer<typeof schema>;
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
+type RemarcarFormValues = {
+  data: string;
+  horaInicio: string;
+  fisioId: string;
+  duracao: number;
+  escopo: EscopoRemanejamento;
+};
+
 function AgendaPage() {
   const qc = useQueryClient();
+  const { user, roles } = useAuth();
+  const podeGerir = can.manageAgenda(roles);
   const today = new Date();
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(today));
   const [mesRef, setMesRef] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -289,6 +319,8 @@ function AgendaPage() {
   const [filterTipo, setFilterTipo] = useState(FILTRO_TODOS);
   const [selectedAgend, setSelectedAgend] = useState<Agendamento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [remarcarOpen, setRemarcarOpen] = useState(false);
+  const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
 
   const periodo = useMemo(() => {
     if (visao === "mes") {
@@ -316,6 +348,22 @@ function AgendaPage() {
   const { data: pacientes = [] } = useQuery({
     queryKey: queryKeys.pacientes.all,
     queryFn: fetchPacientes,
+  });
+
+  const remarcarForm = useForm<RemarcarFormValues>({
+    defaultValues: {
+      data: toDateStr(today),
+      horaInicio: "09:00",
+      fisioId: "",
+      duracao: 50,
+      escopo: "pontual",
+    },
+  });
+
+  const { data: historico = [] } = useQuery({
+    queryKey: ["agendamento-historico", selectedAgend?.id],
+    queryFn: () => fetchAgendamentoHistorico(selectedAgend!.id),
+    enabled: !!selectedAgend?.id,
   });
 
   const form = useForm<FormValues>({
@@ -360,11 +408,33 @@ function AgendaPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StatusAgendamento }) =>
-      updateStatus(id, status),
+    mutationFn: ({ id, status, anterior }: { id: string; status: StatusAgendamento; anterior: StatusAgendamento }) =>
+      updateStatus(id, status, user?.id ?? null, anterior),
     onSuccess: () => {
       invalidateAgenda();
+      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
       toast.success("Status atualizado");
+      setSelectedAgend(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const remarcarMutation = useMutation({
+    mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) =>
+      remarcarAgendamento({
+        agendamentoId: vals.agendamentoId,
+        novoInicio: `${vals.data}T${vals.horaInicio}:00`,
+        novoFisioId: vals.fisioId || undefined,
+        duracaoMin: vals.duracao,
+        escopo: vals.escopo,
+        usuarioId: user?.id ?? null,
+      }),
+    onSuccess: (qtd) => {
+      invalidateAgenda();
+      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
+      toast.success(qtd > 1 ? `${qtd} horários remarcados` : "Agendamento remarcado");
+      setRemarcarOpen(false);
+      setRemarcarTarget(null);
       setSelectedAgend(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -372,13 +442,37 @@ function AgendaPage() {
 
   const filtered = useMemo(
     () =>
-      agendamentos.filter((a) => {
+      agendamentos
+        .filter((a) => a.status !== "remarcacao")
+        .filter((a) => {
         if (filterFisio !== FILTRO_TODOS && a.fisioterapeuta_id !== filterFisio) return false;
         if (filterTipo !== FILTRO_TODOS && a.pacientes?.tipo !== filterTipo) return false;
         return true;
       }),
     [agendamentos, filterFisio, filterTipo],
   );
+
+  function abrirRemarcar(ag: Agendamento) {
+    const d = new Date(ag.inicio);
+    remarcarForm.reset({
+      data: toDateStr(d),
+      horaInicio: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      fisioId: ag.fisioterapeuta_id ?? "",
+      duracao: ag.duracao_min,
+      escopo: "pontual",
+    });
+    setRemarcarTarget(ag);
+    setRemarcarOpen(true);
+  }
+
+  function labelHistorico(item: HistoricoRow) {
+    if (item.acao === "remanejamento") {
+      const de = item.inicio_anterior ? formatHHMM(new Date(item.inicio_anterior)) : "—";
+      const para = item.inicio_novo ? formatHHMM(new Date(item.inicio_novo)) : "—";
+      return `Remanejamento (${item.escopo ?? "pontual"}): ${de} → ${para}`;
+    }
+    return `Status: ${item.status_anterior ?? "—"} → ${item.status_novo ?? "—"}`;
+  }
 
   const weekDays = DIAS_SEMANA.map((offset) => addDays(semanaBase, offset - 1));
   const monthWeeks = useMemo(
@@ -643,43 +737,104 @@ function AgendaPage() {
                   </div>
                 )}
 
-                <div className="pt-4 flex flex-col gap-2">
-                  {selectedAgend.status !== "confirmado" && selectedAgend.status !== "realizado" && (
+                {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                  <div className="pt-4 space-y-2 border-t">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Fluxo de status
+                    </p>
+                    {selectedAgend.status === "agendado" && (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: selectedAgend.id,
+                            status: "confirmado",
+                            anterior: selectedAgend.status,
+                          })
+                        }
+                      >
+                        Confirmar
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "confirmado" })}
-                    >
-                      Confirmar
-                    </Button>
-                  )}
-                  {selectedAgend.status !== "realizado" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "realizado" })}
-                    >
-                      Marcar como realizado
-                    </Button>
-                  )}
-                  {selectedAgend.status !== "faltou" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "faltou" })}
-                    >
-                      Marcar faltou
-                    </Button>
-                  )}
-                  {selectedAgend.status !== "cancelado" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-destructive border-destructive/30 hover:bg-destructive/5"
-                      onClick={() => statusMutation.mutate({ id: selectedAgend.id, status: "cancelado" })}
+                      className="w-full text-destructive border-destructive/30 hover:bg-destructive/5"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: "cancelado",
+                          anterior: selectedAgend.status,
+                        })
+                      }
                     >
                       Cancelar
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => abrirRemarcar(selectedAgend)}
+                    >
+                      Remarcar
+                    </Button>
+                  </div>
+                )}
+
+                {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Registro de sessão
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: "realizado",
+                          anterior: selectedAgend.status,
+                        })
+                      }
+                    >
+                      Marcar como realizado
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: "faltou",
+                          anterior: selectedAgend.status,
+                        })
+                      }
+                    >
+                      Marcar faltou
+                    </Button>
+                  </div>
+                )}
+
+                <div className="space-y-2 border-t pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Histórico
+                  </p>
+                  {historico.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhum evento registrado.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {historico.map((h) => (
+                        <li key={h.id} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
+                          <p className="font-medium text-foreground">{labelHistorico(h)}</p>
+                          <p className="text-muted-foreground">
+                            {new Date(h.created_at).toLocaleString("pt-BR")}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </div>
@@ -687,6 +842,95 @@ function AgendaPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={remarcarOpen} onOpenChange={(o) => { setRemarcarOpen(o); if (!o) setRemarcarTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remarcar agendamento</DialogTitle>
+          </DialogHeader>
+          {remarcarTarget && (
+            <form
+              className="space-y-4"
+              onSubmit={remarcarForm.handleSubmit((vals) =>
+                remarcarMutation.mutate({ ...vals, agendamentoId: remarcarTarget.id }),
+              )}
+            >
+              <p className="text-sm text-muted-foreground">
+                {remarcarTarget.pacientes?.nome ?? "Paciente"} · novo horário
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="remarcar-data">Nova data</Label>
+                  <Input id="remarcar-data" type="date" {...remarcarForm.register("data")} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="remarcar-hora">Nova hora</Label>
+                  <Input id="remarcar-hora" type="time" {...remarcarForm.register("horaInicio")} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Fisioterapeuta</Label>
+                <Select
+                  value={remarcarForm.watch("fisioId")}
+                  onValueChange={(v) => remarcarForm.setValue("fisioId", v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                  <SelectContent>
+                    {fisios.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Escopo do remanejamento</Label>
+                <RadioGroup
+                  value={remarcarForm.watch("escopo")}
+                  onValueChange={(v) => remarcarForm.setValue("escopo", v as EscopoRemanejamento)}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="pontual" id="escopo-pontual" />
+                    <Label htmlFor="escopo-pontual" className="font-normal">Só este horário</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value="semana"
+                      id="escopo-semana"
+                      disabled={!remarcarTarget.serie_id}
+                    />
+                    <Label htmlFor="escopo-semana" className={cn("font-normal", !remarcarTarget.serie_id && "opacity-50")}>
+                      Demais futuros da mesma semana (série)
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem
+                      value="serie_mes"
+                      id="escopo-mes"
+                      disabled={!remarcarTarget.serie_id}
+                    />
+                    <Label htmlFor="escopo-mes" className={cn("font-normal", !remarcarTarget.serie_id && "opacity-50")}>
+                      Demais futuros da série até fim do mês
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setRemarcarOpen(false)}>
+                  Voltar
+                </Button>
+                <Button type="submit" disabled={remarcarMutation.isPending}>
+                  {remarcarMutation.isPending ? "Salvando…" : "Confirmar remarcação"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
