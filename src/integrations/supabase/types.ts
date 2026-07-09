@@ -82,7 +82,9 @@ export type Database = {
           cora_invoice_id: string | null
           created_at: string
           descricao: string | null
+          dias_semana: string | null
           forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
+          frequencia_atendimento: string | null
           id: string
           observacoes: string | null
           paciente_id: string
@@ -103,9 +105,11 @@ export type Database = {
           cora_invoice_id?: string | null
           created_at?: string
           descricao?: string | null
+          dias_semana?: string | null
           forma_pagamento?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          frequencia_atendimento?: string | null
           id?: string
           observacoes?: string | null
           paciente_id: string
@@ -126,9 +130,11 @@ export type Database = {
           cora_invoice_id?: string | null
           created_at?: string
           descricao?: string | null
+          dias_semana?: string | null
           forma_pagamento?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          frequencia_atendimento?: string | null
           id?: string
           observacoes?: string | null
           paciente_id?: string
@@ -591,6 +597,8 @@ export type Database = {
           forma_pagamento_preferida:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          frequencia_atendimento: string | null
+          dias_semana: string | null
           id: string
           modelo_relatorio_preferido:
             | Database["public"]["Enums"]["modelo_relatorio"]
@@ -619,6 +627,8 @@ export type Database = {
           forma_pagamento_preferida?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          frequencia_atendimento?: string | null
+          dias_semana?: string | null
           id?: string
           modelo_relatorio_preferido?:
             | Database["public"]["Enums"]["modelo_relatorio"]
@@ -647,6 +657,8 @@ export type Database = {
           forma_pagamento_preferida?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
+          frequencia_atendimento?: string | null
+          dias_semana?: string | null
           id?: string
           modelo_relatorio_preferido?:
             | Database["public"]["Enums"]["modelo_relatorio"]

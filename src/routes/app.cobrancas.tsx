@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,7 @@ import { KpiCard } from "@/components/domain/KpiCard";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
+import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
@@ -111,6 +112,9 @@ const novaCobrancaSchema = z.object({
     "pendente", "pago", "atrasado", "cancelado", "vencido",
     "aguardando_convenio", "aguardando_alvara", "regularizar_retroativa",
   ] as const),
+  frequenciaAtendimento: z.string().optional(),
+  diasSemana: z.string().optional(),
+  qtdSessoes: z.coerce.number().int().positive().optional(),
   observacoes: z.string().optional(),
 });
 
@@ -144,28 +148,33 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
       servico: "Fisioterapia Neurológica",
       formaPagamento: "deposito",
       status: "pendente",
+      frequenciaAtendimento: "",
+      diasSemana: "",
     },
   });
 
   const watchPacienteId = form.watch("pacienteId");
-  const pacienteSelecionado = pacientes.data?.find(p => p.id === watchPacienteId);
 
-  // auto-preenche campos ao selecionar paciente
-  if (pacienteSelecionado) {
-    const curr = form.getValues();
-    if (curr.tipo !== pacienteSelecionado.tipo) {
-      form.setValue("tipo", pacienteSelecionado.tipo);
-    }
-    if (curr.regime !== pacienteSelecionado.regimeCobranca) {
-      form.setValue("regime", pacienteSelecionado.regimeCobranca);
-    }
-    if (!curr.valor && pacienteSelecionado.valorMensal) {
+  useEffect(() => {
+    if (!open || !watchPacienteId) return;
+    const pacienteSelecionado = pacientes.data?.find((p) => p.id === watchPacienteId);
+    if (!pacienteSelecionado) return;
+
+    form.setValue("tipo", pacienteSelecionado.tipo);
+    form.setValue("regime", pacienteSelecionado.regimeCobranca);
+    if (pacienteSelecionado.valorMensal) {
       form.setValue("valor", pacienteSelecionado.valorMensal);
     }
-    if (!curr.formaPagamento && pacienteSelecionado.formaPagamentoPreferida) {
+    if (pacienteSelecionado.formaPagamentoPreferida) {
       form.setValue("formaPagamento", pacienteSelecionado.formaPagamentoPreferida);
     }
-  }
+    if (pacienteSelecionado.frequenciaAtendimento) {
+      form.setValue("frequenciaAtendimento", pacienteSelecionado.frequenciaAtendimento);
+    }
+    if (pacienteSelecionado.diasSemana) {
+      form.setValue("diasSemana", pacienteSelecionado.diasSemana);
+    }
+  }, [open, watchPacienteId, pacientes.data, form]);
 
   const mutation = useMutation({
     mutationFn: (data: NovaCobrancaForm) =>
@@ -179,10 +188,14 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
         vencimento: data.vencimento,
         competenciaMes: data.competenciaMes,
         competenciaAno: data.competenciaAno,
+        qtdSessoes: data.qtdSessoes ? Number(data.qtdSessoes) : undefined,
+        frequenciaAtendimento: data.frequenciaAtendimento?.trim() || undefined,
+        diasSemana: data.diasSemana?.trim() || undefined,
         observacoes: data.observacoes,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "extrato"] });
       toast.success("Cobrança criada com sucesso");
       form.reset();
       onClose();
@@ -312,6 +325,43 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                 </FormItem>
               )}
             />
+
+            <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Atendimento — aparece no extrato financeiro
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="frequenciaAtendimento"
+                  render={({ field }) => <CampoFrequenciaAtendimento field={field} />}
+                />
+                <FormField
+                  control={form.control}
+                  name="diasSemana"
+                  render={({ field }) => <CampoDiasSemana field={field} />}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="qtdSessoes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nº sessões no mês</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.value)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Valor e Forma de pagamento */}
             <div className="grid grid-cols-2 gap-3">

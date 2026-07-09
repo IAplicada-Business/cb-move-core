@@ -11,6 +11,7 @@ import { KpiCard } from "@/components/domain/KpiCard";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { TipoBadge } from "@/components/domain/TipoBadge";
+import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
 import { queryKeys } from "@/lib/queries";
 import { formatPhone } from "@/lib/format";
 import { fetchPacientes, createPaciente, updatePaciente, type Paciente } from "@/lib/queries/pacientes";
@@ -51,6 +52,8 @@ const schema = z.object({
   modeloRelatorio: z.enum(["convencional", "unimed", "sharepoint"] as const).nullable().optional(),
   convenioId: z.string().nullable().optional(),
   numeroProcesso: z.string().nullable().optional(),
+  frequenciaAtendimento: z.string().nullable().optional(),
+  diasSemana: z.string().nullable().optional(),
   observacoes: z.string().nullable().optional(),
   ativo: z.boolean(),
 });
@@ -108,6 +111,8 @@ function PacientesPage() {
       modeloRelatorio: null,
       convenioId: null,
       numeroProcesso: null,
+      frequenciaAtendimento: "",
+      diasSemana: "",
       observacoes: "",
       ativo: true,
     },
@@ -127,6 +132,8 @@ function PacientesPage() {
         modeloRelatorio: vals.modeloRelatorio ?? null,
         convenioId: vals.convenioId || null,
         numeroProcesso: vals.numeroProcesso || null,
+        frequenciaAtendimento: vals.frequenciaAtendimento?.trim() || null,
+        diasSemana: vals.diasSemana?.trim() || null,
         observacoes: vals.observacoes || null,
         ativo: vals.ativo,
         valorMensal: null,
@@ -144,6 +151,7 @@ function PacientesPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.pacientes.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "extrato"] });
       toast.success(editing ? "Paciente atualizado" : "Paciente criado");
       closeModal();
     },
@@ -162,6 +170,8 @@ function PacientesPage() {
       modeloRelatorio: null,
       convenioId: null,
       numeroProcesso: null,
+      frequenciaAtendimento: "",
+      diasSemana: "",
       observacoes: "",
       ativo: true,
     });
@@ -180,6 +190,8 @@ function PacientesPage() {
       modeloRelatorio: p.modeloRelatorio ?? null,
       convenioId: p.convenioId ?? null,
       numeroProcesso: p.numeroProcesso ?? null,
+      frequenciaAtendimento: p.frequenciaAtendimento ?? "",
+      diasSemana: p.diasSemana ?? "",
       observacoes: p.observacoes ?? "",
       ativo: p.ativo,
     });
@@ -408,6 +420,18 @@ function PacientesPage() {
                   </FormItem>
                 )} />
               )}
+
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Atendimento — usado no extrato financeiro mensal
+                </p>
+                <FormField control={form.control} name="frequenciaAtendimento" render={({ field }) => (
+                  <CampoFrequenciaAtendimento field={field} />
+                )} />
+                <FormField control={form.control} name="diasSemana" render={({ field }) => (
+                  <CampoDiasSemana field={field} />
+                )} />
+              </div>
 
               <FormField control={form.control} name="observacoes" render={({ field }) => (
                 <FormItem>
