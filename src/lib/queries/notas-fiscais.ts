@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/edge-functions";
 import type { NfStatus, PacienteTipo } from "../types";
 
 export type NotaFiscal = {
@@ -188,18 +189,36 @@ export async function uploadNfPdf(file: File, ano: number, numero: string): Prom
 }
 
 export async function sendNfEmail(nfId: string, tipo: PacienteTipo): Promise<{ ok: boolean; queued: boolean }> {
-  const { data, error } = await supabase.functions.invoke("send-nf-email", {
-    body: { nf_id: nfId, tipo, event_id: `nf-email-${nfId}` },
+  return invokeEdgeFunction<{ ok: boolean; queued: boolean }>("send-nf-email", {
+    nf_id: nfId,
+    tipo,
+    event_id: `nf-email-${nfId}`,
   });
-  if (error) throw new Error(error.message);
-  return (data ?? { ok: false, queued: false }) as { ok: boolean; queued: boolean };
 }
 
 export async function emitNfManual(nfId: string, numero: string, pdfUrl: string): Promise<void> {
-  const { error } = await supabase.functions.invoke("emit-nf", {
-    body: { nf_id: nfId, modo: "manual", numero, pdf_url: pdfUrl },
+  await invokeEdgeFunction("emit-nf", {
+    nf_id: nfId,
+    modo: "manual",
+    numero,
+    pdf_url: pdfUrl,
   });
-  if (error) throw new Error(error.message);
+}
+
+export type EmitNfAutomaticoResult = {
+  ok: boolean;
+  nf_id: string;
+  status: string;
+  numero?: string;
+  pdf_url?: string | null;
+  email?: { ok: boolean; queued?: boolean; error?: string };
+};
+
+export async function emitNfAutomatico(nfId: string): Promise<EmitNfAutomaticoResult> {
+  return invokeEdgeFunction<EmitNfAutomaticoResult>("emit-nf", {
+    nf_id: nfId,
+    modo: "automatico",
+  });
 }
 
 export async function countNotasMonth(year: number, month: number): Promise<number> {

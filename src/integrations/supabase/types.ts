@@ -1088,6 +1088,7 @@ export type Database = {
       modelo_relatorio: "convencional" | "unimed" | "sharepoint"
       nf_status:
         | "pendente"
+        | "processando"
         | "emitida"
         | "cancelada"
         | "erro"
@@ -1250,6 +1251,7 @@ export const Constants = {
       modelo_relatorio: ["convencional", "unimed", "sharepoint"],
       nf_status: [
         "pendente",
+        "processando",
         "emitida",
         "cancelada",
         "erro",

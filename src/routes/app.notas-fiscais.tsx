@@ -16,7 +16,7 @@ import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
-  fetchNFs, createNF, emitNfManual, sendNfEmail, updateNF, uploadNfPdf,
+  fetchNFs, createNF, emitNfManual, emitNfAutomatico, sendNfEmail, updateNF, uploadNfPdf,
   type NotaFiscal,
 } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
@@ -56,6 +56,7 @@ const MESES_FULL = [
 
 /** Radix Select não aceita value="" em SelectItem — use "todos" como sentinela. */
 const FILTRO_TODOS = "todos";
+const FILTRO_TODAS_COMP = "todas";
 
 function competenciaOpcoes() {
   const now = new Date();
@@ -106,9 +107,13 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
   const form = useForm<EmitirNFForm>({
     resolver: zodResolver(emitirNFSchema),
     defaultValues: {
+      pacienteId: "",
       competenciaMes: now.getMonth() + 1,
       competenciaAno: now.getFullYear(),
-      modo: "manual",
+      modo: "automatico",
+      valor: undefined,
+      destinatarioNome: "",
+      destinatarioDocumento: "",
     },
   });
 
@@ -121,25 +126,30 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
 
   useEffect(() => {
     if (!open) return;
+    const mesAtual = new Date().getMonth() + 1;
+    const anoAtual = new Date().getFullYear();
     if (prefill) {
       form.reset({
         pacienteId: prefill.pacienteId,
         cobrancaId: prefill.cobrancaId,
-        competenciaMes: prefill.competenciaMes ?? now.getMonth() + 1,
-        competenciaAno: prefill.competenciaAno ?? now.getFullYear(),
+        competenciaMes: prefill.competenciaMes ?? mesAtual,
+        competenciaAno: prefill.competenciaAno ?? anoAtual,
         valor: prefill.valor,
         destinatarioNome: prefill.destinatarioNome ?? "",
         destinatarioDocumento: prefill.destinatarioDocumento ?? "",
-        modo: "manual",
+        modo: "automatico",
       });
       return;
     }
     form.reset({
-      competenciaMes: now.getMonth() + 1,
-      competenciaAno: now.getFullYear(),
-      modo: "manual",
+      pacienteId: "",
+      competenciaMes: mesAtual,
+      competenciaAno: anoAtual,
+      modo: "automatico",
+      destinatarioNome: "",
+      destinatarioDocumento: "",
     });
-  }, [open, prefill, form, now]);
+  }, [open, prefill, form]);
 
   useEffect(() => {
     if (!watchCobrancaId || !open) return;
@@ -199,17 +209,21 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
         const pdfUrl = await uploadNfPdf(pdfFile, data.competenciaAno, data.numeroNf);
         await emitNfManual(nfId, data.numeroNf, pdfUrl);
       } else {
-        const { supabase } = await import("@/integrations/supabase/client");
-        const { error } = await supabase.functions.invoke("emit-nf", {
-          body: { nf_id: nfId, modo: "automatico" },
-        });
-        if (error) throw new Error(error.message ?? "Emissão automática indisponível");
+        const doc = (data.destinatarioDocumento ?? "").replace(/\D/g, "");
+        if (doc.length !== 11 && doc.length !== 14) {
+          throw new Error("Emissão automática exige CPF (11 dígitos) ou CNPJ (14 dígitos) do destinatário");
+        }
+        return emitNfAutomatico(nfId);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
       qc.invalidateQueries({ queryKey: ["financeiro"] });
-      toast.success("NF processada com sucesso");
+      if (result?.status === "processando") {
+        toast.success("NF enviada à Focus — aguardando autorização");
+      } else {
+        toast.success("NF processada com sucesso");
+      }
       setPdfFile(null);
       onClose();
     },
@@ -225,7 +239,7 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
             <FormField control={form.control} name="pacienteId" render={({ field }) => (
               <FormItem>
                 <FormLabel>Paciente</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!!prefill}>
+                <Select onValueChange={field.onChange} value={field.value ?? ""} disabled={!!prefill}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
                   <SelectContent>
                     {(pacientes.data ?? []).map((p) => (
@@ -313,6 +327,12 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
                 </Select>
               </FormItem>
             )} />
+
+            {watchModo === "automatico" && (
+              <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                Homologação Focus NFe — emite NFS-e Nacional POA e grava PDF no sistema. Certificado A1 já configurado no painel.
+              </p>
+            )}
 
             {watchModo === "manual" && (
               <>
@@ -437,13 +457,13 @@ function NotasFiscaisPage() {
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<NfStatus | "">("");
   const [filtroTipo, setFiltroTipo] = useState<PacienteTipo | "">("");
-  const [filtroComp, setFiltroComp] = useState(`${now.getMonth() + 1}-${now.getFullYear()}`);
+  const [filtroComp, setFiltroComp] = useState(FILTRO_TODAS_COMP);
   const [modalEmitir, setModalEmitir] = useState(false);
   const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
 
   const compOpts = competenciaOpcoes();
-  const compMes = filtroComp ? Number(filtroComp.split("-")[0]) : now.getMonth() + 1;
-  const compAno = filtroComp ? Number(filtroComp.split("-")[1]) : now.getFullYear();
+  const compMes = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
+  const compAno = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[1]) : undefined;
 
   const filters = {
     search: search || undefined,
@@ -459,8 +479,9 @@ function NotasFiscaisPage() {
   });
 
   const semNfQuery = useQuery({
-    queryKey: queryKeys.financeiro.cobrancasSemNf(compAno, compMes),
-    queryFn: () => fetchCobrancasSemNf(compMes, compAno),
+    queryKey: queryKeys.financeiro.cobrancasSemNf(compAno ?? now.getFullYear(), compMes ?? now.getMonth() + 1),
+    queryFn: () => fetchCobrancasSemNf(compMes ?? now.getMonth() + 1, compAno ?? now.getFullYear()),
+    enabled: !!(compMes && compAno),
   });
 
   const nfs = query.data ?? [];
@@ -497,6 +518,7 @@ function NotasFiscaisPage() {
           <SelectContent>
             <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="processando">Processando</SelectItem>
             <SelectItem value="emitida">Emitida</SelectItem>
             <SelectItem value="cancelada">Cancelada</SelectItem>
             <SelectItem value="erro">Erro</SelectItem>
@@ -505,6 +527,7 @@ function NotasFiscaisPage() {
         <Select value={filtroComp} onValueChange={setFiltroComp}>
           <SelectTrigger className="w-40"><SelectValue placeholder="Competência" /></SelectTrigger>
           <SelectContent>
+            <SelectItem value={FILTRO_TODAS_COMP}>Todas</SelectItem>
             {compOpts.map((o) => (
               <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>{o.label}</SelectItem>
             ))}
@@ -532,6 +555,12 @@ function NotasFiscaisPage() {
 
       {query.isLoading ? (
         <LoadingState />
+      ) : query.isError ? (
+        <EmptyState
+          icon={<FileText className="h-8 w-8" />}
+          title="Erro ao carregar notas"
+          description={query.error instanceof Error ? query.error.message : "Tente recarregar a página."}
+        />
       ) : nfs.length === 0 && aEmitir.length === 0 ? (
         <EmptyState
           icon={<FileText className="h-8 w-8" />}

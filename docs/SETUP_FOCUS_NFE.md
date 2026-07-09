@@ -2,6 +2,8 @@
 
 Provedor fiscal alvo do CB MOVE (substitui Safe Notas / Nuvem Fiscal).
 
+> **Escopo:** Focus NFe emite **documentos fiscais** (NFS-e Nacional, NFe, etc.). **Não** gera boletos bancários, PIX nem concilia extrato Bradesco. Boletos particulares → integração **Cora** (`emit-boleto-cora`); conciliação → upload CSV/OFX Bradesco no app.
+
 ## 1. Conta e empresa emitente
 
 1. Login: [app.focusnfe.com.br](https://app.focusnfe.com.br)
@@ -36,7 +38,7 @@ curl -u 'SEU_TOKEN:' https://homologacao.focusnfe.com.br/v2/nfsen/{ref}
 | Empresa Focus ID | `230418` |
 | CNPJ | `42.082.795/0001-74` |
 | NFS-e Nacional | homologação + produção habilitadas |
-| Certificado A1 | **pendente** — necessário para autorização real |
+| Certificado A1 | Configurado no painel Focus (válido até 10/06/2027) |
 
 ## 3. Configurar no Supabase
 
@@ -59,15 +61,29 @@ FOCUSNFE_CNPJ_PRESTADOR=...
 supabase functions deploy emit-nf --project-ref grlkbtnwvxorlfglyzid
 ```
 
-## 5. Fluxo automático
+## 5. Fluxo automático (assíncrono + webhook)
 
 ```
 UI (modo Automático) → emit-nf
   → POST Focus /v2/nfsen?ref=cbmove-{nf_id}
-  → poll GET até autorizado
-  → PDF → Storage notas-fiscais
-  → status emitida + send-nf-email → n8n
+  → status processando (DPS na fila)
+  → webhook nfsen → focus-nfe-webhook
+  → NF emitida + PDF Storage + send-nf-email → n8n
 ```
+
+### Registrar webhook
+
+```bash
+python scripts/apply-migration-sql.py supabase/migrations/20260709180000_nf_status_processando.sql
+python scripts/deploy-focus-nf.py
+python scripts/register-focus-webhook.py
+```
+
+O script grava `FOCUSNFE_WEBHOOK_SECRET` em `integracao_config` e cria o gatilho `nfsen` na Focus apontando para:
+
+`https://grlkbtnwvxorlfglyzid.supabase.co/functions/v1/focus-nfe-webhook`
+
+Consulta manual (opcional): `GET /v2/nfsen/{ref}` ou `POST /v2/nfsen/{ref}/hook` para reenviar notificação.
 
 ## 6. Parâmetros fiscais (POA / fisioterapia)
 
@@ -81,8 +97,16 @@ UI (modo Automático) → emit-nf
 
 ## 7. Homologação (spike)
 
+Pré-requisitos: certificado no painel Focus + token homologação no Supabase.
+
+```bash
+python scripts/apply-integracao-focusnfe.py
+python scripts/verify-focus-nfe.py
+supabase functions deploy emit-nf --project-ref grlkbtnwvxorlfglyzid
+```
+
 1. Criar NF pendente na UI (particular com CPF)
-2. Emitir em modo **Automático (Focus NFe)**
+2. Emitir em modo **Automático (Focus NFe)** — agora é o padrão no modal
 3. Conferir número + PDF no Storage
 4. Repetir: convênio (CNPJ) e judicial (corpo no `descricao_servico`)
 

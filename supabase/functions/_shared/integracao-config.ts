@@ -14,6 +14,7 @@ const ENV_KEYS = [
   "FOCUSNFE_CODIGO_TRIBUTACAO",
   "FOCUSNFE_CODIGO_NBS",
   "FOCUSNFE_SIMPLES_NACIONAL",
+  "FOCUSNFE_WEBHOOK_SECRET",
 ] as const;
 
 export type IntegracaoEnvKey = (typeof ENV_KEYS)[number];

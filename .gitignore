@@ -58,3 +58,9 @@ scripts/_local_*.env
 
 # Segredos locais da equipe (separado do .env do Lovable)
 .env.app
+
+# Certificados digitais — nunca commitar
+*.p12
+*.pfx
+docs/*.p12
+docs/*.pfx
