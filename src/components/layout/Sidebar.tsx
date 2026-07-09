@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  ChevronDown, LayoutDashboard, Users, FileText, Calendar, ClipboardCheck,
+  ChevronDown, LayoutDashboard, Users, FileText, Calendar,
   Receipt, FileSpreadsheet, BarChart3, Stethoscope, UserCog, Settings, Building2,
   Wrench, FilePlus2, Plug, LogOut, HelpCircle,
 } from "lucide-react";
@@ -19,7 +19,6 @@ const GROUPS: Group[] = [
     { to: "/app/pacientes", label: "Pacientes", icon: Users },
     { to: "/app/prontuario", label: "Prontuário", icon: FileText },
     { to: "/app/agenda", label: "Agenda", icon: Calendar },
-    { to: "/app/frequencia", label: "Frequência", icon: ClipboardCheck },
   ]},
   { id: "fin", label: "Financeiro", items: [
     { to: "/app/cobrancas", label: "Cobranças", icon: Receipt },

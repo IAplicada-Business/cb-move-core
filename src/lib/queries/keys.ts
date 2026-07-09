@@ -25,7 +25,10 @@ export const queryKeys = {
   sessoes: {
     all: ["sessoes"] as const,
     mensal: (pacienteId: string, mes: number, ano: number) => ["sessoes", "mensal", pacienteId, mes, ano] as const,
-    frequenciaMensal: (mes: number, ano: number) => ["sessoes", "frequencia", mes, ano] as const,
+    comparecimentoMes: (pacienteId: string, mes: number, ano: number) =>
+      ["sessoes", "comparecimento", pacienteId, mes, ano] as const,
+    comparecimentoHistorico: (pacienteId: string, meses: number) =>
+      ["sessoes", "comparecimento", "historico", pacienteId, meses] as const,
   },
   relatorios: {
     all: ["relatorios_atendimento"] as const,
