@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,8 +20,10 @@ import {
   remarcarAgendamento,
   updateAgendamentoStatus,
   contarEscopoRemanejamento,
+  fetchAgendaAviso,
   type EscopoRemanejamento,
   type HistoricoRow,
+  upsertAgendaAviso,
 } from "@/lib/queries/agenda";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -41,6 +43,7 @@ import {
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, isoToHHMM, parseDDMMYYToISO } from "@/lib/format";
@@ -53,6 +56,7 @@ export const Route = createFileRoute("/app/agenda")({
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const DIAS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DIAS_SEMANA_LABEL = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
 const DIAS_SEMANA = [1, 2, 3, 4, 5];
 const FILTRO_TODOS = "todos";
 const MESES = [
@@ -121,6 +125,34 @@ function shortName(full: string) {
 
 function fisioFirstName(full: string) {
   return full.trim().split(/\s+/)[0] ?? full;
+}
+
+/** Cabeçalho da coluna — ex.: ADRIANO, CARLOS E., CARLOS M. */
+function fisioColHeader(nome: string, todosNomes: string[]) {
+  const parts = nome.trim().split(/\s+/);
+  const first = (parts[0] ?? nome).toUpperCase();
+  const homonimos = todosNomes.filter(
+    (n) => (n.trim().split(/\s+/)[0] ?? n).toUpperCase() === first,
+  );
+  if (homonimos.length <= 1) return first;
+  const inicial = parts[1]?.[0]?.toUpperCase();
+  return inicial ? `${first} ${inicial}.` : first;
+}
+
+function indexDiaNaSemana(weekStart: Date): number {
+  const hoje = toDateStr(new Date());
+  const idx = DIAS_SEMANA.map((offset) => addDays(weekStart, offset - 1)).findIndex(
+    (d) => toDateStr(d) === hoje,
+  );
+  return idx >= 0 ? idx : 0;
+}
+
+function formatAvisoDisplay(texto: string) {
+  return texto
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(" · ");
 }
 
 type WeekBlock = { label: string; days: Date[] };
@@ -232,11 +264,14 @@ function AgendaSlot({
   onClick,
   className,
   interactive = true,
+  compact = false,
 }: {
   ag: Agendamento;
   onClick?: () => void;
   className?: string;
   interactive?: boolean;
+  /** Coluna já é o fisio — oculta nome do profissional no slot */
+  compact?: boolean;
 }) {
   const tipo = ag.pacientes?.tipo ?? "particular";
   const fisio = fisioFirstName(ag.fisioterapeutas?.nome ?? "—");
@@ -252,7 +287,9 @@ function AgendaSlot({
     className,
   );
 
-  const content = (
+  const content = compact ? (
+    <span className="block truncate font-bold">{shortName(ag.pacientes?.nome ?? "—")}</span>
+  ) : (
     <>
       <span className="block truncate font-bold">{shortName(ag.pacientes?.nome ?? "—")}</span>
       <span className="block truncate opacity-80">
@@ -317,6 +354,7 @@ function AgendaPage() {
   const podeGerir = can.manageAgenda(roles);
   const today = new Date();
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(today));
+  const [diaSemanaIdx, setDiaSemanaIdx] = useState(() => indexDiaNaSemana(startOfWeek(today)));
   const [mesRef, setMesRef] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [visao, setVisao] = useState<VisaoAgenda>("semana");
   const [filterFisio, setFilterFisio] = useState(FILTRO_TODOS);
@@ -325,6 +363,7 @@ function AgendaPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [remarcarOpen, setRemarcarOpen] = useState(false);
   const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
+  const [avisoDraft, setAvisoDraft] = useState("");
 
   const periodo = useMemo(() => {
     if (visao === "mes") {
@@ -505,6 +544,37 @@ function AgendaPage() {
   }
 
   const weekDays = DIAS_SEMANA.map((offset) => addDays(semanaBase, offset - 1));
+  const diaSelecionado = weekDays[diaSemanaIdx] ?? weekDays[0];
+  const dataSelecionada = toDateStr(diaSelecionado);
+
+  const { data: avisoSalvo = "" } = useQuery({
+    queryKey: queryKeys.agendamentos.avisoDia(dataSelecionada),
+    queryFn: () => fetchAgendaAviso(dataSelecionada),
+    enabled: visao === "semana",
+  });
+
+  useEffect(() => {
+    setAvisoDraft(avisoSalvo);
+  }, [avisoSalvo, dataSelecionada]);
+
+  const avisoMutation = useMutation({
+    mutationFn: () => upsertAgendaAviso(dataSelecionada, avisoDraft),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.agendamentos.avisoDia(dataSelecionada) });
+      toast.success("Avisos do dia salvos");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const fisiosVisiveis = useMemo(() => {
+    if (filterFisio !== FILTRO_TODOS) {
+      return fisios.filter((f) => f.id === filterFisio);
+    }
+    return fisios;
+  }, [fisios, filterFisio]);
+
+  const fisiosNomes = useMemo(() => fisiosVisiveis.map((f) => f.nome), [fisiosVisiveis]);
+
   const monthWeeks = useMemo(
     () => weeksInMonth(mesRef.getFullYear(), mesRef.getMonth()),
     [mesRef],
@@ -517,11 +587,15 @@ function AgendaPage() {
       .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
   }
 
-  function getAgendamentosForSlot(day: Date, hour: number) {
+  function getAgendamentosForFisioSlot(day: Date, fisioId: string, hour: number) {
     const dayStr = toDateStr(day);
     return filtered.filter((a) => {
       const inicio = new Date(a.inicio);
-      return toDateStr(inicio) === dayStr && inicio.getHours() === hour;
+      return (
+        toDateStr(inicio) === dayStr &&
+        a.fisioterapeuta_id === fisioId &&
+        inicio.getHours() === hour
+      );
     });
   }
 
@@ -539,7 +613,7 @@ function AgendaPage() {
   ];
 
   const visaoOptions = [
-    { value: "semana", label: "Semana" },
+    { value: "semana", label: "Semana padrão" },
     { value: "dia", label: "Lista por dia" },
     { value: "mes", label: "Mês" },
   ];
@@ -547,13 +621,17 @@ function AgendaPage() {
   const headerTitle =
     visao === "mes"
       ? `Agenda · ${MESES[mesRef.getMonth()]}/${mesRef.getFullYear()}`
-      : `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
+      : visao === "semana"
+        ? "Agenda · semana padrão"
+        : `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
 
   function navBack() {
     if (visao === "mes") {
       setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() - 1, 1));
     } else {
-      setSemanaBase(addDays(semanaBase, -7));
+      const nova = addDays(semanaBase, -7);
+      setSemanaBase(nova);
+      setDiaSemanaIdx(indexDiaNaSemana(nova));
     }
   }
 
@@ -561,7 +639,9 @@ function AgendaPage() {
     if (visao === "mes") {
       setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 1));
     } else {
-      setSemanaBase(addDays(semanaBase, 7));
+      const nova = addDays(semanaBase, 7);
+      setSemanaBase(nova);
+      setDiaSemanaIdx(indexDiaNaSemana(nova));
     }
   }
 
@@ -599,6 +679,133 @@ function AgendaPage() {
 
       {isLoading ? (
         <LoadingState />
+      ) : visao === "semana" ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {weekDays.map((day, i) => (
+              <button
+                key={toDateStr(day)}
+                type="button"
+                onClick={() => setDiaSemanaIdx(i)}
+                className={cn(
+                  "min-w-[100px] rounded-lg border px-3 py-2 text-center transition-colors",
+                  diaSemanaIdx === i
+                    ? "border-foreground bg-card shadow-sm"
+                    : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40",
+                )}
+              >
+                <span className="block text-[11px] font-bold uppercase tracking-wide">
+                  {DIAS_SEMANA_LABEL[i]}
+                </span>
+                <span className="block text-xs font-semibold tabular-nums">
+                  {formatDateDDMMYY(day)}
+                </span>
+              </button>
+            ))}
+            <p className="ml-auto self-center text-xs text-muted-foreground tabular-nums">
+              {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          {fisiosVisiveis.length === 0 ? (
+            <EmptyState
+              title="Nenhum fisioterapeuta ativo"
+              description="Cadastre fisioterapeutas em Equipe para montar a grade da agenda."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+              <div
+                className="grid min-w-max gap-px bg-border"
+                style={{
+                  gridTemplateColumns: `72px repeat(${fisiosVisiveis.length}, minmax(92px, 1fr))`,
+                }}
+              >
+                <div className="sticky left-0 z-10 bg-cb-cyan-050 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Horário
+                </div>
+                {fisiosVisiveis.map((f) => (
+                  <div
+                    key={f.id}
+                    className="bg-cb-cyan-050 px-1.5 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                    title={f.nome}
+                  >
+                    {fisioColHeader(f.nome, fisiosNomes)}
+                  </div>
+                ))}
+
+                {HOURS.map((hour) => (
+                  <Fragment key={hour}>
+                    <div className="sticky left-0 z-10 bg-muted/50 px-2 py-2 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
+                      {String(hour).padStart(2, "0")}:00
+                    </div>
+                    {fisiosVisiveis.map((f) => (
+                      <div
+                        key={`${hour}-${f.id}`}
+                        className="min-h-[56px] space-y-1 bg-card p-1"
+                      >
+                        {getAgendamentosForFisioSlot(diaSelecionado, f.id, hour).map((a) => (
+                          <AgendaSlot
+                            key={a.id}
+                            ag={a}
+                            compact
+                            onClick={() => setSelectedAgend(a)}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <TipoLegend />
+
+          <section className="space-y-2">
+            {podeGerir && (
+              <div className="rounded-xl border bg-card p-4 space-y-3">
+                <div>
+                  <Label htmlFor="aviso-dia" className="text-sm font-semibold">
+                    Avisos do dia
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {DIAS_SEMANA_LABEL[diaSemanaIdx]} {formatDateDDMMYY(diaSelecionado)} — um aviso por linha
+                  </p>
+                </div>
+                <Textarea
+                  id="aviso-dia"
+                  value={avisoDraft}
+                  onChange={(e) => setAvisoDraft(e.target.value)}
+                  placeholder={"Ex.: Dani não virá hoje\nHelena não fará às 14h"}
+                  rows={3}
+                  className="resize-y text-sm"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={avisoMutation.isPending || avisoDraft === avisoSalvo}
+                    onClick={() => avisoMutation.mutate()}
+                  >
+                    {avisoMutation.isPending ? "Salvando…" : "Salvar avisos"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {(avisoSalvo || (podeGerir && avisoDraft.trim())) && (
+              <div className="rounded-lg border border-cb-orange/25 bg-[#FFF7ED] px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-cb-orange mb-1.5">
+                  Avisos do dia
+                </p>
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  {formatAvisoDisplay(podeGerir ? avisoDraft : avisoSalvo) || "—"}
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           title={visao === "mes" ? "Mês sem agendamentos" : "Semana sem agendamentos"}
@@ -609,42 +816,6 @@ function AgendaPage() {
             </Button>
           }
         />
-      ) : visao === "semana" ? (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
-          <div
-            className="grid min-w-[700px] gap-px bg-border"
-            style={{ gridTemplateColumns: "60px repeat(5, 1fr)" }}
-          >
-            <div className="bg-muted/30 p-2" />
-            {weekDays.map((day, i) => (
-              <div
-                key={i}
-                className="bg-cb-cyan-050 p-3 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
-              >
-                {formatDayHeader(day)}
-              </div>
-            ))}
-
-            {HOURS.map((hour) => (
-              <Fragment key={hour}>
-                <div className="bg-muted/40 p-2 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
-                  {hour}:00
-                </div>
-                {weekDays.map((day, di) => (
-                  <div key={`${hour}-${di}`} className="min-h-[60px] space-y-1 bg-card p-1.5">
-                    {getAgendamentosForSlot(day, hour).map((a) => (
-                      <AgendaSlot
-                        key={a.id}
-                        ag={a}
-                        onClick={() => setSelectedAgend(a)}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </Fragment>
-            ))}
-          </div>
-        </div>
       ) : visao === "dia" ? (
         <div className="space-y-4">
           {weekDays.map((day) => {
@@ -722,7 +893,7 @@ function AgendaPage() {
         </div>
       )}
 
-      {!isLoading && filtered.length > 0 && <TipoLegend />}
+      {!isLoading && visao !== "semana" && filtered.length > 0 && <TipoLegend />}
 
       <Sheet open={!!selectedAgend} onOpenChange={(o) => { if (!o) setSelectedAgend(null); }}>
         <SheetContent>

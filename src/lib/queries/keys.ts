@@ -20,6 +20,7 @@ export const queryKeys = {
     all: ["agendamentos"] as const,
     semana: (inicio: string) => ["agendamentos", "semana", inicio] as const,
     periodo: (inicio: string, fim: string) => ["agendamentos", "periodo", inicio, fim] as const,
+    avisoDia: (data: string) => ["agendamentos", "aviso", data] as const,
   },
   sessoes: {
     all: ["sessoes"] as const,
