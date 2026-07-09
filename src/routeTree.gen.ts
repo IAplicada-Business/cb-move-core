@@ -26,12 +26,12 @@ import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
 import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
 import { Route as AppNotasFiscaisRouteImport } from './routes/app.notas-fiscais'
-import { Route as AppFrequenciaRouteImport } from './routes/app.frequencia'
 import { Route as AppFisiosRouteImport } from './routes/app.fisios'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppCobrancasRouteImport } from './routes/app.cobrancas'
 import { Route as AppAjudaRouteImport } from './routes/app.ajuda'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
+import { Route as AppPacientesIndexRouteImport } from './routes/app.pacientes.index'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
 import { Route as AppPacientesPacienteIdRouteImport } from './routes/app.pacientes.$pacienteId'
 import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
@@ -125,11 +125,6 @@ const AppNotasFiscaisRoute = AppNotasFiscaisRouteImport.update({
   path: '/notas-fiscais',
   getParentRoute: () => AppRoute,
 } as any)
-const AppFrequenciaRoute = AppFrequenciaRouteImport.update({
-  id: '/frequencia',
-  path: '/frequencia',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppFisiosRoute = AppFisiosRouteImport.update({
   id: '/fisios',
   path: '/fisios',
@@ -154,6 +149,11 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
   getParentRoute: () => AppRoute,
+} as any)
+const AppPacientesIndexRoute = AppPacientesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPacientesRoute,
 } as any)
 const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
   id: '/',
@@ -206,7 +206,6 @@ export interface FileRoutesByFullPath {
   '/app/cobrancas': typeof AppCobrancasRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/fisios': typeof AppFisiosRoute
-  '/app/frequencia': typeof AppFrequenciaRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
   '/app/prontuario': typeof AppProntuarioRoute
@@ -227,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
+  '/app/pacientes/': typeof AppPacientesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -235,9 +235,7 @@ export interface FileRoutesByTo {
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
   '/app/fisios': typeof AppFisiosRoute
-  '/app/frequencia': typeof AppFrequenciaRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
-  '/app/pacientes': typeof AppPacientesRouteWithChildren
   '/app/prontuario': typeof AppProntuarioRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
@@ -256,6 +254,7 @@ export interface FileRoutesByTo {
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
+  '/app/pacientes': typeof AppPacientesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -268,7 +267,6 @@ export interface FileRoutesById {
   '/app/cobrancas': typeof AppCobrancasRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
   '/app/fisios': typeof AppFisiosRoute
-  '/app/frequencia': typeof AppFrequenciaRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
   '/app/prontuario': typeof AppProntuarioRoute
@@ -289,6 +287,7 @@ export interface FileRoutesById {
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
+  '/app/pacientes/': typeof AppPacientesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -302,7 +301,6 @@ export interface FileRouteTypes {
     | '/app/cobrancas'
     | '/app/configuracoes'
     | '/app/fisios'
-    | '/app/frequencia'
     | '/app/notas-fiscais'
     | '/app/pacientes'
     | '/app/prontuario'
@@ -323,6 +321,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
     | '/app/configuracoes/'
+    | '/app/pacientes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -331,9 +330,7 @@ export interface FileRouteTypes {
     | '/app/ajuda'
     | '/app/cobrancas'
     | '/app/fisios'
-    | '/app/frequencia'
     | '/app/notas-fiscais'
-    | '/app/pacientes'
     | '/app/prontuario'
     | '/app/relatorios'
     | '/app/usuarios'
@@ -352,6 +349,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
     | '/app/configuracoes'
+    | '/app/pacientes'
   id:
     | '__root__'
     | '/'
@@ -363,7 +361,6 @@ export interface FileRouteTypes {
     | '/app/cobrancas'
     | '/app/configuracoes'
     | '/app/fisios'
-    | '/app/frequencia'
     | '/app/notas-fiscais'
     | '/app/pacientes'
     | '/app/prontuario'
@@ -384,6 +381,7 @@ export interface FileRouteTypes {
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
     | '/app/configuracoes/'
+    | '/app/pacientes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -514,13 +512,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotasFiscaisRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/frequencia': {
-      id: '/app/frequencia'
-      path: '/frequencia'
-      fullPath: '/app/frequencia'
-      preLoaderRoute: typeof AppFrequenciaRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/fisios': {
       id: '/app/fisios'
       path: '/fisios'
@@ -555,6 +546,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/agenda'
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/app/pacientes/': {
+      id: '/app/pacientes/'
+      path: '/'
+      fullPath: '/app/pacientes/'
+      preLoaderRoute: typeof AppPacientesIndexRouteImport
+      parentRoute: typeof AppPacientesRoute
     }
     '/app/configuracoes/': {
       id: '/app/configuracoes/'
@@ -631,10 +629,12 @@ const AppConfiguracoesRouteWithChildren =
 
 interface AppPacientesRouteChildren {
   AppPacientesPacienteIdRoute: typeof AppPacientesPacienteIdRoute
+  AppPacientesIndexRoute: typeof AppPacientesIndexRoute
 }
 
 const AppPacientesRouteChildren: AppPacientesRouteChildren = {
   AppPacientesPacienteIdRoute: AppPacientesPacienteIdRoute,
+  AppPacientesIndexRoute: AppPacientesIndexRoute,
 }
 
 const AppPacientesRouteWithChildren = AppPacientesRoute._addFileChildren(
@@ -647,7 +647,6 @@ interface AppRouteChildren {
   AppCobrancasRoute: typeof AppCobrancasRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
   AppFisiosRoute: typeof AppFisiosRoute
-  AppFrequenciaRoute: typeof AppFrequenciaRoute
   AppNotasFiscaisRoute: typeof AppNotasFiscaisRoute
   AppPacientesRoute: typeof AppPacientesRouteWithChildren
   AppProntuarioRoute: typeof AppProntuarioRoute
@@ -662,7 +661,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppCobrancasRoute: AppCobrancasRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
   AppFisiosRoute: AppFisiosRoute,
-  AppFrequenciaRoute: AppFrequenciaRoute,
   AppNotasFiscaisRoute: AppNotasFiscaisRoute,
   AppPacientesRoute: AppPacientesRouteWithChildren,
   AppProntuarioRoute: AppProntuarioRoute,
