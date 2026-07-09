@@ -55,3 +55,6 @@ scripts/_nf_page_content.txt
 # Tokens locais Focus / integrações — nunca commitar
 scripts/_local_*.sql
 scripts/_local_*.env
+
+# Segredos locais da equipe (separado do .env do Lovable)
+.env.app

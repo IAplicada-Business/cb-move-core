@@ -9,6 +9,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from load_app_env import load_app_env
+
 ROOT = Path(__file__).resolve().parent.parent
 SQL_FILE = ROOT / "scripts" / "seed-fisioterapeutas-cbmove.sql"
 PROJECT_REF = "grlkbtnwvxorlfglyzid"
@@ -16,9 +18,14 @@ QUERY_URL = f"https://api.supabase.com/v1/projects/{PROJECT_REF}/database/query"
 
 
 def main() -> int:
+    load_app_env()
     token = os.environ.get("SUPABASE_ACCESS_TOKEN")
     if not token:
-        print("Defina SUPABASE_ACCESS_TOKEN (supabase login ou Dashboard → Account → Access Tokens)", file=sys.stderr)
+        print(
+            "Defina SUPABASE_ACCESS_TOKEN em .env.app "
+            "(copie .env.app.example → .env.app)",
+            file=sys.stderr,
+        )
         return 1
 
     sql = SQL_FILE.read_text(encoding="utf-8")

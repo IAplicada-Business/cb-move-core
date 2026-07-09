@@ -1,5 +1,7 @@
 -- Seed: fisioterapeutas CB MOVE (fonte: Registro Relógio Ponto / Drive cliente)
--- Idempotente por e-mail. Rode no SQL Editor ou: python scripts/apply-seed-fisioterapeutas.py
+-- Idempotente por e-mail. Rode no SQL Editor ou:
+--   1. cp .env.app.example .env.app  (preencha SUPABASE_ACCESS_TOKEN)
+--   2. python scripts/apply-seed-fisioterapeutas.py
 -- Não inclui CPF/PIS — apenas campos usados pela agenda.
 
 INSERT INTO public.fisioterapeutas (nome, email, registro_profissional, ativo)
