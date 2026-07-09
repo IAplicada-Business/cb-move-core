@@ -40,6 +40,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { formatDateDDMMYY, formatDateTimeDDMMYY } from "@/lib/format";
 
 export const Route = createFileRoute("/app/agenda")({
   head: () => ({ meta: [{ title: "Agenda · CB MOVE" }] }),
@@ -387,7 +388,7 @@ function AgendaPage() {
       createAgendamento({
         paciente_id: vals.pacienteId,
         fisioterapeuta_id: vals.fisioId,
-        inicio: `${vals.data}T${vals.horaInicio}:00`,
+        inicio: `${vals.data}T${vals.horaInicio}:00-03:00`,
         duracao_min: vals.duracao,
         servico: vals.servico || null,
       }),
@@ -423,19 +424,29 @@ function AgendaPage() {
     mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) =>
       remarcarAgendamento({
         agendamentoId: vals.agendamentoId,
-        novoInicio: `${vals.data}T${vals.horaInicio}:00`,
+        novoInicio: `${vals.data}T${vals.horaInicio}:00-03:00`,
         novoFisioId: vals.fisioId || undefined,
         duracaoMin: vals.duracao,
         escopo: vals.escopo,
         usuarioId: user?.id ?? null,
       }),
-    onSuccess: (qtd) => {
+    onSuccess: async (result) => {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
-      toast.success(qtd > 1 ? `${qtd} horários remarcados` : "Agendamento remarcado");
+      toast.success(result.count > 1 ? `${result.count} horários remarcados` : "Agendamento remarcado");
       setRemarcarOpen(false);
       setRemarcarTarget(null);
-      setSelectedAgend(null);
+
+      if (result.primeiroNovoId) {
+        const { data, error } = await supabase
+          .from("agendamentos")
+          .select("*, pacientes(nome, tipo), fisioterapeutas(nome)")
+          .eq("id", result.primeiroNovoId)
+          .single();
+        if (!error && data) {
+          setSelectedAgend(data as unknown as Agendamento);
+        }
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -467,8 +478,8 @@ function AgendaPage() {
 
   function labelHistorico(item: HistoricoRow) {
     if (item.acao === "remanejamento") {
-      const de = item.inicio_anterior ? formatHHMM(new Date(item.inicio_anterior)) : "—";
-      const para = item.inicio_novo ? formatHHMM(new Date(item.inicio_novo)) : "—";
+      const de = item.inicio_anterior ? formatDateTimeDDMMYY(item.inicio_anterior) : "—";
+      const para = item.inicio_novo ? formatDateTimeDDMMYY(item.inicio_novo) : "—";
       return `Remanejamento (${item.escopo ?? "pontual"}): ${de} → ${para}`;
     }
     return `Status: ${item.status_anterior ?? "—"} → ${item.status_novo ?? "—"}`;
@@ -716,14 +727,9 @@ function AgendaPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Horário</p>
                   <p className="font-medium">
-                    {new Date(selectedAgend.inicio).toLocaleString("pt-BR", {
-                      weekday: "short",
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    · {selectedAgend.duracao_min}min
+                    {formatDateTimeDDMMYY(selectedAgend.inicio)}
+                    {" · "}
+                    {selectedAgend.duracao_min}min
                   </p>
                 </div>
                 <div>
@@ -830,7 +836,7 @@ function AgendaPage() {
                         <li key={h.id} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
                           <p className="font-medium text-foreground">{labelHistorico(h)}</p>
                           <p className="text-muted-foreground">
-                            {new Date(h.created_at).toLocaleString("pt-BR")}
+                            {formatDateTimeDDMMYY(h.created_at)}
                           </p>
                         </li>
                       ))}

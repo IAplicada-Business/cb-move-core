@@ -62,14 +62,36 @@ async function insertHistorico(row: {
 
 export async function fetchAgendamentoHistorico(agendamentoId: string): Promise<HistoricoRow[]> {
   const db = supabase as any;
+  const ids = await coletarIdsHistorico(agendamentoId);
+
   const { data, error } = await db
     .from("agendamento_historico")
     .select("*")
-    .eq("agendamento_id", agendamentoId)
+    .in("agendamento_id", ids)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(30);
   if (error) throw error;
   return (data ?? []) as HistoricoRow[];
+}
+
+async function coletarIdsHistorico(agendamentoId: string): Promise<string[]> {
+  const ids = new Set<string>([agendamentoId]);
+  let atual: string | null = agendamentoId;
+
+  while (atual) {
+    const { data, error } = await supabase
+      .from("agendamentos")
+      .select("remarcado_de_id")
+      .eq("id", atual)
+      .maybeSingle();
+    if (error) throw error;
+    const anterior = (data as { remarcado_de_id: string | null } | null)?.remarcado_de_id;
+    if (!anterior || ids.has(anterior)) break;
+    ids.add(anterior);
+    atual = anterior;
+  }
+
+  return [...ids];
 }
 
 export async function updateAgendamentoStatus(
@@ -117,7 +139,7 @@ export async function remarcarAgendamento(params: {
   duracaoMin?: number;
   escopo: EscopoRemanejamento;
   usuarioId?: string | null;
-}): Promise<number> {
+}): Promise<{ count: number; primeiroNovoId: string | null }> {
   const { agendamentoId, novoInicio, novoFisioId, duracaoMin, escopo, usuarioId } = params;
 
   const { data: origem, error: origErr } = await supabase
@@ -154,6 +176,7 @@ export async function remarcarAgendamento(params: {
 
   const db = supabase as any;
   let count = 0;
+  let primeiroNovoId: string | null = null;
 
   for (const ag of afetados) {
     const novoInicioAg = new Date(new Date(ag.inicio).getTime() + deltaMs).toISOString();
@@ -192,8 +215,21 @@ export async function remarcarAgendamento(params: {
       usuario_id: usuarioId ?? null,
     });
 
+    await insertHistorico({
+      agendamento_id: novo.id,
+      acao: "remanejamento",
+      status_anterior: ag.status,
+      status_novo: "agendado",
+      inicio_anterior: ag.inicio,
+      inicio_novo: novoInicioAg,
+      escopo,
+      usuario_id: usuarioId ?? null,
+    });
+
+    if (!primeiroNovoId) primeiroNovoId = novo.id as string;
+
     count += 1;
   }
 
-  return count;
+  return { count, primeiroNovoId };
 }

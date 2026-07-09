@@ -8,6 +8,26 @@ export const formatDate = (d: string | Date | null | undefined) => {
   return dt.toLocaleDateString("pt-BR");
 };
 
+/** dd/mm/yy — ex.: 09/07/26 */
+export const formatDateDDMMYY = (d: string | Date | null | undefined) => {
+  if (!d) return "—";
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(dt.getTime())) return "—";
+  const day = String(dt.getDate()).padStart(2, "0");
+  const month = String(dt.getMonth() + 1).padStart(2, "0");
+  const year = String(dt.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
+};
+
+/** dd/mm/yy HH:mm */
+export const formatDateTimeDDMMYY = (d: string | Date | null | undefined) => {
+  if (!d) return "—";
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(dt.getTime())) return "—";
+  const time = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${formatDateDDMMYY(dt)} ${time}`;
+};
+
 export const formatDateTime = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const dt = typeof d === "string" ? new Date(d) : d;
