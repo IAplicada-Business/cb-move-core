@@ -28,17 +28,9 @@ const INTEGRACOES = [
     id: "n8n",
     nome: "n8n",
     categoria: "Automação",
-    descricao: "Orquestra envio de e-mails de NF com templates RQ.GPS.08 por tipo.",
-    status: "Configurar workflow",
+    descricao: "E-mail de NF pós-emissão — templates RQ.GPS.08 por tipo, envio via Gmail.",
+    status: "Ativo (Gmail)",
     secrets: "N8N_WEBHOOK_NF_EMAIL, N8N_WEBHOOK_SECRET",
-  },
-  {
-    id: "resend",
-    nome: "Resend",
-    categoria: "Comunicação",
-    descricao: "Entrega SMTP dos e-mails (via n8n).",
-    status: "Aguardando API key",
-    secrets: "RESEND_API_KEY (no n8n)",
   },
   {
     id: "bradesco",
@@ -75,7 +67,7 @@ function IntegracoesPage() {
             <p className="text-sm text-muted-foreground flex-1">{integ.descricao}</p>
             <p className="text-xs text-muted-foreground font-mono">{integ.secrets}</p>
             {integ.id === "n8n" && (
-              <p className="text-xs text-muted-foreground">NF emitida → send-nf-email → n8n → Resend</p>
+              <p className="text-xs text-muted-foreground">NF emitida → send-nf-email → n8n → Gmail</p>
             )}
             {integ.id === "focus-nfe" && (
               <p className="text-xs text-muted-foreground">Ver docs/SETUP_FOCUS_NFE.md</p>
