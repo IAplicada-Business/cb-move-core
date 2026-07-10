@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Plus, Search, MoreHorizontal, FileText, X, ExternalLink, Mail,
+  Plus, Search, MoreHorizontal, FileText, X, ExternalLink, Mail, RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,6 +42,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/app/notas-fiscais")({
   head: () => ({ meta: [{ title: "Notas Fiscais · CB MOVE" }] }),
@@ -366,6 +370,31 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
 function NFRow({ nf }: { nf: NotaFiscal }) {
   const qc = useQueryClient();
   const isJudicial = nf.tipo === "judicial";
+  const [confirmReemitir, setConfirmReemitir] = useState(false);
+
+  const podeFocus =
+    nf.status === "erro" || nf.status === "pendente" || nf.status === "processando";
+
+  const focusMutation = useMutation({
+    mutationFn: () => emitNfAutomatico(nf.id),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
+      if (result.status === "processando") {
+        const detail =
+          nf.status === "processando"
+            ? `Focus: ${result.focus_status ?? "processando_autorizacao"}`
+            : (result.message ?? "Aguardando autorização via webhook.");
+        toast.message(
+          nf.status === "processando" ? "Status consultado" : "Reemissão enviada",
+          { description: detail },
+        );
+      } else {
+        toast.success("NF atualizada na Focus");
+      }
+      setConfirmReemitir(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const reenviar = useMutation({
     mutationFn: () => sendNfEmail(nf.id, nf.tipo),
@@ -383,46 +412,110 @@ function NFRow({ nf }: { nf: NotaFiscal }) {
   });
 
   return (
-    <TableRow>
-      <TableCell className="font-mono text-sm text-muted-foreground">{nf.numero ?? "—"}</TableCell>
-      <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>
-      <TableCell>
-        <div>{nf.destinatarioNome ?? "—"}</div>
-        {isJudicial && nf.corpoPacienteNome && (
-          <div className="text-xs text-muted-foreground mt-0.5">
-            Corpo: {nf.corpoPacienteNome}{nf.corpoNumeroProcesso && ` · proc. ${nf.corpoNumeroProcesso}`}
+    <>
+      <TableRow>
+        <TableCell className="font-mono text-sm text-muted-foreground">{nf.numero ?? "—"}</TableCell>
+        <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>
+        <TableCell>
+          <div>{nf.destinatarioNome ?? "—"}</div>
+          {isJudicial && nf.corpoPacienteNome && (
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Corpo: {nf.corpoPacienteNome}{nf.corpoNumeroProcesso && ` · proc. ${nf.corpoNumeroProcesso}`}
+            </div>
+          )}
+        </TableCell>
+        <TableCell><TipoBadge value={nf.tipo} /></TableCell>
+        <TableCell className="text-sm">{formatDate(nf.emissao)}</TableCell>
+        <TableCell><StatusBadge kind="nf" value={nf.status} /></TableCell>
+        <TableCell className="text-right font-medium tabular-nums">{brl(nf.valor)}</TableCell>
+        <TableCell>
+          <div className="flex items-center justify-end gap-1">
+            {podeFocus && (
+              <Button
+                size="sm"
+                variant={nf.status === "erro" ? "default" : "outline"}
+                className="h-8"
+                disabled={focusMutation.isPending}
+                onClick={() => {
+                  if (nf.status === "erro") setConfirmReemitir(true);
+                  else focusMutation.mutate();
+                }}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${focusMutation.isPending ? "animate-spin" : ""}`} />
+                {nf.status === "erro"
+                  ? "Reemitir"
+                  : nf.status === "processando"
+                    ? "Consultar"
+                    : "Focus"}
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {nf.pdfUrl && (
+                  <DropdownMenuItem onClick={() => window.open(nf.pdfUrl!, "_blank")}>
+                    <ExternalLink className="h-4 w-4 mr-2" />Ver PDF
+                  </DropdownMenuItem>
+                )}
+                {podeFocus && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (nf.status === "erro") setConfirmReemitir(true);
+                      else focusMutation.mutate();
+                    }}
+                    disabled={focusMutation.isPending}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {nf.status === "erro"
+                      ? "Reemitir (Focus NFe)"
+                      : nf.status === "processando"
+                        ? "Consultar status Focus"
+                        : "Emitir automático (Focus)"}
+                  </DropdownMenuItem>
+                )}
+                {nf.status === "emitida" && (
+                  <DropdownMenuItem onClick={() => reenviar.mutate()} disabled={reenviar.isPending}>
+                    <Mail className="h-4 w-4 mr-2" />Reenviar por e-mail
+                  </DropdownMenuItem>
+                )}
+                {nf.status !== "cancelada" && nf.status !== "emitida" && (
+                  <DropdownMenuItem onClick={() => cancelar.mutate()} className="text-destructive">
+                    <X className="h-4 w-4 mr-2" />Cancelar NF
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
-      </TableCell>
-      <TableCell><TipoBadge value={nf.tipo} /></TableCell>
-      <TableCell className="text-sm">{formatDate(nf.emissao)}</TableCell>
-      <TableCell><StatusBadge kind="nf" value={nf.status} /></TableCell>
-      <TableCell className="text-right font-medium tabular-nums">{brl(nf.valor)}</TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {nf.pdfUrl && (
-              <DropdownMenuItem onClick={() => window.open(nf.pdfUrl!, "_blank")}>
-                <ExternalLink className="h-4 w-4 mr-2" />Ver PDF
-              </DropdownMenuItem>
-            )}
-            {nf.status === "emitida" && (
-              <DropdownMenuItem onClick={() => reenviar.mutate()} disabled={reenviar.isPending}>
-                <Mail className="h-4 w-4 mr-2" />Reenviar por e-mail
-              </DropdownMenuItem>
-            )}
-            {nf.status !== "cancelada" && nf.status !== "emitida" && (
-              <DropdownMenuItem onClick={() => cancelar.mutate()} className="text-destructive">
-                <X className="h-4 w-4 mr-2" />Cancelar NF
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
+        </TableCell>
+      </TableRow>
+
+      <AlertDialog open={confirmReemitir} onOpenChange={setConfirmReemitir}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reemitir nota fiscal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A NF de <strong>{nf.pacienteNome ?? "paciente"}</strong> ({brl(nf.valor)}) será
+              reenviada à Focus NFe com a mesma referência. O status passará para
+              {" "}<strong>processando</strong> até o webhook confirmar autorização ou novo erro.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={focusMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={focusMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                focusMutation.mutate();
+              }}
+            >
+              {focusMutation.isPending ? "Enviando…" : "Reemitir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
