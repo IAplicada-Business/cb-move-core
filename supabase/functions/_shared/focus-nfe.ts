@@ -24,6 +24,16 @@ export type FocusNfeConfig = {
   codigoOpcaoSimplesNacional: number;
 };
 
+export type TomadorForFocus = {
+  email?: string | null;
+  telefone?: string | null;
+  endereco?: string | null;
+  cep?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  codigo_municipio_ibge?: number | null;
+};
+
 export type NfForFocus = {
   id: string;
   tipo: string | null;
@@ -36,6 +46,7 @@ export type NfForFocus = {
   corpo_paciente_cpf: string | null;
   corpo_numero_processo: string | null;
   corpo_total_sessoes: number | null;
+  tomador?: TomadorForFocus | null;
 };
 
 export type FocusEmitResult = {
@@ -125,6 +136,34 @@ function buildDescricaoServico(nf: NfForFocus): string {
   ].filter(Boolean).join(" | ");
 }
 
+function appendTomadorFields(
+  payload: Record<string, unknown>,
+  doc: string,
+  nome: string | null | undefined,
+  tomador: TomadorForFocus | null | undefined,
+  fallbackMunicipioPoa: number,
+): void {
+  if (doc.length === 11) {
+    payload.cpf_tomador = doc;
+    if (nome) payload.razao_social_tomador = nome;
+  } else if (doc.length === 14) {
+    payload.cnpj_tomador = doc;
+    if (nome) payload.razao_social_tomador = nome;
+    const municipio = tomador?.codigo_municipio_ibge ?? fallbackMunicipioPoa;
+    payload.codigo_municipio_tomador = String(municipio);
+  } else {
+    throw new Error("Destinatário sem CPF/CNPJ válido para emissão automática");
+  }
+
+  if (!tomador) return;
+
+  if (tomador.email) payload.email_tomador = tomador.email;
+  if (tomador.telefone) payload.telefone_tomador = onlyDigits(tomador.telefone);
+  if (tomador.endereco) payload.logradouro_tomador = tomador.endereco.slice(0, 255);
+  if (tomador.cep) payload.cep_tomador = onlyDigits(tomador.cep);
+  if (tomador.uf) payload.uf_tomador = tomador.uf.toUpperCase().slice(0, 2);
+}
+
 export function buildFocusNfsenPayload(
   nf: NfForFocus,
   config: FocusNfeConfig,
@@ -156,16 +195,13 @@ export function buildFocusNfsenPayload(
     payload.inscricao_municipal_prestador = config.inscricaoMunicipal;
   }
 
-  if (doc.length === 11) {
-    payload.cpf_tomador = doc;
-    if (nf.destinatario_nome) payload.razao_social_tomador = nf.destinatario_nome;
-  } else if (doc.length === 14) {
-    payload.cnpj_tomador = doc;
-    if (nf.destinatario_nome) payload.razao_social_tomador = nf.destinatario_nome;
-    payload.codigo_municipio_tomador = config.codigoMunicipio;
-  } else {
-    throw new Error("Destinatário sem CPF/CNPJ válido para emissão automática");
-  }
+  appendTomadorFields(
+    payload,
+    doc,
+    nf.destinatario_nome,
+    nf.tomador,
+    config.codigoMunicipio,
+  );
 
   return payload;
 }
