@@ -2,6 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
 import type { NfStatus, PacienteTipo } from "../types";
 
+export type EmitNfAutomaticoResult = {
+  ok: boolean;
+  nf_id: string;
+  status: NfStatus | string;
+  focus_status?: string;
+  focus_ref?: string;
+  message?: string;
+  error?: string;
+  numero?: string;
+  pdf_url?: string | null;
+  email?: { ok: boolean; queued?: boolean; error?: string };
+};
+
 export type NotaFiscal = {
   id: string;
   numero: string | null;
@@ -204,15 +217,6 @@ export async function emitNfManual(nfId: string, numero: string, pdfUrl: string)
     pdf_url: pdfUrl,
   });
 }
-
-export type EmitNfAutomaticoResult = {
-  ok: boolean;
-  nf_id: string;
-  status: string;
-  numero?: string;
-  pdf_url?: string | null;
-  email?: { ok: boolean; queued?: boolean; error?: string };
-};
 
 export async function emitNfAutomatico(nfId: string): Promise<EmitNfAutomaticoResult> {
   return invokeEdgeFunction<EmitNfAutomaticoResult>("emit-nf", {
