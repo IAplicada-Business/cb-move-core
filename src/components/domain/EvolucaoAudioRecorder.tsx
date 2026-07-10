@@ -13,6 +13,7 @@ export type TranscricaoResult = {
 type Props = {
   pacienteId: string;
   onResult: (r: TranscricaoResult) => void;
+  buttonLabel?: string;
 };
 
 // Minimal typing for the Web Speech API (SpeechRecognition isn't in every TS lib).
@@ -35,7 +36,7 @@ const SpeechRecognitionClass: SpeechRecognitionCtor | null =
        null)
     : null;
 
-export function EvolucaoAudioRecorder({ pacienteId, onResult }: Props) {
+export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gravar evolução" }: Props) {
   const [recording, setRecording] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
   const [liveText, setLiveText] = React.useState("");
@@ -144,7 +145,7 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult }: Props) {
             className="gap-2"
           >
             <span>🎤</span>
-            {processing ? "Processando IA..." : "Gravar evolução"}
+            {processing ? "Processando IA..." : buttonLabel}
           </Button>
         ) : (
           <Button
