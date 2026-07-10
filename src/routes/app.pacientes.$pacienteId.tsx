@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, User, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, User, ClipboardCheck, FileText } from "lucide-react";
 
 import { LoadingState } from "@/components/domain/LoadingState";
 import { HistoricoComparecimentoTable } from "@/components/domain/HistoricoComparecimentoTable";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/queries/sessoes";
 import { formatPhone } from "@/lib/format";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/pacientes/$pacienteId")({
   head: () => ({
@@ -58,19 +59,27 @@ function PacienteDetalhe() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/app/pacientes" className="rounded-md p-1.5 hover:bg-accent">
-          <ArrowLeft className="h-4 w-4 text-muted-foreground" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{paciente.nome}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <TipoBadge value={paciente.tipo} />
-            {paciente.convenioNome && (
-              <span className="text-sm text-muted-foreground">{paciente.convenioNome}</span>
-            )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link to="/app/pacientes" className="rounded-md p-1.5 hover:bg-accent">
+            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{paciente.nome}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <TipoBadge value={paciente.tipo} />
+              {paciente.convenioNome && (
+                <span className="text-sm text-muted-foreground">{paciente.convenioNome}</span>
+              )}
+            </div>
           </div>
         </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/app/prontuario" search={{ pacienteId }}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" />
+            Abrir prontuário
+          </Link>
+        </Button>
       </div>
 
       <Tabs defaultValue="dados">

@@ -20,9 +20,11 @@ function formatDataPT(dateStr: string): string {
 export function EvolucaoCard({
   evolucao,
   onEdit,
+  canEdit = true,
 }: {
   evolucao: Evolucao & { fisioterapeutas?: { nome: string } | null };
   onEdit: (ev: Evolucao) => void;
+  canEdit?: boolean;
 }) {
   const dataFmt = formatDataPT(evolucao.data);
   return (
@@ -37,9 +39,11 @@ export function EvolucaoCard({
             {FONTE_LABEL[evolucao.fonte] ?? evolucao.fonte}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => onEdit(evolucao)}>
-          Editar
-        </Button>
+        {canEdit && (
+          <Button variant="ghost" size="sm" onClick={() => onEdit(evolucao)}>
+            Editar
+          </Button>
+        )}
       </div>
       {evolucao.subjetivo && (
         <div>

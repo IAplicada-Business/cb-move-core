@@ -34,6 +34,15 @@ export const queryKeys = {
     all: ["relatorios_atendimento"] as const,
     byPaciente: (pacienteId: string) => ["relatorios_atendimento", pacienteId] as const,
   },
+  prontuario: {
+    search: (q: string) => ["prontuario", "search", q] as const,
+    paciente: (id: string) => ["prontuario", "paciente", id] as const,
+    sessoes: (id: string) => ["prontuario", "sessoes", id] as const,
+    evolucoes: (id: string) => ["prontuario", "evolucoes", id] as const,
+    avaliacoes: (id: string) => ["prontuario", "avaliacoes", id] as const,
+    relatorios: (id: string) => ["prontuario", "relatorios", id] as const,
+    historico: (id: string) => ["prontuario", "historico", id] as const,
+  },
   convenios: {
     all: ["convenios"] as const,
   },
