@@ -6,7 +6,9 @@ import {
   loadFocusNfeConfig,
   submitFocusNfsen,
   type NfForFocus,
+  type TomadorForFocus,
 } from "../_shared/focus-nfe.ts";
+import { mergeTomador } from "../_shared/focus-nfe-tomador-catalog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +40,56 @@ async function triggerSendNfEmail(
   return { ok: true, queued: data.queued };
 }
 
+type ConvenioTomadorRow = {
+  cnpj: string | null;
+  razao_social: string | null;
+  email_nf: string | null;
+  endereco?: string | null;
+  cep?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  codigo_municipio_ibge?: number | null;
+};
+
+type PacienteTomadorRow = {
+  email: string | null;
+  telefone: string | null;
+  convenios: ConvenioTomadorRow | ConvenioTomadorRow[] | null;
+};
+
+function tomadorFromConvenio(convenio: ConvenioTomadorRow | null | undefined): TomadorForFocus | undefined {
+  if (!convenio) return undefined;
+  return {
+    email: convenio.email_nf,
+    endereco: convenio.endereco ?? null,
+    cep: convenio.cep ?? null,
+    cidade: convenio.cidade ?? null,
+    uf: convenio.uf ?? null,
+    codigo_municipio_ibge: convenio.codigo_municipio_ibge ?? null,
+  };
+}
+
+function resolveTomador(
+  tipo: string | null,
+  documento: string | null,
+  paciente: PacienteTomadorRow | null,
+): TomadorForFocus | undefined {
+  if (!paciente) return undefined;
+
+  const convenio = Array.isArray(paciente.convenios)
+    ? paciente.convenios[0]
+    : paciente.convenios;
+
+  if (tipo === "particular") {
+    return mergeTomador(documento, undefined, {
+      email: paciente.email,
+      telefone: paciente.telefone,
+    });
+  }
+
+  return mergeTomador(documento, tomadorFromConvenio(convenio));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -52,15 +104,38 @@ serve(async (req) => {
     const { data: nf, error } = await admin
       .from("notas_fiscais")
       .select(`
-        id, tipo, status, valor,
+        id, tipo, status, valor, paciente_id,
         competencia_mes, competencia_ano,
         destinatario_nome, destinatario_documento,
         corpo_paciente_nome, corpo_paciente_cpf,
-        corpo_numero_processo, corpo_total_sessoes
+        corpo_numero_processo, corpo_total_sessoes,
+        pacientes (
+          email, telefone,
+          convenios (
+            cnpj, razao_social, email_nf,
+            endereco, cep, cidade, uf, codigo_municipio_ibge
+          )
+        )
       `)
       .eq("id", nf_id)
       .single();
     if (error || !nf) throw new Error("NF não encontrada");
+
+    const paciente = (nf as { pacientes?: PacienteTomadorRow | null }).pacientes ?? null;
+    const nfForFocus: NfForFocus = {
+      id: nf.id,
+      tipo: nf.tipo,
+      valor: nf.valor,
+      competencia_mes: nf.competencia_mes,
+      competencia_ano: nf.competencia_ano,
+      destinatario_nome: nf.destinatario_nome,
+      destinatario_documento: nf.destinatario_documento,
+      corpo_paciente_nome: nf.corpo_paciente_nome,
+      corpo_paciente_cpf: nf.corpo_paciente_cpf,
+      corpo_numero_processo: nf.corpo_numero_processo,
+      corpo_total_sessoes: nf.corpo_total_sessoes,
+      tomador: resolveTomador(nf.tipo, nf.destinatario_documento, paciente),
+    };
 
     const mode = modo ?? "automatico";
 
@@ -131,7 +206,7 @@ serve(async (req) => {
     let result;
 
     try {
-      result = await submitFocusNfsen(focusConfig, ref, nf as NfForFocus);
+      result = await submitFocusNfsen(focusConfig, ref, nfForFocus);
     } catch (focusErr) {
       await admin
         .from("notas_fiscais")
