@@ -3,12 +3,11 @@ import { Mic } from "lucide-react";
 import {
   evolucaoStatus,
   formatDataEvolucao,
+  formatHoraSessao,
 } from "@/components/domain/prontuario/utils";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { Evolucao } from "@/lib/queries/prontuario";
-
-type EvolucaoRow = Evolucao & { fisioterapeutas?: { nome: string } | null };
+import type { EvolucaoComRelacoes } from "@/lib/queries/prontuario";
 
 function SoapRow({ label, value }: { label: string; value: string | null }) {
   if (!value?.trim()) return null;
@@ -25,15 +24,25 @@ export function ProntuarioEvolucaoFeedItem({
   canEdit,
   onEdit,
 }: {
-  evolucao: EvolucaoRow;
+  evolucao: EvolucaoComRelacoes;
   canEdit: boolean;
-  onEdit: (ev: Evolucao) => void;
+  onEdit: (ev: EvolucaoComRelacoes) => void;
 }) {
   const status = evolucaoStatus(evolucao);
   const isRascunho = status === "rascunho";
   const hora = evolucao.created_at
     ? new Date(evolucao.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     : "—";
+  const sessaoLabel = evolucao.sessoes
+    ? `${evolucao.sessoes.sigla} ${formatHoraSessao(evolucao.sessoes.hora)}`
+    : null;
+
+  const showTranscricaoOnly =
+    isRascunho &&
+    evolucao.transcricao_raw?.trim() &&
+    !evolucao.subjetivo?.trim() &&
+    !evolucao.objetivo?.trim() &&
+    !evolucao.plano?.trim();
 
   return (
     <article className="border-b border-border py-5 last:border-b-0">
@@ -46,6 +55,12 @@ export function ProntuarioEvolucaoFeedItem({
             <>
               <span>·</span>
               <span>{evolucao.fisioterapeutas.nome}</span>
+            </>
+          )}
+          {sessaoLabel && (
+            <>
+              <span>·</span>
+              <span className="font-mono text-xs">{sessaoLabel}</span>
             </>
           )}
           {evolucao.fonte === "audio_ia" && (
@@ -74,7 +89,7 @@ export function ProntuarioEvolucaoFeedItem({
         </div>
       </div>
 
-      {isRascunho && evolucao.transcricao_raw?.trim() && !evolucao.subjetivo && !evolucao.objetivo && !evolucao.plano ? (
+      {showTranscricaoOnly ? (
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Transcrição</p>
           <blockquote className="border-l-2 border-cb-cyan-200 pl-4 text-sm italic text-muted-foreground whitespace-pre-wrap">

@@ -82,3 +82,22 @@ export const PLANO_TOTAL_PADRAO = 24;
 export function plazoSessoesLabel(realizadas: number, total = PLANO_TOTAL_PADRAO): string {
   return `${realizadas} / ${total} sessões`;
 }
+
+/** Preferência: P/RC, senão a primeira por ordem já recebida (hora ASC). */
+export function resolveSessaoId(sessoes: SessaoProntuario[]): string | null {
+  if (sessoes.length === 0) return null;
+  if (sessoes.length === 1) return sessoes[0].id;
+  const preferred = sessoes.find((s) => s.sigla === "P" || s.sigla === "RC");
+  return preferred?.id ?? sessoes[0]?.id ?? null;
+}
+
+export function formatHoraSessao(hora: string | null): string {
+  if (!hora) return "—";
+  return hora.slice(0, 5);
+}
+
+export function sessaoOptionLabel(s: SessaoProntuario): string {
+  const hora = formatHoraSessao(s.hora);
+  const fisio = s.fisioterapeutas?.nome ? ` · ${s.fisioterapeutas.nome}` : "";
+  return `${hora} · ${s.sigla}${fisio}`;
+}

@@ -379,6 +379,7 @@ function ProntuarioPage() {
               evolucao={editingEvolucao ?? draftEvolucao ?? undefined}
               fisios={fisios}
               pacienteId={selectedId}
+              defaultFisioterapeutaId={paciente.fisioterapeutaId}
               onSave={handleSaveEvolucao}
               onCancel={closeEvolucaoDialog}
               loading={evolucaoLoading}

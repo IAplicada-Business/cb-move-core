@@ -5,16 +5,16 @@ import { MESES_ABREV } from "@/components/domain/prontuario/constants";
 import { countEvolucoesMes, filterPorCompetencia } from "@/components/domain/prontuario/utils";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
-import type { Evolucao } from "@/lib/queries/prontuario";
+import type { EvolucaoComRelacoes } from "@/lib/queries/prontuario";
 
 type Props = {
-  evolucoes: Evolucao[];
+  evolucoes: EvolucaoComRelacoes[];
   loading: boolean;
   canEdit: boolean;
   pacienteId: string;
   mesFiltro: number;
   anoFiltro: number;
-  onEdit: (ev: Evolucao) => void;
+  onEdit: (ev: EvolucaoComRelacoes) => void;
   onTranscricao: (result: TranscricaoResult) => void;
 };
 
@@ -62,7 +62,7 @@ export function ProntuarioEvolucaoDiariaTab({
             {evolucoesFiltradas.map((ev) => (
               <ProntuarioEvolucaoFeedItem
                 key={ev.id}
-                evolucao={ev as Evolucao & { fisioterapeutas?: { nome: string } | null }}
+                evolucao={ev}
                 canEdit={canEdit}
                 onEdit={onEdit}
               />

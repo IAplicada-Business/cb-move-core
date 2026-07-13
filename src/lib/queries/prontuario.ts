@@ -174,6 +174,20 @@ export async function fetchSessoesProntuario(pacienteId: string): Promise<Sessao
   return (data ?? []) as unknown as SessaoProntuario[];
 }
 
+export async function fetchSessoesDoDia(
+  pacienteId: string,
+  data: string,
+): Promise<SessaoProntuario[]> {
+  const { data: rows, error } = await supabase
+    .from("sessoes")
+    .select("id, data, hora, sigla, observacoes, fisioterapeutas(nome)")
+    .eq("paciente_id", pacienteId)
+    .eq("data", data)
+    .order("hora", { ascending: true });
+  if (error) throw error;
+  return (rows ?? []) as unknown as SessaoProntuario[];
+}
+
 export async function fetchRelatoriosPaciente(pacienteId: string): Promise<RelatorioAtendimento[]> {
   const { data, error } = await supabase
     .from("relatorios_atendimento")
@@ -252,14 +266,20 @@ export async function fetchFisioterapeutasAtivos(): Promise<FisioterapeutaOption
   return (data ?? []) as FisioterapeutaOption[];
 }
 
-export async function fetchEvolucoes(pacienteId: string): Promise<Evolucao[]> {
+export type EvolucaoComRelacoes = Evolucao & {
+  fisioterapeutas?: { nome: string } | null;
+  sessoes?: { sigla: FrequenciaSigla; hora: string | null } | null;
+};
+
+export async function fetchEvolucoes(pacienteId: string): Promise<EvolucaoComRelacoes[]> {
   const { data, error } = await supabase
     .from("prontuario_evolucoes")
-    .select("*, fisioterapeutas(nome)")
+    .select("*, fisioterapeutas(nome), sessoes(sigla, hora)")
     .eq("paciente_id", pacienteId)
-    .order("data", { ascending: false });
+    .order("data", { ascending: false })
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Evolucao[];
+  return (data ?? []) as EvolucaoComRelacoes[];
 }
 
 export async function createEvolucao(ev: Partial<Evolucao>): Promise<Evolucao> {
