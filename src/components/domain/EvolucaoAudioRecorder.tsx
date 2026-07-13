@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/edge-functions";
 import { toast } from "sonner";
 
 export type TranscricaoResult = {
@@ -42,6 +42,7 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
   const [liveText, setLiveText] = React.useState("");
   const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
   const finalTextRef = React.useRef("");
+  const liveTextRef = React.useRef("");
 
   if (!SpeechRecognitionClass) {
     return (
@@ -71,7 +72,9 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
           interim = e.results[i][0].transcript;
         }
       }
-      setLiveText((final + interim).trim());
+      const merged = (final + interim).trim();
+      liveTextRef.current = merged;
+      setLiveText(merged);
     };
 
     rec.onerror = (e) => {
@@ -91,7 +94,7 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
     recognitionRef.current?.stop();
     setRecording(false);
 
-    const text = finalTextRef.current.trim();
+    const text = (finalTextRef.current || liveTextRef.current).trim();
     if (!text) {
       toast.warning("Nenhum áudio detectado.");
       return;
@@ -99,24 +102,22 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
     sendText(text);
   }
 
+  function fallbackResult(transcricao_raw: string): TranscricaoResult {
+    return { transcricao_raw, subjetivo: "", objetivo: "", plano: "" };
+  }
+
+  function isEdgeUnavailable(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return /404|not found|failed to send|edge function|non-2xx/i.test(msg);
+  }
+
   async function sendText(transcricao_raw: string) {
     setProcessing(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session?.access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ transcricao_raw, paciente_id: pacienteId }),
-        }
-      );
-
-      if (!res.ok) throw new Error(await res.text());
-      const result: TranscricaoResult = await res.json();
+      const result = await invokeEdgeFunction<TranscricaoResult>("transcribe-audio", {
+        transcricao_raw,
+        paciente_id: pacienteId,
+      });
 
       if (!result.subjetivo && !result.objetivo && !result.plano) {
         toast.info("Transcrição salva. Configure ANTHROPIC_API_KEY para estruturação automática S/O/P.");
@@ -125,7 +126,15 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
       }
       onResult(result);
       setLiveText("");
+      liveTextRef.current = "";
     } catch (err) {
+      if (isEdgeUnavailable(err)) {
+        toast.info("Serviço de IA indisponível — transcrição mantida; preencha S/O/P manualmente.");
+        onResult(fallbackResult(transcricao_raw));
+        setLiveText("");
+        liveTextRef.current = "";
+        return;
+      }
       toast.error("Erro: " + (err instanceof Error ? err.message : "Desconhecido"));
     } finally {
       setProcessing(false);
