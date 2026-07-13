@@ -11,7 +11,7 @@ export const Route = (createFileRoute as any)("/portal/historico")({
 type SessaoRow = {
   id: string;
   data: string;
-  frequencia: string | null;
+  sigla: string | null;
   fisioterapeutas?: { nome: string } | null;
 };
 
@@ -32,7 +32,7 @@ function PortalHistorico() {
     if (!pacienteId) return;
     (supabase as any)
       .from("sessoes")
-      .select("id, data, frequencia, fisioterapeutas(nome)")
+      .select("id, data, sigla, fisioterapeutas(nome)")
       .eq("paciente_id", pacienteId)
       .order("data", { ascending: false })
       .then(({ data }: { data: SessaoRow[] | null }) => {
@@ -51,7 +51,7 @@ function PortalHistorico() {
           }
           const g = map.get(chave)!;
           g.total++;
-          if (s.frequencia === "P" || s.frequencia === "RC") g.realizados++;
+          if (s.sigla === "P" || s.sigla === "RC") g.realizados++;
         }
         setGrupos(Array.from(map.values()));
         setLoading(false);

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { StatusAgendamento } from "@/lib/types";
-import { upsertSessaoSigla } from "@/lib/queries/sessoes";
+import { upsertSessaoSigla, clearSessaoSigla } from "@/lib/queries/sessoes";
 
 export type EscopoRemanejamento = "pontual" | "semana" | "serie_mes";
 
@@ -112,24 +112,35 @@ export async function updateAgendamentoStatus(
     usuario_id: usuarioId ?? null,
   });
 
-  // Espelha na planilha de frequência (P = presente, F = falta)
-  if (status === "realizado" || status === "faltou") {
-    const { data: ag, error: agError } = await supabase
-      .from("agendamentos")
-      .select("paciente_id, fisioterapeuta_id, inicio")
-      .eq("id", id)
-      .maybeSingle();
-    if (agError) throw agError;
-    if (ag?.paciente_id && ag.inicio) {
-      const data = ag.inicio.slice(0, 10);
+  // Espelha na tabela sessoes (fonte única para Frequência e Prontuário)
+  const { data: ag, error: agError } = await supabase
+    .from("agendamentos")
+    .select("paciente_id, fisioterapeuta_id, inicio")
+    .eq("id", id)
+    .maybeSingle();
+  if (agError) throw agError;
+
+  if (ag?.paciente_id && ag.inicio) {
+    const data = ag.inicio.slice(0, 10);
+    const hora = horaFromAgendamentoInicio(ag.inicio);
+
+    if (status === "realizado" || status === "faltou") {
       await upsertSessaoSigla({
         pacienteId: ag.paciente_id,
         data,
         sigla: status === "realizado" ? "P" : "F",
         fisioterapeutaId: ag.fisioterapeuta_id,
+        hora,
       });
+    } else if (statusAnterior === "realizado" || statusAnterior === "faltou") {
+      await clearSessaoSigla(ag.paciente_id, data);
     }
   }
+}
+
+function horaFromAgendamentoInicio(inicio: string): string | null {
+  const match = inicio.match(/T(\d{2}:\d{2})/);
+  return match ? `${match[1]}:00` : null;
 }
 
 function filtrarPorEscopo(

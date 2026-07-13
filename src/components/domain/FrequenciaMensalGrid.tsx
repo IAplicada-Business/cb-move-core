@@ -17,10 +17,13 @@ import { fetchSessoesGradeMensal } from "@/lib/queries/sessoes";
 import type { FrequenciaSigla, PacienteTipo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const SIGLAS: FrequenciaSigla[] = ["P", "F"];
-const SIGLA_LABEL: Record<string, string> = {
-  P: "Presente (realizado na agenda)",
-  F: "Falta (faltou na agenda)",
+const SIGLA_LABEL: Record<FrequenciaSigla, string> = {
+  P: "Presente",
+  F: "Falta",
+  RC: "Reabilitação concluída",
+  FJ: "Falta justificada",
+  NJ: "Não justificada",
+  NR: "Não realizada",
 };
 const TIPO_LABEL: Record<PacienteTipo, string> = {
   particular: "Particular",
@@ -29,9 +32,13 @@ const TIPO_LABEL: Record<PacienteTipo, string> = {
   puc: "PUC",
 };
 
-const SIGLA_CELL: Record<string, string> = {
+const SIGLA_CELL: Record<FrequenciaSigla, string> = {
   P: "bg-emerald-500/15 text-emerald-700",
   F: "bg-rose-500/15 text-rose-700",
+  RC: "bg-cb-cyan-050 text-cb-cyan-800",
+  FJ: "bg-orange-500/15 text-orange-700",
+  NJ: "bg-amber-500/15 text-amber-700",
+  NR: "bg-muted text-muted-foreground",
 };
 
 type Props = {
@@ -50,7 +57,7 @@ function toDateStr(ano: number, mes: number, day: number) {
   return `${ano}-${String(mes).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-/** Planilha somente leitura — espelho da Agenda (realizado→P, faltou→F). */
+/** Planilha somente leitura — consolidado da tabela sessoes (alinhado ao Prontuário). */
 export function FrequenciaMensalGrid({
   mes,
   ano,
@@ -65,6 +72,13 @@ export function FrequenciaMensalGrid({
     queryKey: queryKeys.sessoes.gradeMes(mes, ano),
     queryFn: () => fetchSessoesGradeMensal(mes, ano),
   });
+
+  const siglasNoMes = useMemo(() => {
+    const set = new Set<FrequenciaSigla>();
+    for (const s of data?.sessoes ?? []) set.add(s.sigla);
+    const ordem: FrequenciaSigla[] = ["P", "RC", "F", "FJ", "NJ", "NR"];
+    return ordem.filter((s) => set.has(s));
+  }, [data?.sessoes]);
 
   const siglaByPacienteDia = useMemo(() => {
     const map = new Map<string, FrequenciaSigla>();
@@ -179,7 +193,7 @@ export function FrequenciaMensalGrid({
           className="max-w-xs h-9"
         />
         <p className="text-xs text-muted-foreground">
-          Somente leitura — espelho da Agenda
+          Somente leitura — consolidado de sessões
           {isFetching ? " · atualizando…" : ""}
         </p>
         <Button type="button" variant="outline" size="sm" className="ml-auto gap-1.5" onClick={exportCsv}>
@@ -199,12 +213,12 @@ export function FrequenciaMensalGrid({
       </div>
 
       <div className="flex flex-wrap gap-2 text-[11.5px]">
-        {SIGLAS.map((s) => (
+        {(siglasNoMes.length > 0 ? siglasNoMes : (["P", "F"] as FrequenciaSigla[])).map((s) => (
           <span
             key={s}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[10px] font-bold",
-              SIGLA_COLORS[s as FrequenciaSigla] ?? SIGLA_CELL[s],
+              SIGLA_COLORS[s] ?? SIGLA_CELL[s],
             )}
           >
             {s}
@@ -215,8 +229,8 @@ export function FrequenciaMensalGrid({
 
       {rows.length === 0 ? (
         <EmptyState
-          title="Nenhum consolidado neste mês"
-          description="Marque sessões como realizado ou faltou na Agenda (semana/dia) para aparecerem aqui."
+          title="Nenhuma sessão neste mês"
+          description="Marque agendamentos como realizado ou faltou na Agenda, ou execute o backfill histórico para popular sessões anteriores."
         />
       ) : (
         <div className="overflow-auto rounded-xl border bg-card max-h-[min(70vh,820px)]">

@@ -540,6 +540,7 @@ function AgendaPage() {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
       qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
+      qc.invalidateQueries({ queryKey: ["prontuario"] });
       if (vars.status === "cancelado") {
         toast.success("Agendamento cancelado — horário liberado");
         setConfirmCancelOpen(false);

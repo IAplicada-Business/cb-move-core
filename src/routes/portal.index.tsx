@@ -46,7 +46,7 @@ function PortalInicio() {
       db.from("sessoes")
         .select("id")
         .eq("paciente_id", pacienteId)
-        .in("frequencia", ["P", "RC"])
+        .in("sigla", ["P", "RC"])
         .gte("data", mesInicio)
         .lte("data", mesFim),
       db.from("agendamentos")

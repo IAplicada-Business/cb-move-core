@@ -11,7 +11,7 @@ export const Route = (createFileRoute as any)("/portal/sessoes")({
 type SessaoRow = {
   id: string;
   data: string;
-  frequencia: string | null;
+  sigla: string | null;
 };
 
 const SIGLAS: Record<string, { label: string; color: string }> = {
@@ -42,7 +42,7 @@ function PortalSessoes() {
     const fim = new Date(ano, mes + 1, 0).toISOString().split("T")[0];
     (supabase as any)
       .from("sessoes")
-      .select("id, data, frequencia")
+      .select("id, data, sigla")
       .eq("paciente_id", pacienteId)
       .gte("data", inicio)
       .lte("data", fim)
@@ -62,7 +62,7 @@ function PortalSessoes() {
     setAno(a);
   }
 
-  const realizados = sessoes.filter((s) => s.frequencia === "P" || s.frequencia === "RC").length;
+  const realizados = sessoes.filter((s) => s.sigla === "P" || s.sigla === "RC").length;
   const total = sessoes.length;
 
   return (
@@ -106,7 +106,7 @@ function PortalSessoes() {
       {!loading && sessoes.length > 0 && (
         <ul className="space-y-2">
           {sessoes.map((s) => {
-            const info = SIGLAS[s.frequencia ?? "NR"] ?? SIGLAS["NR"];
+            const info = SIGLAS[s.sigla ?? "NR"] ?? SIGLAS["NR"];
             const data = new Date(s.data + "T12:00:00").toLocaleDateString("pt-BR", {
               weekday: "short",
               day: "numeric",

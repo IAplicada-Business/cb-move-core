@@ -70,8 +70,8 @@ serve(async (req) => {
       .lte("data", fimMes)
       .order("data");
 
-    const totalSessoes = (sessoes ?? []).filter((s: { frequencia?: string }) =>
-      ["P", "RC"].includes(s.frequencia ?? "")
+    const totalSessoes = (sessoes ?? []).filter((s: { sigla?: string }) =>
+      ["P", "RC"].includes(s.sigla ?? "")
     ).length;
     const evolucaoResumo = (evolucoes ?? [])
       .map((e: { subjetivo?: string; objetivo?: string; plano?: string }) =>

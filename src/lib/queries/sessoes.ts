@@ -256,15 +256,14 @@ export async function fetchSessoesGradeMensal(
 }> {
   const { inicio, fim } = monthRange(mes, ano);
 
-  const [agendamentosRes, cobrancasRes] = await Promise.all([
+  const [sessoesRes, cobrancasRes] = await Promise.all([
     supabase
-      .from("agendamentos")
-      .select("id, paciente_id, fisioterapeuta_id, inicio, status, pacientes(id, nome, tipo, fisioterapeuta_id, frequencia_atendimento, ativo)")
-      .gte("inicio", `${inicio}T00:00:00-03:00`)
-      .lt("inicio", `${fim}T00:00:00-03:00`)
-      .not("paciente_id", "is", null)
-      .neq("status", "remarcacao")
-      .neq("status", "cancelado"),
+      .from("sessoes")
+      .select(
+        "id, paciente_id, fisioterapeuta_id, data, sigla, pacientes(id, nome, tipo, fisioterapeuta_id, frequencia_atendimento, ativo)",
+      )
+      .gte("data", inicio)
+      .lt("data", fim),
     supabase
       .from("cobrancas")
       .select("paciente_id, qtd_sessoes")
@@ -272,15 +271,15 @@ export async function fetchSessoesGradeMensal(
       .eq("competencia_ano", ano),
   ]);
 
-  if (agendamentosRes.error) throw agendamentosRes.error;
+  if (sessoesRes.error) throw sessoesRes.error;
   if (cobrancasRes.error) throw cobrancasRes.error;
 
-  type AgRow = {
+  type SessaoRow = {
     id: string;
     paciente_id: string;
     fisioterapeuta_id: string | null;
-    inicio: string;
-    status: string;
+    data: string;
+    sigla: FrequenciaSigla;
     pacientes: {
       id: string;
       nome: string;
@@ -291,44 +290,47 @@ export async function fetchSessoesGradeMensal(
     } | null;
   };
 
-  const rows = (agendamentosRes.data ?? []) as unknown as AgRow[];
+  const rows = (sessoesRes.data ?? []) as unknown as SessaoRow[];
 
-  /** Prioridade no espelho: P (realizado) vence F (faltou) no mesmo dia. */
+  /** Prioridade na célula: P/RC > F/FJ > NJ/NR (defensivo se houver duplicata). */
   const siglaRank: Record<FrequenciaSigla, number> = {
-    P: 3,
-    RC: 3,
-    F: 2,
-    FJ: 2,
-    NJ: 1,
+    P: 4,
+    RC: 4,
+    F: 3,
+    FJ: 3,
+    NJ: 2,
     NR: 1,
   };
 
-  const cellMap = new Map<string, FrequenciaSigla>();
+  const cellMap = new Map<string, SessaoGradeRow>();
   const pacientesMap = new Map<string, PacienteFreqGrade>();
 
-  for (const ag of rows) {
-    if (!ag.paciente_id || !ag.pacientes) continue;
-    if (ag.pacientes.ativo === false) continue;
+  for (const row of rows) {
+    if (!row.paciente_id || !row.pacientes) continue;
+    if (row.pacientes.ativo === false) continue;
 
-    const data = ag.inicio.slice(0, 10);
-    const sigla =
-      ag.status === "realizado" ? ("P" as const) : ag.status === "faltou" ? ("F" as const) : null;
-
-    if (sigla) {
-      const key = `${ag.paciente_id}|${data}`;
-      const atual = cellMap.get(key);
-      if (!atual || (siglaRank[sigla] ?? 0) > (siglaRank[atual] ?? 0)) {
-        cellMap.set(key, sigla);
-      }
+    const key = `${row.paciente_id}|${row.data}`;
+    const atual = cellMap.get(key);
+    if (
+      !atual ||
+      (siglaRank[row.sigla] ?? 0) > (siglaRank[atual.sigla] ?? 0)
+    ) {
+      cellMap.set(key, {
+        id: row.id,
+        paciente_id: row.paciente_id,
+        fisioterapeuta_id: row.fisioterapeuta_id ?? row.pacientes.fisioterapeuta_id,
+        data: row.data,
+        sigla: row.sigla,
+      });
     }
 
-    if (!pacientesMap.has(ag.paciente_id)) {
-      pacientesMap.set(ag.paciente_id, {
-        id: ag.pacientes.id,
-        nome: ag.pacientes.nome,
-        tipo: ag.pacientes.tipo,
-        fisioterapeuta_id: ag.pacientes.fisioterapeuta_id,
-        frequencia_atendimento: ag.pacientes.frequencia_atendimento,
+    if (!pacientesMap.has(row.paciente_id)) {
+      pacientesMap.set(row.paciente_id, {
+        id: row.pacientes.id,
+        nome: row.pacientes.nome,
+        tipo: row.pacientes.tipo,
+        fisioterapeuta_id: row.pacientes.fisioterapeuta_id,
+        frequencia_atendimento: row.pacientes.frequencia_atendimento,
         temAtividadeMes: true,
       });
     }
@@ -343,17 +345,7 @@ export async function fetchSessoesGradeMensal(
     }
   }
 
-  const sessoes: SessaoGradeRow[] = [...cellMap.entries()].map(([key, sigla]) => {
-    const [paciente_id, data] = key.split("|");
-    return {
-      id: key,
-      paciente_id,
-      fisioterapeuta_id: pacientesMap.get(paciente_id)?.fisioterapeuta_id ?? null,
-      data,
-      sigla,
-    };
-  });
-
+  const sessoes = [...cellMap.values()];
   const pacientes = [...pacientesMap.values()].sort((a, b) =>
     a.nome.localeCompare(b.nome, "pt-BR"),
   );
@@ -367,6 +359,7 @@ export async function upsertSessaoSigla(input: {
   data: string;
   sigla: FrequenciaSigla;
   fisioterapeutaId?: string | null;
+  hora?: string | null;
 }): Promise<void> {
   const { data: existingRows, error: findError } = await supabase
     .from("sessoes")
@@ -377,12 +370,15 @@ export async function upsertSessaoSigla(input: {
     .limit(1);
   if (findError) throw findError;
 
+  const patch = {
+    sigla: input.sigla,
+    ...(input.fisioterapeutaId !== undefined ? { fisioterapeuta_id: input.fisioterapeutaId } : {}),
+    ...(input.hora !== undefined ? { hora: input.hora } : {}),
+  };
+
   const existingId = existingRows?.[0]?.id;
   if (existingId) {
-    const { error } = await supabase
-      .from("sessoes")
-      .update({ sigla: input.sigla })
-      .eq("id", existingId);
+    const { error } = await supabase.from("sessoes").update(patch).eq("id", existingId);
     if (error) throw error;
     return;
   }
@@ -392,6 +388,7 @@ export async function upsertSessaoSigla(input: {
     data: input.data,
     sigla: input.sigla,
     fisioterapeuta_id: input.fisioterapeutaId ?? null,
+    hora: input.hora ?? null,
   });
   if (error) throw error;
 }
