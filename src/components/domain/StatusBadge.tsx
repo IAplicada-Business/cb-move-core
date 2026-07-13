@@ -22,12 +22,15 @@ const NF: Record<NfStatus, { label: string; cls: string }> = {
 };
 
 const AGENDA: Record<StatusAgendamento, { label: string; cls: string }> = {
-  agendado:   { label: "Agendado",   cls: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-100" },
-  confirmado: { label: "Confirmado", cls: "bg-[#F7FEE7] text-cb-lime border-[#BEF264]" },
-  realizado:  { label: "Realizado",  cls: "bg-muted text-muted-foreground border-border" },
-  faltou:     { label: "Faltou",     cls: "bg-[#FDF2F8] text-cb-magenta border-[#FBCFE8]" },
-  cancelado:  { label: "Cancelado",  cls: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
-  remarcacao: { label: "Remarcação", cls: "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]" },
+  agendado:      { label: "Agendado",       cls: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-100" },
+  confirmado:    { label: "Confirmado",     cls: "bg-[#F7FEE7] text-cb-lime border-[#BEF264]" },
+  realizado:     { label: "Realizado",      cls: "bg-muted text-muted-foreground border-border" },
+  faltou:        { label: "Faltou",         cls: "bg-[#FDF2F8] text-cb-magenta border-[#FBCFE8]" },
+  cancelado:     { label: "Cancelado",      cls: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]" },
+  remarcacao:    { label: "Remarcação",     cls: "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]" },
+  indisponivel:  { label: "Indisponível",   cls: "bg-[#FDE8EC] text-[#D11A2A] border-[#F9C2CB]" },
+  ferias:        { label: "Férias",         cls: "bg-[#F0E8FA] text-[#7B4FB5] border-[#D8C5F0]" },
+  horario_extra: { label: "Horário extra",  cls: "bg-[#FCE4EC] text-[#C2185B] border-[#F8BBD0]" },
 };
 
 export function StatusBadge({

@@ -18,6 +18,9 @@ export type StatusAgendamento =
   | "realizado"
   | "faltou"
   | "cancelado"
-  | "remarcacao";
+  | "remarcacao"
+  | "indisponivel"
+  | "ferias"
+  | "horario_extra";
 export type FrequenciaSigla = "P" | "F" | "FJ" | "NJ" | "RC" | "NR";
 export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint";
