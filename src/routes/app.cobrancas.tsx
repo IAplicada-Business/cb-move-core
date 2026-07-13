@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   DollarSign, Clock, AlertTriangle, CheckCircle2, Plus, Search,
-  MoreHorizontal, Upload, X, CheckCheck,
+  Upload, X, CheckCheck, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,19 +16,27 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
 import { TipoBadge } from "@/components/domain/TipoBadge";
+import { PacienteCobrancaSheet } from "@/components/domain/PacienteCobrancaSheet";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
-  fetchCobrancas, createCobranca, marcarComoPago, updateCobranca,
+  fetchCobrancas, createCobranca, marcarComoPago,
   type Cobranca,
 } from "@/lib/queries/cobrancas";
 import { fetchFinanceiroKpis } from "@/lib/queries/financeiro";
 import { fetchPacientes } from "@/lib/queries/pacientes";
+import {
+  agregarCobrancasPorPaciente,
+  calcularKpisDeCobrancas,
+  type PacienteCobrancaResumo,
+  type StatusResumo,
+} from "@/lib/domain/cobrancas-por-paciente";
 import type { CobrancaStatus, FormaPagamento, PacienteTipo, RegimeCobranca } from "@/lib/types";
 import {
   parseCSVBradesco, parseOFX, matchTransacoesComCobrancas,
   type MatchCobranca,
 } from "@/lib/extrato-parser";
+import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +44,6 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -64,23 +69,6 @@ const MESES_FULL = [
 ];
 
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-function mesAbrev(mes: number | null, ano: number | null) {
-  if (!mes || !ano) return "—";
-  return `${MESES_ABREV[mes - 1]}/${ano}`;
-}
-
-function formaPgtoLabel(f: FormaPagamento | null) {
-  if (!f) return "—";
-  const map: Record<FormaPagamento, string> = {
-    boleto: "Boleto",
-    deposito: "Depósito",
-    transferencia: "Transferência",
-    alvara_judicial: "Alvará judicial",
-    convenio_direto: "Convênio direto",
-  };
-  return map[f] ?? f;
-}
 
 function competenciaOpcoes() {
   const now = new Date();
@@ -195,6 +183,7 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       qc.invalidateQueries({ queryKey: ["financeiro", "extrato"] });
       toast.success("Cobrança criada com sucesso");
       form.reset();
@@ -481,6 +470,7 @@ function ModalMarcarPago({
     mutationFn: (data: MarcarPagoForm) => marcarComoPago(cobranca!.id, data.pagoEm),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       toast.success("Cobrança marcada como paga");
       onClose();
     },
@@ -589,6 +579,7 @@ function ModalExtrato({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       toast.success(`${selecionados.size} cobrança(s) marcada(s) como pagas`);
       resetExtrato();
       onClose();
@@ -706,77 +697,43 @@ function ModalExtrato({
   );
 }
 
-// ─── Linha da tabela ──────────────────────────────────────────────────────────
+// ─── Linha agregada por paciente ─────────────────────────────────────────────
 
-function CobrancaRow({
-  cobranca: c,
-  onMarcarPago,
+function StatusResumoBadge({ value }: { value: StatusResumo }) {
+  if (value === "parcial") {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
+          "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]",
+        )}
+      >
+        Parcial
+      </span>
+    );
+  }
+  return <StatusBadge value={value as CobrancaStatus} />;
+}
+
+function PacienteCobrancaRow({
+  resumo,
+  onOpen,
 }: {
-  cobranca: Cobranca;
-  onMarcarPago: () => void;
+  resumo: PacienteCobrancaResumo;
+  onOpen: () => void;
 }) {
-  const qc = useQueryClient();
-
-  const emitirBoleto = useMutation({
-    mutationFn: async () => {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { error } = await supabase.functions.invoke("emit-boleto-cora", {
-        body: { cobranca_id: c.id },
-      });
-      if (error) throw new Error("Integração Cora não configurada ainda");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const cancelar = useMutation({
-    mutationFn: () => updateCobranca(c.id, { status: "cancelado" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
-      toast.success("Cobrança cancelada");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   return (
-    <TableRow>
-      <TableCell className="font-medium">{c.pacienteNome ?? "—"}</TableCell>
-      <TableCell><TipoBadge value={c.tipo} /></TableCell>
-      <TableCell className="text-sm">{mesAbrev(c.competenciaMes, c.competenciaAno)}</TableCell>
-      <TableCell className="text-sm">{formaPgtoLabel(c.formaPagamento)}</TableCell>
-      <TableCell className="text-sm">{formatDate(c.vencimento)}</TableCell>
-      <TableCell><StatusBadge value={c.status} /></TableCell>
-      <TableCell className="text-right font-medium tabular-nums">{brl(c.valor)}</TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {c.status !== "pago" && (
-              <DropdownMenuItem onClick={onMarcarPago}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Marcar como pago
-              </DropdownMenuItem>
-            )}
-            {c.formaPagamento === "boleto" && (
-              <DropdownMenuItem onClick={() => emitirBoleto.mutate()}>
-                <Upload className="h-4 w-4 mr-2" />
-                Emitir boleto Cora
-              </DropdownMenuItem>
-            )}
-            {c.status !== "cancelado" && (
-              <DropdownMenuItem
-                onClick={() => cancelar.mutate()}
-                className="text-destructive focus:text-destructive"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancelar cobrança
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <TableRow
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={onOpen}
+    >
+      <TableCell className="font-medium">{resumo.pacienteNome}</TableCell>
+      <TableCell><TipoBadge value={resumo.tipo} /></TableCell>
+      <TableCell className="text-sm tabular-nums">{resumo.progressoLabel}</TableCell>
+      <TableCell><StatusResumoBadge value={resumo.statusResumo} /></TableCell>
+      <TableCell className="text-right font-medium tabular-nums">{brl(resumo.totalValor)}</TableCell>
+      <TableCell className="w-10 text-muted-foreground">
+        <ChevronRight className="h-4 w-4" />
       </TableCell>
     </TableRow>
   );
@@ -786,15 +743,22 @@ function CobrancaRow({
 
 function CobrancasPage() {
   const now = new Date();
+  const mesAtual = now.getMonth() + 1;
+  const anoAtual = now.getFullYear();
+  const compDefault = `${mesAtual}-${anoAtual}`;
+
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<CobrancaStatus | "">("");
   const [filtroFormaPgto, setFiltroFormaPgto] = useState<FormaPagamento | "">("");
-  const [filtroComp, setFiltroComp] = useState<string>("");
+  const [filtroComp, setFiltroComp] = useState<string>(compDefault);
   const [modalNova, setModalNova] = useState(false);
   const [marcarPago, setMarcarPago] = useState<Cobranca | null>(null);
   const [modalExtrato, setModalExtrato] = useState(false);
+  const [pacienteSheetId, setPacienteSheetId] = useState<string | null>(null);
+  const [pacienteSheetNome, setPacienteSheetNome] = useState<string | null>(null);
 
   const compOpts = competenciaOpcoes();
+  const todosMeses = filtroComp === "";
   const compMes = filtroComp ? Number(filtroComp.split("-")[0]) : undefined;
   const compAno = filtroComp ? Number(filtroComp.split("-")[1]) : undefined;
 
@@ -811,21 +775,38 @@ function CobrancasPage() {
     queryFn: () => fetchCobrancas(filters),
   });
 
-  const mesAtual = now.getMonth() + 1;
-  const anoAtual = now.getFullYear();
+  const kpisMes = todosMeses ? mesAtual : (compMes ?? mesAtual);
+  const kpisAno = todosMeses ? anoAtual : (compAno ?? anoAtual);
 
   const kpisQuery = useQuery({
-    queryKey: queryKeys.financeiro.kpis(anoAtual, mesAtual),
-    queryFn: () => fetchFinanceiroKpis(mesAtual, anoAtual),
+    queryKey: queryKeys.financeiro.kpis(kpisAno, kpisMes),
+    queryFn: () => fetchFinanceiroKpis(kpisMes, kpisAno),
+    enabled: !todosMeses,
   });
 
-  const kpis = kpisQuery.data ?? { total: 0, pago: 0, pendente: 0, vencido: 0 };
   const cobrancas = query.data ?? [];
-  const temFiltro = !!(search || filtroStatus || filtroFormaPgto || filtroComp);
+  const pacientes = useMemo(() => agregarCobrancasPorPaciente(cobrancas), [cobrancas]);
+
+  const kpis = useMemo(() => {
+    if (todosMeses) return calcularKpisDeCobrancas(cobrancas);
+    return kpisQuery.data ?? { total: 0, pago: 0, pendente: 0, vencido: 0 };
+  }, [todosMeses, cobrancas, kpisQuery.data]);
+
+  const kpiHint = todosMeses
+    ? "Todos os meses"
+    : `${MESES_ABREV[kpisMes - 1]}/${kpisAno}`;
+
+  const temFiltro = !!(
+    search ||
+    filtroStatus ||
+    filtroFormaPgto ||
+    filtroComp !== compDefault
+  );
+
+  const pacienteSheet = pacientes.find((p) => p.pacienteId === pacienteSheetId);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Cobranças</h1>
@@ -843,36 +824,45 @@ function CobrancasPage() {
         </div>
       </header>
 
-      {/* KPIs (mês corrente) */}
+      {(query.isError || (!todosMeses && kpisQuery.isError)) && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {(query.error as Error)?.message
+            ?? (kpisQuery.error as Error)?.message
+            ?? "Erro ao carregar dados financeiros."}
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Total do mês"
           value={brl(kpis.total)}
           accent="cyan"
           icon={<DollarSign className="h-4 w-4 text-cb-cyan-600" />}
-          hint={`${MESES_ABREV[now.getMonth()]}/${now.getFullYear()}`}
+          hint={kpiHint}
         />
         <KpiCard
           label="Pago"
           value={brl(kpis.pago)}
           accent="lime"
           icon={<CheckCircle2 className="h-4 w-4" style={{ color: "var(--cb-lime)" }} />}
+          hint={kpiHint}
         />
         <KpiCard
           label="Pendente"
           value={brl(kpis.pendente)}
           accent="orange"
           icon={<Clock className="h-4 w-4 text-cb-orange" />}
+          hint={kpiHint}
         />
         <KpiCard
           label="Vencido"
           value={brl(kpis.vencido)}
           accent="magenta"
           icon={<AlertTriangle className="h-4 w-4 text-cb-magenta" />}
+          hint={kpiHint}
         />
       </div>
 
-      {/* Toolbar */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -946,7 +936,7 @@ function CobrancasPage() {
               setSearch("");
               setFiltroStatus("");
               setFiltroFormaPgto("");
-              setFiltroComp("");
+              setFiltroComp(compDefault);
             }}
           >
             <X className="h-4 w-4 mr-1" />
@@ -955,19 +945,18 @@ function CobrancasPage() {
         )}
       </div>
 
-      {/* Tabela */}
       {query.isLoading ? (
         <LoadingState />
-      ) : cobrancas.length === 0 ? (
+      ) : pacientes.length === 0 ? (
         <EmptyState
           title="Sem cobranças"
           description={
-            temFiltro
+            temFiltro || todosMeses === false
               ? "Nenhuma cobrança para os filtros selecionados."
               : "Crie a primeira cobrança com o botão acima."
           }
           action={
-            !temFiltro ? (
+            !temFiltro && filtroComp === compDefault ? (
               <Button size="sm" onClick={() => setModalNova(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 Nova cobrança
@@ -982,20 +971,21 @@ function CobrancasPage() {
               <TableRow>
                 <TableHead>Paciente</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead>Competência</TableHead>
-                <TableHead>Forma pgto</TableHead>
-                <TableHead>Vencimento</TableHead>
+                <TableHead>Progresso</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-right">Total</TableHead>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cobrancas.map(c => (
-                <CobrancaRow
-                  key={c.id}
-                  cobranca={c}
-                  onMarcarPago={() => setMarcarPago(c)}
+              {pacientes.map(p => (
+                <PacienteCobrancaRow
+                  key={p.pacienteId}
+                  resumo={p}
+                  onOpen={() => {
+                    setPacienteSheetId(p.pacienteId);
+                    setPacienteSheetNome(p.pacienteNome);
+                  }}
                 />
               ))}
             </TableBody>
@@ -1003,7 +993,6 @@ function CobrancasPage() {
         </div>
       )}
 
-      {/* Modais */}
       <ModalNovaCobranca open={modalNova} onClose={() => setModalNova(false)} />
       <ModalMarcarPago cobranca={marcarPago} onClose={() => setMarcarPago(null)} />
       <ModalExtrato
@@ -1011,6 +1000,16 @@ function CobrancasPage() {
         onClose={() => setModalExtrato(false)}
         cobrancas={cobrancas}
       />
+      <PacienteCobrancaSheet
+        pacienteId={pacienteSheetId}
+        pacienteNome={pacienteSheetNome ?? pacienteSheet?.pacienteNome}
+        onClose={() => {
+          setPacienteSheetId(null);
+          setPacienteSheetNome(null);
+        }}
+        onMarcarPago={(c) => setMarcarPago(c)}
+      />
     </div>
   );
 }
+

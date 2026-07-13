@@ -95,6 +95,7 @@ export async function fetchCobrancas(filters?: {
   status?: CobrancaStatus;
   tipo?: PacienteTipo;
   formaPagamento?: FormaPagamento;
+  pacienteId?: string;
   search?: string;
 }): Promise<Cobranca[]> {
   let query = supabase
@@ -107,6 +108,7 @@ export async function fetchCobrancas(filters?: {
   if (filters?.status) query = query.eq("status", filters.status);
   if (filters?.tipo) query = query.eq("tipo", filters.tipo);
   if (filters?.formaPagamento) query = query.eq("forma_pagamento", filters.formaPagamento);
+  if (filters?.pacienteId) query = query.eq("paciente_id", filters.pacienteId);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -161,24 +163,34 @@ export async function updateCobranca(id: string, input: Partial<{
   pagoEm: string;
   boletoUrl: string;
   coraInvoiceId: string;
+  formaPagamento: FormaPagamento;
   observacoes: string;
   frequenciaAtendimento: string | null;
   diasSemana: string | null;
   qtdSessoes: number | null;
 }>): Promise<void> {
-  const { error } = await supabase
-    .from("cobrancas")
-    .update({
-      status: input.status,
-      pago_em: input.pagoEm,
-      boleto_url: input.boletoUrl,
-      cora_invoice_id: input.coraInvoiceId,
-      observacoes: input.observacoes,
-      frequencia_atendimento: input.frequenciaAtendimento,
-      dias_semana: input.diasSemana,
-      qtd_sessoes: input.qtdSessoes,
-    })
-    .eq("id", id);
+  const patch: {
+    status?: CobrancaStatus;
+    pago_em?: string;
+    boleto_url?: string;
+    cora_invoice_id?: string;
+    forma_pagamento?: FormaPagamento;
+    observacoes?: string;
+    frequencia_atendimento?: string | null;
+    dias_semana?: string | null;
+    qtd_sessoes?: number | null;
+  } = {};
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.pagoEm !== undefined) patch.pago_em = input.pagoEm;
+  if (input.boletoUrl !== undefined) patch.boleto_url = input.boletoUrl;
+  if (input.coraInvoiceId !== undefined) patch.cora_invoice_id = input.coraInvoiceId;
+  if (input.formaPagamento !== undefined) patch.forma_pagamento = input.formaPagamento;
+  if (input.observacoes !== undefined) patch.observacoes = input.observacoes;
+  if (input.frequenciaAtendimento !== undefined) patch.frequencia_atendimento = input.frequenciaAtendimento;
+  if (input.diasSemana !== undefined) patch.dias_semana = input.diasSemana;
+  if (input.qtdSessoes !== undefined) patch.qtd_sessoes = input.qtdSessoes;
+
+  const { error } = await supabase.from("cobrancas").update(patch).eq("id", id);
   if (error) throw error;
 }
 

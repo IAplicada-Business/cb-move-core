@@ -1,0 +1,280 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  CheckCircle2, Copy, ExternalLink, Loader2, Send, X,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { StatusBadge } from "@/components/domain/StatusBadge";
+import { LoadingState } from "@/components/domain/LoadingState";
+import { Button } from "@/components/ui/button";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet";
+import { brl, formatDate } from "@/lib/format";
+import {
+  agregarCobrancasPorPaciente,
+  type PacienteCobrancaResumo,
+  type StatusResumo,
+} from "@/lib/domain/cobrancas-por-paciente";
+import { CoraNaoConfiguradaError, emitBoletoCora } from "@/lib/queries/boleto-cora";
+import {
+  fetchCobrancas, updateCobranca, type Cobranca,
+} from "@/lib/queries/cobrancas";
+import { queryKeys } from "@/lib/queries";
+import type { CobrancaStatus, FormaPagamento } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+function mesAbrev(mes: number | null, ano: number | null) {
+  if (!mes || !ano) return "—";
+  return `${MESES_ABREV[mes - 1]}/${ano}`;
+}
+
+function formaPgtoLabel(f: FormaPagamento | null) {
+  if (!f) return "—";
+  const map: Record<FormaPagamento, string> = {
+    boleto: "Boleto",
+    deposito: "Depósito",
+    transferencia: "Transferência",
+    alvara_judicial: "Alvará judicial",
+    convenio_direto: "Convênio direto",
+  };
+  return map[f] ?? f;
+}
+
+function StatusResumoBadge({ value }: { value: StatusResumo }) {
+  if (value === "parcial") {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
+          "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]",
+        )}
+      >
+        Parcial
+      </span>
+    );
+  }
+  return <StatusBadge value={value as CobrancaStatus} />;
+}
+
+function podeEnviarBoleto(c: Cobranca) {
+  return c.status !== "pago" && c.status !== "cancelado";
+}
+
+type Props = {
+  pacienteId: string | null;
+  pacienteNome?: string | null;
+  onClose: () => void;
+  onMarcarPago: (c: Cobranca) => void;
+};
+
+export function PacienteCobrancaSheet({
+  pacienteId,
+  pacienteNome,
+  onClose,
+  onMarcarPago,
+}: Props) {
+  const qc = useQueryClient();
+  const open = !!pacienteId;
+
+  const histQuery = useQuery({
+    queryKey: queryKeys.cobrancas.list({ pacienteId: pacienteId ?? "" }),
+    queryFn: () => fetchCobrancas({ pacienteId: pacienteId! }),
+    enabled: open,
+  });
+
+  const resumo: PacienteCobrancaResumo | null = histQuery.data
+    ? (agregarCobrancasPorPaciente(histQuery.data)[0] ?? null)
+    : null;
+
+  const enviarBoleto = useMutation({
+    mutationFn: (cobrancaId: string) => emitBoletoCora(cobrancaId),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
+      if (res.boletoUrl) {
+        toast.success("Boleto gerado pela Cora");
+      } else {
+        toast.success("Solicitação enviada à Cora");
+      }
+    },
+    onError: (e: Error) => {
+      if (e instanceof CoraNaoConfiguradaError) {
+        toast.error(e.message, {
+          description: "Quando as credenciais chegarem, configure em Integrações e tente de novo.",
+        });
+        return;
+      }
+      toast.error(e.message || "Falha ao enviar boleto");
+    },
+  });
+
+  const cancelar = useMutation({
+    mutationFn: (id: string) => updateCobranca(id, { status: "cancelado" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      toast.success("Cobrança cancelada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function copiarLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copiado");
+    } catch {
+      toast.error("Não foi possível copiar o link");
+    }
+  }
+
+  const nome = resumo?.pacienteNome ?? pacienteNome ?? "Paciente";
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader className="text-left">
+          <SheetTitle>{nome}</SheetTitle>
+          <SheetDescription>Histórico financeiro e cobranças do cliente</SheetDescription>
+        </SheetHeader>
+
+        {histQuery.isLoading ? (
+          <div className="mt-6"><LoadingState /></div>
+        ) : histQuery.isError ? (
+          <p className="mt-6 text-sm text-destructive">
+            {(histQuery.error as Error)?.message ?? "Erro ao carregar cobranças"}
+          </p>
+        ) : !resumo ? (
+          <p className="mt-6 text-sm text-muted-foreground">Nenhuma cobrança para este paciente.</p>
+        ) : (
+          <div className="mt-6 space-y-6">
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total do cliente</p>
+                  <p className="text-2xl font-bold tabular-nums">{brl(resumo.totalValor)}</p>
+                </div>
+                <StatusResumoBadge value={resumo.statusResumo} />
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progresso</span>
+                <span className="font-medium tabular-nums">{resumo.progressoLabel}</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-cb-cyan-600 transition-all"
+                  style={{
+                    width: resumo.qtdTotal
+                      ? `${Math.round((resumo.qtdPagas / resumo.qtdTotal) * 100)}%`
+                      : "0%",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Histórico de cobranças</h3>
+              <Accordion type="multiple" className="w-full">
+                {resumo.cobrancas.map((c) => (
+                  <AccordionItem key={c.id} value={c.id}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex flex-1 items-center justify-between gap-2 pr-2">
+                        <div className="text-left">
+                          <p className="text-sm font-medium">
+                            {mesAbrev(c.competenciaMes, c.competenciaAno)}
+                          </p>
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {brl(c.valor)} · {formaPgtoLabel(c.formaPagamento)}
+                          </p>
+                        </div>
+                        <StatusBadge value={c.status} />
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 pb-2 text-sm">
+                        <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                          <span>Vencimento</span>
+                          <span className="text-right text-foreground">{formatDate(c.vencimento)}</span>
+                          <span>Pago em</span>
+                          <span className="text-right text-foreground">{formatDate(c.pagoEm)}</span>
+                          <span>Serviço</span>
+                          <span className="text-right text-foreground">{c.servico ?? "—"}</span>
+                        </div>
+
+                        {c.boletoUrl && (
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(c.boletoUrl!, "_blank", "noopener,noreferrer")}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                              Abrir boleto
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => copiarLink(c.boletoUrl!)}>
+                              <Copy className="h-3.5 w-3.5 mr-1" />
+                              Copiar link
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {podeEnviarBoleto(c) && (
+                            <Button
+                              size="sm"
+                              disabled={enviarBoleto.isPending}
+                              onClick={() => {
+                                if (!c.vencimento) {
+                                  toast.error("Informe o vencimento da cobrança antes de enviar o boleto");
+                                  return;
+                                }
+                                if (!(c.valor > 0)) {
+                                  toast.error("Valor da cobrança inválido");
+                                  return;
+                                }
+                                enviarBoleto.mutate(c.id);
+                              }}
+                            >
+                              {enviarBoleto.isPending && enviarBoleto.variables === c.id ? (
+                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                              ) : (
+                                <Send className="h-3.5 w-3.5 mr-1" />
+                              )}
+                              Enviar boleto
+                            </Button>
+                          )}
+                          {c.status !== "pago" && c.status !== "cancelado" && (
+                            <Button size="sm" variant="outline" onClick={() => onMarcarPago(c)}>
+                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                              Marcar pago
+                            </Button>
+                          )}
+                          {c.status !== "cancelado" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive"
+                              disabled={cancelar.isPending}
+                              onClick={() => cancelar.mutate(c.id)}
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Cancelar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
