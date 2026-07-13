@@ -92,8 +92,15 @@ Consulta manual (opcional): `GET /v2/nfsen/{ref}` ou `POST /v2/nfsen/{ref}/hook`
 | `FOCUSNFE_CODIGO_TRIBUTACAO` | `040802` | LC 116 — Fisioterapia |
 | `FOCUSNFE_CODIGO_NBS` | `123019200` | NBS 1.2301.92.00 |
 | Município | `4314902` | Porto Alegre (fixo no código) |
+| `FOCUSNFE_SIMPLES_NACIONAL` | `3` | `1` não optante · `2` MEI · `3` ME/EPP (CB MOVE) |
+| `FOCUSNFE_REGIME_TRIBUTARIO_SN` | `1` | Regime de apuração SN (obrigatório ME/EPP — E0166) |
+| `FOCUSNFE_PERCENTUAL_TRIBUTOS_SN` | `6` | `pTotTribSN` (%) — confirmar alíquota real com Diego |
 
-⚠️ Validar com Diego se POA exige `codigo_tributacao_municipal_iss` ou IM no ambiente nacional.
+⚠️ **POA / CNC NFS-e:** não enviar `inscricao_municipal_prestador`. O ambiente nacional retorna **E0120** se a IM for informada. Não configure `FOCUSNFE_INSCRICAO_MUNICIPAL` para a CB MOVE.
+
+⚠️ **Simples Nacional:** usar `3` (ME/EPP) + `regime_tributario_simples_nacional` + `percentual_total_tributos_simples_nacional`. Valor `1` gera **E0160**; sem regime gera **E0166**.
+
+Homologação validada em 13/07/2026: ref `cbmove-retest-be24f331` → status `autorizado`, NFS-e nº **1**, DANFSe disponível.
 
 ## 7. Homologação (spike)
 

@@ -51,9 +51,15 @@ type ConvenioTomadorRow = {
   codigo_municipio_ibge?: number | null;
 };
 
+type FisioRow = {
+  nome: string | null;
+  registro_profissional: string | null;
+};
+
 type PacienteTomadorRow = {
   email: string | null;
   telefone: string | null;
+  fisioterapeutas: FisioRow | FisioRow[] | null;
   convenios: ConvenioTomadorRow | ConvenioTomadorRow[] | null;
 };
 
@@ -90,6 +96,28 @@ function resolveTomador(
   return mergeTomador(documento, tomadorFromConvenio(convenio));
 }
 
+function resolveFisio(paciente: PacienteTomadorRow | null): {
+  nome: string | null;
+  crefito: string | null;
+} {
+  const fisio = Array.isArray(paciente?.fisioterapeutas)
+    ? paciente?.fisioterapeutas[0]
+    : paciente?.fisioterapeutas;
+  if (!fisio) return { nome: null, crefito: null };
+  const nome = (fisio.nome ?? "").trim();
+  // DANFSe usa "DRA. CHARLENE BRITO" — remove sobrenome extra quando padrao CB MOVE
+  let display = nome;
+  if (nome.toUpperCase().includes("CHARLENE BRITO")) {
+    display = "DRA. CHARLENE BRITO";
+  } else if (nome && !nome.toUpperCase().startsWith("DRA") && !nome.toUpperCase().startsWith("DR ")) {
+    display = `DRA. ${nome}`;
+  }
+  return {
+    nome: display || null,
+    crefito: fisio.registro_profissional ?? null,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -109,8 +137,10 @@ serve(async (req) => {
         destinatario_nome, destinatario_documento,
         corpo_paciente_nome, corpo_paciente_cpf,
         corpo_numero_processo, corpo_total_sessoes,
+        corpo_dias_atendidos,
         pacientes (
           email, telefone,
+          fisioterapeutas ( nome, registro_profissional ),
           convenios (
             cnpj, razao_social, email_nf,
             endereco, cep, cidade, uf, codigo_municipio_ibge
@@ -122,6 +152,7 @@ serve(async (req) => {
     if (error || !nf) throw new Error("NF não encontrada");
 
     const paciente = (nf as { pacientes?: PacienteTomadorRow | null }).pacientes ?? null;
+    const fisio = resolveFisio(paciente);
     const nfForFocus: NfForFocus = {
       id: nf.id,
       tipo: nf.tipo,
@@ -134,6 +165,9 @@ serve(async (req) => {
       corpo_paciente_cpf: nf.corpo_paciente_cpf,
       corpo_numero_processo: nf.corpo_numero_processo,
       corpo_total_sessoes: nf.corpo_total_sessoes,
+      corpo_dias_atendidos: (nf as { corpo_dias_atendidos?: string | null }).corpo_dias_atendidos ?? null,
+      fisio_nome: fisio.nome,
+      fisio_crefito: fisio.crefito,
       tomador: resolveTomador(nf.tipo, nf.destinatario_documento, paciente),
     };
 

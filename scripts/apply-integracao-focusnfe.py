@@ -32,6 +32,23 @@ def upsert_config(base: str, key: str, rows: list[tuple[str, str]]) -> None:
         res.read()
 
 
+def delete_im(base: str) -> None:
+    """POA CNC NFS-e rejeita IM (E0120)."""
+    service_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    headers = {
+        "apikey": service_key,
+        "Authorization": f"Bearer {service_key}",
+    }
+    req = urllib.request.Request(
+        f"{base}/rest/v1/integracao_config?chave=eq.FOCUSNFE_INSCRICAO_MUNICIPAL",
+        headers=headers,
+        method="DELETE",
+    )
+    with urllib.request.urlopen(req, timeout=30) as res:
+        res.read()
+    print("OK FOCUSNFE_INSCRICAO_MUNICIPAL removida (padrão POA)")
+
+
 def main() -> None:
     load_app_env()
     missing = [k for k in REQUIRED if not os.environ.get(k)]
@@ -50,14 +67,23 @@ def main() -> None:
         ("FOCUSNFE_CNPJ_PRESTADOR", cnpj),
         ("FOCUSNFE_CODIGO_TRIBUTACAO", os.environ.get("FOCUSNFE_CODIGO_TRIBUTACAO", "040802")),
         ("FOCUSNFE_CODIGO_NBS", os.environ.get("FOCUSNFE_CODIGO_NBS", "123019200")),
-        ("FOCUSNFE_SIMPLES_NACIONAL", os.environ.get("FOCUSNFE_SIMPLES_NACIONAL", "1")),
+        ("FOCUSNFE_SIMPLES_NACIONAL", os.environ.get("FOCUSNFE_SIMPLES_NACIONAL", "3")),
+        ("FOCUSNFE_REGIME_TRIBUTARIO_SN", os.environ.get("FOCUSNFE_REGIME_TRIBUTARIO_SN", "1")),
+        (
+            "FOCUSNFE_PERCENTUAL_TRIBUTOS_SN",
+            os.environ.get("FOCUSNFE_PERCENTUAL_TRIBUTOS_SN", "6"),
+        ),
     ]
     im = os.environ.get("FOCUSNFE_INSCRICAO_MUNICIPAL")
-    if im:
+    # POA CNC NFS-e: IM causa E0120 — só grava se FORCE_FOCUSNFE_IM=1
+    if im and os.environ.get("FORCE_FOCUSNFE_IM") == "1":
         rows.append(("FOCUSNFE_INSCRICAO_MUNICIPAL", "".join(c for c in im if c.isdigit())))
 
     try:
         upsert_config(base, "integracao_config", rows)
+        # Remove IM residual salvo por seeds antigos (padrão POA).
+        if os.environ.get("FORCE_FOCUSNFE_IM") != "1":
+            delete_im(base)
     except urllib.error.HTTPError as e:
         print(f"Erro Supabase ({e.code}): {e.read().decode()[:500]}", file=sys.stderr)
         sys.exit(1)

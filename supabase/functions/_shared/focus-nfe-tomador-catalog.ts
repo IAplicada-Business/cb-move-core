@@ -5,6 +5,24 @@ export type TomadorCatalogEntry = TomadorForFocus & {
   razao_social: string;
 };
 
+
+/** Cadastro fiscal de tomadores pessoa fisica (NF particular) — fallback ate pacientes.endereco*. */
+export const TOMADOR_CATALOG_BY_CPF: Record<string, TomadorCatalogEntry> = {
+  "03555110020": {
+    razao_social: "AMANDA PAVAN",
+    email: "pavan.amandaa@gmail.com",
+    telefone: "51992436874",
+    endereco: "Rua Irmão Norberto Francisco Rauch",
+    numero: "700",
+    complemento: "Torre C | Apto 518",
+    bairro: "Jardim Carvalho",
+    cep: "91450147",
+    cidade: "Porto Alegre",
+    uf: "RS",
+    codigo_municipio_ibge: 4314902,
+  },
+};
+
 export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   "92693118000160": {
     razao_social: "BRADESCO SAUDE S/A",
@@ -75,20 +93,30 @@ export function onlyDigits(value: string | null | undefined): string {
 export function mergeTomador(
   documento: string | null | undefined,
   fromDb: TomadorForFocus | undefined,
-  fromPaciente?: Pick<TomadorForFocus, "email" | "telefone">,
+  fromPaciente?: TomadorForFocus,
 ): TomadorForFocus | undefined {
   const doc = onlyDigits(documento);
-  const catalog = doc.length === 14 ? TOMADOR_CATALOG_BY_CNPJ[doc] : undefined;
+  const catalog = doc.length === 14
+    ? TOMADOR_CATALOG_BY_CNPJ[doc]
+    : doc.length === 11
+    ? TOMADOR_CATALOG_BY_CPF[doc]
+    : undefined;
 
   if (!catalog && !fromDb && !fromPaciente) return undefined;
 
   return {
     email: fromDb?.email ?? fromPaciente?.email ?? catalog?.email,
     telefone: fromDb?.telefone ?? fromPaciente?.telefone ?? catalog?.telefone,
-    endereco: fromDb?.endereco ?? catalog?.endereco,
-    cep: fromDb?.cep ?? catalog?.cep,
-    cidade: fromDb?.cidade ?? catalog?.cidade,
-    uf: fromDb?.uf ?? catalog?.uf,
-    codigo_municipio_ibge: fromDb?.codigo_municipio_ibge ?? catalog?.codigo_municipio_ibge,
+    endereco: fromDb?.endereco ?? fromPaciente?.endereco ?? catalog?.endereco,
+    numero: fromDb?.numero ?? fromPaciente?.numero ?? catalog?.numero,
+    complemento: fromDb?.complemento ?? fromPaciente?.complemento ?? catalog?.complemento,
+    bairro: fromDb?.bairro ?? fromPaciente?.bairro ?? catalog?.bairro,
+    cep: fromDb?.cep ?? fromPaciente?.cep ?? catalog?.cep,
+    cidade: fromDb?.cidade ?? fromPaciente?.cidade ?? catalog?.cidade,
+    uf: fromDb?.uf ?? fromPaciente?.uf ?? catalog?.uf,
+    codigo_municipio_ibge:
+      fromDb?.codigo_municipio_ibge ??
+      fromPaciente?.codigo_municipio_ibge ??
+      catalog?.codigo_municipio_ibge,
   };
 }
