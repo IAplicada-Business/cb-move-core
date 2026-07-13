@@ -13,7 +13,7 @@ from load_app_env import load_app_env
 
 PACIENTE_NOME = "Amanda Pavan"
 VALOR_TESTE = 150.0
-COMP_MES = 6
+COMP_MES = 4
 COMP_ANO = 2026
 
 
@@ -113,6 +113,8 @@ def main() -> None:
         "destinatario_documento": cpf_digits,
         "corpo_paciente_nome": paciente["nome"],
         "corpo_paciente_cpf": paciente["cpf"],
+        "corpo_total_sessoes": 9,
+        "corpo_dias_atendidos": "02, 06, 09, 13, 16, 20, 23, 27 E 30",
         "valor": VALOR_TESTE,
         "competencia_mes": COMP_MES,
         "competencia_ano": COMP_ANO,

@@ -14,8 +14,10 @@ const baseConfig: FocusNfeConfig = {
   codigoMunicipio: POA_CODIGO_MUNICIPIO,
   codigoTributacao: FISIOTERAPIA_CODIGO_TRIBUTACAO,
   codigoNbs: FISIOTERAPIA_CODIGO_NBS,
-  inscricaoMunicipal: "1477199",
-  codigoOpcaoSimplesNacional: 1,
+  // POA CNC NFS-e rejeita IM (E0120) — omitir por padrão
+  codigoOpcaoSimplesNacional: 3,
+  regimeTributarioSimplesNacional: 1,
+  percentualTotalTributosSimples: 6,
 };
 
 const baseNf: NfForFocus = {
@@ -32,7 +34,7 @@ const baseNf: NfForFocus = {
   corpo_total_sessoes: null,
 };
 
-Deno.test("particular inclui IM prestador e e-mail tomador", () => {
+Deno.test("particular omite IM (POA) e inclui e-mail tomador", () => {
   const payload = buildFocusNfsenPayload(
     {
       ...baseNf,
@@ -41,15 +43,34 @@ Deno.test("particular inclui IM prestador e e-mail tomador", () => {
     baseConfig,
   );
 
-  if (payload.inscricao_municipal_prestador !== "1477199") {
-    throw new Error("IM prestador ausente");
+  if ("inscricao_municipal_prestador" in payload) {
+    throw new Error("POA não deve enviar IM do prestador");
   }
   if (payload.cpf_tomador !== "03555110020") throw new Error("CPF tomador incorreto");
   if (payload.email_tomador !== "pavan.amandaa@gmail.com") {
     throw new Error("e-mail tomador ausente");
   }
-  if ("codigo_municipio_tomador" in payload) {
-    throw new Error("CPF não deve enviar codigo_municipio_tomador");
+  if (payload.codigo_municipio_tomador !== String(POA_CODIGO_MUNICIPIO)) {
+    throw new Error("CPF deve enviar codigo_municipio_tomador POA");
+  }
+  if (payload.codigo_opcao_simples_nacional !== 3) {
+    throw new Error("Simples ME/EPP esperado");
+  }
+  if (payload.regime_tributario_simples_nacional !== 1) {
+    throw new Error("regime_tributario_simples_nacional obrigatório para ME/EPP");
+  }
+  if (payload.percentual_total_tributos_simples_nacional !== 6) {
+    throw new Error("percentual_total_tributos_simples_nacional obrigatório para ME/EPP");
+  }
+});
+
+Deno.test("IM só entra no payload quando configurada", () => {
+  const payload = buildFocusNfsenPayload(baseNf, {
+    ...baseConfig,
+    inscricaoMunicipal: "1477199",
+  });
+  if (payload.inscricao_municipal_prestador !== "1477199") {
+    throw new Error("IM configurada deveria ir no payload");
   }
 });
 
@@ -93,4 +114,27 @@ Deno.test("convenio sem tomador cai no município POA", () => {
   if (payload.codigo_municipio_tomador !== String(POA_CODIGO_MUNICIPIO)) {
     throw new Error("fallback POA não aplicado");
   }
+});
+
+
+Deno.test("descricao particular segue padrao DANFSe 2085", () => {
+  const payload = buildFocusNfsenPayload(
+    {
+      ...baseNf,
+      competencia_mes: 4,
+      competencia_ano: 2026,
+      corpo_dias_atendidos: "02, 06, 09, 13, 16, 20, 23, 27 E 30",
+      corpo_total_sessoes: 9,
+      fisio_nome: "DRA. CHARLENE BRITO",
+      fisio_crefito: "122334-F",
+      tomador: { email: "pavan.amandaa@gmail.com" },
+    },
+    baseConfig,
+  );
+  const desc = String(payload.descricao_servico ?? "");
+  if (!desc.includes("ABRIL DE 2026")) throw new Error(`mes ausente: ${desc}`);
+  if (!desc.includes("02, 06, 09, 13, 16, 20, 23, 27 E 30")) throw new Error(`dias ausentes: ${desc}`);
+  if (!desc.includes("TOTALIZANDO 09 SESSÕES")) throw new Error(`total ausente: ${desc}`);
+  if (!desc.includes("CREFITO: 122 334-F")) throw new Error(`crefito ausente: ${desc}`);
+  if (!desc.includes("REFERENTE ÀS SESSÕES")) throw new Error(`acento ÀS ausente: ${desc}`);
 });

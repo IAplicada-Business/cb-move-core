@@ -21,13 +21,21 @@ export type FocusNfeConfig = {
   codigoTributacao: string;
   codigoNbs: string;
   inscricaoMunicipal?: string;
+  /** 1=não optante, 2=MEI, 3=ME/EPP */
   codigoOpcaoSimplesNacional: number;
+  /** 1=fed+mun SN, 2=fed SN + ISS fora, 3=fora do SN — obrigatório se ME/EPP */
+  regimeTributarioSimplesNacional?: number;
+  /** pTotTribSN (%) — obrigatório se ME/EPP */
+  percentualTotalTributosSimples?: number;
 };
 
 export type TomadorForFocus = {
   email?: string | null;
   telefone?: string | null;
   endereco?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
   cep?: string | null;
   cidade?: string | null;
   uf?: string | null;
@@ -46,6 +54,18 @@ export type NfForFocus = {
   corpo_paciente_cpf: string | null;
   corpo_numero_processo: string | null;
   corpo_total_sessoes: number | null;
+  /** Ex.: "02, 06, 09, 13, 16, 20, 23, 27 E 30" */
+  corpo_dias_atendidos?: string | null;
+  /** Ex.: "1H 25 MINUTOS" — default 1 sessão simples */
+  duracao_sessao?: string | null;
+  /** simples | duplo | triplo | quadruplo — afeta texto "SESSÕES SIMPLES" e duração */
+  tipo_sessao?: string | null;
+  /** Valor unitário da sessão na discriminação (judicial / particular) */
+  valor_sessao?: number | null;
+  /** Linha de exceção com asterisco, ex.: "*SESSÃO DE 4H 25 MINUTOS DE DURAÇÃO." */
+  observacao_excecoes?: string | null;
+  fisio_nome?: string | null;
+  fisio_crefito?: string | null;
   tomador?: TomadorForFocus | null;
 };
 
@@ -89,7 +109,15 @@ export async function loadFocusNfeConfig(
   const inscricaoMunicipal =
     (await getIntegracaoConfigValue(admin, "FOCUSNFE_INSCRICAO_MUNICIPAL")) ?? undefined;
   const simplesRaw = await getIntegracaoConfigValue(admin, "FOCUSNFE_SIMPLES_NACIONAL");
-  const codigoOpcaoSimplesNacional = simplesRaw ? Number(simplesRaw) : 1;
+  const codigoOpcaoSimplesNacional = simplesRaw ? Number(simplesRaw) : 3;
+  const regimeSnRaw = await getIntegracaoConfigValue(
+    admin,
+    "FOCUSNFE_REGIME_TRIBUTARIO_SN",
+  );
+  const percentualSnRaw = await getIntegracaoConfigValue(
+    admin,
+    "FOCUSNFE_PERCENTUAL_TRIBUTOS_SN",
+  );
 
   return {
     token,
@@ -101,9 +129,39 @@ export async function loadFocusNfeConfig(
     inscricaoMunicipal: inscricaoMunicipal ? onlyDigits(inscricaoMunicipal) : undefined,
     codigoOpcaoSimplesNacional: Number.isFinite(codigoOpcaoSimplesNacional)
       ? codigoOpcaoSimplesNacional
+      : 3,
+    regimeTributarioSimplesNacional: regimeSnRaw && Number.isFinite(Number(regimeSnRaw))
+      ? Number(regimeSnRaw)
       : 1,
+    percentualTotalTributosSimples:
+      percentualSnRaw && Number.isFinite(Number(percentualSnRaw))
+        ? Number(percentualSnRaw)
+        : 6,
   };
 }
+
+const MESES_PT = [
+  "JANEIRO",
+  "FEVEREIRO",
+  "MARÇO",
+  "ABRIL",
+  "MAIO",
+  "JUNHO",
+  "JULHO",
+  "AGOSTO",
+  "SETEMBRO",
+  "OUTUBRO",
+  "NOVEMBRO",
+  "DEZEMBRO",
+] as const;
+
+/** docs/texto_padrao_emissao_nf.txt — conversão de duração por multiplicidade */
+export const DURACAO_POR_MULTIPLICIDADE: Record<number, string> = {
+  1: "1H 25 MINUTOS",
+  2: "2H 55 MINUTOS",
+  3: "4H 25 MINUTOS",
+  4: "5H 55 MINUTOS",
+};
 
 function competenciaDate(nf: NfForFocus): string {
   const mes = nf.competencia_mes ?? new Date().getMonth() + 1;
@@ -111,29 +169,122 @@ function competenciaDate(nf: NfForFocus): string {
   return `${ano}-${String(mes).padStart(2, "0")}-01`;
 }
 
-function buildDescricaoServico(nf: NfForFocus): string {
+function mesNomePt(mes: number | null | undefined): string | null {
+  if (!mes || mes < 1 || mes > 12) return null;
+  return MESES_PT[mes - 1];
+}
+
+function formatSessoesCount(total: number): string {
+  return String(total).padStart(2, "0");
+}
+
+function formatCrefito(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  const letter = (raw.match(/[A-Za-z]\s*$/)?.[0] ?? "F").toUpperCase();
+  if (digits.length >= 6) {
+    return `CREFITO: ${digits.slice(0, -3)} ${digits.slice(-3)}-${letter}`;
+  }
+  const cleaned = raw.replace(/^CREFITO[:\s]*/i, "").trim().toUpperCase();
+  return cleaned.startsWith("CREFITO") ? cleaned : `CREFITO: ${cleaned}`;
+}
+
+function multiplicidadeFromTipo(tipoSessao: string | null | undefined): number {
+  const t = (tipoSessao ?? "simples").toLowerCase();
+  if (t.includes("quadruplo") || t.includes("4x")) return 4;
+  if (t.includes("triplo") || t.includes("3x")) return 3;
+  if (t.includes("duplo") || t.includes("2x") || t.includes("dupla")) return 2;
+  return 1;
+}
+
+function rotuloTipoSessao(tipoSessao: string | null | undefined): string {
+  const m = multiplicidadeFromTipo(tipoSessao);
+  if (m === 1) return "SIMPLES ";
+  if (m === 2) return "DUPLAS ";
+  return "";
+}
+
+function formatMoneyBr(value: number): string {
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Texto padrão CB MOVE — fonte: docs/texto_padrao_emissao_nf.txt
+ * (Google Doc "TEXTO PADRÃO PARA EMISSÃO DAS NOTAS FISCAIS NO PORTAL").
+ */
+export function buildDescricaoServico(nf: NfForFocus): string {
+  const mesNome = mesNomePt(nf.competencia_mes);
+  const ano = nf.competencia_ano;
+  const dias = (nf.corpo_dias_atendidos ?? "").trim();
+  const total = nf.corpo_total_sessoes;
+  const mult = multiplicidadeFromTipo(nf.tipo_sessao);
+  const duracao = (nf.duracao_sessao ?? DURACAO_POR_MULTIPLICIDADE[mult] ?? "1H 25 MINUTOS")
+    .trim()
+    .toUpperCase();
+  const fisio = (nf.fisio_nome ?? "DRA. CHARLENE BRITO").trim().toUpperCase();
+  const crefitoLabel = formatCrefito(nf.fisio_crefito ?? "122334-F");
+  const excecoes = (nf.observacao_excecoes ?? "").trim();
+  const valorSessao = nf.valor_sessao != null && Number(nf.valor_sessao) > 0
+    ? `VALOR DA SESSÃO R$ ${formatMoneyBr(Number(nf.valor_sessao))}.`
+    : null;
+
+  const blocoTotal = total != null && total > 0
+    ? `TOTALIZANDO ${formatSessoesCount(total)} SESSÕES ${rotuloTipoSessao(nf.tipo_sessao)}DE ${duracao} DE DURAÇÃO.`
+    : null;
+
+  const rodape = [
+    valorSessao,
+    `FISIOTERAPEUTA RESPONSÁVEL: ${fisio}.`,
+    crefitoLabel.endsWith(".") ? crefitoLabel : `${crefitoLabel}.`,
+  ].filter(Boolean);
+
+  // Judicial — padrão Ana Esmeralda / João Carlos / Debora (com paciente + CPF + processo)
+  if (nf.tipo === "judicial") {
+    const nome = (nf.corpo_paciente_nome ?? "").trim().toUpperCase();
+    const cpf = (nf.corpo_paciente_cpf ?? "").trim();
+    const processo = (nf.corpo_numero_processo ?? "").trim();
+    const cabeca = [
+      "REFERENTE ÀS SESSÕES DE FISIOTERAPIA NEUROFUNCIONAL ESPECIALIZADA",
+      nome ? `PRESTADAS A ${nome}` : null,
+      cpf ? `CPF: ${cpf}` : null,
+      mesNome && ano && dias
+        ? `REALIZADAS NO MÊS DE ${mesNome} DE ${ano}, NOS SEGUINTES DIAS: ${dias}.`
+        : mesNome && ano
+        ? `REALIZADAS NO MÊS DE ${mesNome} DE ${ano}.`
+        : null,
+    ].filter(Boolean).join(", ");
+
+    return [
+      cabeca.endsWith(".") ? cabeca : `${cabeca}.`,
+      excecoes || null,
+      blocoTotal,
+      processo ? `NÚMERO DO PROCESSO: ${processo}.` : null,
+      ...rodape,
+    ].filter(Boolean).join(" ");
+  }
+
+  // Particular / convênio — padrão Amanda / Luciana / Kayhan
+  if (mesNome && ano && dias && total != null && total > 0) {
+    return [
+      `REFERENTE ÀS SESSÕES DE FISIOTERAPIA NEUROFUNCIONAL ESPECIALIZADA, REALIZADAS NO MÊS DE ${mesNome} DE ${ano}, NOS SEGUINTES DIAS: ${dias}.`,
+      excecoes || null,
+      blocoTotal,
+      ...rodape,
+    ].filter(Boolean).join(" ");
+  }
+
+  // Fallback mínimo (dados incompletos)
+  const paciente = nf.corpo_paciente_nome ?? nf.destinatario_nome ?? "Paciente";
   const comp = nf.competencia_mes && nf.competencia_ano
     ? `${String(nf.competencia_mes).padStart(2, "0")}/${nf.competencia_ano}`
     : "";
-
-  if (nf.tipo === "judicial") {
-    const partes = [
-      "Serviços de fisioterapia neurofuncional",
-      nf.corpo_paciente_nome ? `Paciente: ${nf.corpo_paciente_nome}` : null,
-      nf.corpo_paciente_cpf ? `CPF: ${nf.corpo_paciente_cpf}` : null,
-      nf.corpo_numero_processo ? `Processo: ${nf.corpo_numero_processo}` : null,
-      nf.corpo_total_sessoes != null ? `Sessões: ${nf.corpo_total_sessoes}` : null,
-      comp ? `Competência: ${comp}` : null,
-    ].filter(Boolean);
-    return partes.join(" | ");
-  }
-
-  const paciente = nf.corpo_paciente_nome ?? nf.destinatario_nome ?? "Paciente";
   return [
-    "Serviços de fisioterapia neurofuncional",
-    `Paciente: ${paciente}`,
-    comp ? `Competência: ${comp}` : null,
-  ].filter(Boolean).join(" | ");
+    "REFERENTE ÀS SESSÕES DE FISIOTERAPIA NEUROFUNCIONAL ESPECIALIZADA",
+    `PACIENTE: ${paciente}.`,
+    total != null ? `TOTALIZANDO ${formatSessoesCount(total)} SESSÕES.` : null,
+    dias ? `DIAS: ${dias}.` : null,
+    comp ? `COMPETÊNCIA: ${comp}.` : null,
+    ...rodape,
+  ].filter(Boolean).join(" ");
 }
 
 function appendTomadorFields(
@@ -149,28 +300,48 @@ function appendTomadorFields(
   } else if (doc.length === 14) {
     payload.cnpj_tomador = doc;
     if (nome) payload.razao_social_tomador = nome;
-    const municipio = tomador?.codigo_municipio_ibge ?? fallbackMunicipioPoa;
-    payload.codigo_municipio_tomador = String(municipio);
   } else {
     throw new Error("Destinatário sem CPF/CNPJ válido para emissão automática");
   }
+
+  const municipio = tomador?.codigo_municipio_ibge ?? fallbackMunicipioPoa;
+  payload.codigo_municipio_tomador = String(municipio);
 
   if (!tomador) return;
 
   if (tomador.email) payload.email_tomador = tomador.email;
   if (tomador.telefone) payload.telefone_tomador = onlyDigits(tomador.telefone);
   if (tomador.endereco) payload.logradouro_tomador = tomador.endereco.slice(0, 255);
+  if (tomador.numero) payload.numero_tomador = tomador.numero.slice(0, 60);
+  if (tomador.complemento) payload.complemento_tomador = tomador.complemento.slice(0, 156);
+  if (tomador.bairro) payload.bairro_tomador = tomador.bairro.slice(0, 60);
   if (tomador.cep) payload.cep_tomador = onlyDigits(tomador.cep);
   if (tomador.uf) payload.uf_tomador = tomador.uf.toUpperCase().slice(0, 2);
+}
+
+function brasiliaNowIso(): string {
+  // toISOString() é UTC; não pode concatenar "-03:00" nele (gera data no futuro → E0008).
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(new Date()).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}-03:00`;
 }
 
 export function buildFocusNfsenPayload(
   nf: NfForFocus,
   config: FocusNfeConfig,
 ): Record<string, unknown> {
-  const now = new Date();
-  const offset = "-03:00";
-  const dataEmissao = now.toISOString().slice(0, 19) + offset;
+  const dataEmissao = brasiliaNowIso();
   const doc = onlyDigits(nf.destinatario_documento);
   const valor = Number(nf.valor) || 0;
 
@@ -190,6 +361,14 @@ export function buildFocusNfsenPayload(
     tipo_retencao_iss: 1,
     situacao_tributaria_pis_cofins: "00",
   };
+
+  // ME/EPP (e MEI): CNC exige regime de apuração + pTotTribSN (E0166 / schema totTrib).
+  if (config.codigoOpcaoSimplesNacional === 2 || config.codigoOpcaoSimplesNacional === 3) {
+    payload.regime_tributario_simples_nacional =
+      config.regimeTributarioSimplesNacional ?? 1;
+    payload.percentual_total_tributos_simples_nacional =
+      config.percentualTotalTributosSimples ?? 6;
+  }
 
   if (config.inscricaoMunicipal) {
     payload.inscricao_municipal_prestador = config.inscricaoMunicipal;

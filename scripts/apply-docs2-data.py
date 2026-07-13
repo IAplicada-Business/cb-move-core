@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aplica dados de docs/docs2: IM Focus, convênios e e-mails de pacientes."""
+"""Aplica dados de docs/docs2: convênios e e-mails de pacientes."""
 from __future__ import annotations
 
 import json
@@ -13,7 +13,6 @@ from pathlib import Path
 
 from load_app_env import load_app_env
 
-IM_CB_MOVE = "1477199"
 XLSX_PATH = Path(__file__).resolve().parent.parent / "docs" / "docs2" / "Lista_pacientes_email.xlsx"
 
 CONVENIOS = [
@@ -125,17 +124,16 @@ def rest(method: str, url: str, headers: dict, body: object | None = None) -> tu
         return e.code, payload
 
 
-def upsert_integracao(base: str, h: dict) -> None:
-    rows = [{"chave": "FOCUSNFE_INSCRICAO_MUNICIPAL", "valor": IM_CB_MOVE}]
+def clear_inscricao_municipal_poa(base: str, h: dict) -> None:
+    """POA no CNC NFS-e rejeita IM (Focus E0120). Remove residual da config."""
     code, result = rest(
-        "POST",
-        f"{base}/rest/v1/integracao_config?on_conflict=chave",
-        {**h, "Prefer": "resolution=merge-duplicates"},
-        rows,
+        "DELETE",
+        f"{base}/rest/v1/integracao_config?chave=eq.FOCUSNFE_INSCRICAO_MUNICIPAL",
+        h,
     )
     if code >= 400:
-        raise RuntimeError(f"integracao_config ({code}): {result}")
-    print(f"OK FOCUSNFE_INSCRICAO_MUNICIPAL = {IM_CB_MOVE}")
+        raise RuntimeError(f"integracao_config DELETE IM ({code}): {result}")
+    print("OK FOCUSNFE_INSCRICAO_MUNICIPAL removida (POA não exige/rejeita IM)")
 
 
 def load_convenios(base: str, h: dict) -> list[dict]:
@@ -284,7 +282,7 @@ def main() -> None:
         "Content-Type": "application/json",
     }
 
-    upsert_integracao(base, h)
+    clear_inscricao_municipal_poa(base, h)
     sync_convenios(base, h)
     sync_patient_emails(base, h)
     print("Dados docs2 aplicados.")

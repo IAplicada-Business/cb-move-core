@@ -51,7 +51,13 @@ def main() -> None:
         "data_competencia": "2026-06-01",
         "codigo_municipio_emissora": 4314902,
         "cnpj_prestador": cnpj,
-        "codigo_opcao_simples_nacional": 1,
+        "codigo_opcao_simples_nacional": int(os.environ.get("FOCUSNFE_SIMPLES_NACIONAL", "3")),
+        "regime_tributario_simples_nacional": int(
+            os.environ.get("FOCUSNFE_REGIME_TRIBUTARIO_SN", "1")
+        ),
+        "percentual_total_tributos_simples_nacional": float(
+            os.environ.get("FOCUSNFE_PERCENTUAL_TRIBUTOS_SN", "6")
+        ),
         "regime_especial_tributacao": 0,
         "codigo_municipio_prestacao": "4314902",
         "codigo_tributacao_nacional_iss": os.environ.get("FOCUSNFE_CODIGO_TRIBUTACAO", "040802"),
@@ -66,7 +72,8 @@ def main() -> None:
     }
 
     im = os.environ.get("FOCUSNFE_INSCRICAO_MUNICIPAL")
-    if im:
+    # POA CNC NFS-e: IM causa E0120 — não enviar por padrão.
+    if im and os.environ.get("FORCE_FOCUSNFE_IM") == "1":
         payload["inscricao_municipal_prestador"] = "".join(c for c in im if c.isdigit())
 
     print(f"POST /v2/nfsen ref={ref}")
