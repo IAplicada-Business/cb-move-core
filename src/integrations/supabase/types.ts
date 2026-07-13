@@ -1114,6 +1114,9 @@ export type Database = {
         | "faltou"
         | "cancelado"
         | "remarcacao"
+        | "indisponivel"
+        | "ferias"
+        | "horario_extra"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1278,6 +1281,9 @@ export const Constants = {
         "faltou",
         "cancelado",
         "remarcacao",
+        "indisponivel",
+        "ferias",
+        "horario_extra",
       ],
     },
   },

@@ -40,6 +40,7 @@ def main() -> int:
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0",
         },
     )
     try:

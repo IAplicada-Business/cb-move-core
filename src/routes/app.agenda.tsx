@@ -4,14 +4,23 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { FilterChip } from "@/components/domain/FilterChip";
+import { FisioHorariosDialog } from "@/components/domain/FisioHorariosDialog";
+import { FrequenciaMensalGrid } from "@/components/domain/FrequenciaMensalGrid";
 import { LoadingState } from "@/components/domain/LoadingState";
+import {
+  agendamentoNoBloco,
+  BLOCOS_COUNT,
+  INTERVALOS_COUNT,
+  SemanaPadraoGridShell,
+  SlotStatusLegend,
+} from "@/components/domain/SemanaPadraoGrid";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
@@ -25,6 +34,10 @@ import {
   type HistoricoRow,
   upsertAgendaAviso,
 } from "@/lib/queries/agenda";
+import {
+  fetchFisioDisponibilidade,
+  fetchFisioIndisponibilidade,
+} from "@/lib/queries/fisio-horarios";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +48,16 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -64,7 +87,7 @@ const MESES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-type VisaoAgenda = "semana" | "dia" | "mes";
+type VisaoAgenda = "semana" | "dia" | "frequencia" | "mes";
 
 const TIPO_SLOT: Record<PacienteTipo, string> = {
   particular: "bg-cb-cyan-600/10 text-cb-cyan-800 border-l-[3px] border-l-cb-cyan-600",
@@ -80,7 +103,19 @@ const STATUS_LABEL: Record<StatusAgendamento, string> = {
   faltou: "Faltou",
   cancelado: "Cancelado",
   remarcacao: "Remarcação",
+  indisponivel: "Indisponível",
+  ferias: "Férias",
+  horario_extra: "Horário extra",
 };
+
+const STATUS_SLOT: StatusAgendamento[] = ["indisponivel", "ferias", "horario_extra"];
+const STATUS_EDITAVEIS: StatusAgendamento[] = [
+  "agendado",
+  "confirmado",
+  "indisponivel",
+  "ferias",
+  "horario_extra",
+];
 
 const HOURS: number[] = [];
 for (let h = 8; h <= 20; h++) HOURS.push(h);
@@ -238,13 +273,14 @@ async function fetchPacientes(): Promise<Paciente[]> {
 }
 
 async function createAgendamento(input: {
-  paciente_id: string;
+  paciente_id: string | null;
   fisioterapeuta_id: string;
   inicio: string;
   duracao_min: number;
   servico: string | null;
+  status: StatusAgendamento;
 }): Promise<void> {
-  const { error } = await supabase.from("agendamentos").insert({ ...input, status: "agendado" });
+  const { error } = await supabase.from("agendamentos").insert(input);
   if (error) throw error;
 }
 
@@ -278,7 +314,10 @@ function AgendaSlot({
   const dimmed =
     ag.status === "realizado" ||
     ag.status === "cancelado" ||
-    ag.status === "remarcacao";
+    ag.status === "remarcacao" ||
+    ag.status === "indisponivel" ||
+    ag.status === "ferias" ||
+    ag.status === "horario_extra";
   const cls = cn(
     "w-full rounded-md px-2 py-1 text-left text-[11.5px] leading-tight",
     TIPO_SLOT[tipo],
@@ -301,7 +340,14 @@ function AgendaSlot({
   if (!interactive) return <div className={cls}>{content}</div>;
 
   return (
-    <button type="button" onClick={onClick} className={cls}>
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+      className={cls}
+    >
       {content}
     </button>
   );
@@ -328,14 +374,25 @@ function TipoLegend() {
 
 // ─── form ────────────────────────────────────────────────────────────────────
 
-const schema = z.object({
-  pacienteId: z.string().min(1, "Selecione um paciente"),
-  fisioId: z.string().min(1, "Selecione um fisioterapeuta"),
-  data: z.string().refine((v) => parseDDMMYYToISO(v) !== null, "Use dd/mm/aa"),
-  horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
-  duracao: z.coerce.number().min(15),
-  servico: z.string().nullable().optional(),
-});
+const schema = z
+  .object({
+    pacienteId: z.string().optional().default(""),
+    fisioId: z.string().min(1, "Selecione um fisioterapeuta"),
+    data: z.string().refine((v) => parseDDMMYYToISO(v) !== null, "Use dd/mm/aa"),
+    horaInicio: z.string().regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
+    duracao: z.coerce.number().min(15),
+    servico: z.string().nullable().optional(),
+    statusSlot: z.enum(["agendado", "indisponivel", "ferias", "horario_extra"]),
+  })
+  .superRefine((data, ctx) => {
+    if (data.statusSlot === "agendado" && !data.pacienteId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecione um paciente",
+        path: ["pacienteId"],
+      });
+    }
+  });
 type FormValues = z.infer<typeof schema>;
 
 // ─── page ────────────────────────────────────────────────────────────────────
@@ -359,14 +416,17 @@ function AgendaPage() {
   const [visao, setVisao] = useState<VisaoAgenda>("semana");
   const [filterFisio, setFilterFisio] = useState(FILTRO_TODOS);
   const [filterTipo, setFilterTipo] = useState(FILTRO_TODOS);
+  const [buscaGrade, setBuscaGrade] = useState("");
   const [selectedAgend, setSelectedAgend] = useState<Agendamento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [horariosOpen, setHorariosOpen] = useState(false);
   const [remarcarOpen, setRemarcarOpen] = useState(false);
   const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
   const [avisoDraft, setAvisoDraft] = useState("");
 
   const periodo = useMemo(() => {
-    if (visao === "mes") {
+    if (visao === "mes" || visao === "frequencia") {
       const y = mesRef.getFullYear();
       const m = mesRef.getMonth();
       const inicio = toDateStr(new Date(y, m, 1));
@@ -381,6 +441,7 @@ function AgendaPage() {
   const { data: agendamentos = [], isLoading } = useQuery({
     queryKey: queryKeys.agendamentos.periodo(periodo.inicio, periodo.fim),
     queryFn: () => fetchAgendamentosPeriodo(periodo.inicio, periodo.fim),
+    enabled: visao !== "frequencia",
   });
 
   const { data: fisios = [] } = useQuery({
@@ -428,8 +489,12 @@ function AgendaPage() {
       horaInicio: "08:00",
       duracao: 50,
       servico: "Fisioterapia neurológica",
+      statusSlot: "agendado",
     },
   });
+
+  const statusSlotWatch = form.watch("statusSlot");
+  const isMarcacaoSlot = STATUS_SLOT.includes(statusSlotWatch as StatusAgendamento);
 
   const invalidateAgenda = () => {
     qc.invalidateQueries({ queryKey: queryKeys.agendamentos.all });
@@ -439,17 +504,21 @@ function AgendaPage() {
     mutationFn: (vals: FormValues) => {
       const isoDate = parseDDMMYYToISO(vals.data);
       if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
+      const isSlot = STATUS_SLOT.includes(vals.statusSlot);
       return createAgendamento({
-        paciente_id: vals.pacienteId,
+        paciente_id: isSlot ? null : vals.pacienteId || null,
         fisioterapeuta_id: vals.fisioId,
         inicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
         duracao_min: vals.duracao,
-        servico: vals.servico || null,
+        servico: isSlot ? null : vals.servico || null,
+        status: vals.statusSlot,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_data, vals) => {
       invalidateAgenda();
-      toast.success("Agendamento criado");
+      toast.success(
+        STATUS_SLOT.includes(vals.statusSlot) ? "Slot atualizado" : "Agendamento criado",
+      );
       form.reset({
         pacienteId: "",
         fisioId: "",
@@ -457,6 +526,7 @@ function AgendaPage() {
         horaInicio: "08:00",
         duracao: 50,
         servico: "Fisioterapia neurológica",
+        statusSlot: "agendado",
       });
       setModalOpen(false);
     },
@@ -466,14 +536,35 @@ function AgendaPage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status, anterior }: { id: string; status: StatusAgendamento; anterior: StatusAgendamento }) =>
       updateStatus(id, status, user?.id ?? null, anterior),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
+      qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
+      if (vars.status === "cancelado") {
+        toast.success("Agendamento cancelado — horário liberado");
+        setConfirmCancelOpen(false);
+        setSelectedAgend(null);
+        return;
+      }
       toast.success("Status atualizado");
-      setSelectedAgend(null);
+      setSelectedAgend((prev) => (prev && prev.id === vars.id ? { ...prev, status: vars.status } : prev));
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  function pedirCancelamento() {
+    if (!selectedAgend) return;
+    setConfirmCancelOpen(true);
+  }
+
+  function confirmarCancelamento() {
+    if (!selectedAgend) return;
+    statusMutation.mutate({
+      id: selectedAgend.id,
+      status: "cancelado",
+      anterior: selectedAgend.status,
+    });
+  }
 
   const remarcarMutation = useMutation({
     mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) => {
@@ -513,13 +604,19 @@ function AgendaPage() {
   const filtered = useMemo(
     () =>
       agendamentos
-        .filter((a) => a.status !== "remarcacao")
+        .filter((a) => a.status !== "remarcacao" && a.status !== "cancelado")
         .filter((a) => {
         if (filterFisio !== FILTRO_TODOS && a.fisioterapeuta_id !== filterFisio) return false;
         if (filterTipo !== FILTRO_TODOS && a.pacientes?.tipo !== filterTipo) return false;
+        const q = buscaGrade.trim().toLowerCase();
+        if (q) {
+          const nomeP = a.pacientes?.nome?.toLowerCase() ?? "";
+          const nomeF = a.fisioterapeutas?.nome?.toLowerCase() ?? "";
+          if (!nomeP.includes(q) && !nomeF.includes(q)) return false;
+        }
         return true;
       }),
-    [agendamentos, filterFisio, filterTipo],
+    [agendamentos, filterFisio, filterTipo, buscaGrade],
   );
 
   function abrirRemarcar(ag: Agendamento) {
@@ -553,6 +650,30 @@ function AgendaPage() {
     enabled: visao === "semana",
   });
 
+  const { data: indisponibilidades = [] } = useQuery({
+    queryKey: queryKeys.fisioHorarios.indisponibilidade(
+      periodo.inicio,
+      periodo.fim,
+      filterFisio !== FILTRO_TODOS ? filterFisio : undefined,
+    ),
+    queryFn: () =>
+      fetchFisioIndisponibilidade({
+        inicio: periodo.inicio,
+        fim: periodo.fim,
+        fisioterapeutaId: filterFisio !== FILTRO_TODOS ? filterFisio : undefined,
+      }),
+    enabled: visao === "semana" || visao === "dia",
+  });
+
+  const { data: disponibilidade = [] } = useQuery({
+    queryKey: queryKeys.fisioHorarios.disponibilidade(
+      filterFisio !== FILTRO_TODOS ? filterFisio : undefined,
+    ),
+    queryFn: () =>
+      fetchFisioDisponibilidade(filterFisio !== FILTRO_TODOS ? filterFisio : undefined),
+    enabled: visao === "semana",
+  });
+
   useEffect(() => {
     setAvisoDraft(avisoSalvo);
   }, [avisoSalvo, dataSelecionada]);
@@ -567,11 +688,11 @@ function AgendaPage() {
   });
 
   const fisiosVisiveis = useMemo(() => {
-    if (filterFisio !== FILTRO_TODOS) {
-      return fisios.filter((f) => f.id === filterFisio);
-    }
-    return fisios;
-  }, [fisios, filterFisio]);
+    let list = filterFisio !== FILTRO_TODOS ? fisios.filter((f) => f.id === filterFisio) : fisios;
+    const q = buscaGrade.trim().toLowerCase();
+    if (q) list = list.filter((f) => f.nome.toLowerCase().includes(q));
+    return list;
+  }, [fisios, filterFisio, buscaGrade]);
 
   const fisiosNomes = useMemo(() => fisiosVisiveis.map((f) => f.nome), [fisiosVisiveis]);
 
@@ -587,16 +708,25 @@ function AgendaPage() {
       .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
   }
 
-  function getAgendamentosForFisioSlot(day: Date, fisioId: string, hour: number) {
+  function getAgendamentosForDayHour(day: Date, hour: number) {
     const dayStr = toDateStr(day);
     return filtered.filter((a) => {
       const inicio = new Date(a.inicio);
-      return (
-        toDateStr(inicio) === dayStr &&
-        a.fisioterapeuta_id === fisioId &&
-        inicio.getHours() === hour
-      );
+      return toDateStr(inicio) === dayStr && inicio.getHours() === hour;
     });
+  }
+
+  function abrirNovoSlot(day: Date, horaInicio: string, fisioId?: string) {
+    form.reset({
+      pacienteId: "",
+      fisioId: fisioId ?? (filterFisio !== FILTRO_TODOS ? filterFisio : ""),
+      data: formatDateDDMMYY(day),
+      horaInicio,
+      duracao: 50,
+      servico: "Fisioterapia neurológica",
+      statusSlot: "agendado",
+    });
+    setModalOpen(true);
   }
 
   const fisioOptions = [
@@ -614,19 +744,22 @@ function AgendaPage() {
 
   const visaoOptions = [
     { value: "semana", label: "Semana padrão" },
-    { value: "dia", label: "Lista por dia" },
+    { value: "dia", label: "Grade Seg–Sex" },
+    { value: "frequencia", label: "Frequência" },
     { value: "mes", label: "Mês" },
   ];
 
   const headerTitle =
     visao === "mes"
       ? `Agenda · ${MESES[mesRef.getMonth()]}/${mesRef.getFullYear()}`
-      : visao === "semana"
-        ? "Agenda · semana padrão"
-        : `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
+      : visao === "frequencia"
+        ? `Frequência · ${MESES[mesRef.getMonth()].slice(0, 3)}/${mesRef.getFullYear()}`
+        : visao === "dia"
+          ? `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
+          : "Agenda · semana padrão";
 
   function navBack() {
-    if (visao === "mes") {
+    if (visao === "mes" || visao === "frequencia") {
       setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() - 1, 1));
     } else {
       const nova = addDays(semanaBase, -7);
@@ -636,7 +769,7 @@ function AgendaPage() {
   }
 
   function navForward() {
-    if (visao === "mes") {
+    if (visao === "mes" || visao === "frequencia") {
       setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 1));
     } else {
       const nova = addDays(semanaBase, 7);
@@ -645,53 +778,89 @@ function AgendaPage() {
     }
   }
 
+  const navLabelPrev = visao === "mes" || visao === "frequencia" ? "Mês ant." : "Semana ant.";
+  const navLabelNext = visao === "mes" || visao === "frequencia" ? "Próx. mês" : "Próx. semana";
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Operação <span className="opacity-50">›</span> Agenda
+            Operação <span className="opacity-50">›</span>{" "}
+            {visao === "frequencia" ? "Frequência" : "Agenda"}
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{headerTitle}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={navBack}>
             <ChevronLeft className="h-4 w-4" />
-            {visao === "mes" ? "Mês ant." : "Semana ant."}
+            {navLabelPrev}
           </Button>
           <Button variant="outline" size="sm" onClick={navForward}>
-            {visao === "mes" ? "Próx. mês" : "Próx. semana"}
+            {navLabelNext}
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button onClick={() => setModalOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo agendamento
-          </Button>
+          {podeGerir && (
+            <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
+              Horários / Indisponibilidade
+            </Button>
+          )}
+          {visao !== "frequencia" && (
+            <Button onClick={() => setModalOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" /> Novo agendamento
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 rounded-xl border bg-card px-4 py-3">
+        {visao === "semana" && (
+          <div className="relative min-w-[220px] flex-1 max-w-sm">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={buscaGrade}
+              onChange={(e) => setBuscaGrade(e.target.value)}
+              placeholder="Buscar paciente ou fisioterapeuta"
+              className="h-9 pl-8"
+            />
+          </div>
+        )}
         <FilterChip prefix="Fisio" value={filterFisio} options={fisioOptions} onChange={setFilterFisio} />
         <FilterChip prefix="Tipo" value={filterTipo} options={tipoOptions} onChange={setFilterTipo} />
-        <div className="ml-auto">
+        {visao === "semana" && (
+          <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
+            {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""} · {BLOCOS_COUNT} blocos ·{" "}
+            {INTERVALOS_COUNT} intervalos
+          </p>
+        )}
+        <div className={visao === "semana" ? "" : "ml-auto"}>
           <FilterChip prefix="Visão" value={visao} options={visaoOptions} onChange={(v) => setVisao(v as VisaoAgenda)} />
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && visao !== "frequencia" ? (
         <LoadingState />
+      ) : visao === "frequencia" ? (
+        <FrequenciaMensalGrid
+          mes={mesRef.getMonth() + 1}
+          ano={mesRef.getFullYear()}
+          filterFisio={filterFisio}
+          filterTipo={filterTipo}
+          filtroTodos={FILTRO_TODOS}
+        />
       ) : visao === "semana" ? (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1 border-b border-border">
             {weekDays.map((day, i) => (
               <button
                 key={toDateStr(day)}
                 type="button"
                 onClick={() => setDiaSemanaIdx(i)}
                 className={cn(
-                  "min-w-[100px] rounded-lg border px-3 py-2 text-center transition-colors",
+                  "min-w-[108px] px-3 py-2.5 text-center transition-colors",
                   diaSemanaIdx === i
-                    ? "border-foreground bg-card shadow-sm"
-                    : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40",
+                    ? "border-b-2 border-cb-cyan-600 text-foreground"
+                    : "border-b-2 border-transparent text-muted-foreground hover:text-foreground",
                 )}
               >
                 <span className="block text-[11px] font-bold uppercase tracking-wide">
@@ -702,9 +871,6 @@ function AgendaPage() {
                 </span>
               </button>
             ))}
-            <p className="ml-auto self-center text-xs text-muted-foreground tabular-nums">
-              {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""}
-            </p>
           </div>
 
           {fisiosVisiveis.length === 0 ? (
@@ -713,53 +879,40 @@ function AgendaPage() {
               description="Cadastre fisioterapeutas em Equipe para montar a grade da agenda."
             />
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <div
-                className="grid min-w-max gap-px bg-border"
-                style={{
-                  gridTemplateColumns: `72px repeat(${fisiosVisiveis.length}, minmax(92px, 1fr))`,
-                }}
-              >
-                <div className="sticky left-0 z-10 bg-cb-cyan-050 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Horário
-                </div>
-                {fisiosVisiveis.map((f) => (
-                  <div
-                    key={f.id}
-                    className="bg-cb-cyan-050 px-1.5 py-3 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
-                    title={f.nome}
-                  >
-                    {fisioColHeader(f.nome, fisiosNomes)}
-                  </div>
-                ))}
-
-                {HOURS.map((hour) => (
-                  <Fragment key={hour}>
-                    <div className="sticky left-0 z-10 bg-muted/50 px-2 py-2 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
-                      {String(hour).padStart(2, "0")}:00
-                    </div>
-                    {fisiosVisiveis.map((f) => (
-                      <div
-                        key={`${hour}-${f.id}`}
-                        className="min-h-[56px] space-y-1 bg-card p-1"
-                      >
-                        {getAgendamentosForFisioSlot(diaSelecionado, f.id, hour).map((a) => (
-                          <AgendaSlot
-                            key={a.id}
-                            ag={a}
-                            compact
-                            onClick={() => setSelectedAgend(a)}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </Fragment>
-                ))}
-              </div>
-            </div>
+            <SemanaPadraoGridShell
+              fisios={fisiosVisiveis}
+              fisioHeaders={fisiosVisiveis.map((f) => fisioColHeader(f.nome, fisiosNomes))}
+              day={diaSelecionado}
+              diaSemana={diaSemanaIdx + 1}
+              disponibilidade={disponibilidade}
+              indisponibilidades={indisponibilidades}
+              getAgendamentos={(fisioId, blocoInicio, blocoFim) =>
+                filtered.filter(
+                  (a) =>
+                    a.fisioterapeuta_id === fisioId &&
+                    toDateStr(new Date(a.inicio)) === dataSelecionada &&
+                    agendamentoNoBloco(a.inicio, blocoInicio, blocoFim),
+                )
+              }
+              onSlotClick={(id) => {
+                const ag = filtered.find((a) => a.id === id);
+                if (ag) setSelectedAgend(ag);
+              }}
+              onEmptyClick={(fisioId, horaInicio) =>
+                abrirNovoSlot(diaSelecionado, horaInicio, fisioId)
+              }
+              podeGerir={podeGerir}
+            />
           )}
 
-          <TipoLegend />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SlotStatusLegend />
+            {fisiosVisiveis.length > 6 && (
+              <p className="text-[11px] text-muted-foreground">
+                → role pra ver os {fisiosVisiveis.length} fisioterapeutas
+              </p>
+            )}
+          </div>
 
           <section className="space-y-2">
             {podeGerir && (
@@ -806,9 +959,62 @@ function AgendaPage() {
             )}
           </section>
         </div>
+      ) : visao === "dia" ? (
+        <div className="space-y-3">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <div
+              className="grid min-w-[720px] gap-px bg-border"
+              style={{ gridTemplateColumns: "60px repeat(5, minmax(0, 1fr))" }}
+            >
+              <div className="bg-cb-cyan-050 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground" />
+              {weekDays.map((day, i) => (
+                <div
+                  key={toDateStr(day)}
+                  className="bg-cb-cyan-050 px-2 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+                >
+                  {DIAS_PT[day.getDay()]} {day.getDate()}
+                  <span className="sr-only"> {DIAS_SEMANA_LABEL[i]}</span>
+                </div>
+              ))}
+
+              {HOURS.map((hour) => (
+                <Fragment key={hour}>
+                  <div className="bg-muted/50 px-2 py-2 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
+                    {String(hour).padStart(2, "0")}:00
+                  </div>
+                  {weekDays.map((day) => {
+                    const items = getAgendamentosForDayHour(day, hour);
+                    return (
+                      <div
+                        key={`${toDateStr(day)}-${hour}`}
+                        className={cn(
+                          "min-h-[60px] space-y-1 bg-card p-1.5",
+                          podeGerir && items.length === 0 && "cursor-pointer hover:bg-muted/30",
+                        )}
+                        onClick={() => {
+                          if (!podeGerir || items.length > 0) return;
+                          abrirNovoSlot(day, `${String(hour).padStart(2, "0")}:00`);
+                        }}
+                      >
+                        {items.map((a) => (
+                          <AgendaSlot
+                            key={a.id}
+                            ag={a}
+                            onClick={() => setSelectedAgend(a)}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          </div>
+          <TipoLegend />
+        </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={visao === "mes" ? "Mês sem agendamentos" : "Semana sem agendamentos"}
+          title="Mês sem agendamentos"
           description="Crie um novo agendamento para preencher a agenda."
           action={
             <Button onClick={() => setModalOpen(true)} className="gap-2">
@@ -816,39 +1022,6 @@ function AgendaPage() {
             </Button>
           }
         />
-      ) : visao === "dia" ? (
-        <div className="space-y-4">
-          {weekDays.map((day) => {
-            const items = agendamentosNoDia(day);
-            if (items.length === 0) return null;
-            return (
-              <section key={toDateStr(day)} className="rounded-xl border bg-card overflow-hidden">
-                <header className="border-b bg-cb-cyan-050 px-4 py-3">
-                  <h2 className="text-sm font-bold text-cb-cyan-800">
-                    {day.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-                  </h2>
-                </header>
-                <ul className="divide-y">
-                  {items.map((a) => (
-                    <li
-                      key={a.id}
-                      className="flex cursor-pointer items-center gap-4 px-4 py-3 hover:bg-muted/40"
-                      onClick={() => setSelectedAgend(a)}
-                    >
-                      <span className="w-14 shrink-0 font-mono text-sm font-semibold text-muted-foreground">
-                        {formatHHMM(new Date(a.inicio))}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <AgendaSlot ag={a} interactive={false} className="max-w-md" />
-                      </div>
-                      <StatusBadge kind="agenda" value={a.status} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-        </div>
       ) : (
         <div className="space-y-6">
           {monthWeeks.map((week) => {
@@ -893,7 +1066,42 @@ function AgendaPage() {
         </div>
       )}
 
-      {!isLoading && visao !== "semana" && filtered.length > 0 && <TipoLegend />}
+      {!isLoading && visao !== "semana" && visao !== "dia" && visao !== "frequencia" && filtered.length > 0 && (
+        <TipoLegend />
+      )}
+
+      <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedAgend?.pacientes?.nome
+                ? `O horário de ${selectedAgend.pacientes.nome} será liberado na grade.`
+                : "O horário será liberado na grade (slot volta a ficar vago)."}
+              {" "}Essa ação fica registrada no histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={statusMutation.isPending}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={statusMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                confirmarCancelamento();
+              }}
+            >
+              {statusMutation.isPending ? "Cancelando…" : "Confirmar cancelamento"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <FisioHorariosDialog
+        open={horariosOpen}
+        onOpenChange={setHorariosOpen}
+        fisios={fisios}
+      />
 
       <Sheet open={!!selectedAgend} onOpenChange={(o) => { if (!o) setSelectedAgend(null); }}>
         <SheetContent>
@@ -957,13 +1165,7 @@ function AgendaPage() {
                       size="sm"
                       variant="outline"
                       className="w-full text-destructive border-destructive/30 hover:bg-destructive/5"
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: selectedAgend.id,
-                          status: "cancelado",
-                          anterior: selectedAgend.status,
-                        })
-                      }
+                      onClick={pedirCancelamento}
                     >
                       Cancelar
                     </Button>
@@ -1011,6 +1213,67 @@ function AgendaPage() {
                     >
                       Marcar faltou
                     </Button>
+                  </div>
+                )}
+
+                {podeGerir && STATUS_EDITAVEIS.includes(selectedAgend.status) && (
+                  <div className="pt-4 space-y-2 border-t">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Status do slot
+                    </p>
+                    <Select
+                      value={
+                        STATUS_SLOT.includes(selectedAgend.status)
+                          ? selectedAgend.status
+                          : undefined
+                      }
+                      onValueChange={(v) => {
+                        statusMutation.mutate({
+                          id: selectedAgend.id,
+                          status: v as StatusAgendamento,
+                          anterior: selectedAgend.status,
+                        });
+                      }}
+                      disabled={statusMutation.isPending}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecionar status do slot…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_SLOT.map((st) => (
+                          <SelectItem key={st} value={st}>
+                            {STATUS_LABEL[st]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {STATUS_SLOT.includes(selectedAgend.status) && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={statusMutation.isPending}
+                          onClick={() =>
+                            statusMutation.mutate({
+                              id: selectedAgend.id,
+                              status: "agendado",
+                              anterior: selectedAgend.status,
+                            })
+                          }
+                        >
+                          Voltar p/ agendado
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                          disabled={statusMutation.isPending}
+                          onClick={pedirCancelamento}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1151,24 +1414,54 @@ function AgendaPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Novo agendamento</DialogTitle>
+            <DialogTitle>
+              {isMarcacaoSlot ? "Marcar status do slot" : "Novo agendamento"}
+            </DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit((v) => createMutation.mutate(v))} className="space-y-4">
-              <FormField control={form.control} name="pacienteId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Paciente *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
-                    <SelectContent className="max-h-60">
-                      {pacientes.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="statusSlot"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status do slot</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="agendado">Agendamento (paciente)</SelectItem>
+                        {STATUS_SLOT.map((st) => (
+                          <SelectItem key={st} value={st}>
+                            {STATUS_LABEL[st]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {!isMarcacaoSlot && (
+                <FormField control={form.control} name="pacienteId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paciente *</FormLabel>
+                    <Select value={field.value || undefined} onValueChange={field.onChange}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
+                      <SelectContent className="max-h-60">
+                        {pacientes.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
 
               <FormField control={form.control} name="fisioId" render={({ field }) => (
                 <FormItem>
@@ -1221,20 +1514,26 @@ function AgendaPage() {
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="servico" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de sessão</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ""} placeholder="Ex: Fisioterapia neurológica" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              {!isMarcacaoSlot && (
+                <FormField control={form.control} name="servico" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de sessão</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} placeholder="Ex: Fisioterapia neurológica" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
                 <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Salvando…" : "Criar"}
+                  {createMutation.isPending
+                    ? "Salvando…"
+                    : isMarcacaoSlot
+                      ? "Marcar slot"
+                      : "Criar"}
                 </Button>
               </DialogFooter>
             </form>

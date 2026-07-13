@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { StatusAgendamento } from "@/lib/types";
+import { upsertSessaoSigla } from "@/lib/queries/sessoes";
 
 export type EscopoRemanejamento = "pontual" | "semana" | "serie_mes";
 
@@ -110,6 +111,25 @@ export async function updateAgendamentoStatus(
     status_novo: status,
     usuario_id: usuarioId ?? null,
   });
+
+  // Espelha na planilha de frequência (P = presente, F = falta)
+  if (status === "realizado" || status === "faltou") {
+    const { data: ag, error: agError } = await supabase
+      .from("agendamentos")
+      .select("paciente_id, fisioterapeuta_id, inicio")
+      .eq("id", id)
+      .maybeSingle();
+    if (agError) throw agError;
+    if (ag?.paciente_id && ag.inicio) {
+      const data = ag.inicio.slice(0, 10);
+      await upsertSessaoSigla({
+        pacienteId: ag.paciente_id,
+        data,
+        sigla: status === "realizado" ? "P" : "F",
+        fisioterapeutaId: ag.fisioterapeuta_id,
+      });
+    }
+  }
 }
 
 function filtrarPorEscopo(

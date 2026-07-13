@@ -25,6 +25,7 @@ export const queryKeys = {
   sessoes: {
     all: ["sessoes"] as const,
     mensal: (pacienteId: string, mes: number, ano: number) => ["sessoes", "mensal", pacienteId, mes, ano] as const,
+    gradeMes: (mes: number, ano: number) => ["sessoes", "grade", mes, ano] as const,
     comparecimentoMes: (pacienteId: string, mes: number, ano: number) =>
       ["sessoes", "comparecimento", pacienteId, mes, ano] as const,
     comparecimentoHistorico: (pacienteId: string, meses: number) =>
@@ -49,6 +50,13 @@ export const queryKeys = {
   fisioterapeutas: {
     all: ["fisioterapeutas"] as const,
     ativos: ["fisioterapeutas", "ativos"] as const,
+  },
+  fisioHorarios: {
+    all: ["fisio_horarios"] as const,
+    disponibilidade: (fisioId?: string) =>
+      ["fisio_horarios", "disponibilidade", fisioId ?? "all"] as const,
+    indisponibilidade: (inicio: string, fim: string, fisioId?: string) =>
+      ["fisio_horarios", "indisponibilidade", inicio, fim, fisioId ?? "all"] as const,
   },
   usuarios: {
     all: ["usuarios"] as const,
