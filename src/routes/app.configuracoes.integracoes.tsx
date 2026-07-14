@@ -12,7 +12,7 @@ const INTEGRACOES = [
     id: "cora",
     nome: "Cora",
     categoria: "Financeiro",
-    descricao: "Emissão e gestão de boletos bancários (Integração Direta mTLS).",
+    descricao: "Geração de boleto e PIX (Integração Direta mTLS). Envio ao paciente é feito pelo n8n.",
     status: "Configurar credenciais mTLS",
     secrets: "CORA_CLIENT_ID, CORA_CERTIFICATE, CORA_PRIVATE_KEY, CORA_API_BASE",
   },
@@ -28,9 +28,9 @@ const INTEGRACOES = [
     id: "n8n",
     nome: "n8n",
     categoria: "Automação",
-    descricao: "E-mail de NF pós-emissão — templates RQ.GPS.08 por tipo, envio via Gmail.",
-    status: "Ativo (Gmail)",
-    secrets: "N8N_WEBHOOK_NF_EMAIL, N8N_WEBHOOK_SECRET",
+    descricao: "Envio de documentos ao paciente: NF por e-mail e boleto por e-mail + WhatsApp.",
+    status: "NF ativo · Boleto em implantação",
+    secrets: "N8N_WEBHOOK_NF_EMAIL, N8N_WEBHOOK_BOLETO_DOCS, N8N_WEBHOOK_SECRET",
   },
   {
     id: "bradesco",
@@ -67,15 +67,17 @@ function IntegracoesPage() {
             <p className="text-sm text-muted-foreground flex-1">{integ.descricao}</p>
             <p className="text-xs text-muted-foreground font-mono">{integ.secrets}</p>
             {integ.id === "n8n" && (
-              <p className="text-xs text-muted-foreground">NF emitida → send-nf-email → n8n → Gmail</p>
-            )}
-            {integ.id === "focus-nfe" && (
-              <p className="text-xs text-muted-foreground">Ver docs/SETUP_FOCUS_NFE.md</p>
+              <p className="text-xs text-muted-foreground">
+                NF → send-nf-email → n8n · Boleto → send-boleto-cobranca → n8n (e-mail + WhatsApp)
+              </p>
             )}
             {integ.id === "cora" && (
               <p className="text-xs text-muted-foreground">
-                Integração Direta: token + boleto em matls-clients.api.stage.cora.com.br (cert+key em todas as requisições)
+                Gerar boleto na UI chama emit-boleto-cora (mTLS). Enviar boleto dispara n8n após geração.
               </p>
+            )}
+            {integ.id === "focus-nfe" && (
+              <p className="text-xs text-muted-foreground">Ver docs/SETUP_FOCUS_NFE.md</p>
             )}
             <Button variant="outline" size="sm" disabled className="w-full">Configurar</Button>
           </div>

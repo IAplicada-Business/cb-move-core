@@ -32,7 +32,9 @@ function formatCoraHttpError(status: number, detail: string): string {
     }
   }
   return `Cora recusou a emissão (${status}): ${trimmed.slice(0, 200)}`;
-}const corsHeaders = {
+}
+
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
@@ -64,6 +66,7 @@ serve(async (req) => {
         .update({
           boleto_url,
           cora_invoice_id: cora_invoice_id ?? null,
+          forma_pagamento: "boleto",
         })
         .eq("id", cobranca_id);
       if (updErr) throw updErr;
@@ -109,7 +112,7 @@ serve(async (req) => {
       amountCents: Math.round(Number(cob.valor) * 100),
       dueDate: cob.vencimento,
       includePix: true,
-      sendEmailNotification: Boolean(paciente?.email),
+      sendEmailNotification: false,
     });
 
     assertCoraIdempotencyKey(cobranca_id);
@@ -130,6 +133,7 @@ serve(async (req) => {
         boleto_url: paymentUrl,
         cora_invoice_id: invoiceId,
         pix_emv: parsed.pixEmv,
+        forma_pagamento: "boleto",
       })
       .eq("id", cobranca_id);
     if (updErr) throw updErr;

@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.emit-boleto-cora]
 verify_jwt = true
+
+[functions.send-boleto-cobranca]
+verify_jwt = true

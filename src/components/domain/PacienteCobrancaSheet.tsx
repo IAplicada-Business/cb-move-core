@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CheckCircle2, Copy, ExternalLink, Loader2, QrCode, Send, X,
+  CheckCircle2, Copy, ExternalLink, FileText, Loader2, QrCode, Send, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +19,13 @@ import {
   type PacienteCobrancaResumo,
   type StatusResumo,
 } from "@/lib/domain/cobrancas-por-paciente";
-import { CoraNaoConfiguradaError, emitBoletoCora, validarEmitBoletoCoraLocal } from "@/lib/queries/boleto-cora";
+import {
+  BoletoEnvioNaoConfiguradoError,
+  CoraNaoConfiguradaError,
+  enviarBoletoCobranca,
+  gerarBoletoCora,
+  validarEmitBoletoCoraLocal,
+} from "@/lib/queries/boleto-cora";
 import {
   fetchCobrancas, updateCobranca, type Cobranca,
 } from "@/lib/queries/cobrancas";
@@ -62,8 +68,16 @@ function StatusResumoBadge({ value }: { value: StatusResumo }) {
   return <StatusBadge value={value as CobrancaStatus} />;
 }
 
-function podeEnviarBoleto(c: Cobranca) {
+function cobrancaAtiva(c: Cobranca) {
   return c.status !== "pago" && c.status !== "cancelado";
+}
+
+function podeGerarBoleto(c: Cobranca) {
+  return cobrancaAtiva(c) && !c.boletoUrl;
+}
+
+function podeEnviarBoletoPaciente(c: Cobranca) {
+  return cobrancaAtiva(c) && Boolean(c.boletoUrl);
 }
 
 type Props = {
@@ -92,8 +106,8 @@ export function PacienteCobrancaSheet({
     ? (agregarCobrancasPorPaciente(histQuery.data)[0] ?? null)
     : null;
 
-  const enviarBoleto = useMutation({
-    mutationFn: (cobrancaId: string) => emitBoletoCora(cobrancaId),
+  const gerarBoleto = useMutation({
+    mutationFn: (cobrancaId: string) => gerarBoletoCora(cobrancaId),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
       qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
@@ -111,6 +125,26 @@ export function PacienteCobrancaSheet({
       if (e instanceof CoraNaoConfiguradaError) {
         toast.error(e.message, {
           description: "Quando as credenciais chegarem, configure em Integrações e tente de novo.",
+        });
+        return;
+      }
+      toast.error(e.message || "Falha ao gerar boleto");
+    },
+  });
+
+  const enviarBoleto = useMutation({
+    mutationFn: (cobrancaId: string) => enviarBoletoCobranca(cobrancaId),
+    onSuccess: (res) => {
+      if (res.duplicate) {
+        toast.info("Esta cobrança já foi enfileirada para envio");
+        return;
+      }
+      toast.success("Solicitação enviada à automação (n8n)");
+    },
+    onError: (e: Error) => {
+      if (e instanceof BoletoEnvioNaoConfiguradoError) {
+        toast.error(e.message, {
+          description: "O workflow n8n de documentos será configurado na próxima etapa.",
         });
         return;
       }
@@ -185,7 +219,7 @@ export function PacienteCobrancaSheet({
 
             {faltaCadastroPaciente && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Para emitir boleto Cora, cadastre{" "}
+                Para gerar boleto Cora, cadastre{" "}
                 {!pacienteCpf?.replace(/\D/g, "") ? "CPF/CNPJ" : null}
                 {!pacienteCpf?.replace(/\D/g, "") && !pacienteEmail?.trim() ? " e " : null}
                 {!pacienteEmail?.trim() ? "e-mail" : null}{" "}
@@ -260,7 +294,7 @@ export function PacienteCobrancaSheet({
                           </div>
                         )}
 
-                        {podeEnviarBoleto(c) && (() => {
+                        {podeGerarBoleto(c) && (() => {
                           const bloqueio = validarEmitBoletoCoraLocal({
                             pacienteCpf: c.pacienteCpf ?? pacienteCpf,
                             pacienteEmail: c.pacienteEmail ?? pacienteEmail,
@@ -275,10 +309,10 @@ export function PacienteCobrancaSheet({
                         })()}
 
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {podeEnviarBoleto(c) && (
+                          {podeGerarBoleto(c) && (
                             <Button
                               size="sm"
-                              disabled={enviarBoleto.isPending}
+                              disabled={gerarBoleto.isPending}
                               onClick={() => {
                                 const bloqueio = validarEmitBoletoCoraLocal({
                                   pacienteCpf: c.pacienteCpf ?? pacienteCpf,
@@ -290,8 +324,23 @@ export function PacienteCobrancaSheet({
                                   toast.error(bloqueio);
                                   return;
                                 }
-                                enviarBoleto.mutate(c.id);
+                                gerarBoleto.mutate(c.id);
                               }}
+                            >
+                              {gerarBoleto.isPending && gerarBoleto.variables === c.id ? (
+                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                              ) : (
+                                <FileText className="h-3.5 w-3.5 mr-1" />
+                              )}
+                              Gerar boleto
+                            </Button>
+                          )}
+                          {podeEnviarBoletoPaciente(c) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={enviarBoleto.isPending}
+                              onClick={() => enviarBoleto.mutate(c.id)}
                             >
                               {enviarBoleto.isPending && enviarBoleto.variables === c.id ? (
                                 <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
