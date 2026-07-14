@@ -46,6 +46,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -372,6 +373,9 @@ function ProntuarioPage() {
             <DialogTitle>
               {editingEvolucao ? "Editar evolução" : "Nova evolução clínica"}
             </DialogTitle>
+            <DialogDescription>
+              Registre a evolução SOAP do dia. Use o microfone para transcrever e estruturar com IA, ou preencha manualmente.
+            </DialogDescription>
           </DialogHeader>
           {selectedId && canEdit && (
             <EvolucaoEditor
