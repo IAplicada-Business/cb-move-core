@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown, LayoutDashboard, Users, FileText, Calendar,
   Receipt, FileSpreadsheet, BarChart3, Stethoscope, UserCog, Settings, Building2,
@@ -43,6 +43,7 @@ const GROUPS: Group[] = [
 
 export function Sidebar() {
   const { user, roles, signOut } = useAuth();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mode, setMode] = React.useState<"admin" | "paciente">("admin");
   const [open, setOpen] = React.useState<Record<string, boolean>>({
@@ -143,7 +144,7 @@ export function Sidebar() {
           </div>
           <button
             type="button"
-            onClick={() => signOut()}
+            onClick={() => signOut().then(() => navigate({ to: "/login" }))}
             title="Sair"
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           >

@@ -49,8 +49,10 @@ function createSupabaseClient() {
     },
     auth: {
       storage: typeof window !== 'undefined' ? localStorage : undefined,
+      storageKey: 'cbmove-auth',
       persistSession: true,
       autoRefreshToken: true,
+      detectSessionInUrl: false,
     }
   });
 }

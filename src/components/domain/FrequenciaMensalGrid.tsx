@@ -193,7 +193,7 @@ export function FrequenciaMensalGrid({
           className="max-w-xs h-9"
         />
         <p className="text-xs text-muted-foreground">
-          Somente leitura — consolidado de sessões
+          Consolidado da tabela <strong>sessões</strong> — registre P/F/FJ/NJ/RC/NR no painel do agendamento (visão Semana).
           {isFetching ? " · atualizando…" : ""}
         </p>
         <Button type="button" variant="outline" size="sm" className="ml-auto gap-1.5" onClick={exportCsv}>

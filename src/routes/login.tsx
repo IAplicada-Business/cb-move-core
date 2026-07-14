@@ -2,10 +2,11 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { resolvePostAuthPath } from "@/lib/auth-routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Entrar · CB MOVE Neuroscience" }] }),
@@ -13,21 +14,30 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn, session } = useAuth();
+  const { signIn, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
   const [form, setForm] = React.useState({ email: "", password: "" });
 
   React.useEffect(() => {
-    if (session) navigate({ to: "/app" });
-  }, [session, navigate]);
+    if (authLoading || !session) return;
+    void resolvePostAuthPath(session.user.id).then((path) => navigate({ to: path }));
+  }, [authLoading, session, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <LoadingState />
+      </div>
+    );
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      await signIn(form.email, form.password);
-      navigate({ to: "/app" });
+      const path = await signIn(form.email, form.password);
+      navigate({ to: path });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Credenciais inválidas";
       toast.error(msg);

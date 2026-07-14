@@ -1,37 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authErrorResponse, requireFinanceUser } from "../_shared/auth.ts";
-import { getIntegracaoEnv } from "../_shared/integracao-config.ts";
+import { buildCoraInvoicePayload, assertCoraIdempotencyKey, parseCoraInvoiceResponse } from "../_shared/cora-invoice.ts";
+import { coraConfigHint, createCoraInvoice, getCoraAccessToken, resolveCoraConfig } from "../_shared/cora.ts";
 
-const corsHeaders = {
+function formatCoraHttpError(status: number, detail: string): string {
+  const trimmed = detail.trim();
+  const jsonStart = trimmed.indexOf("{");
+  if (jsonStart >= 0) {
+    try {
+      const parsed = JSON.parse(trimmed.slice(jsonStart)) as {
+        errors?: { code?: string; message?: string }[];
+        message?: string;
+      };
+      const parts: string[] = [];
+      for (const e of parsed.errors ?? []) {
+        const code = (e.code ?? "").toLowerCase();
+        if (code.includes("customer.document")) {
+          parts.push("Cadastre o CPF/CNPJ do paciente.");
+        } else if (code.includes("duedate")) {
+          parts.push("Atualize o vencimento para hoje ou uma data futura.");
+        } else if (code.includes("customer.email")) {
+          parts.push("Cadastre o e-mail do paciente.");
+        } else if (e.message) {
+          parts.push(e.message);
+        }
+      }
+      if (parts.length > 0) return parts.join(" ");
+      if (parsed.message) return parsed.message;
+    } catch {
+      /* ignore */
+    }
+  }
+  return `Cora recusou a emissão (${status}): ${trimmed.slice(0, 200)}`;
+}const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-type CoraTokenResponse = {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-};
-
-async function getCoraToken(baseUrl: string, clientId: string, clientSecret: string): Promise<string> {
-  const basic = btoa(`${clientId}:${clientSecret}`);
-  const res = await fetch(`${baseUrl}/oauth/token`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basic}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
-
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Cora OAuth falhou (${res.status}): ${detail}`);
-  }
-
-  const data = (await res.json()) as CoraTokenResponse;
-  return data.access_token;
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -50,6 +54,9 @@ serve(async (req) => {
       .single();
     if (cobErr || !cob) throw new Error("Cobrança não encontrada");
 
+    if (!cob.vencimento) {
+      throw new Error("Data de vencimento é obrigatória para emitir boleto Cora");
+    }
     if (modo === "manual") {
       if (!boleto_url) throw new Error("modo manual requer boleto_url");
       const { error: updErr } = await admin
@@ -67,15 +74,12 @@ serve(async (req) => {
       );
     }
 
-    const clientId = await getIntegracaoEnv(admin, "CORA_CLIENT_ID");
-    const clientSecret = await getIntegracaoEnv(admin, "CORA_CLIENT_SECRET");
-    const coraBase = (await getIntegracaoEnv(admin, "CORA_API_BASE")) ??
-      "https://api.stage.cora.com.br";
+    const coraConfig = await resolveCoraConfig(admin);
 
-    if (!clientId || !clientSecret) {
+    if (!coraConfig) {
       return new Response(
         JSON.stringify({
-          error: "Integração Cora não configurada. Use modo manual ou configure CORA_CLIENT_ID e CORA_CLIENT_SECRET.",
+          error: `Integração Cora não configurada. Use modo manual ou ${coraConfigHint()}`,
           cobranca_id,
           valor: cob.valor,
           modo_manual: {
@@ -86,7 +90,7 @@ serve(async (req) => {
       );
     }
 
-    const token = await getCoraToken(coraBase, clientId, clientSecret);
+    const token = await getCoraAccessToken(coraConfig);
 
     const paciente = cob.pacientes as {
       nome: string;
@@ -95,52 +99,37 @@ serve(async (req) => {
       telefone: string | null;
     } | null;
 
-    const invoicePayload = {
+    const invoicePayload = buildCoraInvoicePayload({
       code: cobranca_id,
-      customer: {
-        name: paciente?.nome ?? "Paciente",
-        email: paciente?.email ?? undefined,
-        document: paciente?.cpf?.replace(/\D/g, "") ?? undefined,
-      },
-      services: [
-        {
-          name: cob.servico ?? "Fisioterapia CB MOVE",
-          amount: Math.round(Number(cob.valor) * 100),
-        },
-      ],
-      payment_terms: {
-        due_date: cob.vencimento ?? undefined,
-      },
-    };
-
-    const invoiceRes = await fetch(`${coraBase}/v2/invoices`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "Idempotency-Key": cobranca_id,
-      },
-      body: JSON.stringify(invoicePayload),
+      customerName: paciente?.nome ?? "Paciente",
+      customerEmail: paciente?.email,
+      customerDocument: paciente?.cpf,
+      serviceName: cob.servico ?? "Fisioterapia CB MOVE",
+      serviceDescription: cob.servico ?? "Fisioterapia neurológica CB MOVE",
+      amountCents: Math.round(Number(cob.valor) * 100),
+      dueDate: cob.vencimento,
+      includePix: true,
+      sendEmailNotification: Boolean(paciente?.email),
     });
+
+    assertCoraIdempotencyKey(cobranca_id);
+    const invoiceRes = await createCoraInvoice(coraConfig, token, invoicePayload, cobranca_id);
 
     if (!invoiceRes.ok) {
       const detail = await invoiceRes.text();
-      throw new Error(`Cora invoice falhou (${invoiceRes.status}): ${detail}`);
+      throw new Error(formatCoraHttpError(invoiceRes.status, detail));
     }
-
-    const invoice = await invoiceRes.json();
-    const paymentUrl =
-      invoice?.payment_options?.bank_slip?.url ??
-      invoice?.bank_slip?.url ??
-      invoice?.url ??
-      null;
-    const invoiceId = invoice?.id ?? invoice?.invoice_id ?? null;
+    const invoice = (await invoiceRes.json()) as Record<string, unknown>;
+    const parsed = parseCoraInvoiceResponse(invoice);
+    const paymentUrl = parsed.boletoUrl;
+    const invoiceId = parsed.id;
 
     const { error: updErr } = await admin
       .from("cobrancas")
       .update({
         boleto_url: paymentUrl,
         cora_invoice_id: invoiceId,
+        pix_emv: parsed.pixEmv,
       })
       .eq("id", cobranca_id);
     if (updErr) throw updErr;
@@ -151,6 +140,9 @@ serve(async (req) => {
         cobranca_id,
         boleto_url: paymentUrl,
         cora_invoice_id: invoiceId,
+        status: parsed.status,
+        digitable_line: parsed.digitableLine,
+        pix_emv: parsed.pixEmv,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

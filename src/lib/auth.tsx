@@ -2,15 +2,17 @@ import * as React from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "./types";
+import { resolvePostAuthPath } from "./auth-routes";
 
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
   roles: AppRole[];
+  /** true até restaurar sessão do storage e carregar papéis do usuário */
   loading: boolean;
   pacienteId: string | null;
   isPaciente: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<"/app" | "/portal">;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -23,28 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pacienteId, setPacienteId] = React.useState<string | null>(null);
   const [isPaciente, setIsPaciente] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s?.user) {
-        // defer Supabase calls to avoid deadlock per docs
-        setTimeout(() => loadRoles(s.user.id), 0);
-      } else {
-        setRoles([]);
-        setPacienteId(null);
-        setIsPaciente(false);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) loadRoles(data.session.user.id);
-      setLoading(false);
-    });
-
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  const rolesUserIdRef = React.useRef<string | null>(null);
 
   async function loadRoles(userId: string) {
     const [rolesResult, pacResult] = await Promise.all([
@@ -62,7 +43,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
     setPacienteId(pacId);
     setIsPaciente(pacId !== null && fetchedRoles.length === 0);
+    rolesUserIdRef.current = userId;
   }
+
+  async function clearRoles() {
+    setRoles([]);
+    setPacienteId(null);
+    setIsPaciente(false);
+    rolesUserIdRef.current = null;
+  }
+
+  async function applySession(next: Session | null, options?: { reloadRoles?: boolean }) {
+    setSession(next);
+    if (!next?.user) {
+      await clearRoles();
+      return;
+    }
+
+    const shouldReload =
+      options?.reloadRoles !== false && rolesUserIdRef.current !== next.user.id;
+    if (shouldReload) {
+      await loadRoles(next.user.id);
+    }
+  }
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      if (!mounted) return;
+
+      if (event === "INITIAL_SESSION") return;
+
+      if (event === "SIGNED_OUT") {
+        await applySession(null);
+        return;
+      }
+
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        setSession(nextSession);
+        return;
+      }
+
+      if (nextSession?.user && (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY")) {
+        await applySession(nextSession);
+      }
+    });
+
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      await applySession(data.session);
+      if (mounted) setLoading(false);
+    })();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void supabase.auth.getSession();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   const value: AuthContextValue = {
     session,
@@ -72,8 +119,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     pacienteId,
     isPaciente,
     signIn: async (email, password) => {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      if (data.session) {
+        await applySession(data.session);
+        return resolvePostAuthPath(data.session.user.id);
+      }
+      return "/app";
     },
     signUp: async (email, password, fullName) => {
       const { error } = await supabase.auth.signUp({
@@ -88,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     signOut: async () => {
       await supabase.auth.signOut();
+      await applySession(null);
     },
   };
 

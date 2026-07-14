@@ -1,31 +1,29 @@
 import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { resolvePostAuthPath } from "@/lib/auth-routes";
+import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/")({
   component: Splash,
 });
 
-// No SSR, beforeLoad com redirect não funciona porque window não existe.
-// O componente Splash detecta a sessão client-side e navega manualmente.
 function Splash() {
   const navigate = useNavigate();
+  const { session, loading } = useAuth();
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) {
-        navigate({ to: "/login", replace: true });
-        return;
-      }
-      // Verifica se é paciente
-      const { data: pac } = await (supabase as any)
-        .from("pacientes")
-        .select("id")
-        .eq("user_id", data.session.user.id)
-        .maybeSingle();
-      navigate({ to: pac ? "/portal" : "/app", replace: true });
+    if (loading) return;
+
+    if (!session) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+
+    void resolvePostAuthPath(session.user.id).then((path) => {
+      navigate({ to: path, replace: true });
     });
-  }, [navigate]);
+  }, [loading, session, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -42,6 +40,7 @@ function Splash() {
           </div>
         </div>
         <p className="text-sm font-medium text-muted-foreground">CB MOVE Neuroscience</p>
+        <LoadingState />
       </div>
     </div>
   );
