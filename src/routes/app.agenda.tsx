@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { FilterChip } from "@/components/domain/FilterChip";
 import { FisioHorariosDialog } from "@/components/domain/FisioHorariosDialog";
 import { FrequenciaMensalGrid } from "@/components/domain/FrequenciaMensalGrid";
+import { RegistroFrequenciaButtons } from "@/components/domain/RegistroFrequenciaButtons";
 import { LoadingState } from "@/components/domain/LoadingState";
 import {
   agendamentoNoBloco,
@@ -27,6 +28,7 @@ import { queryKeys } from "@/lib/queries";
 import {
   fetchAgendamentoHistorico,
   remarcarAgendamento,
+  registrarSiglaFrequencia,
   updateAgendamentoStatus,
   contarEscopoRemanejamento,
   fetchAgendaAviso,
@@ -41,7 +43,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
-import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
+import type { FrequenciaSigla, PacienteTipo, StatusAgendamento } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -221,6 +223,31 @@ function weeksInMonth(year: number, monthIndex: number): WeekBlock[] {
     }
   }
   return blocks;
+}
+
+function sameIsoWeek(a: Date, b: Date): boolean {
+  return startOfWeek(a).getTime() === startOfWeek(b).getTime();
+}
+
+function navegarParaDataAgenda(
+  isoInicio: string,
+  setSemanaBase: (d: Date) => void,
+  setDiaSemanaIdx: (i: number) => void,
+) {
+  const novaData = new Date(isoInicio);
+  const ws = startOfWeek(novaData);
+  setSemanaBase(ws);
+  const dayStr = toDateStr(novaData);
+  const idx = DIAS_SEMANA.map((offset) => addDays(ws, offset - 1)).findIndex(
+    (d) => toDateStr(d) === dayStr,
+  );
+  if (idx >= 0) setDiaSemanaIdx(idx);
+}
+
+function formatDeltaDias(delta: number): string {
+  if (delta === 0) return "mesmo dia";
+  if (delta > 0) return `+${delta} dia${delta !== 1 ? "s" : ""}`;
+  return `${delta} dia${delta !== -1 ? "s" : ""}`;
 }
 
 // ─── types & queries ─────────────────────────────────────────────────────────
@@ -464,6 +491,26 @@ function AgendaPage() {
     },
   });
 
+  const remarcarDataWatch = remarcarForm.watch("data");
+  const remarcarHoraWatch = remarcarForm.watch("horaInicio");
+  const remarcarEscopoWatch = remarcarForm.watch("escopo");
+
+  const remarcarPreview = useMemo(() => {
+    if (!remarcarTarget) return null;
+    const iso = parseDDMMYYToISO(remarcarDataWatch);
+    if (!iso || !/^\d{2}:\d{2}$/.test(remarcarHoraWatch)) return null;
+    const novoInicio = `${iso}T${remarcarHoraWatch}:00-03:00`;
+    const origem = new Date(remarcarTarget.inicio);
+    const destino = new Date(novoInicio);
+    const deltaDias = Math.round((destino.getTime() - origem.getTime()) / 86_400_000);
+    return {
+      novoInicio,
+      deltaDias,
+      cruzaSemana: !sameIsoWeek(origem, destino),
+      destinoLabel: formatDateTimeDDMMYY(novoInicio),
+    };
+  }, [remarcarTarget, remarcarDataWatch, remarcarHoraWatch]);
+
   const { data: contagensEscopo } = useQuery({
     queryKey: ["agenda-escopo-counts", remarcarTarget?.id],
     queryFn: async () => ({
@@ -567,6 +614,27 @@ function AgendaPage() {
     });
   }
 
+  const siglaMutation = useMutation({
+    mutationFn: ({ id, sigla }: { id: string; sigla: FrequenciaSigla }) =>
+      registrarSiglaFrequencia(id, sigla, user?.id ?? null),
+    onSuccess: (_data, vars) => {
+      invalidateAgenda();
+      qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
+      qc.invalidateQueries({ queryKey: ["prontuario"] });
+      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
+      toast.success(`Frequência registrada: ${vars.sigla}`);
+      setSelectedAgend((prev) => {
+        if (!prev || prev.id !== vars.id) return prev;
+        const statusAlvo = vars.sigla === "P" || vars.sigla === "RC" ? "realizado" : "faltou";
+        if (["agendado", "confirmado", "realizado", "faltou"].includes(prev.status)) {
+          return { ...prev, status: statusAlvo };
+        }
+        return prev;
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const remarcarMutation = useMutation({
     mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) => {
       const isoDate = parseDDMMYYToISO(vals.data);
@@ -584,6 +652,7 @@ function AgendaPage() {
     onSuccess: async (result) => {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
+      qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
       toast.success(result.count > 1 ? `${result.count} horários remarcados` : "Agendamento remarcado");
       setRemarcarOpen(false);
       setRemarcarTarget(null);
@@ -595,7 +664,12 @@ function AgendaPage() {
           .eq("id", result.primeiroNovoId)
           .single();
         if (!error && data) {
-          setSelectedAgend(data as unknown as Agendamento);
+          const ag = data as unknown as Agendamento;
+          setSelectedAgend(ag);
+          if (visao === "semana" || visao === "dia") {
+            navegarParaDataAgenda(ag.inicio, setSemanaBase, setDiaSemanaIdx);
+          }
+          if (visao === "mes") setVisao("semana");
         }
       }
     },
@@ -1181,39 +1255,20 @@ function AgendaPage() {
                   </div>
                 )}
 
-                {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                {podeGerir && selectedAgend.paciente_id && ["agendado", "confirmado", "realizado", "faltou"].includes(selectedAgend.status) && (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Registro de sessão
+                      Frequência do dia
                     </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: selectedAgend.id,
-                          status: "realizado",
-                          anterior: selectedAgend.status,
-                        })
+                    <p className="text-xs text-muted-foreground">
+                      Atualiza a planilha (aba Frequência) e o status do agendamento quando aplicável.
+                    </p>
+                    <RegistroFrequenciaButtons
+                      disabled={siglaMutation.isPending}
+                      onSelect={(sigla) =>
+                        siglaMutation.mutate({ id: selectedAgend.id, sigla })
                       }
-                    >
-                      Marcar como realizado
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        statusMutation.mutate({
-                          id: selectedAgend.id,
-                          status: "faltou",
-                          anterior: selectedAgend.status,
-                        })
-                      }
-                    >
-                      Marcar faltou
-                    </Button>
+                    />
                   </div>
                 )}
 
@@ -1342,6 +1397,30 @@ function AgendaPage() {
                   />
                 </div>
               </div>
+
+              {remarcarPreview && (
+                <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-xs space-y-1">
+                  <p>
+                    <span className="text-muted-foreground">Novo horário: </span>
+                    <span className="font-medium">{remarcarPreview.destinoLabel}</span>
+                    <span className="text-muted-foreground"> ({formatDeltaDias(remarcarPreview.deltaDias)})</span>
+                  </p>
+                  {remarcarPreview.cruzaSemana && (
+                    <p className="text-cb-orange font-medium">
+                      A data cai em outra semana — após confirmar, a agenda abrirá nessa semana.
+                    </p>
+                  )}
+                  {remarcarEscopoWatch !== "pontual" && contagensEscopo && (
+                    <p className="text-muted-foreground">
+                      Escopo &quot;{remarcarEscopoWatch}&quot;:{" "}
+                      {remarcarEscopoWatch === "semana"
+                        ? contagensEscopo.semana
+                        : contagensEscopo.serie_mes}{" "}
+                      horário(s) serão deslocados pelo mesmo intervalo.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label>Fisioterapeuta</Label>

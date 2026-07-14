@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CheckCircle2, Copy, ExternalLink, Loader2, Send, X,
+  CheckCircle2, Copy, ExternalLink, Loader2, QrCode, Send, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +19,7 @@ import {
   type PacienteCobrancaResumo,
   type StatusResumo,
 } from "@/lib/domain/cobrancas-por-paciente";
-import { CoraNaoConfiguradaError, emitBoletoCora } from "@/lib/queries/boleto-cora";
+import { CoraNaoConfiguradaError, emitBoletoCora, validarEmitBoletoCoraLocal } from "@/lib/queries/boleto-cora";
 import {
   fetchCobrancas, updateCobranca, type Cobranca,
 } from "@/lib/queries/cobrancas";
@@ -97,8 +97,12 @@ export function PacienteCobrancaSheet({
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
       qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
-      if (res.boletoUrl) {
+      if (res.boletoUrl && res.pixEmv) {
+        toast.success("Boleto e PIX gerados pela Cora");
+      } else if (res.boletoUrl) {
         toast.success("Boleto gerado pela Cora");
+      } else if (res.pixEmv) {
+        toast.success("PIX gerado pela Cora");
       } else {
         toast.success("Solicitação enviada à Cora");
       }
@@ -123,16 +127,19 @@ export function PacienteCobrancaSheet({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function copiarLink(url: string) {
+  async function copiarTexto(texto: string, label = "Texto copiado") {
     try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copiado");
+      await navigator.clipboard.writeText(texto);
+      toast.success(label);
     } catch {
-      toast.error("Não foi possível copiar o link");
+      toast.error("Não foi possível copiar");
     }
   }
 
   const nome = resumo?.pacienteNome ?? pacienteNome ?? "Paciente";
+  const pacienteCpf = resumo?.cobrancas[0]?.pacienteCpf ?? histQuery.data?.[0]?.pacienteCpf ?? null;
+  const pacienteEmail = resumo?.cobrancas[0]?.pacienteEmail ?? histQuery.data?.[0]?.pacienteEmail ?? null;
+  const faltaCadastroPaciente = !pacienteCpf?.replace(/\D/g, "") || !pacienteEmail?.trim();
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -176,6 +183,16 @@ export function PacienteCobrancaSheet({
               </div>
             </div>
 
+            {faltaCadastroPaciente && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Para emitir boleto Cora, cadastre{" "}
+                {!pacienteCpf?.replace(/\D/g, "") ? "CPF/CNPJ" : null}
+                {!pacienteCpf?.replace(/\D/g, "") && !pacienteEmail?.trim() ? " e " : null}
+                {!pacienteEmail?.trim() ? "e-mail" : null}{" "}
+                do paciente em <strong>Pacientes</strong>.
+              </div>
+            )}
+
             <div>
               <h3 className="text-sm font-semibold mb-2">Histórico de cobranças</h3>
               <Accordion type="multiple" className="w-full">
@@ -215,12 +232,47 @@ export function PacienteCobrancaSheet({
                               <ExternalLink className="h-3.5 w-3.5 mr-1" />
                               Abrir boleto
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => copiarLink(c.boletoUrl!)}>
+                            <Button size="sm" variant="outline" onClick={() => copiarTexto(c.boletoUrl!, "Link do boleto copiado")}>
                               <Copy className="h-3.5 w-3.5 mr-1" />
                               Copiar link
                             </Button>
                           </div>
                         )}
+
+                        {c.pixEmv && (
+                          <div className="rounded-md border border-cb-cyan-200 bg-cb-cyan-50/50 p-3 space-y-2">
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-cb-cyan-900">
+                              <QrCode className="h-3.5 w-3.5" />
+                              PIX Copia e Cola
+                            </div>
+                            <p className="text-[11px] font-mono break-all text-muted-foreground line-clamp-4">
+                              {c.pixEmv}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-cb-cyan-300 bg-white"
+                              onClick={() => copiarTexto(c.pixEmv!, "Código PIX copiado")}
+                            >
+                              <Copy className="h-3.5 w-3.5 mr-1" />
+                              Copiar código PIX
+                            </Button>
+                          </div>
+                        )}
+
+                        {podeEnviarBoleto(c) && (() => {
+                          const bloqueio = validarEmitBoletoCoraLocal({
+                            pacienteCpf: c.pacienteCpf ?? pacienteCpf,
+                            pacienteEmail: c.pacienteEmail ?? pacienteEmail,
+                            vencimento: c.vencimento,
+                            valor: c.valor,
+                          });
+                          return bloqueio ? (
+                            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                              {bloqueio}
+                            </p>
+                          ) : null;
+                        })()}
 
                         <div className="flex flex-wrap gap-2 pt-1">
                           {podeEnviarBoleto(c) && (
@@ -228,12 +280,14 @@ export function PacienteCobrancaSheet({
                               size="sm"
                               disabled={enviarBoleto.isPending}
                               onClick={() => {
-                                if (!c.vencimento) {
-                                  toast.error("Informe o vencimento da cobrança antes de enviar o boleto");
-                                  return;
-                                }
-                                if (!(c.valor > 0)) {
-                                  toast.error("Valor da cobrança inválido");
+                                const bloqueio = validarEmitBoletoCoraLocal({
+                                  pacienteCpf: c.pacienteCpf ?? pacienteCpf,
+                                  pacienteEmail: c.pacienteEmail ?? pacienteEmail,
+                                  vencimento: c.vencimento,
+                                  valor: c.valor,
+                                });
+                                if (bloqueio) {
+                                  toast.error(bloqueio);
                                   return;
                                 }
                                 enviarBoleto.mutate(c.id);

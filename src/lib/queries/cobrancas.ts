@@ -5,6 +5,8 @@ export type Cobranca = {
   id: string;
   pacienteId: string;
   pacienteNome: string | null;
+  pacienteCpf: string | null;
+  pacienteEmail: string | null;
   descricao: string | null;
   servico: string | null;
   valor: number;
@@ -17,6 +19,7 @@ export type Cobranca = {
   vencimento: string | null;
   pagoEm: string | null;
   boletoUrl: string | null;
+  pixEmv: string | null;
   observacoes: string | null;
   frequenciaAtendimento: string | null;
   diasSemana: string | null;
@@ -39,18 +42,21 @@ type Row = {
   vencimento: string | null;
   pago_em: string | null;
   boleto_url: string | null;
+  pix_emv: string | null;
   observacoes: string | null;
   frequencia_atendimento: string | null;
   dias_semana: string | null;
   qtd_sessoes: number | null;
   created_at: string;
-  pacientes?: { nome: string } | null;
+  pacientes?: { nome: string; cpf: string | null; email: string | null } | null;
 };
 
 const map = (r: Row): Cobranca => ({
   id: r.id,
   pacienteId: r.paciente_id,
   pacienteNome: r.pacientes?.nome ?? null,
+  pacienteCpf: r.pacientes?.cpf ?? null,
+  pacienteEmail: r.pacientes?.email ?? null,
   descricao: r.descricao,
   servico: r.servico,
   valor: Number(r.valor) || 0,
@@ -63,6 +69,7 @@ const map = (r: Row): Cobranca => ({
   vencimento: r.vencimento,
   pagoEm: r.pago_em,
   boletoUrl: r.boleto_url,
+  pixEmv: r.pix_emv,
   observacoes: r.observacoes,
   frequenciaAtendimento: r.frequencia_atendimento,
   diasSemana: r.dias_semana,
@@ -73,7 +80,7 @@ const map = (r: Row): Cobranca => ({
 export async function fetchRecentCobrancas(limit = 10): Promise<Cobranca[]> {
   const { data, error } = await supabase
     .from("cobrancas")
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, email)")
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -83,7 +90,7 @@ export async function fetchRecentCobrancas(limit = 10): Promise<Cobranca[]> {
 export async function fetchAllCobrancas(): Promise<Cobranca[]> {
   const { data, error } = await supabase
     .from("cobrancas")
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, email)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return ((data ?? []) as unknown as Row[]).map(map);
@@ -100,7 +107,7 @@ export async function fetchCobrancas(filters?: {
 }): Promise<Cobranca[]> {
   let query = supabase
     .from("cobrancas")
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, email)")
     .order("created_at", { ascending: false });
 
   if (filters?.competenciaMes) query = query.eq("competencia_mes", filters.competenciaMes);
@@ -152,7 +159,7 @@ export async function createCobranca(input: {
       dias_semana: input.diasSemana || null,
       observacoes: input.observacoes,
     })
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, email)")
     .single();
   if (error) throw error;
   return map(data as unknown as Row);
@@ -163,7 +170,9 @@ export async function updateCobranca(id: string, input: Partial<{
   pagoEm: string;
   boletoUrl: string;
   coraInvoiceId: string;
+  pixEmv: string;
   formaPagamento: FormaPagamento;
+  vencimento: string;
   observacoes: string;
   frequenciaAtendimento: string | null;
   diasSemana: string | null;
@@ -174,7 +183,9 @@ export async function updateCobranca(id: string, input: Partial<{
     pago_em?: string;
     boleto_url?: string;
     cora_invoice_id?: string;
+    pix_emv?: string;
     forma_pagamento?: FormaPagamento;
+    vencimento?: string;
     observacoes?: string;
     frequencia_atendimento?: string | null;
     dias_semana?: string | null;
@@ -184,7 +195,9 @@ export async function updateCobranca(id: string, input: Partial<{
   if (input.pagoEm !== undefined) patch.pago_em = input.pagoEm;
   if (input.boletoUrl !== undefined) patch.boleto_url = input.boletoUrl;
   if (input.coraInvoiceId !== undefined) patch.cora_invoice_id = input.coraInvoiceId;
+  if (input.pixEmv !== undefined) patch.pix_emv = input.pixEmv;
   if (input.formaPagamento !== undefined) patch.forma_pagamento = input.formaPagamento;
+  if (input.vencimento !== undefined) patch.vencimento = input.vencimento;
   if (input.observacoes !== undefined) patch.observacoes = input.observacoes;
   if (input.frequenciaAtendimento !== undefined) patch.frequencia_atendimento = input.frequenciaAtendimento;
   if (input.diasSemana !== undefined) patch.dias_semana = input.diasSemana;

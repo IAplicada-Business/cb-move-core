@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { StatusAgendamento } from "@/lib/types";
+import type { FrequenciaSigla, StatusAgendamento } from "@/lib/types";
 import { upsertSessaoSigla, clearSessaoSigla } from "@/lib/queries/sessoes";
 
 export type EscopoRemanejamento = "pontual" | "semana" | "serie_mes";
@@ -291,6 +291,41 @@ export async function remarcarAgendamento(params: {
   }
 
   return { count, primeiroNovoId };
+}
+
+/** Registra sigla na planilha de frequência (sessoes) a partir do agendamento. */
+export async function registrarSiglaFrequencia(
+  agendamentoId: string,
+  sigla: FrequenciaSigla,
+  usuarioId?: string | null,
+): Promise<void> {
+  const { data: ag, error } = await supabase
+    .from("agendamentos")
+    .select("id, paciente_id, fisioterapeuta_id, inicio, status")
+    .eq("id", agendamentoId)
+    .single();
+  if (error) throw error;
+  if (!ag?.paciente_id || !ag.inicio) throw new Error("Agendamento sem paciente");
+
+  const data = ag.inicio.slice(0, 10);
+  const hora = horaFromAgendamentoInicio(ag.inicio);
+
+  await upsertSessaoSigla({
+    pacienteId: ag.paciente_id,
+    data,
+    sigla,
+    fisioterapeutaId: ag.fisioterapeuta_id,
+    hora,
+  });
+
+  const statusAlvo: StatusAgendamento =
+    sigla === "P" || sigla === "RC" ? "realizado" : "faltou";
+  const anterior = ag.status as StatusAgendamento;
+  const podeSyncStatus = ["agendado", "confirmado", "realizado", "faltou"].includes(anterior);
+
+  if (podeSyncStatus && anterior !== statusAlvo) {
+    await updateAgendamentoStatus(agendamentoId, statusAlvo, usuarioId, anterior);
+  }
 }
 
 export async function fetchAgendaAviso(data: string): Promise<string> {

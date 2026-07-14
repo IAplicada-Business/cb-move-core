@@ -64,3 +64,8 @@ scripts/_local_*.env
 *.pfx
 docs/*.p12
 docs/*.pfx
+docs/cora*/
+docs/cert_key_cora*/
+**/cert_key_cora*.zip
+**/certificate.pem
+**/private-key.key

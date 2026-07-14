@@ -89,6 +89,7 @@ export type Database = {
           observacoes: string | null
           paciente_id: string
           pago_em: string | null
+          pix_emv: string | null
           qtd_sessoes: number | null
           regime: Database["public"]["Enums"]["regime_cobranca"] | null
           servico: string | null
@@ -114,6 +115,7 @@ export type Database = {
           observacoes?: string | null
           paciente_id: string
           pago_em?: string | null
+          pix_emv?: string | null
           qtd_sessoes?: number | null
           regime?: Database["public"]["Enums"]["regime_cobranca"] | null
           servico?: string | null
@@ -139,6 +141,7 @@ export type Database = {
           observacoes?: string | null
           paciente_id?: string
           pago_em?: string | null
+          pix_emv?: string | null
           qtd_sessoes?: number | null
           regime?: Database["public"]["Enums"]["regime_cobranca"] | null
           servico?: string | null

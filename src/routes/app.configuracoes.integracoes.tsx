@@ -12,9 +12,9 @@ const INTEGRACOES = [
     id: "cora",
     nome: "Cora",
     categoria: "Financeiro",
-    descricao: "Emissão e gestão de boletos bancários.",
-    status: "Aguardando credenciais",
-    secrets: "CORA_CLIENT_ID, CORA_CLIENT_SECRET",
+    descricao: "Emissão e gestão de boletos bancários (Integração Direta mTLS).",
+    status: "Configurar credenciais mTLS",
+    secrets: "CORA_CLIENT_ID, CORA_CERTIFICATE, CORA_PRIVATE_KEY, CORA_API_BASE",
   },
   {
     id: "focus-nfe",
@@ -71,6 +71,11 @@ function IntegracoesPage() {
             )}
             {integ.id === "focus-nfe" && (
               <p className="text-xs text-muted-foreground">Ver docs/SETUP_FOCUS_NFE.md</p>
+            )}
+            {integ.id === "cora" && (
+              <p className="text-xs text-muted-foreground">
+                Integração Direta: token + boleto em matls-clients.api.stage.cora.com.br (cert+key em todas as requisições)
+              </p>
             )}
             <Button variant="outline" size="sm" disabled className="w-full">Configurar</Button>
           </div>
