@@ -1,0 +1,167 @@
+{
+  "name": "CB MOVE - Boleto Docs",
+  "nodes": [
+    {
+      "id": "0eebafa0-5ac3-4d3a-91a0-e940cb59a206",
+      "name": "Webhook Boleto Docs",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 80],
+      "parameters": {
+        "path": "cbmove-boleto-docs",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+          }
+        }
+      },
+      "webhookId": "4809c15b-ee6a-4c29-a545-422f1806c258"
+    },
+    {
+      "id": "aa954cc7-3d2f-4cb5-ab14-d5939548e71f",
+      "name": "Parse payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [224, 80],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nif (!body.cobranca_id) throw new Error('cobranca_id obrigatório');\nif (!body.boleto_url) throw new Error('boleto_url obrigatório');\nif (!body.paciente?.email) throw new Error('paciente.email obrigatório');\n\nfunction formatBrl(v) {\n  return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });\n}\nfunction formatDate(iso) {\n  if (!iso) return '—';\n  const [y, m, d] = String(iso).slice(0, 10).split('-');\n  return `${d}/${m}/${y}`;\n}\nfunction normalizePhone(raw) {\n  const digits = String(raw || '').replace(/\\D/g, '');\n  if (!digits) return null;\n  if (digits.startsWith('55') && digits.length >= 12) return digits;\n  if (digits.length >= 10) return `55${digits}`;\n  return null;\n}\n\nconst pac = body.paciente || {};\nconst canais = Array.isArray(body.canais) ? body.canais : ['email'];\n\nreturn [{\n  json: {\n    ...body,\n    valor_fmt: formatBrl(body.valor),\n    vencimento_fmt: formatDate(body.vencimento),\n    telefone_e164: normalizePhone(pac.telefone),\n    tem_whatsapp: canais.includes('whatsapp') && !!normalizePhone(pac.telefone),\n    to_email: pac.email,\n  },\n}];"
+      }
+    },
+    {
+      "id": "fc5ba48d-015d-4b5e-84c3-287345a17960",
+      "name": "Montar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [448, 80],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const p = $input.first().json;\nconst nome = p.paciente?.nome || 'Cliente';\nconst assunto = `CB MOVE — Boleto ${p.competencia || ''} — ${nome} — ${p.valor_fmt}`.trim();\n\nconst html = `\n<p>Olá <strong>${nome}</strong>,</p>\n<p>Segue a cobrança da CB MOVE Neuroscience referente a <strong>${p.competencia || '—'}</strong>.</p>\n<ul>\n<li><strong>Valor:</strong> ${p.valor_fmt}</li>\n<li><strong>Vencimento:</strong> ${p.vencimento_fmt}</li>\n<li><strong>Serviço:</strong> ${p.servico || 'Fisioterapia'}</li>\n</ul>\n<p><a href=\"${p.boleto_url}\">Abrir boleto (PDF)</a></p>\n${p.pix_emv ? `<p><strong>PIX Copia e Cola:</strong></p><pre style=\"font-size:11px;word-break:break-all\">${p.pix_emv}</pre>` : ''}\n<p>Em caso de dúvidas, responda este e-mail ou fale conosco pelo WhatsApp.</p>\n<p>CB MOVE Neuroscience</p>`;\n\nlet whatsapp = `Olá ${nome}, CB MOVE — cobrança ${p.competencia || '—'}.\\n\\n`;\nwhatsapp += `Valor: ${p.valor_fmt}\\nVencimento: ${p.vencimento_fmt}\\n\\n`;\nwhatsapp += `Boleto: ${p.boleto_url}\\n`;\nif (p.pix_emv) whatsapp += `\\nPIX Copia e Cola:\\n${p.pix_emv}`;\n\nreturn [{ json: { ...p, assunto, email_html: html, whatsapp_text: whatsapp } }];"
+      }
+    },
+    {
+      "id": "8694b477-242a-425e-b168-8431dfe8a8a4",
+      "name": "Enviar Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [672, 80],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.to_email }}",
+        "subject": "={{ $json.assunto }}",
+        "emailType": "html",
+        "message": "={{ $json.email_html }}",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "CB MOVE Neuroscience"
+        }
+      }
+    },
+    {
+      "id": "88e58178-07fc-4ad8-8c4a-3797a8849aa2",
+      "name": "Tem WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [896, 80],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $(\"Montar mensagens\").item.json.tem_whatsapp }}",
+              "operator": { "type": "boolean", "operation": "true" },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "e51316d5-0c13-4c53-9fd6-641ce1cf0301",
+      "name": "Z-API WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1120, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.z-api.io/instances/' + $env.ZAPI_INSTANCE_ID + '/token/' + $env.ZAPI_INSTANCE_TOKEN + '/send-text' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { phone: $(\"Montar mensagens\").item.json.telefone_e164, message: $(\"Montar mensagens\").item.json.whatsapp_text } }}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "8a88c97a-330b-4731-9315-e855875902f0",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1344, 80],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, event_id: $(\"Parse payload\").item.json.event_id, cobranca_id: $(\"Parse payload\").item.json.cobranca_id } }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Boleto Docs": { "main": [[{ "node": "Parse payload", "type": "main", "index": 0 }]] },
+    "Parse payload": { "main": [[{ "node": "Montar mensagens", "type": "main", "index": 0 }]] },
+    "Montar mensagens": { "main": [[{ "node": "Enviar Gmail", "type": "main", "index": 0 }]] },
+    "Enviar Gmail": { "main": [[{ "node": "Tem WhatsApp?", "type": "main", "index": 0 }]] },
+    "Tem WhatsApp?": {
+      "main": [
+        [{ "node": "Z-API WhatsApp", "type": "main", "index": 0 }],
+        [{ "node": "Respond 200", "type": "main", "index": 0 }]
+      ]
+    },
+    "Z-API WhatsApp": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {
+    "Webhook Boleto Docs": [
+      {
+        "json": {
+          "body": {
+            "event": "boleto.enviar",
+            "event_id": "boleto-docs-test-amanda",
+            "reenvio": false,
+            "cobranca_id": "b0bea120-9c4f-41d7-8722-e2dd755648d1",
+            "valor": 2128,
+            "vencimento": "2026-07-15",
+            "competencia": "07/2026",
+            "servico": "Fisioterapia Neurológica",
+            "boleto_url": "https://storage.googleapis.com/download/storage/v1/b/cora-stage-bank-slip-public/o/boleto.pdf?alt=media",
+            "pix_emv": "00020126580014BR.GOV.BCB.PIX0136pix.example",
+            "paciente": {
+              "nome": "Amanda Pavan",
+              "email": "pavan.amandaa@gmail.com",
+              "cpf": "03555110020",
+              "telefone": "51992436874"
+            },
+            "canais": ["email", "whatsapp"]
+          }
+        }
+      }
+    ]
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "n8nWorkflowId": "Hj81THpuh8nflvCq",
+    "templateCaution": "Configure credencial Z-API e variáveis ZAPI_INSTANCE_ID / ZAPI_INSTANCE_TOKEN no n8n antes de publicar."
+  }
+}
