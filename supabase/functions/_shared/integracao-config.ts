@@ -2,6 +2,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ENV_KEYS = [
   "N8N_WEBHOOK_NF_EMAIL",
+  "N8N_WEBHOOK_BOLETO_DOCS",
   "N8N_WEBHOOK_SECRET",
   "CORA_CLIENT_ID",
   "CORA_CLIENT_SECRET",

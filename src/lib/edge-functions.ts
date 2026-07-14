@@ -2,15 +2,34 @@ import { supabase } from "@/integrations/supabase/client";
 
 type EdgeErrorBody = { error?: string };
 
-function extractEdgeErrorMessage(
-  error: { message: string } | null,
+export async function extractEdgeErrorMessage(
+  error: unknown,
   data: unknown,
-): string | null {
+): Promise<string | null> {
   if (data && typeof data === "object" && data !== null) {
     const msg = (data as EdgeErrorBody).error;
     if (typeof msg === "string" && msg.trim()) return msg;
   }
-  return error?.message ?? null;
+
+  if (error && typeof error === "object" && "context" in error) {
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") {
+      try {
+        const cloned = ctx.clone?.() ?? ctx;
+        const j = (await cloned.json()) as { error?: string };
+        if (j?.error) return j.error;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    const msg = (error as { message: string }).message;
+    if (msg) return msg;
+  }
+
+  return null;
 }
 
 export async function invokeEdgeFunction<T>(
@@ -18,7 +37,7 @@ export async function invokeEdgeFunction<T>(
   body: Record<string, unknown>,
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
-  const message = extractEdgeErrorMessage(error, data);
+  const message = await extractEdgeErrorMessage(error, data);
   if (message) throw new Error(message);
   return data as T;
 }

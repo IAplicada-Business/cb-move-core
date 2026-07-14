@@ -1,8 +1,8 @@
-import { updateCobranca } from "@/lib/queries/cobrancas";
 import {
   formatCoraApiErrorBody,
   validarCobrancaParaBoletoCora,
 } from "@/lib/domain/cora-boleto";
+import { invokeEdgeFunction } from "@/lib/edge-functions";
 import { supabase } from "@/integrations/supabase/client";
 
 export type EmitBoletoCoraResult = {
@@ -13,12 +13,28 @@ export type EmitBoletoCoraResult = {
   pixEmv: string | null;
 };
 
+export type SendBoletoCobrancaResult = {
+  ok: boolean;
+  queued: boolean;
+  duplicate?: boolean;
+  eventId: string;
+};
+
 export class CoraNaoConfiguradaError extends Error {
   constructor(
     message = "Integração Cora não configurada. Configure CORA_CLIENT_ID + certificado/chave em Integrações (ou aguarde a IAplicada aplicar as credenciais).",
   ) {
     super(message);
     this.name = "CoraNaoConfiguradaError";
+  }
+}
+
+export class BoletoEnvioNaoConfiguradoError extends Error {
+  constructor(
+    message = "Automação de envio não configurada. Configure N8N_WEBHOOK_BOLETO_DOCS em Integrações quando o workflow n8n estiver pronto.",
+  ) {
+    super(message);
+    this.name = "BoletoEnvioNaoConfiguradoError";
   }
 }
 
@@ -55,25 +71,9 @@ function isCoraNaoConfigurada(msg: string): boolean {
   );
 }
 
-async function extractErrorMessage(error: unknown, data: unknown): Promise<string | null> {
-  const body = data as { error?: string } | null;
-  if (body?.error) return body.error;
-
-  if (error && typeof error === "object" && "context" in error) {
-    const ctx = (error as { context?: Response }).context;
-    if (ctx && typeof ctx.json === "function") {
-      try {
-        const cloned = ctx.clone?.() ?? ctx;
-        const j = (await cloned.json()) as { error?: string };
-        if (j?.error) return j.error;
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  if (error instanceof Error && error.message) return error.message;
-  return null;
+function isBoletoEnvioNaoConfigurado(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return m.includes("n8n_webhook_boleto_docs") || m.includes("automação de envio não configurada");
 }
 
 export type ValidarBoletoCoraCobranca = {
@@ -93,10 +93,10 @@ export function validarEmitBoletoCoraLocal(c: ValidarBoletoCoraCobranca): string
 }
 
 /**
- * Emite boleto via edge emit-boleto-cora (API Cora).
+ * Gera boleto/PIX via edge emit-boleto-cora (API Cora).
  * Sem credenciais a edge responde 501 — propaga CoraNaoConfiguradaError.
  */
-export async function emitBoletoCora(cobrancaId: string): Promise<EmitBoletoCoraResult> {
+export async function gerarBoletoCora(cobrancaId: string): Promise<EmitBoletoCoraResult> {
   const { data: row, error: loadErr } = await supabase
     .from("cobrancas")
     .select("valor, vencimento, pacientes(cpf, email)")
@@ -113,34 +113,61 @@ export async function emitBoletoCora(cobrancaId: string): Promise<EmitBoletoCora
   });
   if (localErr) throw new Error(localErr);
 
-  await updateCobranca(cobrancaId, { formaPagamento: "boleto" });
+  try {
+    const data = await invokeEdgeFunction<{
+      ok?: boolean;
+      cobranca_id?: string;
+      boleto_url?: string | null;
+      cora_invoice_id?: string | null;
+      pix_emv?: string | null;
+    }>("emit-boleto-cora", { cobranca_id: cobrancaId });
 
-  const { data, error } = await supabase.functions.invoke("emit-boleto-cora", {
-    body: { cobranca_id: cobrancaId },
-  });
-
-  const body = data as {
-    ok?: boolean;
-    error?: string;
-    cobranca_id?: string;
-    boleto_url?: string | null;
-    cora_invoice_id?: string | null;
-    pix_emv?: string | null;
-  } | null;
-
-  if (error || body?.error) {
-    const msg = formatCoraError(
-      (await extractErrorMessage(error, data)) ?? "Falha ao emitir boleto Cora",
-    );
+    return {
+      ok: Boolean(data?.ok),
+      cobrancaId: data?.cobranca_id ?? cobrancaId,
+      boletoUrl: data?.boleto_url ?? null,
+      coraInvoiceId: data?.cora_invoice_id ?? null,
+      pixEmv: data?.pix_emv ?? null,
+    };
+  } catch (e) {
+    const msg = formatCoraError(e instanceof Error ? e.message : "Falha ao emitir boleto Cora");
     if (isCoraNaoConfigurada(msg)) throw new CoraNaoConfiguradaError(msg);
     throw new Error(msg);
   }
+}
 
-  return {
-    ok: Boolean(body?.ok),
-    cobrancaId: body?.cobranca_id ?? cobrancaId,
-    boletoUrl: body?.boleto_url ?? null,
-    coraInvoiceId: body?.cora_invoice_id ?? null,
-    pixEmv: body?.pix_emv ?? null,
-  };
+/** @deprecated Use gerarBoletoCora */
+export const emitBoletoCora = gerarBoletoCora;
+
+/**
+ * Enfileira envio do boleto ao paciente (e-mail + WhatsApp) via n8n.
+ * Exige boleto já gerado. Sem webhook configurado → BoletoEnvioNaoConfiguradoError.
+ */
+export async function enviarBoletoCobranca(
+  cobrancaId: string,
+  options?: { reenvio?: boolean },
+): Promise<SendBoletoCobrancaResult> {
+  try {
+    const data = await invokeEdgeFunction<{
+      ok?: boolean;
+      queued?: boolean;
+      duplicate?: boolean;
+      event_id?: string;
+    }>("send-boleto-cobranca", {
+      cobranca_id: cobrancaId,
+      event_id: `boleto-docs-${cobrancaId}`,
+      reenvio: Boolean(options?.reenvio),
+    });
+
+    return {
+      ok: Boolean(data?.ok),
+      queued: Boolean(data?.queued),
+      duplicate: data?.duplicate,
+      eventId: data?.event_id ?? `boleto-docs-${cobrancaId}`,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Falha ao enviar boleto";
+    if (isBoletoEnvioNaoConfigurado(msg)) throw new BoletoEnvioNaoConfiguradoError(msg);
+    throw e instanceof Error ? e : new Error(msg);
+  }
 }
