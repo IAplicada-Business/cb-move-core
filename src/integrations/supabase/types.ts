@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      _cbmove_test_flags: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      agenda_avisos: {
+        Row: {
+          data: string
+          id: string
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          data: string
+          id?: string
+          texto?: string
+          updated_at?: string
+        }
+        Update: {
+          data?: string
+          id?: string
+          texto?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agendamento_historico: {
+        Row: {
+          acao: string
+          agendamento_id: string
+          created_at: string
+          escopo: string | null
+          id: string
+          inicio_anterior: string | null
+          inicio_novo: string | null
+          status_anterior: string | null
+          status_novo: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          agendamento_id: string
+          created_at?: string
+          escopo?: string | null
+          id?: string
+          inicio_anterior?: string | null
+          inicio_novo?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          agendamento_id?: string
+          created_at?: string
+          escopo?: string | null
+          id?: string
+          inicio_anterior?: string | null
+          inicio_novo?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamento_historico_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agendamentos: {
         Row: {
           canal_origem: string | null
@@ -70,6 +153,20 @@ export type Database = {
             columns: ["paciente_id"]
             isOneToOne: false
             referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_remarcado_de_id_fkey"
+            columns: ["remarcado_de_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_remarcado_para_id_fkey"
+            columns: ["remarcado_para_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
             referencedColumns: ["id"]
           },
         ]
@@ -161,35 +258,85 @@ export type Database = {
           },
         ]
       }
+      cobrancas_envios: {
+        Row: {
+          canais: string[]
+          cobranca_id: string
+          destinatarios: string[]
+          enviado_em: string
+          event_id: string | null
+          id: string
+        }
+        Insert: {
+          canais?: string[]
+          cobranca_id: string
+          destinatarios?: string[]
+          enviado_em?: string
+          event_id?: string | null
+          id?: string
+        }
+        Update: {
+          canais?: string[]
+          cobranca_id?: string
+          destinatarios?: string[]
+          enviado_em?: string
+          event_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobrancas_envios_cobranca_id_fkey"
+            columns: ["cobranca_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       convenios: {
         Row: {
           ativo: boolean
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
+          codigo_municipio_ibge: number | null
           created_at: string
           email_nf: string | null
+          endereco: string | null
           id: string
           nome: string
           razao_social: string | null
+          uf: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
+          codigo_municipio_ibge?: number | null
           created_at?: string
           email_nf?: string | null
+          endereco?: string | null
           id?: string
           nome: string
           razao_social?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
+          codigo_municipio_ibge?: number | null
           created_at?: string
           email_nf?: string | null
+          endereco?: string | null
           id?: string
           nome?: string
           razao_social?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -322,6 +469,82 @@ export type Database = {
             columns: ["paciente_id"]
             isOneToOne: false
             referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fisio_disponibilidade: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dia_semana: number
+          fisioterapeuta_id: string
+          hora_fim: string
+          hora_inicio: string
+          id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dia_semana: number
+          fisioterapeuta_id: string
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dia_semana?: number
+          fisioterapeuta_id?: string
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fisio_disponibilidade_fisioterapeuta_id_fkey"
+            columns: ["fisioterapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "fisioterapeutas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fisio_indisponibilidade: {
+        Row: {
+          created_at: string
+          fim: string
+          fisioterapeuta_id: string
+          id: string
+          inicio: string
+          motivo: string
+          observacoes: string | null
+        }
+        Insert: {
+          created_at?: string
+          fim: string
+          fisioterapeuta_id: string
+          id?: string
+          inicio: string
+          motivo?: string
+          observacoes?: string | null
+        }
+        Update: {
+          created_at?: string
+          fim?: string
+          fisioterapeuta_id?: string
+          id?: string
+          inicio?: string
+          motivo?: string
+          observacoes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fisio_indisponibilidade_fisioterapeuta_id_fkey"
+            columns: ["fisioterapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "fisioterapeutas"
             referencedColumns: ["id"]
           },
         ]
@@ -591,27 +814,35 @@ export type Database = {
           advogado_email: string | null
           advogado_nome: string | null
           ativo: boolean
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          codigo_municipio_ibge: number | null
+          complemento: string | null
           convenio_id: string | null
           cpf: string | null
           created_at: string
           criado_em: string
+          dias_semana: string | null
           email: string | null
+          endereco: string | null
           fisioterapeuta_id: string | null
           forma_pagamento_preferida:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
           frequencia_atendimento: string | null
-          dias_semana: string | null
           id: string
           modelo_relatorio_preferido:
             | Database["public"]["Enums"]["modelo_relatorio"]
             | null
           nome: string
+          numero_endereco: string | null
           numero_processo: string | null
           observacoes: string | null
           regime_cobranca: Database["public"]["Enums"]["regime_cobranca"]
           telefone: string | null
           tipo: Database["public"]["Enums"]["paciente_tipo"]
+          uf: string | null
           updated_at: string
           user_id: string | null
           valor_mensal: number | null
@@ -621,27 +852,35 @@ export type Database = {
           advogado_email?: string | null
           advogado_nome?: string | null
           ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo_municipio_ibge?: number | null
+          complemento?: string | null
           convenio_id?: string | null
           cpf?: string | null
           created_at?: string
           criado_em?: string
+          dias_semana?: string | null
           email?: string | null
+          endereco?: string | null
           fisioterapeuta_id?: string | null
           forma_pagamento_preferida?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
           frequencia_atendimento?: string | null
-          dias_semana?: string | null
           id?: string
           modelo_relatorio_preferido?:
             | Database["public"]["Enums"]["modelo_relatorio"]
             | null
           nome: string
+          numero_endereco?: string | null
           numero_processo?: string | null
           observacoes?: string | null
           regime_cobranca?: Database["public"]["Enums"]["regime_cobranca"]
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["paciente_tipo"]
+          uf?: string | null
           updated_at?: string
           user_id?: string | null
           valor_mensal?: number | null
@@ -651,27 +890,35 @@ export type Database = {
           advogado_email?: string | null
           advogado_nome?: string | null
           ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo_municipio_ibge?: number | null
+          complemento?: string | null
           convenio_id?: string | null
           cpf?: string | null
           created_at?: string
           criado_em?: string
+          dias_semana?: string | null
           email?: string | null
+          endereco?: string | null
           fisioterapeuta_id?: string | null
           forma_pagamento_preferida?:
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
           frequencia_atendimento?: string | null
-          dias_semana?: string | null
           id?: string
           modelo_relatorio_preferido?:
             | Database["public"]["Enums"]["modelo_relatorio"]
             | null
           nome?: string
+          numero_endereco?: string | null
           numero_processo?: string | null
           observacoes?: string | null
           regime_cobranca?: Database["public"]["Enums"]["regime_cobranca"]
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["paciente_tipo"]
+          uf?: string | null
           updated_at?: string
           user_id?: string | null
           valor_mensal?: number | null
@@ -1077,6 +1324,17 @@ export type Database = {
           sessoes: number
         }[]
       }
+      remarcar_agendamentos_lote: {
+        Args: {
+          p_agendamento_id: string
+          p_duracao_min?: number
+          p_escopo: string
+          p_novo_fisio_id?: string
+          p_novo_inicio: string
+          p_usuario_id?: string
+        }
+        Returns: Json
+      }
       resolver_destinatario_nf: {
         Args: { p_cobranca_id: string }
         Returns: Json
@@ -1103,11 +1361,11 @@ export type Database = {
       modelo_relatorio: "convencional" | "unimed" | "sharepoint"
       nf_status:
         | "pendente"
-        | "processando"
         | "emitida"
         | "cancelada"
         | "erro"
         | "regularizada_retroativa"
+        | "processando"
       paciente_tipo: "particular" | "judicial" | "convenio" | "puc"
       regime_cobranca: "mensalista" | "por_sessao"
       status_agendamento:
@@ -1269,11 +1527,11 @@ export const Constants = {
       modelo_relatorio: ["convencional", "unimed", "sharepoint"],
       nf_status: [
         "pendente",
-        "processando",
         "emitida",
         "cancelada",
         "erro",
         "regularizada_retroativa",
+        "processando",
       ],
       paciente_tipo: ["particular", "judicial", "convenio", "puc"],
       regime_cobranca: ["mensalista", "por_sessao"],
