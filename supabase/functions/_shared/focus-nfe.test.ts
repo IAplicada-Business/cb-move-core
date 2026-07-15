@@ -1,5 +1,7 @@
 import {
   buildFocusNfsenPayload,
+  formatDiasAtendidos,
+  tipoSessaoDeTexto,
   FISIOTERAPIA_CODIGO_NBS,
   FISIOTERAPIA_CODIGO_TRIBUTACAO,
   POA_CODIGO_MUNICIPIO,
@@ -137,4 +139,19 @@ Deno.test("descricao particular segue padrao DANFSe 2085", () => {
   if (!desc.includes("TOTALIZANDO 09 SESSÕES")) throw new Error(`total ausente: ${desc}`);
   if (!desc.includes("CREFITO: 122 334-F")) throw new Error(`crefito ausente: ${desc}`);
   if (!desc.includes("REFERENTE ÀS SESSÕES")) throw new Error(`acento ÀS ausente: ${desc}`);
+});
+
+Deno.test("formatDiasAtendidos formata lista CB MOVE", () => {
+  if (formatDiasAtendidos([]) !== "") throw new Error("vazio");
+  if (formatDiasAtendidos([16]) !== "16") throw new Error("um dia");
+  if (formatDiasAtendidos([2, 6, 9, 13]) !== "02, 06, 09 E 13") throw new Error("varios dias");
+  if (formatDiasAtendidos([9, 2, 2, 6]) !== "02, 06 E 09") throw new Error("dedup e sort");
+});
+
+Deno.test("tipoSessaoDeTexto evita falso positivo em 2x semana", () => {
+  if (tipoSessaoDeTexto("2x semana triplo") !== "triplo") throw new Error("triplo");
+  if (tipoSessaoDeTexto("2x semana duplo") !== "duplo") throw new Error("duplo");
+  if (tipoSessaoDeTexto("2x semana") !== "simples") throw new Error("simples sem duplo/triplo");
+  if (tipoSessaoDeTexto("quadruplo") !== "quadruplo") throw new Error("quadruplo");
+  if (tipoSessaoDeTexto(null) !== "simples") throw new Error("null");
 });

@@ -32,7 +32,12 @@ type NfRow = {
     numero_processo: string | null;
     advogado_email: string | null;
     convenio_id: string | null;
-    convenios: { nome: string; email_nf: string | null; razao_social: string | null } | null;
+    convenios: {
+      nome: string;
+      email_nf: string | null;
+      email_envio: string | null;
+      razao_social: string | null;
+    } | null;
   } | null;
 };
 
@@ -82,13 +87,14 @@ function resolveEmails(nf: NfRow): { to: string | null; cc: string[] } {
     return { to: paciente?.email ?? null, cc: [] };
   }
 
+  // Envio usa email_envio (caixa de recebimento) com fallback para email_nf (tomador na NF).
   if (tipo === "convenio" || tipo === "puc") {
-    return { to: convenio?.email_nf ?? null, cc: [] };
+    return { to: convenio?.email_envio ?? convenio?.email_nf ?? null, cc: [] };
   }
 
   if (tipo === "judicial") {
     const cc = paciente?.advogado_email ? [paciente.advogado_email] : [];
-    return { to: convenio?.email_nf ?? paciente?.email ?? null, cc };
+    return { to: convenio?.email_envio ?? convenio?.email_nf ?? paciente?.email ?? null, cc };
   }
 
   return { to: paciente?.email ?? null, cc: [] };
@@ -123,7 +129,7 @@ export async function loadNfForEmail(admin: SupabaseClient, nfId: string): Promi
       cobranca_id, paciente_id,
       pacientes (
         nome, email, cpf, numero_processo, advogado_email, convenio_id,
-        convenios ( nome, email_nf, razao_social )
+        convenios ( nome, email_nf, email_envio, razao_social )
       )
     `)
     .eq("id", nfId)

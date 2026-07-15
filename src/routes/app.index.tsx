@@ -95,7 +95,13 @@ function Dashboard() {
                 <YAxis
                   stroke="var(--cb-muted)"
                   fontSize={12}
-                  tickFormatter={(v) => brl(v).replace("R$ ", "")}
+                  width={72}
+                  tickFormatter={(v) =>
+                    new Intl.NumberFormat("pt-BR", {
+                      notation: "compact",
+                      maximumFractionDigits: 1,
+                    }).format(Number(v))
+                  }
                 />
                 <Tooltip formatter={(v: number) => brl(v)} />
                 <Legend />

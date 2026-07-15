@@ -5,9 +5,12 @@ import {
   getFocusNfsen,
   loadFocusNfeConfig,
   submitFocusNfsen,
+  formatDiasAtendidos,
+  tipoSessaoDeTexto,
   type NfForFocus,
   type TomadorForFocus,
 } from "../_shared/focus-nfe.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { mergeTomador } from "../_shared/focus-nfe-tomador-catalog.ts";
 
 const corsHeaders = {
@@ -59,9 +62,74 @@ type FisioRow = {
 type PacienteTomadorRow = {
   email: string | null;
   telefone: string | null;
+  valor_sessao: number | null;
+  frequencia_atendimento: string | null;
   fisioterapeutas: FisioRow | FisioRow[] | null;
   convenios: ConvenioTomadorRow | ConvenioTomadorRow[] | null;
 };
+
+const SIGLAS_REALIZADAS = ["P", "RC"];
+const MULT_POR_TIPO: Record<string, number> = { simples: 1, duplo: 2, triplo: 3, quadruplo: 4 };
+
+/** Precedência: cobrança da competência → cadastro do paciente. */
+function resolverFrequenciaCompetencia(
+  cobranca: string | null | undefined,
+  paciente: string | null | undefined,
+): string | null {
+  const trimmed = cobranca?.trim() || paciente?.trim();
+  return trimmed || null;
+}
+
+async function fetchFrequenciaCompetencia(
+  admin: SupabaseClient,
+  pacienteId: string | null,
+  mes: number | null,
+  ano: number | null,
+  pacienteFrequencia: string | null | undefined,
+): Promise<string | null> {
+  if (!pacienteId || !mes || !ano) {
+    return resolverFrequenciaCompetencia(null, pacienteFrequencia);
+  }
+  const { data } = await admin
+    .from("cobrancas")
+    .select("frequencia_atendimento")
+    .eq("paciente_id", pacienteId)
+    .eq("competencia_mes", mes)
+    .eq("competencia_ano", ano)
+    .maybeSingle();
+  const cobFreq = (data as { frequencia_atendimento?: string | null } | null)?.frequencia_atendimento;
+  return resolverFrequenciaCompetencia(cobFreq, pacienteFrequencia);
+}
+
+/** Dias atendidos (sigla P/RC) e total de sessões da competência, a partir de `sessoes`. */
+async function computeSessoesCompetencia(
+  admin: SupabaseClient,
+  pacienteId: string | null,
+  mes: number | null,
+  ano: number | null,
+  multiplicador: number,
+): Promise<{ diasTexto: string | null; total: number | null }> {
+  if (!pacienteId || !mes || !ano) return { diasTexto: null, total: null };
+  const mm = String(mes).padStart(2, "0");
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const { data, error } = await admin
+    .from("sessoes")
+    .select("data, sigla")
+    .eq("paciente_id", pacienteId)
+    .gte("data", `${ano}-${mm}-01`)
+    .lte("data", `${ano}-${mm}-${String(ultimoDia).padStart(2, "0")}`)
+    .in("sigla", SIGLAS_REALIZADAS);
+  if (error || !data) return { diasTexto: null, total: null };
+
+  const dias = new Set<number>();
+  for (const s of data as { data: string; sigla: string | null }[]) {
+    dias.add(Number(String(s.data).slice(8, 10)));
+  }
+  if (dias.size === 0) return { diasTexto: null, total: null };
+  // Limitação: sessoes tem 1 linha/dia, então "duplo" não é distinguível por dia.
+  // Total = dias × multiplicador do plano (exato p/ simples/duplo uniforme; aprox. p/ misto).
+  return { diasTexto: formatDiasAtendidos([...dias]), total: dias.size * multiplicador };
+}
 
 function tomadorFromConvenio(convenio: ConvenioTomadorRow | null | undefined): TomadorForFocus | undefined {
   if (!convenio) return undefined;
@@ -139,7 +207,7 @@ serve(async (req) => {
         corpo_numero_processo, corpo_total_sessoes,
         corpo_dias_atendidos,
         pacientes (
-          email, telefone,
+          email, telefone, valor_sessao, frequencia_atendimento,
           fisioterapeutas ( nome, registro_profissional ),
           convenios (
             cnpj, razao_social, email_nf,
@@ -153,6 +221,23 @@ serve(async (req) => {
 
     const paciente = (nf as { pacientes?: PacienteTomadorRow | null }).pacientes ?? null;
     const fisio = resolveFisio(paciente);
+
+    // Descrição conforme texto-padrão: dias/sessões vêm de `sessoes` (P/RC) quando não
+    // gravados na NF. Multiplicidade (simples/duplo) vem da cobrança da competência ou paciente.
+    const frequenciaLabel = await fetchFrequenciaCompetencia(
+      admin,
+      nf.paciente_id,
+      nf.competencia_mes,
+      nf.competencia_ano,
+      paciente?.frequencia_atendimento,
+    );
+    const tipoSessao = tipoSessaoDeTexto(frequenciaLabel);
+    const multiplicador = MULT_POR_TIPO[tipoSessao] ?? 1;
+    const diasGravados = ((nf as { corpo_dias_atendidos?: string | null }).corpo_dias_atendidos ?? "").trim();
+    const computado = diasGravados
+      ? { diasTexto: diasGravados, total: nf.corpo_total_sessoes }
+      : await computeSessoesCompetencia(admin, nf.paciente_id, nf.competencia_mes, nf.competencia_ano, multiplicador);
+
     const nfForFocus: NfForFocus = {
       id: nf.id,
       tipo: nf.tipo,
@@ -164,8 +249,10 @@ serve(async (req) => {
       corpo_paciente_nome: nf.corpo_paciente_nome,
       corpo_paciente_cpf: nf.corpo_paciente_cpf,
       corpo_numero_processo: nf.corpo_numero_processo,
-      corpo_total_sessoes: nf.corpo_total_sessoes,
-      corpo_dias_atendidos: (nf as { corpo_dias_atendidos?: string | null }).corpo_dias_atendidos ?? null,
+      corpo_total_sessoes: nf.corpo_total_sessoes ?? computado.total,
+      corpo_dias_atendidos: computado.diasTexto,
+      tipo_sessao: tipoSessao,
+      valor_sessao: paciente?.valor_sessao ?? null,
       fisio_nome: fisio.nome,
       fisio_crefito: fisio.crefito,
       tomador: resolveTomador(nf.tipo, nf.destinatario_documento, paciente),

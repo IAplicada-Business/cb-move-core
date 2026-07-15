@@ -20,8 +20,8 @@ const INTEGRACOES = [
     id: "focus-nfe",
     nome: "Focus NFe",
     categoria: "Fiscal",
-    descricao: "NFS-e Nacional POA — empresa cadastrada (ID 230418). Falta certificado A1.",
-    status: "Configurar token + certificado",
+    descricao: "NFS-e Nacional POA — empresa cadastrada (ID 230418). Certificado A1 carregado; ambiente em homologação (pendente virar produção).",
+    status: "Homologação",
     secrets: "FOCUSNFE_TOKEN, FOCUSNFE_CNPJ_PRESTADOR, FOCUSNFE_AMBIENTE",
   },
   {

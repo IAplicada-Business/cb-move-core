@@ -26,7 +26,7 @@ export type NotaFiscal = {
   destinatarioDocumento: string | null;
   corpoPacienteNome: string | null;
   corpoPacienteCpf: string | null;
-  corpoDiasAtendidos: number | null;
+  corpoDiasAtendidos: string | null;
   corpoTotalSessoes: number | null;
   corpoValorTotal: number | null;
   corpoNumeroProcesso: string | null;
@@ -49,7 +49,7 @@ type Row = {
   destinatario_documento: string | null;
   corpo_paciente_nome: string | null;
   corpo_paciente_cpf: string | null;
-  corpo_dias_atendidos: number | null;
+  corpo_dias_atendidos: string | null;
   corpo_total_sessoes: number | null;
   corpo_valor_total: number | null;
   corpo_numero_processo: string | null;
