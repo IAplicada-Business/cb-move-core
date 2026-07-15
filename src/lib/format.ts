@@ -8,17 +8,6 @@ export const formatDate = (d: string | Date | null | undefined) => {
   return dt.toLocaleDateString("pt-BR");
 };
 
-/** dd/mm/yy — ex.: 09/07/26 */
-export const formatDateDDMMYY = (d: string | Date | null | undefined) => {
-  if (!d) return "—";
-  const dt = typeof d === "string" ? new Date(d) : d;
-  if (Number.isNaN(dt.getTime())) return "—";
-  const day = String(dt.getDate()).padStart(2, "0");
-  const month = String(dt.getMonth() + 1).padStart(2, "0");
-  const year = String(dt.getFullYear()).slice(-2);
-  return `${day}/${month}/${year}`;
-};
-
 /** Converte yyyy-mm-dd ou ISO → dd/mm/yy */
 export const isoToDDMMYY = (iso: string | null | undefined) => {
   if (!iso) return "";
@@ -26,6 +15,24 @@ export const isoToDDMMYY = (iso: string | null | undefined) => {
   const [y, m, d] = base.split("-");
   if (!y || !m || !d) return "";
   return `${d}/${m}/${y.slice(-2)}`;
+};
+
+/** dd/mm/yy — ex.: 09/07/26 */
+export const formatDateDDMMYY = (d: string | Date | null | undefined) => {
+  if (!d) return "—";
+  if (typeof d === "string") {
+    const base = d.includes("T") ? d.split("T")[0] : d.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(base)) {
+      const formatted = isoToDDMMYY(base);
+      if (formatted) return formatted;
+    }
+  }
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(dt.getTime())) return "—";
+  const day = String(dt.getDate()).padStart(2, "0");
+  const month = String(dt.getMonth() + 1).padStart(2, "0");
+  const year = String(dt.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
 };
 
 /** Converte dd/mm/yy → yyyy-mm-dd (null se inválido) */

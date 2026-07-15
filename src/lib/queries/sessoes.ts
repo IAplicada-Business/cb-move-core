@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { resolveMoveSessaoSiglaDia } from "@/lib/domain/frequencia";
 import { resolverFrequenciaExtrato } from "@/lib/domain/atendimento-cadastro";
 import {
   calcularMetricaComparecimento,
@@ -400,4 +401,70 @@ export async function clearSessaoSigla(pacienteId: string, data: string): Promis
     .eq("paciente_id", pacienteId)
     .eq("data", data);
   if (error) throw error;
+}
+
+/** Sigla registrada na planilha para paciente + dia (null se não houver). */
+export async function fetchSessaoSiglaDia(
+  pacienteId: string,
+  data: string,
+): Promise<FrequenciaSigla | null> {
+  const { data: rows, error } = await supabase
+    .from("sessoes")
+    .select("sigla")
+    .eq("paciente_id", pacienteId)
+    .eq("data", data)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (error) throw error;
+  return (rows?.[0]?.sigla as FrequenciaSigla | undefined) ?? null;
+}
+
+/**
+ * Move a sigla de frequência quando o agendamento muda de dia.
+ * Se o dia destino já tiver marcação, só remove a antiga (não sobrescreve).
+ */
+export async function moveSessaoSiglaDia(input: {
+  pacienteId: string;
+  dataAntiga: string;
+  dataNova: string;
+  hora?: string | null;
+  fisioterapeutaId?: string | null;
+}): Promise<{ moved: boolean; clearedOnly: boolean }> {
+  const siglaOrigem = await fetchSessaoSiglaDia(input.pacienteId, input.dataAntiga);
+  const siglaDestino = await fetchSessaoSiglaDia(input.pacienteId, input.dataNova);
+  const plano = resolveMoveSessaoSiglaDia({ siglaOrigem, siglaDestino });
+
+  if (plano.acao === "none") return { moved: false, clearedOnly: false };
+
+  await clearSessaoSigla(input.pacienteId, input.dataAntiga);
+  if (plano.acao === "clear_only") return { moved: false, clearedOnly: true };
+
+  await upsertSessaoSigla({
+    pacienteId: input.pacienteId,
+    data: input.dataNova,
+    sigla: plano.sigla!,
+    fisioterapeutaId: input.fisioterapeutaId,
+    hora: input.hora,
+  });
+  return { moved: true, clearedOnly: false };
+}
+
+/** Atualiza hora/fisio da sigla existente no mesmo dia (remarcação só de horário). */
+export async function atualizarSessaoSiglaHora(input: {
+  pacienteId: string;
+  data: string;
+  hora?: string | null;
+  fisioterapeutaId?: string | null;
+}): Promise<boolean> {
+  const sigla = await fetchSessaoSiglaDia(input.pacienteId, input.data);
+  if (!sigla) return false;
+
+  await upsertSessaoSigla({
+    pacienteId: input.pacienteId,
+    data: input.data,
+    sigla,
+    fisioterapeutaId: input.fisioterapeutaId,
+    hora: input.hora,
+  });
+  return true;
 }

@@ -188,6 +188,29 @@ function formatCrefito(raw: string): string {
   return cleaned.startsWith("CREFITO") ? cleaned : `CREFITO: ${cleaned}`;
 }
 
+/** Formata lista de dias → "02, 06, 09 E 13" (padrão CB MOVE). */
+export function formatDiasAtendidos(dias: number[]): string {
+  const uniq = [...new Set(dias)]
+    .filter((d) => Number.isFinite(d) && d >= 1 && d <= 31)
+    .sort((a, b) => a - b)
+    .map((d) => String(d).padStart(2, "0"));
+  if (uniq.length === 0) return "";
+  if (uniq.length === 1) return uniq[0];
+  return `${uniq.slice(0, -1).join(", ")} E ${uniq[uniq.length - 1]}`;
+}
+
+/**
+ * Extrai a multiplicidade da sessão a partir de texto livre (ex.: frequencia_atendimento).
+ * Casa apenas as PALAVRAS duplo/triplo/quadruplo — evita falso-positivo com "2x semana".
+ */
+export function tipoSessaoDeTexto(texto: string | null | undefined): string {
+  const t = (texto ?? "").toLowerCase();
+  if (/quadr[úu]plo/.test(t)) return "quadruplo";
+  if (/triplo/.test(t)) return "triplo";
+  if (/dupl[oa]/.test(t)) return "duplo";
+  return "simples";
+}
+
 function multiplicidadeFromTipo(tipoSessao: string | null | undefined): number {
   const t = (tipoSessao ?? "simples").toLowerCase();
   if (t.includes("quadruplo") || t.includes("4x")) return 4;
