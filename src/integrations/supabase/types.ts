@@ -164,32 +164,50 @@ export type Database = {
       convenios: {
         Row: {
           ativo: boolean
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
+          codigo_municipio_ibge: number | null
           created_at: string
+          email_envio: string | null
           email_nf: string | null
+          endereco: string | null
           id: string
           nome: string
           razao_social: string | null
+          uf: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
+          codigo_municipio_ibge?: number | null
           created_at?: string
+          email_envio?: string | null
           email_nf?: string | null
+          endereco?: string | null
           id?: string
           nome: string
           razao_social?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
+          codigo_municipio_ibge?: number | null
           created_at?: string
+          email_envio?: string | null
           email_nf?: string | null
+          endereco?: string | null
           id?: string
           nome?: string
           razao_social?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -23,8 +23,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/configuracoes/convenios")({
@@ -38,30 +39,89 @@ type Convenio = {
   id: string;
   nome: string;
   ativo: boolean;
+  cnpj: string | null;
+  razao_social: string | null;
+  email_nf: string | null;
+  email_envio: string | null;
+  endereco: string | null;
+  cep: string | null;
+  cidade: string | null;
+  uf: string | null;
+  codigo_municipio_ibge: number | null;
   created_at: string;
 };
 
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function formatCnpjDisplay(cnpj: string | null | undefined): string {
+  const d = onlyDigits(cnpj ?? "");
+  if (d.length !== 14) return cnpj ?? "—";
+  return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
+function fiscalCompleto(c: Convenio): boolean {
+  return !!(c.cnpj && c.razao_social && c.email_nf);
+}
+
 // ─── schema ───────────────────────────────────────────────────────────────────
+
+const optionalEmail = z.string().email("E-mail inválido").optional().or(z.literal(""));
 
 const schema = z.object({
   nome: z.string().min(1, "Nome obrigatório"),
   ativo: z.boolean(),
+  cnpj: z.string().optional().refine(
+    (v) => !v || onlyDigits(v).length === 14,
+    "CNPJ deve ter 14 dígitos",
+  ),
+  razao_social: z.string().optional(),
+  email_nf: optionalEmail,
+  email_envio: optionalEmail,
+  endereco: z.string().optional(),
+  cep: z.string().optional(),
+  cidade: z.string().optional(),
+  uf: z.string().max(2, "UF com 2 letras").optional(),
+  codigo_municipio_ibge: z.string().optional().refine(
+    (v) => !v || /^\d{7}$/.test(v),
+    "Código IBGE com 7 dígitos",
+  ),
 });
 type FormValues = z.infer<typeof schema>;
+
+function toPayload(vals: FormValues) {
+  const ibge = vals.codigo_municipio_ibge?.trim();
+  return {
+    nome: vals.nome.trim(),
+    ativo: vals.ativo,
+    cnpj: vals.cnpj?.trim() ? onlyDigits(vals.cnpj) : null,
+    razao_social: vals.razao_social?.trim() || null,
+    email_nf: vals.email_nf?.trim() || null,
+    email_envio: vals.email_envio?.trim() || null,
+    endereco: vals.endereco?.trim() || null,
+    cep: vals.cep?.trim() ? onlyDigits(vals.cep) : null,
+    cidade: vals.cidade?.trim() || null,
+    uf: vals.uf?.trim().toUpperCase() || null,
+    codigo_municipio_ibge: ibge ? Number(ibge) : null,
+  };
+}
 
 // ─── queries ─────────────────────────────────────────────────────────────────
 
 async function fetchConvenios(): Promise<Convenio[]> {
   const { data, error } = await supabase
     .from("convenios")
-    .select("*")
+    .select(
+      "id, nome, ativo, cnpj, razao_social, email_nf, email_envio, endereco, cep, cidade, uf, codigo_municipio_ibge, created_at",
+    )
     .order("nome");
   if (error) throw error;
   return (data ?? []) as Convenio[];
 }
 
 async function upsertConvenio(id: string | null, vals: FormValues): Promise<void> {
-  const payload = { nome: vals.nome, ativo: vals.ativo };
+  const payload = toPayload(vals);
   if (id) {
     const { error } = await supabase.from("convenios").update(payload).eq("id", id);
     if (error) throw error;
@@ -74,6 +134,36 @@ async function upsertConvenio(id: string | null, vals: FormValues): Promise<void
 async function toggleAtivo(id: string, ativo: boolean): Promise<void> {
   const { error } = await supabase.from("convenios").update({ ativo }).eq("id", id);
   if (error) throw error;
+}
+
+const defaultForm: FormValues = {
+  nome: "",
+  ativo: true,
+  cnpj: "",
+  razao_social: "",
+  email_nf: "",
+  email_envio: "",
+  endereco: "",
+  cep: "",
+  cidade: "",
+  uf: "",
+  codigo_municipio_ibge: "",
+};
+
+function convenioToForm(c: Convenio): FormValues {
+  return {
+    nome: c.nome,
+    ativo: c.ativo,
+    cnpj: c.cnpj ? formatCnpjDisplay(c.cnpj) : "",
+    razao_social: c.razao_social ?? "",
+    email_nf: c.email_nf ?? "",
+    email_envio: c.email_envio ?? "",
+    endereco: c.endereco ?? "",
+    cep: c.cep ?? "",
+    cidade: c.cidade ?? "",
+    uf: c.uf ?? "",
+    codigo_municipio_ibge: c.codigo_municipio_ibge != null ? String(c.codigo_municipio_ibge) : "",
+  };
 }
 
 // ─── page ─────────────────────────────────────────────────────────────────────
@@ -90,7 +180,7 @@ function ConveniosPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { nome: "", ativo: true },
+    defaultValues: defaultForm,
   });
 
   const mutation = useMutation({
@@ -111,13 +201,13 @@ function ConveniosPage() {
 
   function openNew() {
     setEditing(null);
-    form.reset({ nome: "", ativo: true });
+    form.reset(defaultForm);
     setModalOpen(true);
   }
 
   function openEdit(c: Convenio) {
     setEditing(c);
-    form.reset({ nome: c.nome, ativo: c.ativo });
+    form.reset(convenioToForm(c));
     setModalOpen(true);
   }
 
@@ -131,7 +221,9 @@ function ConveniosPage() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Convênios</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gerencie os convênios ativos no sistema</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Cadastro fiscal para NFS-e (tomador) e envio de documentação
+          </p>
         </div>
         <Button onClick={openNew} className="gap-2">
           <Plus className="h-4 w-4" /> Novo convênio
@@ -157,6 +249,9 @@ function ConveniosPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>CNPJ</TableHead>
+                <TableHead>E-mails</TableHead>
+                <TableHead>Fiscal</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -165,16 +260,31 @@ function ConveniosPage() {
               {convenios.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.nome}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatCnpjDisplay(c.cnpj)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                    {c.email_envio ?? c.email_nf ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        fiscalCompleto(c)
+                          ? "border-emerald-500/40 text-emerald-800"
+                          : "border-cb-orange/40 text-cb-orange",
+                      )}
+                    >
+                      {fiscalCompleto(c) ? "Completo" : "Incompleto"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={c.ativo}
                         onCheckedChange={(v) => toggleMutation.mutate({ id: c.id, ativo: v })}
                       />
-                      <span className={cn(
-                        "text-xs",
-                        c.ativo ? "text-[#047857]" : "text-muted-foreground"
-                      )}>
+                      <span className={cn("text-xs", c.ativo ? "text-[#047857]" : "text-muted-foreground")}>
                         {c.ativo ? "Ativo" : "Inativo"}
                       </span>
                     </div>
@@ -198,9 +308,8 @@ function ConveniosPage() {
         </div>
       )}
 
-      {/* Modal */}
       <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar convênio" : "Novo convênio"}</DialogTitle>
           </DialogHeader>
@@ -210,6 +319,83 @@ function ConveniosPage() {
                 <FormItem>
                   <FormLabel>Nome *</FormLabel>
                   <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField control={form.control} name="cnpj" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CNPJ</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="00.000.000/0000-00" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="razao_social" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Razão social</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <FormField control={form.control} name="email_nf" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>E-mail tomador (NFS-e)</FormLabel>
+                  <FormControl><Input {...field} type="email" placeholder="tomador@convenio.com" /></FormControl>
+                  <FormDescription>Vai na nota fiscal enviada à Focus.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="email_envio" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>E-mail envio (documentação)</FormLabel>
+                  <FormControl><Input {...field} type="email" placeholder="logjur@convenio.com" /></FormControl>
+                  <FormDescription>Destino do e-mail/n8n. Se vazio, usa o e-mail tomador.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="endereco" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-3 gap-3">
+                <FormField control={form.control} name="cep" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CEP</FormLabel>
+                    <FormControl><Input {...field} placeholder="00000-000" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="cidade" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cidade</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="uf" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>UF</FormLabel>
+                    <FormControl><Input {...field} maxLength={2} placeholder="RS" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <FormField control={form.control} name="codigo_municipio_ibge" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Código município IBGE</FormLabel>
+                  <FormControl><Input {...field} placeholder="4314902" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
