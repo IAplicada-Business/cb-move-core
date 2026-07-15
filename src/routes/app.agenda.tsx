@@ -12,8 +12,8 @@ import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { FilterChip } from "@/components/domain/FilterChip";
 import { FisioHorariosDialog } from "@/components/domain/FisioHorariosDialog";
+import { PacientePlanoSessoesCard } from "@/components/domain/PacientePlanoSessoesCard";
 import { FrequenciaMensalGrid } from "@/components/domain/FrequenciaMensalGrid";
-import { RegistroFrequenciaButtons } from "@/components/domain/RegistroFrequenciaButtons";
 import { LoadingState } from "@/components/domain/LoadingState";
 import {
   agendamentoNoBloco,
@@ -28,7 +28,6 @@ import { queryKeys } from "@/lib/queries";
 import {
   fetchAgendamentoHistorico,
   remarcarAgendamento,
-  registrarSiglaFrequencia,
   updateAgendamentoStatus,
   contarEscopoRemanejamento,
   fetchAgendaAviso,
@@ -40,10 +39,21 @@ import {
   fetchFisioDisponibilidade,
   fetchFisioIndisponibilidade,
 } from "@/lib/queries/fisio-horarios";
+import { fetchSessaoSiglaDia } from "@/lib/queries/sessoes";
+import {
+  fetchAgendamentosAtivosPacienteMes,
+  fetchPlanoSessoesMensalPaciente,
+} from "@/lib/queries/plano-sessoes";
+import {
+  gerarSlotsFaltantesPlano,
+  montarPropostasAgendamento,
+} from "@/lib/domain/padrao-agenda-mensal";
+import { simularRemarcacaoImpacto } from "@/lib/domain/simular-remarcacao-impacto";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
-import type { FrequenciaSigla, PacienteTipo, StatusAgendamento } from "@/lib/types";
+import { parseSiglaHistorico, SIGLA_HINT } from "@/lib/domain/frequencia";
+import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +80,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, isoToHHMM, parseDDMMYYToISO } from "@/lib/format";
 
@@ -306,9 +317,27 @@ async function createAgendamento(input: {
   duracao_min: number;
   servico: string | null;
   status: StatusAgendamento;
+  serie_id?: string | null;
 }): Promise<void> {
   const { error } = await supabase.from("agendamentos").insert(input);
   if (error) throw error;
+}
+
+async function createAgendamentosLote(
+  inputs: Array<{
+    paciente_id: string | null;
+    fisioterapeuta_id: string;
+    inicio: string;
+    duracao_min: number;
+    servico: string | null;
+    status: StatusAgendamento;
+    serie_id?: string | null;
+  }>,
+): Promise<number> {
+  if (inputs.length === 0) return 0;
+  const { error } = await supabase.from("agendamentos").insert(inputs);
+  if (error) throw error;
+  return inputs.length;
 }
 
 async function updateStatus(
@@ -410,6 +439,7 @@ const schema = z
     duracao: z.coerce.number().min(15),
     servico: z.string().nullable().optional(),
     statusSlot: z.enum(["agendado", "indisponivel", "ferias", "horario_extra"]),
+    agendarSerieMesmoDia: z.boolean().optional().default(false),
   })
   .superRefine((data, ctx) => {
     if (data.statusSlot === "agendado" && !data.pacienteId?.trim()) {
@@ -527,6 +557,111 @@ function AgendaPage() {
     enabled: !!selectedAgend?.id,
   });
 
+  const competenciaAgend = useMemo(() => {
+    if (!selectedAgend?.inicio) return null;
+    const d = new Date(selectedAgend.inicio);
+    return { mes: d.getMonth() + 1, ano: d.getFullYear() };
+  }, [selectedAgend?.inicio]);
+
+  const { data: planoSessoesMensal } = useQuery({
+    queryKey: queryKeys.sessoes.planoMensal(
+      selectedAgend?.paciente_id ?? "",
+      competenciaAgend?.mes ?? 0,
+      competenciaAgend?.ano ?? 0,
+    ),
+    queryFn: () =>
+      fetchPlanoSessoesMensalPaciente(
+        selectedAgend!.paciente_id!,
+        competenciaAgend!.mes,
+        competenciaAgend!.ano,
+      ),
+    enabled: !!selectedAgend?.paciente_id && !!competenciaAgend,
+  });
+
+  const dataRemarcarOrigem = remarcarTarget?.inicio.slice(0, 10) ?? "";
+  const dataRemarcarDestino = useMemo(() => parseDDMMYYToISO(remarcarDataWatch) ?? "", [remarcarDataWatch]);
+
+  const { data: siglaDiaRemarcar = null } = useQuery({
+    queryKey: queryKeys.sessoes.siglaDia(remarcarTarget?.paciente_id ?? "", dataRemarcarOrigem),
+    queryFn: () => fetchSessaoSiglaDia(remarcarTarget!.paciente_id!, dataRemarcarOrigem),
+    enabled: remarcarOpen && !!remarcarTarget?.paciente_id && !!dataRemarcarOrigem,
+  });
+
+  const { data: siglaDiaRemarcarDestino = null } = useQuery({
+    queryKey: queryKeys.sessoes.siglaDia(remarcarTarget?.paciente_id ?? "", dataRemarcarDestino),
+    queryFn: () => fetchSessaoSiglaDia(remarcarTarget!.paciente_id!, dataRemarcarDestino),
+    enabled:
+      remarcarOpen &&
+      !!remarcarTarget?.paciente_id &&
+      !!dataRemarcarDestino &&
+      dataRemarcarDestino !== dataRemarcarOrigem,
+  });
+
+  const competenciaRemarcar = useMemo(() => {
+    if (!remarcarTarget?.inicio) return null;
+    const d = new Date(remarcarTarget.inicio);
+    return { mes: d.getMonth() + 1, ano: d.getFullYear() };
+  }, [remarcarTarget?.inicio]);
+
+  const { data: planoRemarcar } = useQuery({
+    queryKey: queryKeys.sessoes.planoMensal(
+      remarcarTarget?.paciente_id ?? "",
+      competenciaRemarcar?.mes ?? 0,
+      competenciaRemarcar?.ano ?? 0,
+    ),
+    queryFn: () =>
+      fetchPlanoSessoesMensalPaciente(
+        remarcarTarget!.paciente_id!,
+        competenciaRemarcar!.mes,
+        competenciaRemarcar!.ano,
+      ),
+    enabled: remarcarOpen && !!remarcarTarget?.paciente_id && !!competenciaRemarcar,
+  });
+
+  const { data: agendamentosRemarcar = [] } = useQuery({
+    queryKey: [
+      "agendamentos-plano-mes",
+      remarcarTarget?.paciente_id,
+      competenciaRemarcar?.mes,
+      competenciaRemarcar?.ano,
+    ],
+    queryFn: () =>
+      fetchAgendamentosAtivosPacienteMes(
+        remarcarTarget!.paciente_id!,
+        competenciaRemarcar!.mes,
+        competenciaRemarcar!.ano,
+      ),
+    enabled: remarcarOpen && !!remarcarTarget?.paciente_id && !!competenciaRemarcar,
+  });
+
+  const impactoRemarcar = useMemo(() => {
+    if (!remarcarTarget || !remarcarPreview || !planoRemarcar) return null;
+    return simularRemarcacaoImpacto({
+      plano: {
+        mes: planoRemarcar.mes,
+        ano: planoRemarcar.ano,
+        frequenciaLabel: planoRemarcar.frequenciaLabel,
+        diasSemanaLabel: planoRemarcar.diasSemanaLabel,
+        qtdSessoesCobranca: planoRemarcar.quantidadeMensal,
+      },
+      agendamentos: agendamentosRemarcar,
+      origem: {
+        id: remarcarTarget.id,
+        inicio: remarcarTarget.inicio,
+        status: remarcarTarget.status,
+        serie_id: remarcarTarget.serie_id,
+      },
+      novoInicio: remarcarPreview.novoInicio,
+      escopo: remarcarEscopoWatch,
+    });
+  }, [
+    remarcarTarget,
+    remarcarPreview,
+    planoRemarcar,
+    agendamentosRemarcar,
+    remarcarEscopoWatch,
+  ]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -537,34 +672,138 @@ function AgendaPage() {
       duracao: 50,
       servico: "Fisioterapia neurológica",
       statusSlot: "agendado",
+      agendarSerieMesmoDia: false,
     },
   });
 
   const statusSlotWatch = form.watch("statusSlot");
+  const pacienteIdWatch = form.watch("pacienteId");
+  const dataWatch = form.watch("data");
+  const agendarSerieWatch = form.watch("agendarSerieMesmoDia");
   const isMarcacaoSlot = STATUS_SLOT.includes(statusSlotWatch as StatusAgendamento);
+
+  const competenciaNovoAg = useMemo(() => {
+    const iso = parseDDMMYYToISO(dataWatch);
+    if (!iso) return null;
+    const d = new Date(`${iso}T12:00:00`);
+    return { mes: d.getMonth() + 1, ano: d.getFullYear() };
+  }, [dataWatch]);
+
+  const { data: planoNovoAg } = useQuery({
+    queryKey: queryKeys.sessoes.planoMensal(
+      pacienteIdWatch,
+      competenciaNovoAg?.mes ?? 0,
+      competenciaNovoAg?.ano ?? 0,
+    ),
+    queryFn: () =>
+      fetchPlanoSessoesMensalPaciente(
+        pacienteIdWatch,
+        competenciaNovoAg!.mes,
+        competenciaNovoAg!.ano,
+      ),
+    enabled: modalOpen && !isMarcacaoSlot && !!pacienteIdWatch && !!competenciaNovoAg,
+  });
+
+  const horaInicioWatch = form.watch("horaInicio");
+  const duracaoWatch = form.watch("duracao");
+
+  const propostasSeriePlano = useMemo(() => {
+    if (!planoNovoAg || planoNovoAg.faltantes <= 0) return [];
+    const iso = parseDDMMYYToISO(dataWatch);
+    if (!iso) return [];
+
+    const slots = gerarSlotsFaltantesPlano({
+      mes: planoNovoAg.mes,
+      ano: planoNovoAg.ano,
+      quantidadeMensal: planoNovoAg.quantidadeMensal ?? planoNovoAg.agendadasNoPlano + planoNovoAg.faltantes,
+      diasSemana: planoNovoAg.diasSemanaLabel,
+      frequenciaAtendimento: planoNovoAg.frequenciaLabel,
+      agendamentosExistentes: planoNovoAg.agendamentosInicioMes.map((inicio) => ({ inicio })),
+      dataAncoraIso: iso,
+    });
+
+    return montarPropostasAgendamento({
+      slots,
+      horaBase: horaInicioWatch || "08:00",
+      duracaoMin: duracaoWatch || 50,
+    });
+  }, [planoNovoAg, dataWatch, horaInicioWatch, duracaoWatch]);
+
+  const podeAgendarSerie = !isMarcacaoSlot && propostasSeriePlano.length > 1;
 
   const invalidateAgenda = () => {
     qc.invalidateQueries({ queryKey: queryKeys.agendamentos.all });
   };
 
   const createMutation = useMutation({
-    mutationFn: (vals: FormValues) => {
+    mutationFn: async (vals: FormValues) => {
       const isoDate = parseDDMMYYToISO(vals.data);
       if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
       const isSlot = STATUS_SLOT.includes(vals.statusSlot);
-      return createAgendamento({
-        paciente_id: isSlot ? null : vals.pacienteId || null,
-        fisioterapeuta_id: vals.fisioId,
-        inicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
-        duracao_min: vals.duracao,
-        servico: isSlot ? null : vals.servico || null,
-        status: vals.statusSlot,
-      });
+
+      if (isSlot) {
+        await createAgendamento({
+          paciente_id: null,
+          fisioterapeuta_id: vals.fisioId,
+          inicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
+          duracao_min: vals.duracao,
+          servico: null,
+          status: vals.statusSlot,
+        });
+        return { criados: 1 };
+      }
+
+      const usarSerie =
+        vals.agendarSerieMesmoDia &&
+        !!vals.pacienteId &&
+        planoNovoAg &&
+        propostasSeriePlano.length > 0;
+
+      if (usarSerie) {
+        const serieId = propostasSeriePlano.length > 1 ? crypto.randomUUID() : null;
+        const criados = await createAgendamentosLote(
+          propostasSeriePlano.map((p) => ({
+            paciente_id: vals.pacienteId || null,
+            fisioterapeuta_id: vals.fisioId,
+            inicio: `${p.dataIso}T${p.horaInicio}:00-03:00`,
+            duracao_min: vals.duracao,
+            servico: vals.servico || null,
+            status: vals.statusSlot,
+            serie_id: serieId,
+          })),
+        );
+        return { criados };
+      }
+
+      const criados = await createAgendamentosLote([
+        {
+          paciente_id: vals.pacienteId || null,
+          fisioterapeuta_id: vals.fisioId,
+          inicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
+          duracao_min: vals.duracao,
+          servico: vals.servico || null,
+          status: vals.statusSlot,
+        },
+      ]);
+      return { criados };
     },
-    onSuccess: (_data, vals) => {
+    onSuccess: (result, vals) => {
       invalidateAgenda();
+      if (vals.pacienteId && competenciaNovoAg) {
+        qc.invalidateQueries({
+          queryKey: queryKeys.sessoes.planoMensal(
+            vals.pacienteId,
+            competenciaNovoAg.mes,
+            competenciaNovoAg.ano,
+          ),
+        });
+      }
       toast.success(
-        STATUS_SLOT.includes(vals.statusSlot) ? "Slot atualizado" : "Agendamento criado",
+        STATUS_SLOT.includes(vals.statusSlot)
+          ? "Slot atualizado"
+          : result.criados > 1
+            ? `${result.criados} agendamentos criados`
+            : "Agendamento criado",
       );
       form.reset({
         pacienteId: "",
@@ -574,6 +813,7 @@ function AgendaPage() {
         duracao: 50,
         servico: "Fisioterapia neurológica",
         statusSlot: "agendado",
+        agendarSerieMesmoDia: false,
       });
       setModalOpen(false);
     },
@@ -588,6 +828,15 @@ function AgendaPage() {
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
       qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
       qc.invalidateQueries({ queryKey: ["prontuario"] });
+      if (selectedAgend?.paciente_id && competenciaAgend) {
+        qc.invalidateQueries({
+          queryKey: queryKeys.sessoes.planoMensal(
+            selectedAgend.paciente_id,
+            competenciaAgend.mes,
+            competenciaAgend.ano,
+          ),
+        });
+      }
       if (vars.status === "cancelado") {
         toast.success("Agendamento cancelado — horário liberado");
         setConfirmCancelOpen(false);
@@ -614,27 +863,6 @@ function AgendaPage() {
     });
   }
 
-  const siglaMutation = useMutation({
-    mutationFn: ({ id, sigla }: { id: string; sigla: FrequenciaSigla }) =>
-      registrarSiglaFrequencia(id, sigla, user?.id ?? null),
-    onSuccess: (_data, vars) => {
-      invalidateAgenda();
-      qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
-      qc.invalidateQueries({ queryKey: ["prontuario"] });
-      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
-      toast.success(`Frequência registrada: ${vars.sigla}`);
-      setSelectedAgend((prev) => {
-        if (!prev || prev.id !== vars.id) return prev;
-        const statusAlvo = vars.sigla === "P" || vars.sigla === "RC" ? "realizado" : "faltou";
-        if (["agendado", "confirmado", "realizado", "faltou"].includes(prev.status)) {
-          return { ...prev, status: statusAlvo };
-        }
-        return prev;
-      });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const remarcarMutation = useMutation({
     mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) => {
       const isoDate = parseDDMMYYToISO(vals.data);
@@ -653,7 +881,28 @@ function AgendaPage() {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
       qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
-      toast.success(result.count > 1 ? `${result.count} horários remarcados` : "Agendamento remarcado");
+      if (remarcarTarget?.paciente_id) {
+        const d = new Date(remarcarTarget.inicio);
+        qc.invalidateQueries({
+          queryKey: queryKeys.sessoes.planoMensal(
+            remarcarTarget.paciente_id,
+            d.getMonth() + 1,
+            d.getFullYear(),
+          ),
+        });
+      }
+      if (result.count > 1) {
+        toast.success(`${result.count} horários remarcados`);
+      } else {
+        toast.success("Agendamento remarcado");
+      }
+      if (result.frequenciaPerdidaCount > 0) {
+        toast.warning(
+          result.frequenciaPerdidaCount === 1
+            ? "A frequência de 1 dia foi removida — o novo dia já tinha outra marcação na planilha."
+            : `A frequência de ${result.frequenciaPerdidaCount} dias foi removida — os dias destino já tinham marcação na planilha.`,
+        );
+      }
       setRemarcarOpen(false);
       setRemarcarTarget(null);
 
@@ -707,6 +956,13 @@ function AgendaPage() {
   }
 
   function labelHistorico(item: HistoricoRow) {
+    const siglaAnterior = parseSiglaHistorico(item.status_anterior);
+    const siglaNova = parseSiglaHistorico(item.status_novo);
+    if (siglaAnterior || siglaNova) {
+      const de = siglaAnterior ? `${siglaAnterior} (${SIGLA_HINT[siglaAnterior]})` : "—";
+      const para = siglaNova ? `${siglaNova} (${SIGLA_HINT[siglaNova]})` : "—";
+      return `Frequência: ${de} → ${para}`;
+    }
     if (item.acao === "remanejamento") {
       const de = item.inicio_anterior ? formatDateTimeDDMMYY(item.inicio_anterior) : "—";
       const para = item.inicio_novo ? formatDateTimeDDMMYY(item.inicio_novo) : "—";
@@ -800,6 +1056,7 @@ function AgendaPage() {
       duracao: 50,
       servico: "Fisioterapia neurológica",
       statusSlot: "agendado",
+      agendarSerieMesmoDia: false,
     });
     setModalOpen(true);
   }
@@ -1179,13 +1436,14 @@ function AgendaPage() {
       />
 
       <Sheet open={!!selectedAgend} onOpenChange={(o) => { if (!o) setSelectedAgend(null); }}>
-        <SheetContent>
+        <SheetContent className="flex h-full w-full flex-col overflow-hidden sm:max-w-md">
           {selectedAgend && (
             <>
-              <SheetHeader>
+              <SheetHeader className="shrink-0">
                 <SheetTitle>Agendamento</SheetTitle>
               </SheetHeader>
-              <div className="mt-4 space-y-3 text-sm">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="mt-4 space-y-3 pb-4 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Paciente</p>
                   <p className="font-medium">{selectedAgend.pacientes?.nome ?? "—"}</p>
@@ -1213,6 +1471,44 @@ function AgendaPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Serviço</p>
                     <p>{selectedAgend.servico}</p>
+                  </div>
+                )}
+
+                {podeGerir && selectedAgend.paciente_id && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                  <div className="space-y-2 border-t pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Registro de sessão
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        size="sm"
+                        disabled={statusMutation.isPending}
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: selectedAgend.id,
+                            status: "realizado",
+                            anterior: selectedAgend.status,
+                          })
+                        }
+                      >
+                        Compareceu
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                        disabled={statusMutation.isPending}
+                        onClick={() =>
+                          statusMutation.mutate({
+                            id: selectedAgend.id,
+                            status: "faltou",
+                            anterior: selectedAgend.status,
+                          })
+                        }
+                      >
+                        Não compareceu
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -1252,23 +1548,6 @@ function AgendaPage() {
                     >
                       Remarcar
                     </Button>
-                  </div>
-                )}
-
-                {podeGerir && selectedAgend.paciente_id && ["agendado", "confirmado", "realizado", "faltou"].includes(selectedAgend.status) && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Frequência do dia
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Atualiza a planilha (aba Frequência) e o status do agendamento quando aplicável.
-                    </p>
-                    <RegistroFrequenciaButtons
-                      disabled={siglaMutation.isPending}
-                      onSelect={(sigla) =>
-                        siglaMutation.mutate({ id: selectedAgend.id, sigla })
-                      }
-                    />
                   </div>
                 )}
 
@@ -1333,6 +1612,13 @@ function AgendaPage() {
                   </div>
                 )}
 
+                {selectedAgend.paciente_id && planoSessoesMensal && (
+                  <PacientePlanoSessoesCard
+                    resumo={planoSessoesMensal}
+                    agendamentoAtualId={selectedAgend.id}
+                  />
+                )}
+
                 <div className="space-y-2 border-t pt-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Histórico
@@ -1352,6 +1638,7 @@ function AgendaPage() {
                     </ul>
                   )}
                 </div>
+              </div>
               </div>
             </>
           )}
@@ -1410,6 +1697,13 @@ function AgendaPage() {
                       A data cai em outra semana — após confirmar, a agenda abrirá nessa semana.
                     </p>
                   )}
+                  {siglaDiaRemarcar && remarcarPreview && remarcarPreview.deltaDias !== 0 && (
+                    <p className="text-cb-orange font-medium">
+                      {siglaDiaRemarcarDestino
+                        ? `Este dia tem frequência (${siglaDiaRemarcar}) — ao remarcar, ela será removida porque o novo dia já tem ${siglaDiaRemarcarDestino}.`
+                        : `Este dia tem frequência marcada (${siglaDiaRemarcar}) — ela será movida para o novo dia${remarcarPreview.cruzaSemana ? " (outra semana na planilha)" : ""}.`}
+                    </p>
+                  )}
                   {remarcarEscopoWatch !== "pontual" && contagensEscopo && (
                     <p className="text-muted-foreground">
                       Escopo &quot;{remarcarEscopoWatch}&quot;:{" "}
@@ -1419,6 +1713,24 @@ function AgendaPage() {
                       horário(s) serão deslocados pelo mesmo intervalo.
                     </p>
                   )}
+                </div>
+              )}
+
+              {impactoRemarcar?.usaSlots && impactoRemarcar.avisos.length > 0 && (
+                <div className="rounded-lg border border-cb-orange/40 bg-cb-orange/5 px-3 py-2.5 text-xs space-y-1">
+                  <p className="font-medium text-cb-orange">Impacto no plano mensal</p>
+                  {impactoRemarcar.avisos.map((aviso) => (
+                    <p
+                      key={aviso}
+                      className={
+                        aviso.includes("fora dos dias do plano")
+                          ? "text-cb-orange font-medium"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {aviso}
+                    </p>
+                  ))}
                 </div>
               )}
 
@@ -1530,7 +1842,13 @@ function AgendaPage() {
                 <FormField control={form.control} name="pacienteId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paciente *</FormLabel>
-                    <Select value={field.value || undefined} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        form.setValue("agendarSerieMesmoDia", false);
+                      }}
+                    >
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
                       <SelectContent className="max-h-60">
                         {pacientes.map((p) => (
@@ -1538,9 +1856,66 @@ function AgendaPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {planoNovoAg && field.value && (
+                      <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-1">
+                        <p className="font-medium text-foreground">
+                          Plano do mês: {planoNovoAg.quantidadeExibicao}
+                          {planoNovoAg.frequenciaLabel ? ` · ${planoNovoAg.frequenciaLabel}` : ""}
+                        </p>
+                        {planoNovoAg.diasSemanaLabel && (
+                          <p className="text-muted-foreground">{planoNovoAg.diasSemanaLabel}</p>
+                        )}
+                        <p className="text-muted-foreground">
+                          {planoNovoAg.agendadasNoPlano} no plano
+                          {planoNovoAg.faltantes > 0
+                            ? ` · ${planoNovoAg.faltantes} faltante${planoNovoAg.faltantes === 1 ? "" : "s"}`
+                            : " · plano completo"}
+                        </p>
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )} />
+              )}
+
+              {!isMarcacaoSlot && podeAgendarSerie && (
+                <FormField
+                  control={form.control}
+                  name="agendarSerieMesmoDia"
+                  render={({ field }) => (
+                    <FormItem className="rounded-md border border-dashed px-3 py-3">
+                      <div className="flex items-start gap-3">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(v) => field.onChange(v === true)}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="font-medium cursor-pointer">
+                            Agendar {propostasSeriePlano.length} sessões faltantes do plano neste mês
+                          </FormLabel>
+                          <p className="text-xs text-muted-foreground">
+                            {planoNovoAg.diasSemanaLabel
+                              ? `Padrão: ${planoNovoAg.diasSemanaLabel}`
+                              : "Padrão: mesmo dia da semana da data escolhida"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {propostasSeriePlano.slice(0, 4).map((p) => `${formatDateDDMMYY(p.dataIso)} ${p.horaInicio}`).join(" · ")}
+                            {propostasSeriePlano.length > 4
+                              ? ` · +${propostasSeriePlano.length - 4} horários`
+                              : ""}
+                          </p>
+                          {!planoNovoAg.diasSemanaLabel && (
+                            <p className="text-xs text-cb-orange font-medium">
+                              Cadastre os dias da semana no paciente para montar o plano completo (ex.: 2ª e 5ª triplos).
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               )}
 
               <FormField control={form.control} name="fisioId" render={({ field }) => (
@@ -1613,7 +1988,9 @@ function AgendaPage() {
                     ? "Salvando…"
                     : isMarcacaoSlot
                       ? "Marcar slot"
-                      : "Criar"}
+                      : agendarSerieWatch && propostasSeriePlano.length > 1
+                        ? `Criar ${propostasSeriePlano.length} agendamentos`
+                        : "Criar"}
                 </Button>
               </DialogFooter>
             </form>

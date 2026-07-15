@@ -54,11 +54,11 @@ export function Sidebar() {
   const userRole = roles[0] ? ROLE_LABELS[roles[0]] : "Sem perfil";
 
   return (
-    <aside className="relative flex h-svh max-h-svh w-[268px] shrink-0 flex-col overflow-hidden border-r bg-sidebar">
+    <aside className="relative flex h-screen w-[268px] shrink-0 flex-col border-r bg-sidebar">
       <div className="cb-rainbow-strip absolute inset-x-0 top-0 h-[3px]" />
 
       {/* Brand */}
-      <div className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-6">
+      <div className="flex items-center gap-3 px-5 pb-4 pt-6">
         <div className="cb-pin-halo grid h-11 w-11 place-items-center rounded-full p-[2px]">
           <div className="grid h-full w-full place-items-center rounded-full bg-white text-cb-cyan-600">
             <span className="text-xl font-bold leading-none">∞</span>
@@ -71,7 +71,7 @@ export function Sidebar() {
       </div>
 
       {/* Toggle */}
-      <div className="mx-4 mb-3 grid shrink-0 grid-cols-2 rounded-md border bg-muted p-0.5 text-xs">
+      <div className="mx-4 mb-3 grid grid-cols-2 rounded-md border bg-muted p-0.5 text-xs">
         {(["admin", "paciente"] as const).map((m) => (
           <button
             key={m}
@@ -88,7 +88,7 @@ export function Sidebar() {
       </div>
 
       {/* Groups */}
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <nav className="flex-1 overflow-y-auto px-2 pb-2">
         {GROUPS.map((g) => (
           <div key={g.id} className="mb-1">
             <button
@@ -132,8 +132,8 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer / user — sempre no rodapé */}
-      <div className="mt-auto shrink-0 border-t bg-sidebar p-3">
+      {/* Footer / user */}
+      <div className="border-t p-3">
         <div className="flex items-center gap-2.5">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">
             {initials(userName)}

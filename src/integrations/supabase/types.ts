@@ -1077,6 +1077,17 @@ export type Database = {
           sessoes: number
         }[]
       }
+      remarcar_agendamentos_lote: {
+        Args: {
+          p_agendamento_id: string
+          p_duracao_min?: number | null
+          p_escopo: string
+          p_novo_fisio_id?: string | null
+          p_novo_inicio: string
+          p_usuario_id?: string | null
+        }
+        Returns: Json
+      }
       resolver_destinatario_nf: {
         Args: { p_cobranca_id: string }
         Returns: Json

@@ -30,6 +30,10 @@ export const queryKeys = {
       ["sessoes", "comparecimento", pacienteId, mes, ano] as const,
     comparecimentoHistorico: (pacienteId: string, meses: number) =>
       ["sessoes", "comparecimento", "historico", pacienteId, meses] as const,
+    siglaDia: (pacienteId: string, data: string) =>
+      ["sessoes", "siglaDia", pacienteId, data] as const,
+    planoMensal: (pacienteId: string, mes: number, ano: number) =>
+      ["sessoes", "planoMensal", pacienteId, mes, ano] as const,
   },
   relatorios: {
     all: ["relatorios_atendimento"] as const,

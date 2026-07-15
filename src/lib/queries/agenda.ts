@@ -1,6 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import { statusAgendamentoFromSigla, deveEspelharSiglaStatus, siglaEspelhoFromStatus, formatSiglaHistorico } from "@/lib/domain/frequencia";
 import type { FrequenciaSigla, StatusAgendamento } from "@/lib/types";
-import { upsertSessaoSigla, clearSessaoSigla } from "@/lib/queries/sessoes";
+import {
+  upsertSessaoSigla,
+  clearSessaoSigla,
+  fetchSessaoSiglaDia,
+} from "@/lib/queries/sessoes";
 
 export type EscopoRemanejamento = "pontual" | "semana" | "serie_mes";
 
@@ -100,7 +105,9 @@ export async function updateAgendamentoStatus(
   status: StatusAgendamento,
   usuarioId?: string | null,
   statusAnterior?: StatusAgendamento,
+  options?: { mirrorSessoes?: boolean },
 ): Promise<void> {
+  const mirrorSessoes = options?.mirrorSessoes !== false;
   const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id);
   if (error) throw error;
 
@@ -124,16 +131,22 @@ export async function updateAgendamentoStatus(
     const data = ag.inicio.slice(0, 10);
     const hora = horaFromAgendamentoInicio(ag.inicio);
 
-    if (status === "realizado" || status === "faltou") {
-      await upsertSessaoSigla({
-        pacienteId: ag.paciente_id,
-        data,
-        sigla: status === "realizado" ? "P" : "F",
-        fisioterapeutaId: ag.fisioterapeuta_id,
-        hora,
-      });
-    } else if (statusAnterior === "realizado" || statusAnterior === "faltou") {
-      await clearSessaoSigla(ag.paciente_id, data);
+    if (mirrorSessoes) {
+      if (status === "realizado" || status === "faltou") {
+        const siglaAlvo = siglaEspelhoFromStatus(status)!;
+        const siglaExistente = await fetchSessaoSiglaDia(ag.paciente_id, data);
+        if (deveEspelharSiglaStatus(siglaExistente, siglaAlvo)) {
+          await upsertSessaoSigla({
+            pacienteId: ag.paciente_id,
+            data,
+            sigla: siglaAlvo,
+            fisioterapeutaId: ag.fisioterapeuta_id,
+            hora,
+          });
+        }
+      } else if (statusAnterior === "realizado" || statusAnterior === "faltou") {
+        await clearSessaoSigla(ag.paciente_id, data);
+      }
     }
   }
 }
@@ -204,6 +217,12 @@ export async function contarEscopoRemanejamento(
   return afetados.length;
 }
 
+type RemarcarLoteResult = {
+  count: number;
+  primeiro_novo_id: string | null;
+  frequencia_perdida_count: number;
+};
+
 export async function remarcarAgendamento(params: {
   agendamentoId: string;
   novoInicio: string;
@@ -211,86 +230,27 @@ export async function remarcarAgendamento(params: {
   duracaoMin?: number;
   escopo: EscopoRemanejamento;
   usuarioId?: string | null;
-}): Promise<{ count: number; primeiroNovoId: string | null }> {
+}): Promise<{ count: number; primeiroNovoId: string | null; frequenciaPerdidaCount: number }> {
   const { agendamentoId, novoInicio, novoFisioId, duracaoMin, escopo, usuarioId } = params;
 
-  const { data: origem, error: origErr } = await supabase
-    .from("agendamentos")
-    .select("id, paciente_id, fisioterapeuta_id, inicio, duracao_min, servico, status, serie_id")
-    .eq("id", agendamentoId)
-    .single();
-  if (origErr) throw origErr;
-  if (!origem.paciente_id) throw new Error("Agendamento sem paciente");
+  const { data, error } = await supabase.rpc("remarcar_agendamentos_lote", {
+    p_agendamento_id: agendamentoId,
+    p_novo_inicio: novoInicio,
+    p_escopo: escopo,
+    p_novo_fisio_id: novoFisioId ?? null,
+    p_duracao_min: duracaoMin ?? null,
+    p_usuario_id: usuarioId ?? null,
+  });
+  if (error) throw error;
 
-  const origemRow = origem as AgendamentoRow;
-  if (!STATUS_ATIVOS.includes(origemRow.status)) {
-    throw new Error("Só é possível remarcar agendamentos ativos (agendado ou confirmado)");
-  }
+  const result = data as RemarcarLoteResult | null;
+  if (!result) throw new Error("Remarcação não retornou resultado");
 
-  const deltaMs = new Date(novoInicio).getTime() - new Date(origemRow.inicio).getTime();
-  const fisioDestino = novoFisioId ?? origemRow.fisioterapeuta_id;
-  const duracao = duracaoMin ?? origemRow.duracao_min;
-
-  let afetados: AgendamentoRow[] = await buscarCandidatosEscopo(origemRow, escopo);
-
-  const db = supabase as any;
-  let count = 0;
-  let primeiroNovoId: string | null = null;
-
-  for (const ag of afetados) {
-    const novoInicioAg = new Date(new Date(ag.inicio).getTime() + deltaMs).toISOString();
-
-    const { data: novo, error: insErr } = await db
-      .from("agendamentos")
-      .insert({
-        paciente_id: ag.paciente_id,
-        fisioterapeuta_id: fisioDestino,
-        inicio: novoInicioAg,
-        duracao_min: duracao,
-        servico: ag.servico,
-        status: "agendado",
-        serie_id: ag.serie_id,
-        remarcado_de_id: ag.id,
-        canal_origem: "remanejamento",
-      })
-      .select("id")
-      .single();
-    if (insErr) throw insErr;
-
-    const { error: updErr } = await supabase
-      .from("agendamentos")
-      .update({ status: "remarcacao" as StatusAgendamento, remarcado_para_id: novo.id })
-      .eq("id", ag.id);
-    if (updErr) throw updErr;
-
-    await insertHistorico({
-      agendamento_id: ag.id,
-      acao: "remanejamento",
-      status_anterior: ag.status,
-      status_novo: "remarcacao",
-      inicio_anterior: ag.inicio,
-      inicio_novo: novoInicioAg,
-      escopo,
-      usuario_id: usuarioId ?? null,
-    });
-
-    await insertHistorico({
-      agendamento_id: novo.id,
-      acao: "remanejamento",
-      status_anterior: ag.status,
-      status_novo: "agendado",
-      inicio_anterior: ag.inicio,
-      inicio_novo: novoInicioAg,
-      escopo,
-      usuario_id: usuarioId ?? null,
-    });
-
-    if (!primeiroNovoId) primeiroNovoId = novo.id as string;
-
-    count += 1;
-  }
-
-  return { count, primeiroNovoId };
+  return {
+    count: result.count,
+    primeiroNovoId: result.primeiro_novo_id,
+    frequenciaPerdidaCount: result.frequencia_perdida_count,
+  };
 }
 
 /** Registra sigla na planilha de frequência (sessoes) a partir do agendamento. */
@@ -309,6 +269,7 @@ export async function registrarSiglaFrequencia(
 
   const data = ag.inicio.slice(0, 10);
   const hora = horaFromAgendamentoInicio(ag.inicio);
+  const siglaAnterior = await fetchSessaoSiglaDia(ag.paciente_id, data);
 
   await upsertSessaoSigla({
     pacienteId: ag.paciente_id,
@@ -318,13 +279,24 @@ export async function registrarSiglaFrequencia(
     hora,
   });
 
-  const statusAlvo: StatusAgendamento =
-    sigla === "P" || sigla === "RC" ? "realizado" : "faltou";
+  if (siglaAnterior !== sigla) {
+    await insertHistorico({
+      agendamento_id: agendamentoId,
+      acao: "status",
+      status_anterior: siglaAnterior ? formatSiglaHistorico(siglaAnterior) : null,
+      status_novo: formatSiglaHistorico(sigla),
+      usuario_id: usuarioId ?? null,
+    });
+  }
+
+  const statusAlvo = statusAgendamentoFromSigla(sigla);
   const anterior = ag.status as StatusAgendamento;
   const podeSyncStatus = ["agendado", "confirmado", "realizado", "faltou"].includes(anterior);
 
   if (podeSyncStatus && anterior !== statusAlvo) {
-    await updateAgendamentoStatus(agendamentoId, statusAlvo, usuarioId, anterior);
+    await updateAgendamentoStatus(agendamentoId, statusAlvo, usuarioId, anterior, {
+      mirrorSessoes: false,
+    });
   }
 }
 
