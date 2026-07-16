@@ -3,6 +3,12 @@ project_id = "grlkbtnwvxorlfglyzid"
 [functions.focus-nfe-webhook]
 verify_jwt = false
 
+[functions.cora-webhook]
+verify_jwt = false
+
+[functions.cora-verificar-pagamentos]
+verify_jwt = false
+
 [functions.transcribe-audio]
 verify_jwt = true
 

@@ -145,6 +145,54 @@ export async function createCoraInvoice(
   });
 }
 
+/**
+ * Consulta boleto — GET /v2/invoices/{id}. Usado para reconfirmar o status real
+ * (nunca confiar apenas no corpo do webhook — ver docs/notas_spike_cora_stage.md).
+ * @see https://developers.cora.com.br/reference/consultar-boletos-v2
+ */
+export async function getCoraInvoice(
+  config: CoraConfig,
+  token: string,
+  invoiceId: string,
+): Promise<Response> {
+  const url = `${config.apiBase}${CORA_INVOICES_PATH}/${invoiceId}`;
+  const headers = { Authorization: `Bearer ${token}` };
+
+  if (config.mode === "direct") {
+    const client = createMtlsClient(config.certificate, config.privateKey);
+    return fetch(url, { headers, client });
+  }
+
+  return fetch(url, { headers });
+}
+
+/**
+ * Paga um boleto em ambiente de Stage — endpoint exclusivo para testes
+ * (não existe em produção). Usado nos scripts de spike/QA, não no fluxo de produção.
+ * @see https://developers.cora.com.br/reference/pagar-boleto-em-stage
+ */
+export async function payCoraInvoiceStage(
+  config: CoraConfig,
+  token: string,
+  invoiceId: string,
+  idempotencyKey: string,
+): Promise<Response> {
+  const url = `${config.apiBase}${CORA_INVOICES_PATH}/pay`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Idempotency-Key": idempotencyKey,
+  };
+  const body = JSON.stringify({ id: invoiceId });
+
+  if (config.mode === "direct") {
+    const client = createMtlsClient(config.certificate, config.privateKey);
+    return fetch(url, { method: "POST", headers, body, client });
+  }
+
+  return fetch(url, { method: "POST", headers, body });
+}
+
 /** Integração Direta (mTLS) ou Parceria Cora (client_id + secret). */
 export async function resolveCoraConfig(admin: SupabaseClient): Promise<CoraConfig | null> {
   const clientId = await getIntegracaoConfigValue(admin, "CORA_CLIENT_ID");

@@ -54,9 +54,24 @@ const schema = z.object({
   diasSemana: z.string().nullable().optional(),
   observacoes: z.string().nullable().optional(),
   ativo: z.boolean(),
+  endereco: z.string().nullable().optional(),
+  numeroEndereco: z.string().nullable().optional(),
+  complemento: z.string().nullable().optional(),
+  bairro: z.string().nullable().optional(),
+  cep: z.string().nullable().optional(),
+  cidade: z.string().nullable().optional(),
+  uf: z.string().max(2, "UF com 2 letras").nullable().optional(),
+  codigoMunicipioIbge: z.string().nullable().optional().refine(
+    (v) => !v || /^\d{7}$/.test(v),
+    "Código IBGE com 7 dígitos",
+  ),
 });
 
 type FormValues = z.infer<typeof schema>;
+
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
 
 function maskCPF(cpf: string | null | undefined) {
   if (!cpf) return "—";
@@ -109,6 +124,14 @@ function PacientesPage() {
       diasSemana: "",
       observacoes: "",
       ativo: true,
+      endereco: "",
+      numeroEndereco: "",
+      complemento: "",
+      bairro: "",
+      cep: "",
+      cidade: "",
+      uf: "",
+      codigoMunicipioIbge: "",
     },
   });
 
@@ -136,6 +159,14 @@ function PacientesPage() {
         advogadoNome: null,
         advogadoEmail: null,
         formaPagamentoPreferida: null,
+        endereco: vals.endereco?.trim() || null,
+        numeroEndereco: vals.numeroEndereco?.trim() || null,
+        complemento: vals.complemento?.trim() || null,
+        bairro: vals.bairro?.trim() || null,
+        cep: vals.cep?.trim() ? onlyDigits(vals.cep) : null,
+        cidade: vals.cidade?.trim() || null,
+        uf: vals.uf?.trim().toUpperCase() || null,
+        codigoMunicipioIbge: vals.codigoMunicipioIbge?.trim() ? Number(vals.codigoMunicipioIbge.trim()) : null,
       };
       if (editing) {
         await updatePaciente(editing.id, payload);
@@ -168,6 +199,14 @@ function PacientesPage() {
       diasSemana: "",
       observacoes: "",
       ativo: true,
+      endereco: "",
+      numeroEndereco: "",
+      complemento: "",
+      bairro: "",
+      cep: "",
+      cidade: "",
+      uf: "",
+      codigoMunicipioIbge: "",
     });
     setModalOpen(true);
   }
@@ -188,6 +227,14 @@ function PacientesPage() {
       diasSemana: p.diasSemana ?? "",
       observacoes: p.observacoes ?? "",
       ativo: p.ativo,
+      endereco: p.endereco ?? "",
+      numeroEndereco: p.numeroEndereco ?? "",
+      complemento: p.complemento ?? "",
+      bairro: p.bairro ?? "",
+      cep: p.cep ?? "",
+      cidade: p.cidade ?? "",
+      uf: p.uf ?? "",
+      codigoMunicipioIbge: p.codigoMunicipioIbge != null ? String(p.codigoMunicipioIbge) : "",
     });
     setModalOpen(true);
   }
@@ -422,6 +469,76 @@ function PacientesPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
+              )}
+
+              {tipoWatch === "particular" && (
+                <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Endereço — obrigatório para emissão automática da NF (tomador particular)
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormField control={form.control} name="endereco" render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel>Logradouro</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Rua Exemplo" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="numeroEndereco" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="123" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField control={form.control} name="complemento" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Complemento</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Apto 101" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="bairro" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bairro</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormField control={form.control} name="cep" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CEP</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="00000-000" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="cidade" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cidade</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="uf" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UF</FormLabel>
+                        <FormControl><Input {...field} value={field.value ?? ""} maxLength={2} placeholder="RS" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="codigoMunicipioIbge" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Código município IBGE</FormLabel>
+                      <FormControl><Input {...field} value={field.value ?? ""} placeholder="4314902" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
               )}
 
               <div className="space-y-3 rounded-lg border bg-muted/20 p-3">

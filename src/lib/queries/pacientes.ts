@@ -24,6 +24,15 @@ export type Paciente = {
   ativo: boolean;
   observacoes: string | null;
   createdAt: string;
+  /** Usado na emissão de NFS-e para tomador particular (endereço do próprio paciente). */
+  endereco: string | null;
+  numeroEndereco: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cep: string | null;
+  cidade: string | null;
+  uf: string | null;
+  codigoMunicipioIbge: number | null;
 };
 
 type Row = {
@@ -49,6 +58,14 @@ type Row = {
   observacoes: string | null;
   created_at: string;
   convenios?: { nome: string } | null;
+  endereco: string | null;
+  numero_endereco: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cep: string | null;
+  cidade: string | null;
+  uf: string | null;
+  codigo_municipio_ibge: number | null;
 };
 
 const map = (r: Row): Paciente => ({
@@ -74,6 +91,14 @@ const map = (r: Row): Paciente => ({
   ativo: r.ativo,
   observacoes: r.observacoes,
   createdAt: r.created_at,
+  endereco: r.endereco,
+  numeroEndereco: r.numero_endereco,
+  complemento: r.complemento,
+  bairro: r.bairro,
+  cep: r.cep,
+  cidade: r.cidade,
+  uf: r.uf,
+  codigoMunicipioIbge: r.codigo_municipio_ibge,
 });
 
 export async function fetchPacientes(filters?: {
@@ -135,6 +160,14 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | 
       forma_pagamento_preferida: input.formaPagamentoPreferida ?? null,
       ativo: input.ativo,
       observacoes: input.observacoes,
+      endereco: input.endereco,
+      numero_endereco: input.numeroEndereco,
+      complemento: input.complemento,
+      bairro: input.bairro,
+      cep: input.cep,
+      cidade: input.cidade,
+      uf: input.uf,
+      codigo_municipio_ibge: input.codigoMunicipioIbge,
     })
     .select("*, convenios(nome)")
     .single();
@@ -169,6 +202,14 @@ export async function updatePaciente(
       forma_pagamento_preferida: input.formaPagamentoPreferida ?? null,
       ativo: input.ativo,
       observacoes: input.observacoes,
+      endereco: input.endereco,
+      numero_endereco: input.numeroEndereco,
+      complemento: input.complemento,
+      bairro: input.bairro,
+      cep: input.cep,
+      cidade: input.cidade,
+      uf: input.uf,
+      codigo_municipio_ibge: input.codigoMunicipioIbge,
     })
     .eq("id", id);
   if (error) throw error;

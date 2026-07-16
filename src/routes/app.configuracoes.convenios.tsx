@@ -44,6 +44,9 @@ type Convenio = {
   email_nf: string | null;
   email_envio: string | null;
   endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
   cep: string | null;
   cidade: string | null;
   uf: string | null;
@@ -80,6 +83,9 @@ const schema = z.object({
   email_nf: optionalEmail,
   email_envio: optionalEmail,
   endereco: z.string().optional(),
+  numero: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
   cep: z.string().optional(),
   cidade: z.string().optional(),
   uf: z.string().max(2, "UF com 2 letras").optional(),
@@ -100,6 +106,9 @@ function toPayload(vals: FormValues) {
     email_nf: vals.email_nf?.trim() || null,
     email_envio: vals.email_envio?.trim() || null,
     endereco: vals.endereco?.trim() || null,
+    numero: vals.numero?.trim() || null,
+    complemento: vals.complemento?.trim() || null,
+    bairro: vals.bairro?.trim() || null,
     cep: vals.cep?.trim() ? onlyDigits(vals.cep) : null,
     cidade: vals.cidade?.trim() || null,
     uf: vals.uf?.trim().toUpperCase() || null,
@@ -113,7 +122,7 @@ async function fetchConvenios(): Promise<Convenio[]> {
   const { data, error } = await supabase
     .from("convenios")
     .select(
-      "id, nome, ativo, cnpj, razao_social, email_nf, email_envio, endereco, cep, cidade, uf, codigo_municipio_ibge, created_at",
+      "id, nome, ativo, cnpj, razao_social, email_nf, email_envio, endereco, numero, complemento, bairro, cep, cidade, uf, codigo_municipio_ibge, created_at",
     )
     .order("nome");
   if (error) throw error;
@@ -144,6 +153,9 @@ const defaultForm: FormValues = {
   email_nf: "",
   email_envio: "",
   endereco: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
   cep: "",
   cidade: "",
   uf: "",
@@ -159,6 +171,9 @@ function convenioToForm(c: Convenio): FormValues {
     email_nf: c.email_nf ?? "",
     email_envio: c.email_envio ?? "",
     endereco: c.endereco ?? "",
+    numero: c.numero ?? "",
+    complemento: c.complemento ?? "",
+    bairro: c.bairro ?? "",
     cep: c.cep ?? "",
     cidade: c.cidade ?? "",
     uf: c.uf ?? "",
@@ -360,13 +375,40 @@ function ConveniosPage() {
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="endereco" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Endereço</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <div className="grid grid-cols-3 gap-3">
+                <FormField control={form.control} name="endereco" render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Endereço (logradouro)</FormLabel>
+                    <FormControl><Input {...field} placeholder="AV RIO DE JANEIRO" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="numero" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número</FormLabel>
+                    <FormControl><Input {...field} placeholder="555" /></FormControl>
+                    <FormDescription>Obrigatório p/ NFS-e.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField control={form.control} name="complemento" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Complemento</FormLabel>
+                    <FormControl><Input {...field} placeholder="Sala 801" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="bairro" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bairro</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <FormField control={form.control} name="cep" render={({ field }) => (

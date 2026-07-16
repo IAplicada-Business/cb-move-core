@@ -23,11 +23,17 @@ export const TOMADOR_CATALOG_BY_CPF: Record<string, TomadorCatalogEntry> = {
   },
 };
 
+// Nota (2026-07-16): `numero` é separado explicitamente do `endereco` porque o schema da NFS-e
+// Nacional exige o número do imóvel como elemento próprio (`nro`) — não pode ficar embutido no
+// texto do logradouro, senão a Focus rejeita a emissão (422 "Missing child element(s) nro").
 export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   "92693118000160": {
     razao_social: "BRADESCO SAUDE S/A",
     email: "liminarprestador@bradescoseguros.com.br",
-    endereco: "AV RIO DE JANEIRO, 555, SAL 801-SAL 1701, CAJU",
+    endereco: "AV RIO DE JANEIRO",
+    numero: "555",
+    complemento: "SAL 801-SAL 1701",
+    bairro: "CAJU",
     cep: "20931675",
     cidade: "Rio de Janeiro",
     uf: "RJ",
@@ -36,7 +42,9 @@ export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   "00773639000100": {
     razao_social: "CENTRO CLINICO GAUCHO LTDA",
     email: "extra.folha@ccgrs.com.br",
-    endereco: "AV HERACLITO GRACA, 406, CENTRO",
+    endereco: "AV HERACLITO GRACA",
+    numero: "406",
+    bairro: "CENTRO",
     cep: "60140060",
     cidade: "Fortaleza",
     uf: "CE",
@@ -44,7 +52,9 @@ export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   },
   "87096616000196": {
     razao_social: "UNIMED PORTO ALEGRE - COOPERATIVA MEDICA LTDA",
-    endereco: "AV VENANCIO AIRES, 1040, FARROUPILHA",
+    endereco: "AV VENANCIO AIRES",
+    numero: "1040",
+    bairro: "FARROUPILHA",
     cep: "90040192",
     cidade: "Porto Alegre",
     uf: "RS",
@@ -52,7 +62,9 @@ export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   },
   "03658432001820": {
     razao_social: "GEAP AUTOGESTAO EM SAUDE",
-    endereco: "R LUCIANA DE ABREU, 416, MOINHOS DE VENTO",
+    endereco: "R LUCIANA DE ABREU",
+    numero: "416",
+    bairro: "MOINHOS DE VENTO",
     cep: "90570060",
     cidade: "Porto Alegre",
     uf: "RS",
@@ -60,7 +72,9 @@ export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   },
   "30483455000176": {
     razao_social: "INSTITUTO ASSISTENCIA A SAUDE DOS SERVIDORES PUBLICOS DO RS",
-    endereco: "AV BORGES DE MEDEIROS, 1945, PRAIA DE BELAS",
+    endereco: "AV BORGES DE MEDEIROS",
+    numero: "1945",
+    bairro: "PRAIA DE BELAS",
     cep: "90110900",
     cidade: "Porto Alegre",
     uf: "RS",
@@ -69,7 +83,9 @@ export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   "27578434000120": {
     razao_social: "UNIMED VITORIA COOPERATIVA DE TRABALHO MEDICO",
     email: "pagamentoscoinr@unimedvx.com.br",
-    endereco: "AV CEZAR HILAL, 700, BENTO FERREIRA",
+    endereco: "AV CEZAR HILAL",
+    numero: "700",
+    bairro: "BENTO FERREIRA",
     cep: "29050903",
     cidade: "Vitoria",
     uf: "ES",
@@ -78,7 +94,10 @@ export const TOMADOR_CATALOG_BY_CNPJ: Record<string, TomadorCatalogEntry> = {
   "01387625000110": {
     razao_social: "DOCTOR CLIN OPERADORA DE PLANOS DE SAUDE LTDA",
     email: "cintia.skonetzky@doctorclin.com.br",
-    endereco: "R SETE DE SETEMBRO, 769, ANDAR 10, CENTRO HISTORICO",
+    endereco: "R SETE DE SETEMBRO",
+    numero: "769",
+    complemento: "ANDAR 10",
+    bairro: "CENTRO HISTORICO",
     cep: "90010190",
     cidade: "Porto Alegre",
     uf: "RS",

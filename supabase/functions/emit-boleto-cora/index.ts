@@ -67,6 +67,7 @@ serve(async (req) => {
           boleto_url,
           cora_invoice_id: cora_invoice_id ?? null,
           forma_pagamento: "boleto",
+          boleto_modo: "manual",
         })
         .eq("id", cobranca_id);
       if (updErr) throw updErr;
@@ -134,6 +135,7 @@ serve(async (req) => {
         cora_invoice_id: invoiceId,
         pix_emv: parsed.pixEmv,
         forma_pagamento: "boleto",
+        boleto_modo: "automatico",
       })
       .eq("id", cobranca_id);
     if (updErr) throw updErr;

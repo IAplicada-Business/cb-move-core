@@ -108,6 +108,32 @@ export async function requireFinanceUser(req: Request): Promise<FinanceAuthConte
   return { userId: user.id, admin };
 }
 
+/**
+ * Header usado por chamadas função-a-função internas (ex.: `_shared/cora-payment-sync.ts`
+ * chamando `emit-nf` depois de confirmar um pagamento Cora). O valor identifica a origem
+ * apenas para auditoria/log — a autorização real vem da Service Role Key no `Authorization`.
+ */
+export const INTERNAL_TRIGGER_HEADER = "x-internal-trigger";
+
+/**
+ * Mesma regra de `requireFinanceUser`, mas também aceita uma chamada servidor-a-servidor
+ * autenticada com a Service Role Key (identificada pelo header `x-internal-trigger`).
+ * Não afeta o caminho de usuário final: se o header não vier, cai no fluxo normal.
+ */
+export async function requireFinanceUserOrInternal(req: Request): Promise<FinanceAuthContext> {
+  const internalOrigin = req.headers.get(INTERNAL_TRIGGER_HEADER);
+  const authHeader = req.headers.get("Authorization");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (internalOrigin && supabaseUrl && serviceKey && authHeader === `Bearer ${serviceKey}`) {
+    const admin = createClient(supabaseUrl, serviceKey);
+    return { userId: `internal:${internalOrigin}`, admin };
+  }
+
+  return requireFinanceUser(req);
+}
+
 export function authErrorResponse(err: unknown, corsHeaders: Record<string, string>) {
   if (err instanceof AuthError) {
     return new Response(JSON.stringify({ error: err.message }), {

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authErrorResponse, requireFinanceUser } from "../_shared/auth.ts";
+import { authErrorResponse, requireFinanceUserOrInternal } from "../_shared/auth.ts";
 import {
   focusRefFromNfId,
   getFocusNfsen,
@@ -48,6 +48,9 @@ type ConvenioTomadorRow = {
   razao_social: string | null;
   email_nf: string | null;
   endereco?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
   cep?: string | null;
   cidade?: string | null;
   uf?: string | null;
@@ -64,6 +67,14 @@ type PacienteTomadorRow = {
   telefone: string | null;
   valor_sessao: number | null;
   frequencia_atendimento: string | null;
+  endereco?: string | null;
+  numero_endereco?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cep?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
+  codigo_municipio_ibge?: number | null;
   fisioterapeutas: FisioRow | FisioRow[] | null;
   convenios: ConvenioTomadorRow | ConvenioTomadorRow[] | null;
 };
@@ -136,6 +147,9 @@ function tomadorFromConvenio(convenio: ConvenioTomadorRow | null | undefined): T
   return {
     email: convenio.email_nf,
     endereco: convenio.endereco ?? null,
+    numero: convenio.numero ?? null,
+    complemento: convenio.complemento ?? null,
+    bairro: convenio.bairro ?? null,
     cep: convenio.cep ?? null,
     cidade: convenio.cidade ?? null,
     uf: convenio.uf ?? null,
@@ -158,6 +172,14 @@ function resolveTomador(
     return mergeTomador(documento, undefined, {
       email: paciente.email,
       telefone: paciente.telefone,
+      endereco: paciente.endereco ?? null,
+      numero: paciente.numero_endereco ?? null,
+      complemento: paciente.complemento ?? null,
+      bairro: paciente.bairro ?? null,
+      cep: paciente.cep ?? null,
+      cidade: paciente.cidade ?? null,
+      uf: paciente.uf ?? null,
+      codigo_municipio_ibge: paciente.codigo_municipio_ibge ?? null,
     });
   }
 
@@ -190,7 +212,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { admin } = await requireFinanceUser(req);
+    const { admin } = await requireFinanceUserOrInternal(req);
     const authHeader = req.headers.get("Authorization");
     const body = await req.json();
     const { nf_id, modo, numero, pdf_url } = body;
@@ -208,10 +230,11 @@ serve(async (req) => {
         corpo_dias_atendidos,
         pacientes (
           email, telefone, valor_sessao, frequencia_atendimento,
+          endereco, numero_endereco, complemento, bairro, cep, cidade, uf, codigo_municipio_ibge,
           fisioterapeutas ( nome, registro_profissional ),
           convenios (
             cnpj, razao_social, email_nf,
-            endereco, cep, cidade, uf, codigo_municipio_ibge
+            endereco, numero, complemento, bairro, cep, cidade, uf, codigo_municipio_ibge
           )
         )
       `)
