@@ -13,14 +13,17 @@ capturado dentro do intervalo agendado.
 `CRON_SECRET` já está configurado em `integracao_config` (mesmo secret usado por
 `atualizar-cobrancas-vencidas` — pode reaproveitar).
 
-## 1. Agendar no Supabase Dashboard
+## 1. Schedule (já ativa)
 
-1. [Dashboard → Edge Functions](https://supabase.com/dashboard/project/grlkbtnwvxorlfglyzid/functions)
-2. Abra `cora-verificar-pagamentos` → **Schedules** (ou Cron)
-3. Nova schedule:
-   - **Cron:** `*/15 * * * *` (a cada 15 min — ajuste para `*/30` se preferir menos chamadas à Cora)
-   - **Método:** `POST`
-   - **Header:** `x-cron-secret: <CRON_SECRET>`
+Criada via `pg_cron` + `pg_net` (migration `20260716170000_cron_cora_verificar_pagamentos.sql`),
+sem depender de configuração manual no Dashboard. Job `cora-verificar-pagamentos`, roda a cada
+15 min e chama a Edge Function via `net.http_post` com o header `x-cron-secret`.
+
+Para inspecionar/ajustar pelo Dashboard: **Database → Cron Jobs** (lista o job, permite pausar
+ou editar o schedule). Para trocar o intervalo, edite a expressão cron (ex.: `*/30 * * * *` para
+30 min) ou rode `select cron.alter_job(job_id, schedule := '*/30 * * * *');` no SQL Editor.
+
+Para ver o histórico de execuções: `select * from cron.job_run_details order by start_time desc limit 20;`
 
 ## 2. Teste manual
 
@@ -60,7 +63,9 @@ garantia, o webhook é só uma otimização de latência.
 - [x] Webhook registrado na Cora Stage (`invoice.paid` → `cora-webhook`)
 - [x] Teste E2E completo (`scripts/test_cora_nf_automatica_e2e.py`): boleto criado → pago (API de teste Stage) → cobrança marcada `pago` → NF criada → `emit-nf` disparado (erro esperado por paciente de teste sem CEP — ver nota abaixo)
 - [x] Testes complementares (`scripts/test_cora_nf_automatica_extra.py`) — ver resultado detalhado abaixo
-- [ ] Schedule ativa no Dashboard (`*/15 * * * *`) — **pendente, fazer manualmente no Dashboard**
+- [x] Schedule ativa via `pg_cron`/`pg_net` (`*/15 * * * *`) — job `cora-verificar-pagamentos`,
+  criado via migration `20260716170000_cron_cora_verificar_pagamentos.sql` (visível também em
+  Database → Cron Jobs no Dashboard)
 
 ### Nota sobre o teste E2E
 
