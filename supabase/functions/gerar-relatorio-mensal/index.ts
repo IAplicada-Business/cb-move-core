@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, type PDFPage } from "https://esm.sh/pdf-lib@1.17.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +18,65 @@ const MODELO_TITULO: Record<string, string> = {
   sharepoint: "Relatório de Atendimento — Processo Judicial",
   puc: "Relatório de Atendimento — PUC",
 };
+
+// Paleta oficial CB MOVE (mesma usada no design system do sistema).
+const BRAND = {
+  ink: rgb(0.173, 0.173, 0.173),
+  inkLight: rgb(0.420, 0.420, 0.450),
+  paper: rgb(1, 1, 1),
+  line: rgb(0.886, 0.898, 0.910),
+  cyan700: rgb(0.176, 0.514, 0.533),
+  cyan600: rgb(0.247, 0.710, 0.737),
+  magenta: rgb(0.851, 0.275, 0.627),
+  orange: rgb(0.961, 0.541, 0.122),
+  lime: rgb(0.773, 0.851, 0.196),
+  purple: rgb(0.482, 0.310, 0.710),
+};
+
+const TIPO_ACCENT: Record<string, { label: string; color: ReturnType<typeof rgb> }> = {
+  particular: { label: "Particular", color: BRAND.cyan700 },
+  judicial: { label: "Judicial", color: BRAND.magenta },
+  convenio: { label: "Convênio", color: BRAND.purple },
+  puc: { label: "PUC", color: BRAND.orange },
+};
+
+// Anel de 5 arcos sólidos (réplica do anel colorido da marca CB MOVE, sem gradiente).
+const RING_SEGMENTS = [
+  { color: BRAND.magenta, start: 130, end: 202 },
+  { color: BRAND.orange, start: 202, end: 274 },
+  { color: BRAND.lime, start: 274, end: 346 },
+  { color: BRAND.cyan600, start: 346, end: 418 },
+  { color: BRAND.purple, start: 418, end: 490 },
+];
+
+function polarPoint(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function drawBrandRing(page: PDFPage, cx: number, cy: number, r: number, thickness: number) {
+  const stepsPerSegment = 10;
+  for (const seg of RING_SEGMENTS) {
+    for (let i = 0; i < stepsPerSegment; i++) {
+      const a0 = seg.start + ((seg.end - seg.start) * i) / stepsPerSegment;
+      const a1 = seg.start + ((seg.end - seg.start) * (i + 1)) / stepsPerSegment;
+      page.drawLine({
+        start: polarPoint(cx, cy, r, a0),
+        end: polarPoint(cx, cy, r, a1),
+        thickness,
+        color: seg.color,
+      });
+    }
+  }
+}
+
+function drawRainbowStrip(page: PDFPage, x: number, y: number, width: number, height: number) {
+  const colors = [BRAND.magenta, BRAND.orange, BRAND.lime, BRAND.cyan600, BRAND.purple];
+  const segWidth = width / colors.length;
+  colors.forEach((color, i) => {
+    page.drawRectangle({ x: x + i * segWidth, y, width: segWidth, height, color });
+  });
+}
 
 function substituirPlaceholders(template: string, dados: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => dados[key] ?? `{{${key}}}`);
@@ -47,6 +106,7 @@ function wrapText(text: string, maxCharsPerLine: number): string[] {
 
 async function gerarPdf(params: {
   titulo: string;
+  tipoPaciente: string;
   placeholders: Record<string, string>;
   camposExtras: { label: string; valor: string }[];
   evolucaoResumo: string;
@@ -62,9 +122,9 @@ async function gerarPdf(params: {
   let page = doc.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
 
-  const cyan = rgb(0.02, 0.6, 0.65);
-  const dark = rgb(0.12, 0.12, 0.14);
-  const gray = rgb(0.45, 0.45, 0.48);
+  const dark = BRAND.ink;
+  const gray = BRAND.inkLight;
+  const tipoInfo = TIPO_ACCENT[params.tipoPaciente] ?? TIPO_ACCENT.particular;
 
   function ensureSpace(lineHeight: number) {
     if (y - lineHeight < margin) {
@@ -88,18 +148,35 @@ async function gerarPdf(params: {
     }
   }
 
-  // Cabeçalho
-  page.drawText("CB MOVE Neuroscience", { x: margin, y, size: 16, font: fontBold, color: cyan });
-  y -= 22;
-  page.drawText(params.titulo, { x: margin, y, size: 12, font: fontBold, color: dark });
-  y -= 8;
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: pageWidth - margin, y },
-    thickness: 1,
-    color: rgb(0.85, 0.85, 0.87),
+  // Cabeçalho com a marca CB MOVE — anel de 5 cores + wordmark, título e
+  // selo do tipo de paciente à direita, barra de destaque colorida abaixo.
+  const ringR = 9;
+  const ringCx = margin + ringR;
+  const ringCy = y - ringR;
+  drawBrandRing(page, ringCx, ringCy, ringR, 2.2);
+  page.drawEllipse({ x: ringCx, y: ringCy, xScale: 5, yScale: 5, color: BRAND.paper });
+
+  page.drawText("CB MOVE", { x: margin + ringR * 2 + 8, y: y - 4, size: 13, font: fontBold, color: dark });
+  page.drawText("NEUROSCIENCE", { x: margin + ringR * 2 + 8, y: y - 15, size: 6.5, font: fontRegular, color: gray });
+
+  const tituloSize = 11;
+  const tituloWidth = fontBold.widthOfTextAtSize(params.titulo, tituloSize);
+  page.drawText(params.titulo, { x: pageWidth - margin - tituloWidth, y: y - 4, size: tituloSize, font: fontBold, color: dark });
+
+  const tipoLabel = tipoInfo.label.toUpperCase();
+  const tipoLabelSize = 8;
+  const tipoLabelWidth = fontBold.widthOfTextAtSize(tipoLabel, tipoLabelSize);
+  page.drawText(tipoLabel, {
+    x: pageWidth - margin - tipoLabelWidth,
+    y: y - 16,
+    size: tipoLabelSize,
+    font: fontBold,
+    color: tipoInfo.color,
   });
-  y -= 24;
+
+  y -= ringR * 2 + 10;
+  page.drawRectangle({ x: margin, y, width: pageWidth - margin * 2, height: 3, color: tipoInfo.color });
+  y -= 22;
 
   // Dados do paciente / competência
   drawHeading(`Paciente: ${params.placeholders.paciente_nome ?? "—"}`, 11, fontBold);
@@ -137,9 +214,11 @@ async function gerarPdf(params: {
   y -= 14;
   page.drawText("Assinatura do responsável técnico", { x: margin, y, size: 9, font: fontRegular, color: gray });
 
+  // Rodapé com a faixa arco-íris da marca CB MOVE.
+  drawRainbowStrip(page, margin, margin - 4, pageWidth - margin * 2, 3);
   page.drawText(
     `Documento gerado pela CB MOVE Neuroscience em ${new Date().toLocaleDateString("pt-BR")}`,
-    { x: margin, y: margin - 10, size: 8, font: fontRegular, color: gray },
+    { x: margin, y: margin - 16, size: 8, font: fontRegular, color: gray },
   );
 
   return doc.save();
@@ -241,6 +320,7 @@ serve(async (req) => {
 
     const pdfBytes = await gerarPdf({
       titulo: MODELO_TITULO[modelo] ?? "Relatório de Atendimento",
+      tipoPaciente: paciente.tipo ?? "particular",
       placeholders,
       camposExtras,
       evolucaoResumo: placeholders.evolucao_resumo,
