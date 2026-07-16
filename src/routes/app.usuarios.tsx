@@ -74,6 +74,49 @@ function findUserByEmail(users: UserRow[], email: string): UserRow | undefined {
   return users.find((u) => u.email?.toLowerCase() === target);
 }
 
+type UsuarioTableRow = {
+  key: string;
+  nome: string;
+  email: string;
+  perfil: PrimaryRole;
+  registered: UserRow | undefined;
+  isReference: boolean;
+};
+
+function buildUsuarioRows(users: UserRow[]): UsuarioTableRow[] {
+  const referenceEmails = new Set(
+    COLABORADORES_REFERENCIA.map((c) => c.email.toLowerCase()),
+  );
+
+  const rows: UsuarioTableRow[] = COLABORADORES_REFERENCIA.map((c) => ({
+    key: c.email,
+    nome: c.nome,
+    email: c.email,
+    perfil: c.perfil,
+    registered: findUserByEmail(users, c.email),
+    isReference: true,
+  }));
+
+  const extras = users
+    .filter((u) => u.email && !referenceEmails.has(u.email.toLowerCase()))
+    .sort((a, b) =>
+      (a.nome ?? a.email ?? "").localeCompare(b.nome ?? b.email ?? "", "pt-BR"),
+    );
+
+  for (const u of extras) {
+    rows.push({
+      key: u.id,
+      nome: u.nome ?? u.email ?? "—",
+      email: u.email ?? "—",
+      perfil: normalizeRole(u.role) ?? "membro",
+      registered: u,
+      isReference: false,
+    });
+  }
+
+  return rows;
+}
+
 function statusLabel(user: UserRow | undefined): string {
   if (!user) return "Não cadastrado";
   return "Cadastrado — aguardando 1º acesso";
@@ -161,6 +204,8 @@ function UsuariosPage() {
     [users],
   );
 
+  const usuarioRows = useMemo(() => buildUsuarioRows(users), [users]);
+
   function openCadastro(prefill?: { nome: string; email: string; role: PrimaryRole }) {
     setCadastroForm({
       nome: prefill?.nome ?? "",
@@ -212,9 +257,11 @@ function UsuariosPage() {
         <TabsContent value="usuarios" className="mt-4 space-y-4">
           <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
             <Users className="mr-2 inline h-4 w-4" />
-            Lista extraída de <em>Informações Colaboradores.docx</em>.
+            Lista extraída de <em>Informações Colaboradores.docx</em>, mais usuários cadastrados no sistema.
             {" "}
-            <strong>{cadastradosCount}</strong> de {COLABORADORES_REFERENCIA.length} cadastrados no sistema.
+            <strong>{users.length}</strong> cadastrados
+            {" "}
+            (<strong>{cadastradosCount}</strong> da equipe de referência).
           </div>
 
           {isLoading ? (
@@ -243,30 +290,36 @@ function UsuariosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {COLABORADORES_REFERENCIA.map((c) => {
-                    const registered = findUserByEmail(users, c.email);
-                    const displayRole = (registered?.role ?? c.perfil) as AppRole;
+                  {usuarioRows.map((row) => {
+                    const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
                     return (
-                      <TableRow key={c.email}>
-                        <TableCell className="font-medium">{c.nome}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{c.email}</TableCell>
+                      <TableRow key={row.key}>
+                        <TableCell className="font-medium">
+                          {row.nome}
+                          {!row.isReference && (
+                            <span className="ml-2 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
+                              Adicional
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{row.email}</TableCell>
                         <TableCell>
                           <RoleBadge role={displayRole} />
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {statusLabel(registered)}
+                          {statusLabel(row.registered)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => openCadastro({
-                              nome: c.nome,
-                              email: c.email,
-                              role: normalizeRole(registered?.role) ?? c.perfil,
+                              nome: row.nome,
+                              email: row.email,
+                              role: normalizeRole(row.registered?.role) ?? row.perfil,
                             })}
                           >
-                            {registered ? "Atualizar cadastro" : "Cadastrar"}
+                            {row.registered ? "Atualizar cadastro" : "Cadastrar"}
                           </Button>
                         </TableCell>
                       </TableRow>
