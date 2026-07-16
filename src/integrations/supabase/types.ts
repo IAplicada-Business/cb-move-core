@@ -1244,6 +1244,27 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_permissions: {
+        Row: {
+          role: Database["public"]["Enums"]["app_role"]
+          menu_key: string
+          enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          role: Database["public"]["Enums"]["app_role"]
+          menu_key: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          role?: Database["public"]["Enums"]["app_role"]
+          menu_key?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1315,6 +1336,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_users: {
+        Args: never
+        Returns: {
+          id: string
+          nome: string | null
+          email: string | null
+          created_at: string
+          role: Database["public"]["Enums"]["app_role"] | null
+          paciente_id: string | null
+          paciente_nome: string | null
+        }[]
+      }
       paciente_logado: { Args: never; Returns: string }
       relatorio_receita_convenio: {
         Args: { p_ano: number; p_mes: number }
@@ -1344,7 +1377,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "gestao" | "recepcao" | "fisio"
+      app_role: "admin" | "gestao" | "recepcao" | "fisio" | "membro" | "cliente"
       cobranca_status:
         | "pendente"
         | "pago"
@@ -1508,7 +1541,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "gestao", "recepcao", "fisio"],
+      app_role: ["admin", "gestao", "recepcao", "fisio", "membro", "cliente"],
       cobranca_status: [
         "pendente",
         "pago",

@@ -1,63 +1,31 @@
 import * as React from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import {
-  ChevronDown, LayoutDashboard, Users, FileText, Calendar,
-  Receipt, FileSpreadsheet, BarChart3, Stethoscope, UserCog, Settings, Building2,
-  Wrench, FilePlus2, Plug, LogOut, HelpCircle,
-} from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/permissions";
-
-type Item = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; badge?: number };
-type Group = { id: string; label: string; items: Item[] };
-
-const GROUPS: Group[] = [
-  { id: "op", label: "Operação", items: [
-    { to: "/app", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/app/pacientes", label: "Pacientes", icon: Users },
-    { to: "/app/prontuario", label: "Prontuário", icon: FileText },
-    { to: "/app/agenda", label: "Agenda", icon: Calendar },
-  ]},
-  { id: "fin", label: "Financeiro", items: [
-    { to: "/app/cobrancas", label: "Cobranças", icon: Receipt },
-    { to: "/app/notas-fiscais", label: "Notas Fiscais", icon: FileSpreadsheet },
-    { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
-  ]},
-  { id: "team", label: "Equipe", items: [
-    { to: "/app/fisios", label: "Fisioterapeutas", icon: Stethoscope },
-    { to: "/app/usuarios", label: "Usuários", icon: UserCog },
-  ]},
-  { id: "cfg", label: "Configurações", items: [
-    { to: "/app/configuracoes", label: "Geral", icon: Settings },
-    { to: "/app/configuracoes/convenios", label: "Convênios", icon: Building2 },
-    { to: "/app/configuracoes/instrumentos", label: "Instrumentos", icon: Wrench },
-    { to: "/app/configuracoes/templates", label: "Templates", icon: FilePlus2 },
-    { to: "/app/configuracoes/integracoes", label: "Integrações", icon: Plug },
-  ]},
-  { id: "ajuda", label: "Suporte", items: [
-    { to: "/app/ajuda", label: "Ajuda", icon: HelpCircle },
-  ]},
-];
+import { useMenuAccess } from "@/lib/hooks/use-menu-access";
 
 export function Sidebar() {
   const { user, roles, signOut } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [mode, setMode] = React.useState<"admin" | "paciente">("admin");
+  const { groups, primary } = useMenuAccess();
   const [open, setOpen] = React.useState<Record<string, boolean>>({
     op: true, fin: true, team: true, cfg: false, ajuda: false,
   });
 
-  const userName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "Usuário";
-  const userRole = roles[0] ? ROLE_LABELS[roles[0]] : "Sem perfil";
+  const userName = (user?.user_metadata?.nome as string | undefined)
+    ?? (user?.user_metadata?.full_name as string | undefined)
+    ?? user?.email
+    ?? "Usuário";
+  const userRole = ROLE_LABELS[primary] ?? (roles[0] ? roles[0] : "Sem perfil");
 
   return (
     <aside className="relative flex h-full min-h-0 w-[268px] shrink-0 flex-col overflow-hidden border-r bg-sidebar">
       <div className="cb-rainbow-strip absolute inset-x-0 top-0 z-10 h-[3px]" />
 
-      {/* Brand */}
       <div className="shrink-0 flex items-center gap-3 px-5 pb-4 pt-6">
         <div className="cb-pin-halo grid h-11 w-11 place-items-center rounded-full p-[2px]">
           <div className="grid h-full w-full place-items-center rounded-full bg-white text-cb-cyan-600">
@@ -70,26 +38,8 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Toggle */}
-      <div className="mx-4 mb-3 grid shrink-0 grid-cols-2 rounded-md border bg-muted p-0.5 text-xs">
-        {(["admin", "paciente"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={cn(
-              "rounded-[5px] py-1 font-medium capitalize transition-colors",
-              mode === m ? "bg-card text-cb-cyan-900 shadow-sm" : "text-muted-foreground",
-            )}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
-
-      {/* Groups */}
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-        {GROUPS.map((g) => (
+        {groups.map((g) => (
           <div key={g.id} className="mb-1">
             <button
               type="button"
@@ -117,11 +67,6 @@ export function Sidebar() {
                       >
                         <Icon className={cn("h-4 w-4", active ? "text-cb-cyan-700" : "text-muted-foreground")} />
                         <span className="flex-1">{it.label}</span>
-                        {it.badge ? (
-                          <span className="rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
-                            {it.badge}
-                          </span>
-                        ) : null}
                       </Link>
                     </li>
                   );
@@ -132,7 +77,6 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer / user */}
       <div className="shrink-0 border-t bg-sidebar p-3">
         <div className="flex items-center gap-2.5">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">

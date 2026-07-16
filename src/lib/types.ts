@@ -1,4 +1,4 @@
-export type AppRole = "admin" | "gestao" | "recepcao" | "fisio" | "paciente";
+export type AppRole = "admin" | "membro" | "cliente" | "gestao" | "recepcao" | "fisio" | "paciente";
 export type PacienteTipo = "particular" | "judicial" | "convenio" | "puc";
 export type RegimeCobranca = "mensalista" | "por_sessao";
 export type FormaPagamento = "boleto" | "deposito" | "transferencia" | "alvara_judicial" | "convenio_direto";

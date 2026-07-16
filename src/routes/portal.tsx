@@ -9,16 +9,17 @@ export const Route = (createFileRoute as any)("/portal")({
 });
 
 function PortalShell() {
-  const { session, loading, isPaciente, signOut } = useAuth();
+  const { session, loading, isPaciente, roles, signOut } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
-    // Usuário interno tentando acessar portal → manda pra /app
-    if (!loading && session && !isPaciente) navigate({ to: "/app" });
-  }, [loading, session, isPaciente, navigate]);
+    if (!loading && session && !isPaciente && !roles.includes("cliente")) {
+      navigate({ to: "/app" });
+    }
+  }, [loading, session, isPaciente, roles, navigate]);
 
-  if (loading || !session || !isPaciente) {
+  if (loading || !session || (!isPaciente && !roles.includes("cliente"))) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <LoadingState />

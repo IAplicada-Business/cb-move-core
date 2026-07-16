@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "./types";
 import { resolvePostAuthPath } from "./auth-routes";
+import { isCliente, isStaff } from "./permissions";
 
 type AuthContextValue = {
   session: Session | null;
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
     setPacienteId(pacId);
-    setIsPaciente(pacId !== null && fetchedRoles.length === 0);
+    setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
     rolesUserIdRef.current = userId;
   }
 

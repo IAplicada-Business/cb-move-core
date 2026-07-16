@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
@@ -40,6 +41,11 @@ import { Route as AppConfiguracoesInstrumentosRouteImport } from './routes/app.c
 import { Route as AppConfiguracoesCreditosRouteImport } from './routes/app.configuracoes.creditos'
 import { Route as AppConfiguracoesConveniosRouteImport } from './routes/app.configuracoes.convenios'
 
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalRoute = PortalRouteImport.update({
   id: '/portal',
   path: '/portal',
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/app/agenda': typeof AppAgendaRoute
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
@@ -296,6 +305,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/portal'
+    | '/redefinir-senha'
     | '/app/agenda'
     | '/app/ajuda'
     | '/app/cobrancas'
@@ -326,6 +336,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/redefinir-senha'
     | '/app/agenda'
     | '/app/ajuda'
     | '/app/cobrancas'
@@ -356,6 +367,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/portal'
+    | '/redefinir-senha'
     | '/app/agenda'
     | '/app/ajuda'
     | '/app/cobrancas'
@@ -389,10 +401,18 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRouteWithChildren
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/portal': {
       id: '/portal'
       path: '/portal'
@@ -699,6 +719,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRouteWithChildren,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

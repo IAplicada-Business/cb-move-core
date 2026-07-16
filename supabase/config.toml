@@ -11,3 +11,12 @@ verify_jwt = true
 
 [functions.send-boleto-cobranca]
 verify_jwt = true
+
+[functions.list-users]
+verify_jwt = true
+
+[functions.create-user]
+verify_jwt = true
+
+[functions.send-user-invite]
+verify_jwt = true

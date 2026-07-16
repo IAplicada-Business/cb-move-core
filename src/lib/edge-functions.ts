@@ -36,7 +36,18 @@ export async function invokeEdgeFunction<T>(
   name: string,
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
+  if (!session?.access_token) {
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
+
+  const { data, error } = await supabase.functions.invoke(name, {
+    body,
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
   const message = await extractEdgeErrorMessage(error, data);
   if (message) throw new Error(message);
   return data as T;

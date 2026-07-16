@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,7 @@ function LoginPage() {
   const { signIn, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
+  const [resetLoading, setResetLoading] = React.useState(false);
   const [form, setForm] = React.useState({ email: "", password: "" });
 
   React.useEffect(() => {
@@ -43,6 +45,24 @@ function LoginPage() {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onForgotPassword() {
+    if (!form.email.trim()) {
+      toast.error("Informe o e-mail para receber o link de redefinição");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const redirectTo = `${window.location.origin}/redefinir-senha`;
+      const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), { redirectTo });
+      if (error) throw error;
+      toast.success("Enviamos um link para redefinir a senha no seu e-mail");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar o e-mail");
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -89,6 +109,15 @@ function LoginPage() {
             </div>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? "Aguarde…" : "Entrar"}
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              className="w-full text-xs"
+              disabled={resetLoading}
+              onClick={onForgotPassword}
+            >
+              {resetLoading ? "Enviando link…" : "Esqueci minha senha"}
             </Button>
           </form>
 

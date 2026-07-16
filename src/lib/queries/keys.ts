@@ -64,6 +64,8 @@ export const queryKeys = {
   },
   usuarios: {
     all: ["usuarios"] as const,
+    menuPermissions: (role: string) => ["usuarios", "menu-permissions", role] as const,
+    menuAccess: ["usuarios", "menu-access"] as const,
   },
   instrumentos: {
     all: ["instrumentos_clinicos"] as const,
