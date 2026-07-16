@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, Search, MoreHorizontal, FileText, X, ExternalLink, Mail, RefreshCw,
+  ChevronsDownUp, ChevronsUpDown, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,6 +42,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -367,7 +371,7 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
 }
 
 
-function NFRow({ nf }: { nf: NotaFiscal }) {
+function NFRow({ nf, hidePaciente }: { nf: NotaFiscal; hidePaciente?: boolean }) {
   const qc = useQueryClient();
   const isJudicial = nf.tipo === "judicial";
   const [confirmReemitir, setConfirmReemitir] = useState(false);
@@ -415,7 +419,7 @@ function NFRow({ nf }: { nf: NotaFiscal }) {
     <>
       <TableRow>
         <TableCell className="font-mono text-sm text-muted-foreground">{nf.numero ?? "—"}</TableCell>
-        <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>
+        {!hidePaciente && <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>}
         <TableCell>
           <div>{nf.destinatarioNome ?? "—"}</div>
           {isJudicial && nf.corpoPacienteNome && (
@@ -519,6 +523,39 @@ function NFRow({ nf }: { nf: NotaFiscal }) {
   );
 }
 
+type NfGrupo = {
+  key: string;
+  label: string;
+  documento: string | null;
+  total: number;
+  temErro: boolean;
+  temPendente: boolean;
+  latest: string;
+  nfs: NotaFiscal[];
+};
+
+function agruparPorCliente(nfs: NotaFiscal[]): NfGrupo[] {
+  const map = new Map<string, NfGrupo>();
+  for (const nf of nfs) {
+    const key = nf.pacienteId || nf.destinatarioNome || "sem-cliente";
+    const label = nf.pacienteNome || nf.destinatarioNome || "Sem paciente";
+    let grupo = map.get(key);
+    if (!grupo) {
+      grupo = {
+        key, label, documento: nf.destinatarioDocumento ?? null,
+        total: 0, temErro: false, temPendente: false, latest: nf.createdAt, nfs: [],
+      };
+      map.set(key, grupo);
+    }
+    grupo.nfs.push(nf);
+    grupo.total += nf.valor;
+    if (nf.status === "erro") grupo.temErro = true;
+    if (nf.status === "pendente" || nf.status === "processando") grupo.temPendente = true;
+    if (nf.createdAt > grupo.latest) grupo.latest = nf.createdAt;
+  }
+  return Array.from(map.values()).sort((a, b) => b.latest.localeCompare(a.latest));
+}
+
 function LinhaAEmitir({ row, onEmitir }: { row: CobrancaSemNf; onEmitir: () => void }) {
   return (
     <TableRow className="bg-amber-50/50 dark:bg-amber-950/20">
@@ -553,6 +590,7 @@ function NotasFiscaisPage() {
   const [filtroComp, setFiltroComp] = useState(FILTRO_TODAS_COMP);
   const [modalEmitir, setModalEmitir] = useState(false);
   const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
 
   const compOpts = competenciaOpcoes();
   const compMes = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
@@ -580,6 +618,12 @@ function NotasFiscaisPage() {
   const nfs = query.data ?? [];
   const aEmitir = semNfQuery.data ?? [];
   const temFiltro = !!(search || filtroStatus || filtroTipo);
+  const grupos = useMemo(() => agruparPorCliente(nfs), [nfs]);
+
+  useEffect(() => {
+    setOpenGroups(search.trim() ? grupos.map((g) => g.key) : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   function abrirEmitir(row?: CobrancaSemNf) {
     setPrefill(row ?? null);
@@ -690,24 +734,59 @@ function NotasFiscaisPage() {
             </div>
           )}
 
+          {grupos.length > 0 && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {grupos.length} cliente{grupos.length > 1 ? "s" : ""} · {nfs.length} nota{nfs.length > 1 ? "s" : ""}
+              </p>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" onClick={() => setOpenGroups(grupos.map((g) => g.key))}>
+                  <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />Expandir tudo
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setOpenGroups([])}>
+                  <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />Recolher tudo
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-24">Nº</TableHead>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Destinatário</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Emissão</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="w-10"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nfs.map((nf) => <NFRow key={nf.id} nf={nf} />)}
-              </TableBody>
-            </Table>
+            <Accordion type="multiple" value={openGroups} onValueChange={setOpenGroups}>
+              {grupos.map((grupo) => (
+                <AccordionItem key={grupo.key} value={grupo.key} className="border-b last:border-b-0">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30">
+                    <div className="flex items-center justify-between flex-1 gap-2 pr-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {grupo.temErro && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                        <span className="font-medium truncate">{grupo.label}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {grupo.nfs.length} nota{grupo.nfs.length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium tabular-nums shrink-0">{brl(grupo.total)}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-24 pl-4">Nº</TableHead>
+                          <TableHead>Destinatário</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Emissão</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead className="w-10"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {grupo.nfs.map((nf) => <NFRow key={nf.id} nf={nf} hidePaciente />)}
+                      </TableBody>
+                    </Table>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
         </div>
       )}
