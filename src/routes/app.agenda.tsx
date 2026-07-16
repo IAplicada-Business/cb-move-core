@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
@@ -13,6 +13,8 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { FilterChip } from "@/components/domain/FilterChip";
 import { FisioHorariosDialog } from "@/components/domain/FisioHorariosDialog";
 import { PacientePlanoSessoesCard } from "@/components/domain/PacientePlanoSessoesCard";
+import { RemarcarAgendamentoSection } from "@/components/domain/RemarcarAgendamentoSection";
+import { RemarcarDialog } from "@/components/domain/RemarcarDialog";
 import { FrequenciaMensalGrid } from "@/components/domain/FrequenciaMensalGrid";
 import { LoadingState } from "@/components/domain/LoadingState";
 import {
@@ -27,11 +29,11 @@ import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import {
   fetchAgendamentoHistorico,
-  remarcarAgendamento,
+  fetchAgendamentoPorId,
+  fetchAgendamentosPeriodo,
+  resolverSerieIdPacienteMes,
   updateAgendamentoStatus,
-  contarEscopoRemanejamento,
   fetchAgendaAviso,
-  type EscopoRemanejamento,
   type HistoricoRow,
   upsertAgendaAviso,
 } from "@/lib/queries/agenda";
@@ -39,16 +41,16 @@ import {
   fetchFisioDisponibilidade,
   fetchFisioIndisponibilidade,
 } from "@/lib/queries/fisio-horarios";
-import { fetchSessaoSiglaDia } from "@/lib/queries/sessoes";
 import {
-  fetchAgendamentosAtivosPacienteMes,
   fetchPlanoSessoesMensalPaciente,
 } from "@/lib/queries/plano-sessoes";
+import type { ItemSessaoMensal } from "@/lib/domain/plano-sessoes-mensal";
+import type { SlotRemarcacaoSelecionado } from "@/lib/domain/remarcacao-disponibilidade";
+import type { SlotPlanoMensal } from "@/lib/domain/padrao-agenda-mensal";
 import {
   gerarSlotsFaltantesPlano,
   montarPropostasAgendamento,
 } from "@/lib/domain/padrao-agenda-mensal";
-import { simularRemarcacaoImpacto } from "@/lib/domain/simular-remarcacao-impacto";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,7 +84,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, isoToHHMM, parseDDMMYYToISO } from "@/lib/format";
+import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, parseDDMMYYToISO } from "@/lib/format";
 
 export const Route = createFileRoute("/app/agenda")({
   head: () => ({ meta: [{ title: "Agenda · CB MOVE" }] }),
@@ -236,10 +238,6 @@ function weeksInMonth(year: number, monthIndex: number): WeekBlock[] {
   return blocks;
 }
 
-function sameIsoWeek(a: Date, b: Date): boolean {
-  return startOfWeek(a).getTime() === startOfWeek(b).getTime();
-}
-
 function navegarParaDataAgenda(
   isoInicio: string,
   setSemanaBase: (d: Date) => void,
@@ -253,12 +251,6 @@ function navegarParaDataAgenda(
     (d) => toDateStr(d) === dayStr,
   );
   if (idx >= 0) setDiaSemanaIdx(idx);
-}
-
-function formatDeltaDias(delta: number): string {
-  if (delta === 0) return "mesmo dia";
-  if (delta > 0) return `+${delta} dia${delta !== 1 ? "s" : ""}`;
-  return `${delta} dia${delta !== -1 ? "s" : ""}`;
 }
 
 // ─── types & queries ─────────────────────────────────────────────────────────
@@ -279,15 +271,9 @@ type Agendamento = {
 type Fisio = { id: string; nome: string };
 type Paciente = { id: string; nome: string };
 
-async function fetchAgendamentosPeriodo(inicio: string, fim: string): Promise<Agendamento[]> {
-  const { data, error } = await supabase
-    .from("agendamentos")
-    .select("*, pacientes(nome, tipo), fisioterapeutas(nome)")
-    .gte("inicio", inicio)
-    .lte("inicio", fim)
-    .order("inicio");
-  if (error) throw error;
-  return (data ?? []) as unknown as Agendamento[];
+async function fetchAgendamentosPeriodoLocal(inicio: string, fim: string): Promise<Agendamento[]> {
+  const rows = await fetchAgendamentosPeriodo(inicio, fim);
+  return rows as unknown as Agendamento[];
 }
 
 async function fetchFisios(): Promise<Fisio[]> {
@@ -454,14 +440,6 @@ type FormValues = z.infer<typeof schema>;
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
-type RemarcarFormValues = {
-  data: string; // dd/mm/yy
-  horaInicio: string; // HH:mm
-  fisioId: string;
-  duracao: number;
-  escopo: EscopoRemanejamento;
-};
-
 function AgendaPage() {
   const qc = useQueryClient();
   const { user, roles } = useAuth();
@@ -480,6 +458,7 @@ function AgendaPage() {
   const [horariosOpen, setHorariosOpen] = useState(false);
   const [remarcarOpen, setRemarcarOpen] = useState(false);
   const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
+  const [remarcarPrefill, setRemarcarPrefill] = useState<SlotRemarcacaoSelecionado | null>(null);
   const [avisoDraft, setAvisoDraft] = useState("");
 
   const periodo = useMemo(() => {
@@ -497,7 +476,7 @@ function AgendaPage() {
 
   const { data: agendamentos = [], isLoading } = useQuery({
     queryKey: queryKeys.agendamentos.periodo(periodo.inicio, periodo.fim),
-    queryFn: () => fetchAgendamentosPeriodo(periodo.inicio, periodo.fim),
+    queryFn: () => fetchAgendamentosPeriodoLocal(periodo.inicio, periodo.fim),
     enabled: visao !== "frequencia",
   });
 
@@ -509,46 +488,6 @@ function AgendaPage() {
   const { data: pacientes = [] } = useQuery({
     queryKey: queryKeys.pacientes.all,
     queryFn: fetchPacientes,
-  });
-
-  const remarcarForm = useForm<RemarcarFormValues>({
-    defaultValues: {
-      data: formatDateDDMMYY(today),
-      horaInicio: "09:00",
-      fisioId: "",
-      duracao: 50,
-      escopo: "pontual",
-    },
-  });
-
-  const remarcarDataWatch = remarcarForm.watch("data");
-  const remarcarHoraWatch = remarcarForm.watch("horaInicio");
-  const remarcarEscopoWatch = remarcarForm.watch("escopo");
-
-  const remarcarPreview = useMemo(() => {
-    if (!remarcarTarget) return null;
-    const iso = parseDDMMYYToISO(remarcarDataWatch);
-    if (!iso || !/^\d{2}:\d{2}$/.test(remarcarHoraWatch)) return null;
-    const novoInicio = `${iso}T${remarcarHoraWatch}:00-03:00`;
-    const origem = new Date(remarcarTarget.inicio);
-    const destino = new Date(novoInicio);
-    const deltaDias = Math.round((destino.getTime() - origem.getTime()) / 86_400_000);
-    return {
-      novoInicio,
-      deltaDias,
-      cruzaSemana: !sameIsoWeek(origem, destino),
-      destinoLabel: formatDateTimeDDMMYY(novoInicio),
-    };
-  }, [remarcarTarget, remarcarDataWatch, remarcarHoraWatch]);
-
-  const { data: contagensEscopo } = useQuery({
-    queryKey: ["agenda-escopo-counts", remarcarTarget?.id],
-    queryFn: async () => ({
-      pontual: await contarEscopoRemanejamento(remarcarTarget!.id, "pontual"),
-      semana: await contarEscopoRemanejamento(remarcarTarget!.id, "semana"),
-      serie_mes: await contarEscopoRemanejamento(remarcarTarget!.id, "serie_mes"),
-    }),
-    enabled: !!remarcarTarget && remarcarOpen,
   });
 
   const { data: historico = [] } = useQuery({
@@ -577,90 +516,6 @@ function AgendaPage() {
       ),
     enabled: !!selectedAgend?.paciente_id && !!competenciaAgend,
   });
-
-  const dataRemarcarOrigem = remarcarTarget?.inicio.slice(0, 10) ?? "";
-  const dataRemarcarDestino = useMemo(() => parseDDMMYYToISO(remarcarDataWatch) ?? "", [remarcarDataWatch]);
-
-  const { data: siglaDiaRemarcar = null } = useQuery({
-    queryKey: queryKeys.sessoes.siglaDia(remarcarTarget?.paciente_id ?? "", dataRemarcarOrigem),
-    queryFn: () => fetchSessaoSiglaDia(remarcarTarget!.paciente_id!, dataRemarcarOrigem),
-    enabled: remarcarOpen && !!remarcarTarget?.paciente_id && !!dataRemarcarOrigem,
-  });
-
-  const { data: siglaDiaRemarcarDestino = null } = useQuery({
-    queryKey: queryKeys.sessoes.siglaDia(remarcarTarget?.paciente_id ?? "", dataRemarcarDestino),
-    queryFn: () => fetchSessaoSiglaDia(remarcarTarget!.paciente_id!, dataRemarcarDestino),
-    enabled:
-      remarcarOpen &&
-      !!remarcarTarget?.paciente_id &&
-      !!dataRemarcarDestino &&
-      dataRemarcarDestino !== dataRemarcarOrigem,
-  });
-
-  const competenciaRemarcar = useMemo(() => {
-    if (!remarcarTarget?.inicio) return null;
-    const d = new Date(remarcarTarget.inicio);
-    return { mes: d.getMonth() + 1, ano: d.getFullYear() };
-  }, [remarcarTarget?.inicio]);
-
-  const { data: planoRemarcar } = useQuery({
-    queryKey: queryKeys.sessoes.planoMensal(
-      remarcarTarget?.paciente_id ?? "",
-      competenciaRemarcar?.mes ?? 0,
-      competenciaRemarcar?.ano ?? 0,
-    ),
-    queryFn: () =>
-      fetchPlanoSessoesMensalPaciente(
-        remarcarTarget!.paciente_id!,
-        competenciaRemarcar!.mes,
-        competenciaRemarcar!.ano,
-      ),
-    enabled: remarcarOpen && !!remarcarTarget?.paciente_id && !!competenciaRemarcar,
-  });
-
-  const { data: agendamentosRemarcar = [] } = useQuery({
-    queryKey: [
-      "agendamentos-plano-mes",
-      remarcarTarget?.paciente_id,
-      competenciaRemarcar?.mes,
-      competenciaRemarcar?.ano,
-    ],
-    queryFn: () =>
-      fetchAgendamentosAtivosPacienteMes(
-        remarcarTarget!.paciente_id!,
-        competenciaRemarcar!.mes,
-        competenciaRemarcar!.ano,
-      ),
-    enabled: remarcarOpen && !!remarcarTarget?.paciente_id && !!competenciaRemarcar,
-  });
-
-  const impactoRemarcar = useMemo(() => {
-    if (!remarcarTarget || !remarcarPreview || !planoRemarcar) return null;
-    return simularRemarcacaoImpacto({
-      plano: {
-        mes: planoRemarcar.mes,
-        ano: planoRemarcar.ano,
-        frequenciaLabel: planoRemarcar.frequenciaLabel,
-        diasSemanaLabel: planoRemarcar.diasSemanaLabel,
-        qtdSessoesCobranca: planoRemarcar.quantidadeMensal,
-      },
-      agendamentos: agendamentosRemarcar,
-      origem: {
-        id: remarcarTarget.id,
-        inicio: remarcarTarget.inicio,
-        status: remarcarTarget.status,
-        serie_id: remarcarTarget.serie_id,
-      },
-      novoInicio: remarcarPreview.novoInicio,
-      escopo: remarcarEscopoWatch,
-    });
-  }, [
-    remarcarTarget,
-    remarcarPreview,
-    planoRemarcar,
-    agendamentosRemarcar,
-    remarcarEscopoWatch,
-  ]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -760,7 +615,11 @@ function AgendaPage() {
         propostasSeriePlano.length > 0;
 
       if (usarSerie) {
-        const serieId = propostasSeriePlano.length > 1 ? crypto.randomUUID() : null;
+        const serieId = await resolverSerieIdPacienteMes(
+          vals.pacienteId,
+          competenciaNovoAg!.mes,
+          competenciaNovoAg!.ano,
+        );
         const criados = await createAgendamentosLote(
           propostasSeriePlano.map((p) => ({
             paciente_id: vals.pacienteId || null,
@@ -775,6 +634,15 @@ function AgendaPage() {
         return { criados };
       }
 
+      let serieId: string | null = null;
+      if (vals.pacienteId && competenciaNovoAg) {
+        serieId = await resolverSerieIdPacienteMes(
+          vals.pacienteId,
+          competenciaNovoAg.mes,
+          competenciaNovoAg.ano,
+        );
+      }
+
       const criados = await createAgendamentosLote([
         {
           paciente_id: vals.pacienteId || null,
@@ -783,6 +651,7 @@ function AgendaPage() {
           duracao_min: vals.duracao,
           servico: vals.servico || null,
           status: vals.statusSlot,
+          serie_id: serieId,
         },
       ]);
       return { criados };
@@ -863,67 +732,37 @@ function AgendaPage() {
     });
   }
 
-  const remarcarMutation = useMutation({
-    mutationFn: (vals: RemarcarFormValues & { agendamentoId: string }) => {
-      const isoDate = parseDDMMYYToISO(vals.data);
-      if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
-      if (!/^\d{2}:\d{2}$/.test(vals.horaInicio)) throw new Error("Hora inválida — use HH:mm");
-      return remarcarAgendamento({
-        agendamentoId: vals.agendamentoId,
-        novoInicio: `${isoDate}T${vals.horaInicio}:00-03:00`,
-        novoFisioId: vals.fisioId || undefined,
-        duracaoMin: vals.duracao,
-        escopo: vals.escopo,
-        usuarioId: user?.id ?? null,
-      });
-    },
-    onSuccess: async (result) => {
-      invalidateAgenda();
-      qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
-      qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
-      if (remarcarTarget?.paciente_id) {
-        const d = new Date(remarcarTarget.inicio);
-        qc.invalidateQueries({
-          queryKey: queryKeys.sessoes.planoMensal(
-            remarcarTarget.paciente_id,
-            d.getMonth() + 1,
-            d.getFullYear(),
-          ),
-        });
-      }
-      if (result.count > 1) {
-        toast.success(`${result.count} horários remarcados`);
-      } else {
-        toast.success("Agendamento remarcado");
-      }
-      if (result.frequenciaPerdidaCount > 0) {
-        toast.warning(
-          result.frequenciaPerdidaCount === 1
-            ? "A frequência de 1 dia foi removida — o novo dia já tinha outra marcação na planilha."
-            : `A frequência de ${result.frequenciaPerdidaCount} dias foi removida — os dias destino já tinham marcação na planilha.`,
-        );
-      }
-      setRemarcarOpen(false);
-      setRemarcarTarget(null);
+  function abrirRemarcar(ag: Agendamento, prefill?: SlotRemarcacaoSelecionado) {
+    setRemarcarTarget(ag);
+    setRemarcarPrefill(prefill ?? null);
+    setRemarcarOpen(true);
+  }
 
-      if (result.primeiroNovoId) {
-        const { data, error } = await supabase
-          .from("agendamentos")
-          .select("*, pacientes(nome, tipo), fisioterapeutas(nome)")
-          .eq("id", result.primeiroNovoId)
-          .single();
-        if (!error && data) {
-          const ag = data as unknown as Agendamento;
-          setSelectedAgend(ag);
-          if (visao === "semana" || visao === "dia") {
-            navegarParaDataAgenda(ag.inicio, setSemanaBase, setDiaSemanaIdx);
-          }
-          if (visao === "mes") setVisao("semana");
-        }
+  async function abrirSessaoDoPlano(item: ItemSessaoMensal) {
+    try {
+      const ag = await fetchAgendamentoPorId(item.id);
+      setSelectedAgend(ag as unknown as Agendamento);
+      if (visao === "semana" || visao === "dia") {
+        navegarParaDataAgenda(ag.inicio, setSemanaBase, setDiaSemanaIdx);
       }
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+      if (visao === "mes") setVisao("semana");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível abrir a sessão");
+    }
+  }
+
+  function abrirFaltanteDoPlano(slot: SlotPlanoMensal) {
+    if (!selectedAgend?.paciente_id || !slot.dataIso) return;
+    const [y, m, d] = slot.dataIso.split("-").map(Number);
+    const day = new Date(y, m - 1, d);
+    const hora =
+      selectedAgend.inicio.length >= 16
+        ? `${selectedAgend.inicio.slice(11, 13)}:${selectedAgend.inicio.slice(14, 16)}`
+        : "08:00";
+    abrirNovoSlot(day, hora, selectedAgend.fisioterapeuta_id ?? undefined);
+    form.setValue("pacienteId", selectedAgend.paciente_id);
+    form.setValue("agendarSerieMesmoDia", true);
+  }
 
   const filtered = useMemo(
     () =>
@@ -942,18 +781,6 @@ function AgendaPage() {
       }),
     [agendamentos, filterFisio, filterTipo, buscaGrade],
   );
-
-  function abrirRemarcar(ag: Agendamento) {
-    remarcarForm.reset({
-      data: isoToDDMMYY(ag.inicio),
-      horaInicio: isoToHHMM(ag.inicio),
-      fisioId: ag.fisioterapeuta_id ?? "",
-      duracao: ag.duracao_min,
-      escopo: "pontual",
-    });
-    setRemarcarTarget(ag);
-    setRemarcarOpen(true);
-  }
 
   function labelHistorico(item: HistoricoRow) {
     const siglaAnterior = parseSiglaHistorico(item.status_anterior);
@@ -1540,15 +1367,20 @@ function AgendaPage() {
                     >
                       Cancelar
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => abrirRemarcar(selectedAgend)}
-                    >
-                      Remarcar
-                    </Button>
+                    <RemarcarAgendamentoSection
+                      target={selectedAgend}
+                      onAbrirRemarcar={(prefill) => abrirRemarcar(selectedAgend, prefill)}
+                    />
                   </div>
+                )}
+
+                {selectedAgend.paciente_id && planoSessoesMensal && (
+                  <PacientePlanoSessoesCard
+                    resumo={planoSessoesMensal}
+                    agendamentoAtualId={selectedAgend.id}
+                    onSessaoClick={abrirSessaoDoPlano}
+                    onFaltanteClick={abrirFaltanteDoPlano}
+                  />
                 )}
 
                 {podeGerir && STATUS_EDITAVEIS.includes(selectedAgend.status) && (
@@ -1612,13 +1444,6 @@ function AgendaPage() {
                   </div>
                 )}
 
-                {selectedAgend.paciente_id && planoSessoesMensal && (
-                  <PacientePlanoSessoesCard
-                    resumo={planoSessoesMensal}
-                    agendamentoAtualId={selectedAgend.id}
-                  />
-                )}
-
                 <div className="space-y-2 border-t pt-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Histórico
@@ -1645,163 +1470,29 @@ function AgendaPage() {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={remarcarOpen} onOpenChange={(o) => { setRemarcarOpen(o); if (!o) setRemarcarTarget(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Remarcar agendamento</DialogTitle>
-          </DialogHeader>
-          {remarcarTarget && (
-            <form
-              className="space-y-4"
-              onSubmit={remarcarForm.handleSubmit((vals) =>
-                remarcarMutation.mutate({ ...vals, agendamentoId: remarcarTarget.id }),
-              )}
-            >
-              <p className="text-sm text-muted-foreground">
-                {remarcarTarget.pacientes?.nome ?? "Paciente"} · horário atual{" "}
-                {formatDateTimeDDMMYY(remarcarTarget.inicio)}
-              </p>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="remarcar-data">Nova data</Label>
-                  <Controller
-                    control={remarcarForm.control}
-                    name="data"
-                    render={({ field }) => (
-                      <DateInputDDMMYY id="remarcar-data" {...field} />
-                    )}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="remarcar-hora">Nova hora</Label>
-                  <Controller
-                    control={remarcarForm.control}
-                    name="horaInicio"
-                    render={({ field }) => (
-                      <TimeInputHHMM id="remarcar-hora" {...field} />
-                    )}
-                  />
-                </div>
-              </div>
-
-              {remarcarPreview && (
-                <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-xs space-y-1">
-                  <p>
-                    <span className="text-muted-foreground">Novo horário: </span>
-                    <span className="font-medium">{remarcarPreview.destinoLabel}</span>
-                    <span className="text-muted-foreground"> ({formatDeltaDias(remarcarPreview.deltaDias)})</span>
-                  </p>
-                  {remarcarPreview.cruzaSemana && (
-                    <p className="text-cb-orange font-medium">
-                      A data cai em outra semana — após confirmar, a agenda abrirá nessa semana.
-                    </p>
-                  )}
-                  {siglaDiaRemarcar && remarcarPreview && remarcarPreview.deltaDias !== 0 && (
-                    <p className="text-cb-orange font-medium">
-                      {siglaDiaRemarcarDestino
-                        ? `Este dia tem frequência (${siglaDiaRemarcar}) — ao remarcar, ela será removida porque o novo dia já tem ${siglaDiaRemarcarDestino}.`
-                        : `Este dia tem frequência marcada (${siglaDiaRemarcar}) — ela será movida para o novo dia${remarcarPreview.cruzaSemana ? " (outra semana na planilha)" : ""}.`}
-                    </p>
-                  )}
-                  {remarcarEscopoWatch !== "pontual" && contagensEscopo && (
-                    <p className="text-muted-foreground">
-                      Escopo &quot;{remarcarEscopoWatch}&quot;:{" "}
-                      {remarcarEscopoWatch === "semana"
-                        ? contagensEscopo.semana
-                        : contagensEscopo.serie_mes}{" "}
-                      horário(s) serão deslocados pelo mesmo intervalo.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {impactoRemarcar?.usaSlots && impactoRemarcar.avisos.length > 0 && (
-                <div className="rounded-lg border border-cb-orange/40 bg-cb-orange/5 px-3 py-2.5 text-xs space-y-1">
-                  <p className="font-medium text-cb-orange">Impacto no plano mensal</p>
-                  {impactoRemarcar.avisos.map((aviso) => (
-                    <p
-                      key={aviso}
-                      className={
-                        aviso.includes("fora dos dias do plano")
-                          ? "text-cb-orange font-medium"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {aviso}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label>Fisioterapeuta</Label>
-                <Select
-                  value={remarcarForm.watch("fisioId")}
-                  onValueChange={(v) => remarcarForm.setValue("fisioId", v)}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                  <SelectContent>
-                    {fisios.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Escopo do remanejamento</Label>
-                <RadioGroup
-                  value={remarcarForm.watch("escopo")}
-                  onValueChange={(v) => remarcarForm.setValue("escopo", v as EscopoRemanejamento)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="pontual" id="escopo-pontual" />
-                    <Label htmlFor="escopo-pontual" className="font-normal">
-                      Só este horário
-                      {contagensEscopo && (
-                        <span className="ml-1 text-muted-foreground">({contagensEscopo.pontual} horário)</span>
-                      )}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="semana" id="escopo-semana" />
-                    <Label htmlFor="escopo-semana" className="font-normal">
-                      Demais futuros do paciente na mesma semana
-                      {contagensEscopo && (
-                        <span className="ml-1 text-muted-foreground">
-                          ({contagensEscopo.semana} horário{contagensEscopo.semana !== 1 ? "s" : ""})
-                        </span>
-                      )}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="serie_mes" id="escopo-mes" />
-                    <Label htmlFor="escopo-mes" className="font-normal">
-                      Demais futuros do paciente até fim do mês
-                      {contagensEscopo && (
-                        <span className="ml-1 text-muted-foreground">
-                          ({contagensEscopo.serie_mes} horário{contagensEscopo.serie_mes !== 1 ? "s" : ""})
-                        </span>
-                      )}
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setRemarcarOpen(false)}>
-                  Voltar
-                </Button>
-                <Button type="submit" disabled={remarcarMutation.isPending}>
-                  {remarcarMutation.isPending ? "Salvando…" : "Confirmar remarcação"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      <RemarcarDialog
+        open={remarcarOpen}
+        onOpenChange={(o) => {
+          setRemarcarOpen(o);
+          if (!o) {
+            setRemarcarTarget(null);
+            setRemarcarPrefill(null);
+          }
+        }}
+        target={remarcarTarget}
+        fisios={fisios}
+        usuarioId={user?.id ?? null}
+        prefillSlot={remarcarPrefill}
+        onRemarcado={(ag) => {
+          invalidateAgenda();
+          setSelectedAgend(ag as unknown as Agendamento);
+          setRemarcarTarget(null);
+          if (visao === "semana" || visao === "dia") {
+            navegarParaDataAgenda(ag.inicio, setSemanaBase, setDiaSemanaIdx);
+          }
+          if (visao === "mes") setVisao("semana");
+        }}
+      />
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">

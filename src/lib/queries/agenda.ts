@@ -319,3 +319,65 @@ export async function upsertAgendaAviso(data: string, texto: string): Promise<vo
   );
   if (error) throw error;
 }
+
+export type AgendamentoDetalhe = {
+  id: string;
+  paciente_id: string | null;
+  fisioterapeuta_id: string | null;
+  inicio: string;
+  duracao_min: number;
+  servico: string | null;
+  status: StatusAgendamento;
+  serie_id: string | null;
+  pacientes?: { nome: string; tipo?: string } | null;
+  fisioterapeutas?: { nome: string } | null;
+};
+
+export async function fetchAgendamentoPorId(id: string): Promise<AgendamentoDetalhe> {
+  const { data, error } = await supabase
+    .from("agendamentos")
+    .select("*, pacientes(nome, tipo), fisioterapeutas(nome)")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data as unknown as AgendamentoDetalhe;
+}
+
+export async function fetchAgendamentosPeriodo(
+  inicio: string,
+  fim: string,
+): Promise<AgendamentoDetalhe[]> {
+  const { data, error } = await supabase
+    .from("agendamentos")
+    .select("*, pacientes(nome, tipo), fisioterapeutas(nome)")
+    .gte("inicio", inicio)
+    .lte("inicio", fim)
+    .order("inicio");
+  if (error) throw error;
+  return (data ?? []) as unknown as AgendamentoDetalhe[];
+}
+
+/** Reutiliza série existente do paciente no mês ou cria nova. */
+export async function resolverSerieIdPacienteMes(
+  pacienteId: string,
+  mes: number,
+  ano: number,
+): Promise<string> {
+  const inicio = `${ano}-${String(mes).padStart(2, "0")}-01T00:00:00-03:00`;
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const fim = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}T23:59:59-03:00`;
+
+  const { data, error } = await supabase
+    .from("agendamentos")
+    .select("serie_id")
+    .eq("paciente_id", pacienteId)
+    .not("serie_id", "is", null)
+    .gte("inicio", inicio)
+    .lte("inicio", fim)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+
+  const existente = (data as { serie_id: string | null } | null)?.serie_id;
+  return existente ?? crypto.randomUUID();
+}

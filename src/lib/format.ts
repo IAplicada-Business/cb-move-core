@@ -53,6 +53,17 @@ export const parseDDMMYYToISO = (input: string): string | null => {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
 
+/** Intervalo legível de semana útil — ex.: "20 – 24 jul 2026" */
+export const formatSemanaIntervalo = (inicio: Date, fim: Date) => {
+  const fmtDia = (d: Date) =>
+    d.toLocaleDateString("pt-BR", { day: "numeric", month: "short" }).replace(/\./g, "");
+  const ano = fim.getFullYear();
+  if (inicio.getMonth() === fim.getMonth()) {
+    return `${inicio.getDate()} – ${fmtDia(fim)} ${ano}`;
+  }
+  return `${fmtDia(inicio)} – ${fmtDia(fim)} ${ano}`;
+};
+
 /** HH:mm 24h a partir de ISO */
 export const isoToHHMM = (iso: string | null | undefined) => {
   if (!iso) return "";

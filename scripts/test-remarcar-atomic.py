@@ -35,6 +35,19 @@ ADMIN_EMAIL = "mariana@iaplicada.com"
 TEST_CANAL = "test_atomic_remarcar"
 SERVICO_TESTE_REMARCAR = "Teste atomicidade remarcar"
 FAIL_FLAG = "remarcar_fail_on_second_insert"
+DURACAO_TESTE_MIN = 50
+ACTIVE_STATUSES = ("agendado", "confirmado", "indisponivel", "ferias", "horario_extra")
+# Inícios dos blocos da grade semanal (America/Sao_Paulo)
+BLOCO_HORARIOS = (
+    (8, 0),
+    (9, 30),
+    (11, 10),
+    (12, 40),
+    (14, 10),
+    (15, 40),
+    (17, 20),
+    (18, 50),
+)
 
 
 def req(method: str, url: str, headers: dict, body: dict | list | None = None) -> tuple[int, object]:
@@ -149,6 +162,93 @@ def next_monday_10h() -> datetime:
         days_ahead = 7
     monday = (now + timedelta(days=days_ahead)).replace(hour=10, minute=0, second=0, microsecond=0)
     return monday
+
+
+def at_bloco(day: datetime, hour: int, minute: int) -> datetime:
+    return day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+
+def parse_inicio(value: str) -> datetime:
+    normalized = value.replace("Z", "+00:00")
+    return datetime.fromisoformat(normalized).astimezone(TZ)
+
+
+def ranges_overlap(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
+    return start_a < end_b and start_b < end_a
+
+
+def fetch_ocupacao_fisio(
+    base: str,
+    fisio_id: str,
+    window_start: datetime,
+    window_end: datetime,
+) -> list[dict]:
+    start_iso = iso_inicio(window_start)
+    end_iso = iso_inicio(window_end)
+    status_filter = ",".join(ACTIVE_STATUSES)
+    path = (
+        f"agendamentos?fisioterapeuta_id=eq.{fisio_id}"
+        f"&inicio=gte.{start_iso}"
+        f"&inicio=lt.{end_iso}"
+        f"&status=in.({status_filter})"
+        f"&select=id,inicio,duracao_min,status"
+    )
+    code, rows = rest(base, path)
+    if code >= 400:
+        raise RuntimeError(f"buscar ocupação do fisio falhou ({code}): {rows}")
+    return rows or []
+
+
+def tem_conflito(
+    candidato: datetime,
+    duracao_min: int,
+    ocupados: list[dict],
+    exclude_ids: set[str],
+) -> bool:
+    fim = candidato + timedelta(minutes=duracao_min)
+    for ag in ocupados:
+        if ag["id"] in exclude_ids:
+            continue
+        inicio = parse_inicio(ag["inicio"])
+        dur = int(ag.get("duracao_min") or DURACAO_TESTE_MIN)
+        if ranges_overlap(candidato, fim, inicio, inicio + timedelta(minutes=dur)):
+            return True
+    return False
+
+
+def find_free_slot(
+    base: str,
+    fisio_id: str,
+    *,
+    exclude_ids: set[str],
+    start_from: datetime | None = None,
+    prefer_weekday: int | None = None,
+    max_days: int = 120,
+) -> datetime:
+    """Retorna um horário livre na grade do fisio, evitando conflito com a agenda real."""
+    anchor = (start_from or (next_monday_10h() + timedelta(days=7))).astimezone(TZ)
+    window_start = anchor.replace(hour=0, minute=0, second=0, microsecond=0)
+    window_end = window_start + timedelta(days=max_days + 1)
+    ocupados = fetch_ocupacao_fisio(base, fisio_id, window_start, window_end)
+
+    day_order = list(range(max_days))
+    if prefer_weekday is not None:
+        day_order.sort(key=lambda offset: 0 if (anchor + timedelta(days=offset)).weekday() == prefer_weekday else 1)
+
+    for offset in day_order:
+        day = (anchor + timedelta(days=offset)).replace(hour=0, minute=0, second=0, microsecond=0)
+        if day.weekday() >= 5:
+            continue
+        for hour, minute in BLOCO_HORARIOS:
+            candidato = at_bloco(day, hour, minute)
+            if candidato < anchor:
+                continue
+            if not tem_conflito(candidato, DURACAO_TESTE_MIN, ocupados, exclude_ids):
+                return candidato
+
+    raise RuntimeError(
+        f"nenhum slot livre encontrado para fisio {fisio_id[:8]}… nos próximos {max_days} dias úteis"
+    )
 
 
 def pick_refs(base: str) -> tuple[str, str]:
@@ -346,7 +446,13 @@ def run_tests(base: str, keep_data: bool) -> None:
     try:
         cleanup(base, None)
         fixture = create_fixture(base)
-        print(f"Fixture: paciente={fixture.paciente_id[:8]}… ags={fixture.ag_ids}")
+        exclude_ids = set(fixture.ag_ids)
+        dest_pontual = find_free_slot(base, fixture.fisio_id, exclude_ids=exclude_ids)
+        origem_quarta = next_monday_10h() + timedelta(days=2)
+        print(
+            f"Fixture: paciente={fixture.paciente_id[:8]}… ags={fixture.ag_ids} "
+            f"dest_pontual={dest_pontual.isoformat()}"
+        )
 
         # 1) RPC existe
         code, out = rpc(
@@ -400,7 +506,7 @@ def run_tests(base: str, keep_data: bool) -> None:
         passed += 1
 
         # 4) Sucesso pontual
-        novo_inicio = iso_inicio(next_monday_10h() + timedelta(days=7))
+        novo_inicio = iso_inicio(dest_pontual)
         code, out = rpc(
             base,
             "remarcar_agendamentos_lote",
@@ -430,8 +536,16 @@ def run_tests(base: str, keep_data: bool) -> None:
         passed += 1
 
         # 5) Lote semana (só ag2 ainda ativo na mesma semana)
-        delta_days = 7
-        novo_inicio_lote = iso_inicio(next_monday_10h() + timedelta(days=2 + delta_days))
+        exclude_ids.add(novo_id)
+        dest_semana = find_free_slot(
+            base,
+            fixture.fisio_id,
+            exclude_ids=exclude_ids,
+            start_from=origem_quarta + timedelta(days=7),
+            prefer_weekday=origem_quarta.weekday(),
+        )
+        print(f"dest_semana={dest_semana.isoformat()}")
+        novo_inicio_lote = iso_inicio(dest_semana)
         code, out = rpc(
             base,
             "remarcar_agendamentos_lote",
@@ -454,6 +568,8 @@ def run_tests(base: str, keep_data: bool) -> None:
         # 6) Rollback forçado no 2º insert — recria par de agendamentos ativos
         cleanup(base, fixture)
         fixture = create_fixture(base)
+        exclude_ids = set(fixture.ag_ids)
+        dest_rollback = find_free_slot(base, fixture.fisio_id, exclude_ids=exclude_ids)
         setup_trigger()
         set_fail_flag(True)
         before = snapshot(base, fixture)
@@ -463,7 +579,7 @@ def run_tests(base: str, keep_data: bool) -> None:
             "remarcar_agendamentos_lote",
             {
                 "p_agendamento_id": fixture.ag_ids[0],
-                "p_novo_inicio": iso_inicio(next_monday_10h() + timedelta(days=7)),
+                "p_novo_inicio": iso_inicio(dest_rollback),
                 "p_escopo": "semana",
             },
             jwt,
