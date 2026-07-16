@@ -394,6 +394,7 @@ function TabExtratoFinanceiro() {
   function imprimir() {
     if (!printRef.current) return;
     const conteudo = printRef.current.innerHTML;
+    const geradoEm = new Date().toLocaleDateString("pt-BR");
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
   <head>
@@ -409,9 +410,46 @@ function TabExtratoFinanceiro() {
       .num { text-align: right; white-space: nowrap; }
       .total td { font-weight: 700; background: #f9fafb; }
       .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; }
+
+      /* Marca CB MOVE */
+      .brand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+      .brand-mark { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; background: #fff; position: relative; }
+      .brand-mark::before {
+        content: "";
+        position: absolute; inset: -3px;
+        border-radius: 50%;
+        background: conic-gradient(from 130deg, #D946A0, #F58A1F, #C5D932, #3FB5BC, #7B4FB5, #D946A0);
+        -webkit-mask: radial-gradient(circle, transparent 10px, #000 11.5px);
+        mask: radial-gradient(circle, transparent 10px, #000 11.5px);
+      }
+      .brand-word { display: flex; flex-direction: column; line-height: 1.15; }
+      .brand-word b { font-size: 13px; letter-spacing: 0.2px; color: #2c2c2c; }
+      .brand-word span { font-size: 7.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #6b7280; }
+      .brand-doc-title { margin-left: auto; text-align: right; }
+      .brand-doc-title b { font-size: 12px; display: block; color: #2c2c2c; }
+      .brand-doc-title span { font-size: 10px; color: #6b7280; }
+      .brand-bar { height: 3px; background: #2D8388; border-radius: 2px; margin: 8px 0 18px; }
+      .brand-footer { display: flex; height: 3px; border-radius: 2px; overflow: hidden; margin-top: 28px; }
+      .brand-footer span { flex: 1; }
+      .brand-footer .m { background: #D946A0; }
+      .brand-footer .o { background: #F58A1F; }
+      .brand-footer .l { background: #C5D932; }
+      .brand-footer .c { background: #3FB5BC; }
+      .brand-footer .p { background: #7B4FB5; }
+      .footer-text { font-size: 8.5px; color: #6b7280; text-align: center; margin-top: 6px; }
     </style>
   </head>
-  <body>${conteudo}</body>
+  <body>
+    <div class="brand-header">
+      <div class="brand-mark"></div>
+      <div class="brand-word"><b>CB MOVE</b><span>Neuroscience</span></div>
+      <div class="brand-doc-title"><b>Extrato Financeiro</b><span>${competenciaLabel(mes, ano)}</span></div>
+    </div>
+    <div class="brand-bar"></div>
+    ${conteudo}
+    <div class="brand-footer"><span class="m"></span><span class="o"></span><span class="l"></span><span class="c"></span><span class="p"></span></div>
+    <p class="footer-text">Documento gerado pela CB MOVE Neuroscience em ${geradoEm}</p>
+  </body>
 </html>`;
 
     // Impressão via iframe oculto na própria página — evita bloqueio de pop-up

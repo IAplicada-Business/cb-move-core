@@ -159,17 +159,38 @@ export function buildExtratoFinanceiro(
   };
 }
 
+/** Formata número no padrão pt-BR (vírgula decimal) para abrir corretamente no Excel. */
+function numeroBR(v: number | null | undefined): string {
+  if (v == null) return "";
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function extratoToCsvRows(resumo: ExtratoFinanceiroResumo): Record<string, unknown>[] {
-  return resumo.linhas.map((l) => ({
+  const linhas = resumo.linhas.map((l) => ({
     "Nome do Paciente": l.pacienteNome,
     Avaliação: l.avaliacao ?? "",
     Frequência: l.frequencia ?? "",
     "Dias da Semana": l.diasSemana ?? "",
     "Nº Sessões": l.numSessoes ?? "",
     Plano: l.plano,
-    "R$ Sessão/Mês": l.valorUnitario != null ? l.valorUnitario : "",
-    "R$ Previsto": l.valorPrevisto,
-    "R$ Recebido": l.valorRecebido ?? "",
+    "R$ Sessão/Mês": numeroBR(l.valorUnitario),
+    "R$ Previsto": numeroBR(l.valorPrevisto),
+    "R$ Recebido": numeroBR(l.valorRecebido),
     SITUAÇÃO: l.situacao,
   }));
+
+  const totalRow = {
+    "Nome do Paciente": "TOTAL",
+    Avaliação: "",
+    Frequência: "",
+    "Dias da Semana": "",
+    "Nº Sessões": "",
+    Plano: "",
+    "R$ Sessão/Mês": "",
+    "R$ Previsto": numeroBR(resumo.totalPrevisto),
+    "R$ Recebido": numeroBR(resumo.totalRecebido),
+    SITUAÇÃO: "",
+  };
+
+  return [...linhas, totalRow];
 }

@@ -1,3 +1,8 @@
+// Separador ";" (não ",") porque o Excel em português (Brasil) usa vírgula
+// como separador decimal — ao abrir um CSV com "," como delimitador, o
+// Excel PT-BR não reconhece as colunas e derrama tudo numa única célula.
+const DELIMITER = ";";
+
 export function parseCSV(text: string): Record<string, string>[] {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length === 0) return [];
@@ -15,11 +20,11 @@ export function toCSV(rows: Record<string, unknown>[]): string {
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
     const s = v == null ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    return new RegExp(`["${DELIMITER}\\n]`).test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [
-    headers.join(","),
-    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+    headers.join(DELIMITER),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(DELIMITER)),
   ].join("\n");
 }
 
@@ -34,7 +39,7 @@ function splitLine(line: string): string[] {
       else if (c === '"') inQuote = false;
       else cur += c;
     } else {
-      if (c === ",") { out.push(cur); cur = ""; }
+      if (c === DELIMITER) { out.push(cur); cur = ""; }
       else if (c === '"') inQuote = true;
       else cur += c;
     }
@@ -44,7 +49,8 @@ function splitLine(line: string): string[] {
 }
 
 export function downloadCSV(filename: string, rows: Record<string, unknown>[]) {
-  const blob = new Blob([toCSV(rows)], { type: "text/csv;charset=utf-8" });
+  // BOM \uFEFF garante que o Excel abra os acentos corretamente como UTF-8.
+  const blob = new Blob(["\uFEFF", toCSV(rows)], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
