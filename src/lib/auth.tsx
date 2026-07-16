@@ -5,6 +5,7 @@ import type { AppRole } from "./types";
 import { resolvePostAuthPath } from "./auth-routes";
 import { mustResetPassword, type PostAuthPath } from "./password-reset";
 import { isCliente, isStaff } from "./permissions";
+import { diag } from "./client-diagnostics";
 
 type AuthContextValue = {
   session: Session | null;
@@ -30,13 +31,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const rolesUserIdRef = React.useRef<string | null>(null);
 
   async function loadRoles(userId: string) {
+    diag.info("auth", "carregando papéis", { userId });
+
     const [rolesResult, pacResult] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId),
       (supabase as any).from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
     ]);
 
     if (rolesResult.error) {
-      console.error("loadRoles", rolesResult.error);
+      diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
+    }
+    if (pacResult.error) {
+      diag.error("auth", "falha ao buscar paciente vinculado", pacResult.error);
     }
 
     const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
@@ -46,6 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPacienteId(pacId);
     setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
     rolesUserIdRef.current = userId;
+
+    diag.info("auth", "papéis carregados", {
+      userId,
+      roles: fetchedRoles,
+      pacienteId: pacId,
+      isPaciente: isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)),
+    });
   }
 
   async function clearRoles() {
@@ -72,8 +85,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     let mounted = true;
 
+    const loadingWatchdog = window.setTimeout(() => {
+      if (mounted) {
+        diag.warn("auth", "bootstrap ainda em loading após 8s — possível travamento no reload", {
+          pathname: window.location.pathname,
+        });
+      }
+    }, 8_000);
+
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (!mounted) return;
+
+      diag.info("auth", `onAuthStateChange: ${event}`, {
+        hasSession: Boolean(nextSession),
+        userId: nextSession?.user?.id,
+      });
 
       if (event === "INITIAL_SESSION") return;
 
@@ -88,26 +114,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (nextSession?.user && (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY")) {
-        await applySession(nextSession);
+        try {
+          await applySession(nextSession);
+        } catch (error) {
+          diag.error("auth", `falha ao aplicar sessão (${event})`, error);
+        }
       }
     });
 
     void (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-      await applySession(data.session);
-      if (mounted) setLoading(false);
+      try {
+        diag.info("auth", "bootstrap: restaurando sessão do storage");
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          diag.error("auth", "bootstrap: getSession retornou erro", error);
+        }
+        if (!mounted) return;
+
+        diag.info("auth", "bootstrap: sessão restaurada", {
+          hasSession: Boolean(data.session),
+          userId: data.session?.user?.id,
+        });
+
+        await applySession(data.session);
+      } catch (error) {
+        diag.error("auth", "bootstrap: exceção ao restaurar sessão", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          window.clearTimeout(loadingWatchdog);
+          diag.info("auth", "bootstrap concluído", { loading: false });
+        }
+      }
     })();
 
     const onVisible = () => {
       if (document.visibilityState === "visible") {
-        void supabase.auth.getSession();
+        diag.info("auth", "aba visível — revalidando sessão");
+        void supabase.auth.getSession().then(({ data, error }) => {
+          if (error) diag.error("auth", "getSession ao voltar à aba falhou", error);
+          else diag.info("auth", "sessão revalidada", { hasSession: Boolean(data.session) });
+        });
       }
     };
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       mounted = false;
+      window.clearTimeout(loadingWatchdog);
       sub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
     };

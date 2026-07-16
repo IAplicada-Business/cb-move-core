@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
+import { diag } from "@/lib/client-diagnostics";
 import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/")({
@@ -13,16 +14,26 @@ function Splash() {
   const { session, loading } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      diag.info("splash", "aguardando auth bootstrap");
+      return;
+    }
 
     if (!session) {
+      diag.info("splash", "sem sessão → /login");
       navigate({ to: "/login", replace: true });
       return;
     }
 
-    void resolvePostAuthPath(session.user.id).then((path) => {
-      navigate({ to: path, replace: true });
-    });
+    diag.info("splash", "sessão ok, resolvendo destino", { userId: session.user.id });
+    void resolvePostAuthPath(session.user.id)
+      .then((path) => {
+        diag.info("splash", `navegando para ${path}`);
+        navigate({ to: path, replace: true });
+      })
+      .catch((error) => {
+        diag.error("splash", "falha ao resolver destino pós-auth", error);
+      });
   }, [loading, session, navigate]);
 
   return (

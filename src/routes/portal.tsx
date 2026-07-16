@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, Outlet, useNavigate, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { mustResetPassword } from "@/lib/password-reset";
+import { diag } from "@/lib/client-diagnostics";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 
@@ -14,12 +15,22 @@ function PortalShell() {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (!loading && !session) navigate({ to: "/login" });
-    if (!loading && session && mustResetPassword(user)) {
+    if (loading) {
+      diag.info("guard:portal", "aguardando auth");
+      return;
+    }
+    if (!session) {
+      diag.info("guard:portal", "sem sessão → /login");
+      navigate({ to: "/login" });
+      return;
+    }
+    if (mustResetPassword(user)) {
+      diag.info("guard:portal", "must_reset_password → /redefinir-senha");
       navigate({ to: "/redefinir-senha" });
       return;
     }
-    if (!loading && session && !isPaciente && !roles.includes("cliente")) {
+    if (!isPaciente && !roles.includes("cliente")) {
+      diag.info("guard:portal", "usuário equipe → /app", { roles, isPaciente });
       navigate({ to: "/app" });
     }
   }, [loading, session, isPaciente, roles, user, navigate]);
