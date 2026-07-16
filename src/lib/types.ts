@@ -23,4 +23,4 @@ export type StatusAgendamento =
   | "ferias"
   | "horario_extra";
 export type FrequenciaSigla = "P" | "F" | "FJ" | "NJ" | "RC" | "NR";
-export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint";
+export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint" | "puc";

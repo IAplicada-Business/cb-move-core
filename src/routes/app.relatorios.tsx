@@ -1,12 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react";
+import {
+  Briefcase,
+  Building2,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  Gavel,
+  GraduationCap,
+  Printer,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { MonthPicker } from "@/components/domain/MonthPicker";
 import { queryKeys } from "@/lib/queries";
 import { downloadCSV } from "@/lib/csv";
 import {
@@ -15,8 +26,8 @@ import {
 } from "@/lib/domain/extrato-financeiro";
 import { brl } from "@/lib/format";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
-import { fetchNFsPorPacienteAno } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
+import { gerarRelatorioMensal } from "@/lib/queries/prontuario";
 import {
   fetchFinanceiroKpisPorTipo,
   fetchRelatorioReceitaConvenio,
@@ -24,6 +35,9 @@ import {
 import type { PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -46,6 +60,36 @@ const TIPO_KPI: Record<PacienteTipo, { label: string; accent: "cyan" | "magenta"
   puc: { label: "PUC", accent: "orange" },
 };
 
+const TIPO_RELATORIO: Record<
+  PacienteTipo,
+  { label: string; descricao: string; icon: typeof Briefcase; accent: string }
+> = {
+  particular: {
+    label: "Particular",
+    descricao: "Modelo convencional de relatório de atendimento",
+    icon: Briefcase,
+    accent: "text-cb-cyan-600 bg-cb-cyan-050",
+  },
+  judicial: {
+    label: "Judicial",
+    descricao: "Modelo para processos judiciais",
+    icon: Gavel,
+    accent: "text-cb-magenta bg-[#FDF2F8]",
+  },
+  convenio: {
+    label: "Convênio",
+    descricao: "Modelo Unimed / convênios",
+    icon: Building2,
+    accent: "text-purple-600 bg-purple-50",
+  },
+  puc: {
+    label: "PUC",
+    descricao: "Modelo institucional PUC",
+    icon: GraduationCap,
+    accent: "text-cb-orange bg-[#FFF7ED]",
+  },
+};
+
 function competenciaOpcoes() {
   const now = new Date();
   const opts: { label: string; mes: number; ano: number }[] = [];
@@ -58,11 +102,6 @@ function competenciaOpcoes() {
     });
   }
   return opts;
-}
-
-function anosDisponiveis() {
-  const now = new Date().getFullYear();
-  return Array.from({ length: 5 }, (_, i) => now - i);
 }
 
 function TabReceitaConvenio() {
@@ -167,169 +206,163 @@ function TabReceitaConvenio() {
   );
 }
 
-function TabNFsPorPaciente() {
-  const [pacienteId, setPacienteId] = useState<string>("");
-  const [ano, setAno] = useState(new Date().getFullYear());
-  const [exportando, setExportando] = useState(false);
-  const anos = anosDisponiveis();
+type RelatorioGerado = {
+  relatorio_id: string;
+  modelo: string;
+  paciente_nome: string;
+  competencia: string;
+  total_sessoes: number;
+  pdf_url?: string;
+};
 
-  const pacientes = useQuery({
-    queryKey: queryKeys.pacientes.list({ ativo: true }),
-    queryFn: () => fetchPacientes({ ativo: true }),
+function GerarRelatorioDialog({
+  tipo,
+  onClose,
+}: {
+  tipo: PacienteTipo;
+  onClose: () => void;
+}) {
+  const cfg = TIPO_RELATORIO[tipo];
+  const now = new Date();
+  const [pacienteId, setPacienteId] = useState("");
+  const [mes, setMes] = useState(now.getMonth() + 1);
+  const [ano, setAno] = useState(now.getFullYear());
+  const [resultado, setResultado] = useState<RelatorioGerado | null>(null);
+  const queryClient = useQueryClient();
+
+  const pacientesQuery = useQuery({
+    queryKey: queryKeys.pacientes.list({ tipo, ativo: true }),
+    queryFn: () => fetchPacientes({ tipo, ativo: true }),
   });
 
-  const nfsQuery = useQuery({
-    queryKey: ["relatorios", "nfs_paciente", pacienteId, ano],
-    queryFn: () => fetchNFsPorPacienteAno(pacienteId, ano),
-    enabled: !!pacienteId,
+  const gerarMutation = useMutation({
+    mutationFn: () => gerarRelatorioMensal({ pacienteId, mes, ano }),
+    onSuccess: (data) => {
+      setResultado(data as RelatorioGerado);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.relatorios.byPaciente(pacienteId) });
+      toast.success("Relatório gerado com sucesso");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const nfs = nfsQuery.data ?? [];
-  const total = nfs.reduce((s, n) => s + n.valor, 0);
-  const paciente = pacientes.data?.find((p) => p.id === pacienteId);
-
-  async function exportarIR() {
-    if (!pacienteId) return;
-    setExportando(true);
-    try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data, error } = await supabase.functions.invoke("gerar-relatorio-ir", {
-        body: { paciente_id: pacienteId, ano },
-      });
-      if (error) throw new Error(error.message);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `relatorio-ir-${paciente?.nome ?? pacienteId}-${ano}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Relatório exportado");
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao exportar");
-    } finally {
-      setExportando(false);
-    }
-  }
+  const paciente = pacientesQuery.data?.find((p) => p.id === pacienteId);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-base font-semibold">NFs por paciente — Declaração de IR</h2>
-        <div className="flex items-center gap-2">
-          <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {anos.map((a) => (
-                <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <cfg.icon className="h-5 w-5" />
+            Relatório de atendimento — {cfg.label}
+          </DialogTitle>
+        </DialogHeader>
 
-          <Select value={pacienteId} onValueChange={setPacienteId}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Selecione o paciente…" />
-            </SelectTrigger>
-            <SelectContent>
-              {pacientes.isLoading && (
-                <SelectItem value="__loading" disabled>Carregando…</SelectItem>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">{cfg.descricao}</p>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Paciente</label>
+            <Select value={pacienteId} onValueChange={(v) => { setPacienteId(v); setResultado(null); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o paciente…" />
+              </SelectTrigger>
+              <SelectContent>
+                {pacientesQuery.isLoading && (
+                  <SelectItem value="__loading" disabled>Carregando…</SelectItem>
+                )}
+                {pacientesQuery.data?.length === 0 && (
+                  <SelectItem value="__empty" disabled>Nenhum paciente do tipo {cfg.label}</SelectItem>
+                )}
+                {(pacientesQuery.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Competência</label>
+            <MonthPicker
+              mes={mes}
+              ano={ano}
+              onChange={(m, a) => { setMes(m); setAno(a); setResultado(null); }}
+              className="w-full"
+            />
+          </div>
+
+          {resultado && (
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+              <p><span className="text-muted-foreground">Paciente:</span> <span className="font-medium">{resultado.paciente_nome}</span></p>
+              <p><span className="text-muted-foreground">Competência:</span> {resultado.competencia}</p>
+              <p><span className="text-muted-foreground">Sessões no período:</span> {resultado.total_sessoes}</p>
+              {resultado.pdf_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 gap-1.5"
+                  onClick={() => window.open(resultado.pdf_url, "_blank")}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Abrir PDF
+                </Button>
               )}
-              {(pacientes.data ?? []).map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {nfs.length > 0 && (
-            <Button variant="outline" size="sm" onClick={exportarIR} disabled={exportando}>
-              <Download className="h-4 w-4 mr-1" />
-              {exportando ? "Exportando…" : "Exportar para IR"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {!pacienteId ? (
-        <EmptyState
-          icon={<FileText className="h-8 w-8" />}
-          title="Selecione um paciente"
-          description="Escolha um paciente e o ano para ver as NFs emitidas no período."
-        />
-      ) : nfsQuery.isLoading ? (
-        <LoadingState />
-      ) : nfs.length === 0 ? (
-        <EmptyState
-          title="Sem NFs emitidas"
-          description={`Nenhuma nota fiscal emitida para ${paciente?.nome ?? "este paciente"} em ${ano}.`}
-        />
-      ) : (
-        <div className="space-y-2">
-          {paciente && (
-            <div className="rounded-lg border bg-card px-4 py-3 text-sm flex gap-6 flex-wrap">
-              <div>
-                <span className="text-muted-foreground">Paciente: </span>
-                <span className="font-semibold">{paciente.nome}</span>
-              </div>
-              {paciente.cpf && (
-                <div>
-                  <span className="text-muted-foreground">CPF: </span>
-                  <span className="font-mono">{paciente.cpf}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-muted-foreground">Ano: </span>
-                <span className="font-semibold">{ano}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Total: </span>
-                <span className="font-semibold text-cb-cyan-600">{brl(total)}</span>
-              </div>
             </div>
           )}
 
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº NF</TableHead>
-                  <TableHead>Emissão</TableHead>
-                  <TableHead>Destinatário</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nfs.map((nf) => (
-                  <TableRow key={nf.id}>
-                    <TableCell className="font-mono text-sm">{nf.numero ?? "—"}</TableCell>
-                    <TableCell className="text-sm">
-                      {nf.emissao
-                        ? new Date(nf.emissao + "T00:00:00").toLocaleDateString("pt-BR")
-                        : "—"}
-                    </TableCell>
-                    <TableCell>{nf.destinatarioNome ?? "—"}</TableCell>
-                    <TableCell>
-                      <span className="text-xs font-medium capitalize text-muted-foreground">
-                        {nf.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{brl(nf.valor)}</TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="bg-muted/40">
-                  <TableCell colSpan={4} className="font-semibold">Total</TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">{brl(total)}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+          <Button
+            className="w-full"
+            disabled={!pacienteId || gerarMutation.isPending}
+            onClick={() => gerarMutation.mutate()}
+          >
+            <FileText className="h-4 w-4 mr-1.5" />
+            {gerarMutation.isPending ? "Gerando…" : "Gerar relatório"}
+          </Button>
 
-          <p className="text-xs text-muted-foreground px-1">
-            Documento gerado pela CB MOVE Neuroscience — para fins de declaração anual de imposto de renda.
-          </p>
+          {paciente && !paciente.email && (
+            <p className="text-xs text-muted-foreground">
+              Dica: cadastre um e-mail para este paciente para poder enviar o relatório automaticamente.
+            </p>
+          )}
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TabRelatoriosPorTipo() {
+  const [tipoSelecionado, setTipoSelecionado] = useState<PacienteTipo | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold">Relatórios por tipo de atendimento</h2>
+        <p className="text-sm text-muted-foreground">
+          Escolha o tipo de paciente para gerar o relatório de atendimento no modelo correspondente.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {(Object.keys(TIPO_RELATORIO) as PacienteTipo[]).map((tipo) => {
+          const cfg = TIPO_RELATORIO[tipo];
+          return (
+            <button
+              key={tipo}
+              type="button"
+              onClick={() => setTipoSelecionado(tipo)}
+              className="rounded-xl border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${cfg.accent}`}>
+                <cfg.icon className="h-5 w-5" />
+              </div>
+              <h3 className="mt-3 font-semibold">{cfg.label}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{cfg.descricao}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {tipoSelecionado && (
+        <GerarRelatorioDialog tipo={tipoSelecionado} onClose={() => setTipoSelecionado(null)} />
       )}
     </div>
   );
@@ -361,35 +394,60 @@ function TabExtratoFinanceiro() {
   function imprimir() {
     if (!printRef.current) return;
     const conteudo = printRef.current.innerHTML;
-    const janela = window.open("", "_blank", "noopener,noreferrer,width=1100,height=800");
-    if (!janela) {
-      toast.error("Permita pop-ups para imprimir o extrato");
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Extrato financeiro · ${competenciaLabel(mes, ano)}</title>
+    <style>
+      body { font-family: Calibri, Arial, sans-serif; font-size: 11px; margin: 24px; color: #111; }
+      h1 { font-size: 16px; margin: 0 0 4px; }
+      p { margin: 0 0 16px; color: #555; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+      th { background: #f3f4f6; font-weight: 700; }
+      .num { text-align: right; white-space: nowrap; }
+      .total td { font-weight: 700; background: #f9fafb; }
+      .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; }
+    </style>
+  </head>
+  <body>${conteudo}</body>
+</html>`;
+
+    // Impressão via iframe oculto na própria página — evita bloqueio de pop-up
+    // e problemas de document.write/blob em novas abas.
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.setAttribute("aria-hidden", "true");
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    };
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      toast.error("Não foi possível preparar a impressão");
+      cleanup();
       return;
     }
-    janela.document.write(`
-      <!DOCTYPE html>
-      <html lang="pt-BR">
-        <head>
-          <meta charset="utf-8" />
-          <title>Extrato financeiro · ${competenciaLabel(mes, ano)}</title>
-          <style>
-            body { font-family: Calibri, Arial, sans-serif; font-size: 11px; margin: 24px; color: #111; }
-            h1 { font-size: 16px; margin: 0 0 4px; }
-            p { margin: 0 0 16px; color: #555; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
-            th { background: #f3f4f6; font-weight: 700; }
-            .num { text-align: right; white-space: nowrap; }
-            .total td { font-weight: 700; background: #f9fafb; }
-            .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; }
-          </style>
-        </head>
-        <body>${conteudo}</body>
-      </html>
-    `);
-    janela.document.close();
-    janela.focus();
-    janela.print();
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    const win = iframe.contentWindow;
+    win?.addEventListener("afterprint", cleanup);
+    window.setTimeout(() => {
+      win?.focus();
+      win?.print();
+    }, 150);
+    window.setTimeout(cleanup, 60_000);
   }
 
   return (
@@ -563,7 +621,7 @@ function RelatoriosPage() {
         <TabsList>
           <TabsTrigger value="extrato-financeiro">Extrato financeiro</TabsTrigger>
           <TabsTrigger value="receita-convenio">Receita por convênio</TabsTrigger>
-          <TabsTrigger value="nfs-ir">NFs por paciente (IR)</TabsTrigger>
+          <TabsTrigger value="relatorios-tipo">Relatórios por tipo</TabsTrigger>
         </TabsList>
 
         <TabsContent value="extrato-financeiro" className="mt-4">
@@ -574,8 +632,8 @@ function RelatoriosPage() {
           <TabReceitaConvenio />
         </TabsContent>
 
-        <TabsContent value="nfs-ir" className="mt-4">
-          <TabNFsPorPaciente />
+        <TabsContent value="relatorios-tipo" className="mt-4">
+          <TabRelatoriosPorTipo />
         </TabsContent>
       </Tabs>
     </div>

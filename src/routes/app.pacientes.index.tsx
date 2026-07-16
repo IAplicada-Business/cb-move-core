@@ -47,7 +47,7 @@ const schema = z.object({
   email: z.string().email("E-mail inválido").nullable().optional().or(z.literal("")),
   tipo: z.enum(["particular", "judicial", "convenio", "puc"] as const),
   regimeCobranca: z.enum(["mensalista", "por_sessao"] as const),
-  modeloRelatorio: z.enum(["convencional", "unimed", "sharepoint"] as const).nullable().optional(),
+  modeloRelatorio: z.enum(["convencional", "unimed", "sharepoint", "puc"] as const).nullable().optional(),
   convenioId: z.string().nullable().optional(),
   numeroProcesso: z.string().nullable().optional(),
   frequenciaAtendimento: z.string().nullable().optional(),
@@ -390,6 +390,7 @@ function PacientesPage() {
                       <SelectItem value="convencional">Convencional</SelectItem>
                       <SelectItem value="unimed">Unimed</SelectItem>
                       <SelectItem value="sharepoint">SharePoint (judicial)</SelectItem>
+                      <SelectItem value="puc">PUC</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
