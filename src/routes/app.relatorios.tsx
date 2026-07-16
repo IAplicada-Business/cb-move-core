@@ -53,6 +53,34 @@ export const Route = createFileRoute("/app/relatorios")({
 
 const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+// Anel de 5 arcos sólidos da marca CB MOVE — mesma geometria usada no PDF
+// de "Relatórios por tipo" (gerar-relatorio-mensal). Usamos SVG puro em vez
+// de conic-gradient + mask porque muitos drivers de impressão (Microsoft
+// Print to PDF, etc.) não renderizam máscaras CSS corretamente.
+const RING_SEGMENTS = [
+  { color: "#D946A0", start: 130, end: 202 },
+  { color: "#F58A1F", start: 202, end: 274 },
+  { color: "#C5D932", start: 274, end: 346 },
+  { color: "#3FB5BC", start: 346, end: 418 },
+  { color: "#7B4FB5", start: 418, end: 490 },
+];
+
+function polarPoint(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function buildBrandRingSvg(size: number): string {
+  const r = size / 2 - 3;
+  const c = size / 2;
+  const arcs = RING_SEGMENTS.map((seg) => {
+    const start = polarPoint(c, c, r, seg.start);
+    const end = polarPoint(c, c, r, seg.end);
+    return `<path d="M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}" stroke="${seg.color}" stroke-width="${(size * 0.13).toFixed(2)}" fill="none" stroke-linecap="round" />`;
+  }).join("");
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}</svg>`;
+}
+
 const TIPO_KPI: Record<PacienteTipo, { label: string; accent: "cyan" | "magenta" | "purple" | "orange" }> = {
   particular: { label: "Particular", accent: "cyan" },
   judicial: { label: "Judicial", accent: "magenta" },
@@ -413,15 +441,7 @@ function TabExtratoFinanceiro() {
 
       /* Marca CB MOVE */
       .brand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-      .brand-mark { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; background: #fff; position: relative; }
-      .brand-mark::before {
-        content: "";
-        position: absolute; inset: -3px;
-        border-radius: 50%;
-        background: conic-gradient(from 130deg, #D946A0, #F58A1F, #C5D932, #3FB5BC, #7B4FB5, #D946A0);
-        -webkit-mask: radial-gradient(circle, transparent 10px, #000 11.5px);
-        mask: radial-gradient(circle, transparent 10px, #000 11.5px);
-      }
+      .brand-mark { flex: 0 0 auto; line-height: 0; }
       .brand-word { display: flex; flex-direction: column; line-height: 1.15; }
       .brand-word b { font-size: 13px; letter-spacing: 0.2px; color: #2c2c2c; }
       .brand-word span { font-size: 7.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #6b7280; }
@@ -441,7 +461,7 @@ function TabExtratoFinanceiro() {
   </head>
   <body>
     <div class="brand-header">
-      <div class="brand-mark"></div>
+      <div class="brand-mark">${buildBrandRingSvg(28)}</div>
       <div class="brand-word"><b>CB MOVE</b><span>Neuroscience</span></div>
       <div class="brand-doc-title"><b>Extrato Financeiro</b><span>${competenciaLabel(mes, ano)}</span></div>
     </div>
