@@ -294,14 +294,7 @@ function UsuariosPage() {
                     const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
                     return (
                       <TableRow key={row.key}>
-                        <TableCell className="font-medium">
-                          {row.nome}
-                          {!row.isReference && (
-                            <span className="ml-2 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
-                              Adicional
-                            </span>
-                          )}
-                        </TableCell>
+                        <TableCell className="font-medium">{row.nome}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{row.email}</TableCell>
                         <TableCell>
                           <RoleBadge role={displayRole} />
