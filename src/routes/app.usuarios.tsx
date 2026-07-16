@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Lock, Plus, Shield, Users } from "lucide-react";
+import { Lock, Plus, Search, Shield, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/menu-access";
 import {
   createUser,
+  deleteUser,
   fetchMenuPermissions,
   fetchUsers,
   saveMenuPermissions,
@@ -31,6 +32,16 @@ import type { AppRole } from "@/lib/types";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -123,7 +134,7 @@ function statusLabel(user: UserRow | undefined): string {
 }
 
 function UsuariosPage() {
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const qc = useQueryClient();
   const isAdmin = roles.includes("admin");
 
@@ -137,6 +148,8 @@ function UsuariosPage() {
   });
   const [pacienteQuery, setPacienteQuery] = useState("");
   const [menuDraft, setMenuDraft] = useState<Partial<Record<MenuKey, boolean>>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [userToDelete, setUserToDelete] = useState<UsuarioTableRow | null>(null);
 
   const { data: users = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.usuarios.all,
@@ -184,6 +197,16 @@ function UsuariosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => deleteUser(userId),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
+      toast.success(res.message ?? "Usuário excluído");
+      setUserToDelete(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const menuMutation = useMutation({
     mutationFn: () => saveMenuPermissions("membro", menuDraft),
     onSuccess: () => {
@@ -205,6 +228,15 @@ function UsuariosPage() {
   );
 
   const usuarioRows = useMemo(() => buildUsuarioRows(users), [users]);
+
+  const filteredUsuarioRows = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    if (!term) return usuarioRows;
+    return usuarioRows.filter(
+      (row) =>
+        row.nome.toLowerCase().includes(term) || row.email.toLowerCase().includes(term),
+    );
+  }, [usuarioRows, searchQuery]);
 
   function openCadastro(prefill?: { nome: string; email: string; role: PrimaryRole }) {
     setCadastroForm({
@@ -264,6 +296,16 @@ function UsuariosPage() {
             (<strong>{cadastradosCount}</strong> da equipe de referência).
           </div>
 
+          <div className="relative max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nome ou e-mail…"
+              className="pl-9"
+            />
+          </div>
+
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
@@ -277,6 +319,12 @@ function UsuariosPage() {
                 </Button>
               }
             />
+          ) : filteredUsuarioRows.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-8 w-8" />}
+              title="Nenhum usuário encontrado"
+              description="Tente buscar por outro nome ou e-mail."
+            />
           ) : (
             <div className="overflow-hidden rounded-xl border bg-card">
               <Table>
@@ -286,12 +334,13 @@ function UsuariosPage() {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Perfil</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-40 text-right">Ações</TableHead>
+                    <TableHead className="w-56 text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {usuarioRows.map((row) => {
+                  {filteredUsuarioRows.map((row) => {
                     const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
+                    const isSelf = row.registered?.id === user?.id;
                     return (
                       <TableRow key={row.key}>
                         <TableCell className="font-medium">{row.nome}</TableCell>
@@ -303,17 +352,31 @@ function UsuariosPage() {
                           {statusLabel(row.registered)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openCadastro({
-                              nome: row.nome,
-                              email: row.email,
-                              role: normalizeRole(row.registered?.role) ?? row.perfil,
-                            })}
-                          >
-                            {row.registered ? "Atualizar cadastro" : "Cadastrar"}
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openCadastro({
+                                nome: row.nome,
+                                email: row.email,
+                                role: normalizeRole(row.registered?.role) ?? row.perfil,
+                              })}
+                            >
+                              {row.registered ? "Atualizar cadastro" : "Cadastrar"}
+                            </Button>
+                            {row.registered && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                disabled={isSelf}
+                                title={isSelf ? "Você não pode excluir seu próprio usuário" : "Excluir usuário"}
+                                onClick={() => setUserToDelete(row)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -454,6 +517,33 @@ function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{userToDelete?.nome}</strong> ({userToDelete?.email})?
+              Essa ação remove o acesso ao sistema e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (userToDelete?.registered?.id) {
+                  deleteMutation.mutate(userToDelete.registered.id);
+                }
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

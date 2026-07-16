@@ -20,7 +20,7 @@ PROJECT = "grlkbtnwvxorlfglyzid"
 ROOT = Path(__file__).resolve().parent.parent
 FUNCTIONS_DIR = ROOT / "supabase" / "functions"
 SITE_URL = "https://cb-move-harmony.lovable.app"
-FUNCTIONS = ["list-users", "create-user", "send-user-invite"]
+FUNCTIONS = ["list-users", "create-user", "delete-user", "send-user-invite"]
 
 
 def set_secrets() -> None:

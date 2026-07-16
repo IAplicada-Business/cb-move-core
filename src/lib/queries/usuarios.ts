@@ -98,6 +98,10 @@ export async function createUser(input: CreateUserInput) {
   );
 }
 
+export async function deleteUser(userId: string) {
+  return invokeEdgeFunction<{ ok: boolean; message: string }>("delete-user", { user_id: userId });
+}
+
 export async function fetchMenuPermissions(role: PrimaryRole): Promise<Partial<Record<MenuKey, boolean>>> {
   const { data, error } = await (supabase as any)
     .from("menu_permissions")
