@@ -681,6 +681,27 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_permissions: {
+        Row: {
+          enabled: boolean
+          menu_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          menu_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          menu_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notas_fiscais: {
         Row: {
           cobranca_id: string | null
@@ -1244,27 +1265,6 @@ export type Database = {
         }
         Relationships: []
       }
-      menu_permissions: {
-        Row: {
-          role: Database["public"]["Enums"]["app_role"]
-          menu_key: string
-          enabled: boolean
-          updated_at: string
-        }
-        Insert: {
-          role: Database["public"]["Enums"]["app_role"]
-          menu_key: string
-          enabled?: boolean
-          updated_at?: string
-        }
-        Update: {
-          role?: Database["public"]["Enums"]["app_role"]
-          menu_key?: string
-          enabled?: boolean
-          updated_at?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -1339,13 +1339,13 @@ export type Database = {
       list_users: {
         Args: never
         Returns: {
-          id: string
-          nome: string | null
-          email: string | null
           created_at: string
-          role: Database["public"]["Enums"]["app_role"] | null
-          paciente_id: string | null
-          paciente_nome: string | null
+          email: string
+          id: string
+          nome: string
+          paciente_id: string
+          paciente_nome: string
+          role: Database["public"]["Enums"]["app_role"]
         }[]
       }
       paciente_logado: { Args: never; Returns: string }
@@ -1363,11 +1363,11 @@ export type Database = {
       remarcar_agendamentos_lote: {
         Args: {
           p_agendamento_id: string
-          p_duracao_min?: number | null
+          p_duracao_min?: number
           p_escopo: string
-          p_novo_fisio_id?: string | null
+          p_novo_fisio_id?: string
           p_novo_inicio: string
-          p_usuario_id?: string | null
+          p_usuario_id?: string
         }
         Returns: Json
       }
