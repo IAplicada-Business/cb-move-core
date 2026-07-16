@@ -1,4 +1,4 @@
-import type { FrequenciaSigla, ModeloRelatorio } from "../types";
+import type { FrequenciaSigla, ModeloRelatorio } from "@/lib/types";
 
 export const MESES_ABREV = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",

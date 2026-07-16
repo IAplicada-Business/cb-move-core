@@ -436,7 +436,8 @@ const schema = z
       });
     }
   });
-type FormValues = z.infer<typeof schema>;
+type FormInput = z.input<typeof schema>;
+type FormValues = z.output<typeof schema>;
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
@@ -517,7 +518,7 @@ function AgendaPage() {
     enabled: !!selectedAgend?.paciente_id && !!competenciaAgend,
   });
 
-  const form = useForm<FormValues>({
+  const form = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       pacienteId: "",
@@ -544,19 +545,21 @@ function AgendaPage() {
     return { mes: d.getMonth() + 1, ano: d.getFullYear() };
   }, [dataWatch]);
 
+  const pacienteIdForm = pacienteIdWatch ?? "";
+
   const { data: planoNovoAg } = useQuery({
     queryKey: queryKeys.sessoes.planoMensal(
-      pacienteIdWatch,
+      pacienteIdForm,
       competenciaNovoAg?.mes ?? 0,
       competenciaNovoAg?.ano ?? 0,
     ),
     queryFn: () =>
       fetchPlanoSessoesMensalPaciente(
-        pacienteIdWatch,
+        pacienteIdForm,
         competenciaNovoAg!.mes,
         competenciaNovoAg!.ano,
       ),
-    enabled: modalOpen && !isMarcacaoSlot && !!pacienteIdWatch && !!competenciaNovoAg,
+    enabled: modalOpen && !isMarcacaoSlot && !!pacienteIdForm && !!competenciaNovoAg,
   });
 
   const horaInicioWatch = form.watch("horaInicio");
@@ -1479,7 +1482,7 @@ function AgendaPage() {
             setRemarcarPrefill(null);
           }
         }}
-        target={remarcarTarget}
+        target={remarcarTarget ? { ...remarcarTarget, serie_id: remarcarTarget.serie_id ?? null } : null}
         fisios={fisios}
         usuarioId={user?.id ?? null}
         prefillSlot={remarcarPrefill}
@@ -1587,7 +1590,7 @@ function AgendaPage() {
                             Agendar {propostasSeriePlano.length} sessões faltantes do plano neste mês
                           </FormLabel>
                           <p className="text-xs text-muted-foreground">
-                            {planoNovoAg.diasSemanaLabel
+                            {planoNovoAg?.diasSemanaLabel
                               ? `Padrão: ${planoNovoAg.diasSemanaLabel}`
                               : "Padrão: mesmo dia da semana da data escolhida"}
                           </p>
@@ -1597,7 +1600,7 @@ function AgendaPage() {
                               ? ` · +${propostasSeriePlano.length - 4} horários`
                               : ""}
                           </p>
-                          {!planoNovoAg.diasSemanaLabel && (
+                          {!planoNovoAg?.diasSemanaLabel && (
                             <p className="text-xs text-cb-orange font-medium">
                               Cadastre os dias da semana no paciente para montar o plano completo (ex.: 2ª e 5ª triplos).
                             </p>
