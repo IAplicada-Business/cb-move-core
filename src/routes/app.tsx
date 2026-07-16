@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { mustResetPassword } from "@/lib/password-reset";
 import { isCliente } from "@/lib/permissions";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -10,15 +11,19 @@ export const Route = createFileRoute("/app")({
 });
 
 function AppShell() {
-  const { session, loading, roles, isPaciente } = useAuth();
+  const { session, loading, roles, isPaciente, user } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
+    if (!loading && session && mustResetPassword(user)) {
+      navigate({ to: "/redefinir-senha" });
+      return;
+    }
     if (!loading && session && (isCliente(roles) || isPaciente)) {
       navigate({ to: "/portal" });
     }
-  }, [loading, session, roles, isPaciente, navigate]);
+  }, [loading, session, roles, isPaciente, user, navigate]);
 
   if (loading || !session) {
     return (

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Outlet, useNavigate, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { mustResetPassword } from "@/lib/password-reset";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 
@@ -9,15 +10,19 @@ export const Route = (createFileRoute as any)("/portal")({
 });
 
 function PortalShell() {
-  const { session, loading, isPaciente, roles, signOut } = useAuth();
+  const { session, loading, isPaciente, roles, signOut, user } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
+    if (!loading && session && mustResetPassword(user)) {
+      navigate({ to: "/redefinir-senha" });
+      return;
+    }
     if (!loading && session && !isPaciente && !roles.includes("cliente")) {
       navigate({ to: "/app" });
     }
-  }, [loading, session, isPaciente, roles, navigate]);
+  }, [loading, session, isPaciente, roles, user, navigate]);
 
   if (loading || !session || (!isPaciente && !roles.includes("cliente"))) {
     return (

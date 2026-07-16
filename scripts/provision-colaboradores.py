@@ -103,7 +103,7 @@ def create_user(base: str, email: str, nome: str, role: str) -> dict:
         "email": email.lower(),
         "password": DEFAULT_INITIAL_PASSWORD,
         "email_confirm": True,
-        "user_metadata": {"nome": nome, "role": role, "invited": True},
+        "user_metadata": {"nome": nome, "role": role, "must_reset_password": True},
     }
     code, data = req("POST", f"{base}/auth/v1/admin/users", admin_headers(), body)
     if code >= 400:
@@ -116,7 +116,10 @@ def set_password(base: str, user_id: str, email: str) -> None:
         "PUT",
         f"{base}/auth/v1/admin/users/{user_id}",
         admin_headers(),
-        {"password": DEFAULT_INITIAL_PASSWORD},
+        {
+            "password": DEFAULT_INITIAL_PASSWORD,
+            "user_metadata": {"must_reset_password": True},
+        },
     )
     if code >= 400:
         raise RuntimeError(f"definir senha {email}: {code} {data}")

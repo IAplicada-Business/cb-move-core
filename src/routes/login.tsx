@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
+import { mustResetPassword } from "@/lib/password-reset";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,10 @@ function LoginPage() {
 
   React.useEffect(() => {
     if (authLoading || !session) return;
+    if (mustResetPassword(session.user)) {
+      navigate({ to: "/redefinir-senha" });
+      return;
+    }
     void resolvePostAuthPath(session.user.id).then((path) => navigate({ to: path }));
   }, [authLoading, session, navigate]);
 
@@ -123,6 +128,8 @@ function LoginPage() {
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Acesso restrito a usuários cadastrados pela administração.
+            <br />
+            Primeiro acesso? Use a senha informada pela administração.
           </p>
         </div>
       </div>

@@ -16,17 +16,17 @@ export type UserRow = {
 
 export async function fetchUsers(): Promise<UserRow[]> {
   try {
-    const edge = await invokeEdgeFunction<{ users: UserRow[] }>("list-users", {});
-    if (Array.isArray(edge.users)) return sortUsers(edge.users);
-  } catch {
-    /* edge function ainda não publicada */
-  }
-
-  try {
     const { data, error } = await supabase.rpc("list_users");
     if (!error && Array.isArray(data)) return sortUsers(data as UserRow[]);
   } catch {
     /* RPC ainda não migrada */
+  }
+
+  try {
+    const edge = await invokeEdgeFunction<{ users: UserRow[] }>("list-users", {});
+    if (Array.isArray(edge.users)) return sortUsers(edge.users);
+  } catch {
+    /* edge function indisponível ou lenta */
   }
 
   const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
@@ -96,15 +96,6 @@ export async function createUser(input: CreateUserInput) {
     "create-user",
     input,
   );
-}
-
-export type SendUserInviteInput = {
-  email?: string;
-  user_id?: string;
-};
-
-export async function sendUserInvite(input: SendUserInviteInput) {
-  return invokeEdgeFunction<{ ok: boolean; message: string }>("send-user-invite", input);
 }
 
 export async function fetchMenuPermissions(role: PrimaryRole): Promise<Partial<Record<MenuKey, boolean>>> {

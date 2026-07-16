@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { resolvePostAuthPath } from "@/lib/auth-routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,13 +42,13 @@ function RedefinirSenhaPage() {
         await bootstrapSessionFromHash();
         const { data } = await supabase.auth.getSession();
         if (!data.session) {
-          toast.error("Link inválido ou expirado. Peça um novo convite ao administrador.");
+          toast.error("Faça login com a senha informada pela administração para definir sua senha.");
           navigate({ to: "/login" });
           return;
         }
         setReady(true);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Não foi possível validar o link");
+        toast.error(err instanceof Error ? err.message : "Não foi possível validar a sessão");
         navigate({ to: "/login" });
       }
     })();
@@ -66,10 +67,21 @@ function RedefinirSenhaPage() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) throw new Error("Sessão expirada. Faça login novamente.");
+
+      const { error: passErr } = await supabase.auth.updateUser({ password });
+      if (passErr) throw passErr;
+
+      const { error: metaErr } = await supabase.auth.updateUser({
+        data: { must_reset_password: false },
+      });
+      if (metaErr) throw metaErr;
+
       toast.success("Senha definida com sucesso");
-      navigate({ to: "/login" });
+      const path = await resolvePostAuthPath(userId);
+      navigate({ to: path });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar senha");
     } finally {
@@ -93,7 +105,7 @@ function RedefinirSenhaPage() {
           <div>
             <h1 className="text-xl font-bold text-foreground">Definir sua senha</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Primeiro acesso — escolha uma senha para entrar no sistema.
+              Primeiro acesso — escolha uma senha pessoal para entrar no sistema.
             </p>
           </div>
 

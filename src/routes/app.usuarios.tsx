@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Lock, Mail, MoreHorizontal, Plus, Shield, Users } from "lucide-react";
+import { Lock, MoreHorizontal, Plus, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -20,7 +20,6 @@ import {
   fetchMenuPermissions,
   fetchUsers,
   saveMenuPermissions,
-  sendUserInvite,
   updateUserRole,
   type UserRow,
 } from "@/lib/queries/usuarios";
@@ -93,10 +92,12 @@ function UsuariosPage() {
   const [pacienteQuery, setPacienteQuery] = useState("");
   const [menuDraft, setMenuDraft] = useState<Partial<Record<MenuKey, boolean>>>({});
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.usuarios.all,
     queryFn: fetchUsers,
     enabled: isAdmin,
+    staleTime: 30_000,
+    retry: 1,
   });
 
   const { data: menuPerms, isLoading: loadingMenu } = useQuery({
@@ -133,14 +134,6 @@ function UsuariosPage() {
       toast.success(res.message ?? "Usuário cadastrado");
       setCadastroOpen(false);
       setCadastroForm({ nome: "", email: "", role: "membro", paciente_id: "" });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const inviteMutation = useMutation({
-    mutationFn: sendUserInvite,
-    onSuccess: (res) => {
-      toast.success(res.message ?? "Convite enviado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -192,7 +185,8 @@ function UsuariosPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Usuários e acessos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cadastre no sistema com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. Envie o convite por e-mail quando quiser.
+            Cadastre no sistema com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>.
+            No primeiro login, a pessoa define a senha pessoal antes de entrar.
           </p>
         </div>
         <Button onClick={() => setCadastroOpen(true)}>
@@ -210,6 +204,17 @@ function UsuariosPage() {
         <TabsContent value="usuarios" className="mt-4">
           {isLoading ? (
             <LoadingState />
+          ) : isError ? (
+            <EmptyState
+              icon={<Users className="h-8 w-8" />}
+              title="Erro ao carregar usuários"
+              description={error instanceof Error ? error.message : "Tente novamente."}
+              action={
+                <Button onClick={() => refetch()} disabled={isFetching}>
+                  {isFetching ? "Carregando…" : "Tentar novamente"}
+                </Button>
+              }
+            />
           ) : users.length === 0 ? (
             <EmptyState
               icon={<Users className="h-8 w-8" />}
@@ -247,18 +252,6 @@ function UsuariosPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                inviteMutation.mutate({
-                                  user_id: u.id,
-                                  email: u.email ?? undefined,
-                                });
-                              }}
-                              disabled={inviteMutation.isPending || !u.email}
-                            >
-                              <Mail className="mr-2 h-4 w-4" />
-                              Enviar convite
-                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => {
                                 setChangeRoleUser(u);
@@ -329,7 +322,7 @@ function UsuariosPage() {
       <section className="rounded-xl border bg-muted/10 p-4">
         <h2 className="text-sm font-semibold text-foreground">Equipe de referência (Drive)</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Lista extraída de <em>Informações Colaboradores.docx</em> — cadastre no sistema e envie o convite depois.
+          Lista extraída de <em>Informações Colaboradores.docx</em> — cadastre no sistema; o colaborador entra com a senha padrão e redefine no 1º login.
         </p>
         <div className="mt-3 overflow-hidden rounded-lg border bg-card">
           <Table>
@@ -355,10 +348,10 @@ function UsuariosPage() {
                       <RoleBadge role={(c.perfil === "admin" ? "admin" : c.perfil === "cliente" ? "cliente" : "membro") as AppRole} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {cadastrado ? "Cadastrado — convite pendente" : "Não cadastrado"}
+                      {cadastrado ? "Cadastrado — aguardando 1º acesso" : "Não cadastrado"}
                     </TableCell>
                     <TableCell>
-                      {!cadastrado ? (
+                      {!cadastrado && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -373,16 +366,6 @@ function UsuariosPage() {
                           }}
                         >
                           Cadastrar
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={inviteMutation.isPending}
-                          onClick={() => inviteMutation.mutate({ email: c.email })}
-                        >
-                          <Mail className="mr-1 h-3.5 w-3.5" />
-                          Enviar convite
                         </Button>
                       )}
                     </TableCell>
@@ -455,7 +438,7 @@ function UsuariosPage() {
             )}
 
             <p className="text-xs text-muted-foreground">
-              Senha inicial padrão: <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. O cadastro não envia e-mail — use <strong>Enviar convite</strong> depois, se necessário.
+              Senha inicial padrão: <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. No primeiro login, a pessoa será redirecionada para definir a senha pessoal.
             </p>
           </div>
           <DialogFooter>

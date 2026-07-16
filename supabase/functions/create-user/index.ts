@@ -126,7 +126,7 @@ serve(async (req) => {
         user_metadata: {
           nome,
           role,
-          invited: true,
+          must_reset_password: true,
           ...(pacienteId ? { paciente_id: pacienteId } : {}),
         },
       });
@@ -149,15 +149,23 @@ serve(async (req) => {
 
     await upsertRoleAndProfile(admin, userId, email, nome, role, pacienteId);
 
-    await admin.auth.admin.updateUserById(userId, { password: DEFAULT_INITIAL_PASSWORD });
+    await admin.auth.admin.updateUserById(userId, {
+      password: DEFAULT_INITIAL_PASSWORD,
+      user_metadata: {
+        nome,
+        role,
+        must_reset_password: true,
+        ...(pacienteId ? { paciente_id: pacienteId } : {}),
+      },
+    });
 
     return new Response(JSON.stringify({
       ok: true,
       user_id: userId,
       created: !existing,
       message: existing
-        ? `Usuário atualizado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD}`
-        : `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD}`,
+        ? `Usuário atualizado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`
+        : `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

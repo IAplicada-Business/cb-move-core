@@ -2,6 +2,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 type EdgeErrorBody = { error?: string };
 
+export const DEFAULT_EDGE_TIMEOUT_MS = 8_000;
+
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("timeout")), ms),
+    ),
+  ]);
+}
+
 export async function extractEdgeErrorMessage(
   error: unknown,
   data: unknown,
@@ -35,6 +46,7 @@ export async function extractEdgeErrorMessage(
 export async function invokeEdgeFunction<T>(
   name: string,
   body: Record<string, unknown>,
+  options?: { timeoutMs?: number },
 ): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw new Error(sessionError.message);
@@ -42,12 +54,16 @@ export async function invokeEdgeFunction<T>(
     throw new Error("Sessão expirada. Faça login novamente.");
   }
 
-  const { data, error } = await supabase.functions.invoke(name, {
+  const invoke = supabase.functions.invoke(name, {
     body,
     headers: {
       Authorization: `Bearer ${session.access_token}`,
     },
   });
+
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_EDGE_TIMEOUT_MS;
+  const { data, error } = await withTimeout(invoke, timeoutMs);
+
   const message = await extractEdgeErrorMessage(error, data);
   if (message) throw new Error(message);
   return data as T;

@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole } from "./types";
 import { resolvePostAuthPath } from "./auth-routes";
+import { mustResetPassword, type PostAuthPath } from "./password-reset";
 import { isCliente, isStaff } from "./permissions";
 
 type AuthContextValue = {
@@ -13,7 +14,7 @@ type AuthContextValue = {
   loading: boolean;
   pacienteId: string | null;
   isPaciente: boolean;
-  signIn: (email: string, password: string) => Promise<"/app" | "/portal">;
+  signIn: (email: string, password: string) => Promise<PostAuthPath>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -124,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       if (data.session) {
         await applySession(data.session);
+        if (mustResetPassword(data.session.user)) return "/redefinir-senha";
         return resolvePostAuthPath(data.session.user.id);
       }
       return "/app";
