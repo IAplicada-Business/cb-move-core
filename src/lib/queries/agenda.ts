@@ -85,13 +85,15 @@ async function coletarIdsHistorico(agendamentoId: string): Promise<string[]> {
   let atual: string | null = agendamentoId;
 
   while (atual) {
-    const { data, error } = await supabase
+    const agendamentoIdAtual = atual;
+    const response = await supabase
       .from("agendamentos")
       .select("remarcado_de_id")
-      .eq("id", atual)
+      .eq("id", agendamentoIdAtual)
       .maybeSingle();
-    if (error) throw error;
-    const anterior = (data as { remarcado_de_id: string | null } | null)?.remarcado_de_id;
+    if (response.error) throw response.error;
+    const row = response.data as { remarcado_de_id: string | null } | null;
+    const anterior: string | null = row?.remarcado_de_id ?? null;
     if (!anterior || ids.has(anterior)) break;
     ids.add(anterior);
     atual = anterior;
@@ -237,9 +239,9 @@ export async function remarcarAgendamento(params: {
     p_agendamento_id: agendamentoId,
     p_novo_inicio: novoInicio,
     p_escopo: escopo,
-    p_novo_fisio_id: novoFisioId ?? null,
-    p_duracao_min: duracaoMin ?? null,
-    p_usuario_id: usuarioId ?? null,
+    p_novo_fisio_id: novoFisioId,
+    p_duracao_min: duracaoMin,
+    p_usuario_id: usuarioId ?? undefined,
   });
   if (error) throw error;
 

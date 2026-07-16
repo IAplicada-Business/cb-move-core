@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
 import type { Paciente } from "@/lib/queries/pacientes";
 import type { FrequenciaSigla, ModeloRelatorio } from "../types";
@@ -282,7 +283,9 @@ export async function fetchEvolucoes(pacienteId: string): Promise<EvolucaoComRel
   return (data ?? []) as EvolucaoComRelacoes[];
 }
 
-export async function createEvolucao(ev: Partial<Evolucao>): Promise<Evolucao> {
+export type EvolucaoInsert = Database["public"]["Tables"]["prontuario_evolucoes"]["Insert"];
+
+export async function createEvolucao(ev: EvolucaoInsert): Promise<Evolucao> {
   const { data, error } = await supabase
     .from("prontuario_evolucoes")
     .insert(ev)

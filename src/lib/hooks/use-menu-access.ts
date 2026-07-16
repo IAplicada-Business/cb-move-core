@@ -6,6 +6,7 @@ import {
   MENU_GROUPS,
   resolveMenuAccess,
   type MenuGroupDef,
+  type MenuItemDef,
 } from "@/lib/menu-access";
 import { normalizeRole, type PrimaryRole } from "@/lib/permissions";
 import { fetchMenuPermissions } from "@/lib/queries/usuarios";
@@ -35,8 +36,12 @@ const ICONS: Record<string, LucideIcon> = {
   "/app/ajuda": HelpCircle,
 };
 
-export type SidebarGroup = MenuGroupDef & {
-  items: Array<MenuGroupDef["items"][number] & { icon: LucideIcon }>;
+export type SidebarMenuItem = MenuItemDef & { icon: LucideIcon };
+
+export type SidebarGroup = {
+  id: MenuGroupDef["id"];
+  label: MenuGroupDef["label"];
+  items: SidebarMenuItem[];
 };
 
 export function useMenuAccess() {

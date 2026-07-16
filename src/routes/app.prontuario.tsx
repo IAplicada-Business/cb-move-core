@@ -32,6 +32,7 @@ import {
   gerarRelatorioMensal,
   updateEvolucao,
   type Evolucao,
+  type EvolucaoInsert,
 } from "@/lib/queries/prontuario";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -146,7 +147,7 @@ function ProntuarioPage() {
   }, [pacienteIdFromUrl, selectedId]);
 
   const createEvolucaoMutation = useMutation({
-    mutationFn: (ev: Partial<Evolucao>) => createEvolucao(ev),
+    mutationFn: createEvolucao,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.prontuario.evolucoes(selectedId!) });
       toast.success("Evolução registrada");
@@ -202,7 +203,7 @@ function ProntuarioPage() {
         ...ev,
         paciente_id: selectedId,
         criado_por: user?.id ?? null,
-      });
+      } as EvolucaoInsert);
     }
   }
 

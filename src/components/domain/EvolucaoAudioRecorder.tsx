@@ -17,14 +17,21 @@ type Props = {
 };
 
 // Minimal typing for the Web Speech API (SpeechRecognition isn't in every TS lib).
+type SpeechRecognitionResultList = {
+  length: number;
+  [index: number]: { isFinal: boolean; length: number; [index: number]: { transcript: string } };
+};
+type SpeechRecognitionEventLike = { results: SpeechRecognitionResultList };
+type SpeechRecognitionErrorEventLike = { error: string };
+
 type SpeechRecognitionInstance = {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
   start(): void;
   stop(): void;
-  onresult: ((e: SpeechRecognitionEvent) => void) | null;
-  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
 };
 type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
