@@ -1,14 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Lock, MoreHorizontal, Plus, Shield, Users } from "lucide-react";
+import { Lock, Plus, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { queryKeys } from "@/lib/queries";
 import { useAuth } from "@/lib/auth";
-import { formatDate } from "@/lib/format";
 import {
   ALL_MENU_KEYS,
   DEFAULT_MENU_FOR_MEMBRO,
@@ -20,7 +19,6 @@ import {
   fetchMenuPermissions,
   fetchUsers,
   saveMenuPermissions,
-  updateUserRole,
   type UserRow,
 } from "@/lib/queries/usuarios";
 import {
@@ -38,9 +36,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -74,6 +69,16 @@ function RoleBadge({ role }: { role: AppRole | null }) {
   );
 }
 
+function findUserByEmail(users: UserRow[], email: string): UserRow | undefined {
+  const target = email.toLowerCase();
+  return users.find((u) => u.email?.toLowerCase() === target);
+}
+
+function statusLabel(user: UserRow | undefined): string {
+  if (!user) return "Não cadastrado";
+  return "Cadastrado — aguardando 1º acesso";
+}
+
 function UsuariosPage() {
   const { roles } = useAuth();
   const qc = useQueryClient();
@@ -81,8 +86,6 @@ function UsuariosPage() {
 
   const [tab, setTab] = useState<"usuarios" | "acessos">("usuarios");
   const [cadastroOpen, setCadastroOpen] = useState(false);
-  const [changeRoleUser, setChangeRoleUser] = useState<UserRow | null>(null);
-  const [selectedRole, setSelectedRole] = useState<PrimaryRole>("membro");
   const [cadastroForm, setCadastroForm] = useState({
     nome: "",
     email: "",
@@ -138,17 +141,6 @@ function UsuariosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const roleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: PrimaryRole }) =>
-      updateUserRole(userId, role),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
-      toast.success("Perfil atualizado");
-      setChangeRoleUser(null);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const menuMutation = useMutation({
     mutationFn: () => saveMenuPermissions("membro", menuDraft),
     onSuccess: () => {
@@ -163,6 +155,22 @@ function UsuariosPage() {
     () => ALL_MENU_KEYS.filter((k) => menuDraft[k]).length,
     [menuDraft],
   );
+
+  const cadastradosCount = useMemo(
+    () => COLABORADORES_REFERENCIA.filter((c) => findUserByEmail(users, c.email)).length,
+    [users],
+  );
+
+  function openCadastro(prefill?: { nome: string; email: string; role: PrimaryRole }) {
+    setCadastroForm({
+      nome: prefill?.nome ?? "",
+      email: prefill?.email ?? "",
+      role: prefill?.role ?? "membro",
+      paciente_id: "",
+    });
+    setPacienteQuery("");
+    setCadastroOpen(true);
+  }
 
   if (!isAdmin) {
     return (
@@ -185,11 +193,11 @@ function UsuariosPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Usuários e acessos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cadastre no sistema com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>.
-            No primeiro login, a pessoa define a senha pessoal antes de entrar.
+            Equipe de referência — cadastre com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>.
+            No primeiro login, cada pessoa define a senha pessoal.
           </p>
         </div>
-        <Button onClick={() => setCadastroOpen(true)}>
+        <Button onClick={() => openCadastro()}>
           <Plus className="mr-2 h-4 w-4" />
           Cadastrar usuário
         </Button>
@@ -201,7 +209,14 @@ function UsuariosPage() {
           <TabsTrigger value="acessos">Acessos ao menu</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="usuarios" className="mt-4">
+        <TabsContent value="usuarios" className="mt-4 space-y-4">
+          <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+            <Users className="mr-2 inline h-4 w-4" />
+            Lista extraída de <em>Informações Colaboradores.docx</em>.
+            {" "}
+            <strong>{cadastradosCount}</strong> de {COLABORADORES_REFERENCIA.length} cadastrados no sistema.
+          </div>
+
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
@@ -215,12 +230,6 @@ function UsuariosPage() {
                 </Button>
               }
             />
-          ) : users.length === 0 ? (
-            <EmptyState
-              icon={<Users className="h-8 w-8" />}
-              title="Nenhum usuário"
-              description="Cadastre o primeiro usuário para começar."
-            />
           ) : (
             <div className="overflow-hidden rounded-xl border bg-card">
               <Table>
@@ -229,42 +238,40 @@ function UsuariosPage() {
                     <TableHead>Nome</TableHead>
                     <TableHead>E-mail</TableHead>
                     <TableHead>Perfil</TableHead>
-                    <TableHead>Vínculo</TableHead>
-                    <TableHead>Criado em</TableHead>
-                    <TableHead className="w-10" />
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-40 text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.nome ?? "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{u.email ?? "—"}</TableCell>
-                      <TableCell><RoleBadge role={u.role} /></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {u.paciente_nome ? `Cliente · ${u.paciente_nome}` : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(u.created_at)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setChangeRoleUser(u);
-                                setSelectedRole(normalizeRole(u.role) ?? "membro");
-                              }}
-                            >
-                              Alterar perfil
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {COLABORADORES_REFERENCIA.map((c) => {
+                    const registered = findUserByEmail(users, c.email);
+                    const displayRole = (registered?.role ?? c.perfil) as AppRole;
+                    return (
+                      <TableRow key={c.email}>
+                        <TableCell className="font-medium">{c.nome}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{c.email}</TableCell>
+                        <TableCell>
+                          <RoleBadge role={displayRole} />
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {statusLabel(registered)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openCadastro({
+                              nome: c.nome,
+                              email: c.email,
+                              role: normalizeRole(registered?.role) ?? c.perfil,
+                            })}
+                          >
+                            {registered ? "Atualizar cadastro" : "Cadastrar"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -319,68 +326,12 @@ function UsuariosPage() {
         </TabsContent>
       </Tabs>
 
-      <section className="rounded-xl border bg-muted/10 p-4">
-        <h2 className="text-sm font-semibold text-foreground">Equipe de referência (Drive)</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Lista extraída de <em>Informações Colaboradores.docx</em> — cadastre no sistema; o colaborador entra com a senha padrão e redefine no 1º login.
-        </p>
-        <div className="mt-3 overflow-hidden rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Perfil sugerido</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {COLABORADORES_REFERENCIA.map((c) => {
-                const cadastrado = users.some(
-                  (u) => u.email?.toLowerCase() === c.email.toLowerCase(),
-                );
-                return (
-                  <TableRow key={c.email}>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{c.email}</TableCell>
-                    <TableCell>
-                      <RoleBadge role={(c.perfil === "admin" ? "admin" : c.perfil === "cliente" ? "cliente" : "membro") as AppRole} />
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {cadastrado ? "Cadastrado — aguardando 1º acesso" : "Não cadastrado"}
-                    </TableCell>
-                    <TableCell>
-                      {!cadastrado && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setCadastroForm({
-                              nome: c.nome,
-                              email: c.email,
-                              role: c.perfil as PrimaryRole,
-                              paciente_id: "",
-                            });
-                            setCadastroOpen(true);
-                          }}
-                        >
-                          Cadastrar
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </section>
-
       <Dialog open={cadastroOpen} onOpenChange={setCadastroOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Cadastrar usuário</DialogTitle>
+            <DialogTitle>
+              {findUserByEmail(users, cadastroForm.email) ? "Atualizar cadastro" : "Cadastrar usuário"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -452,39 +403,7 @@ function UsuariosPage() {
                 paciente_id: cadastroForm.role === "cliente" ? cadastroForm.paciente_id : null,
               })}
             >
-              {cadastroMutation.isPending ? "Salvando…" : "Cadastrar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!changeRoleUser} onOpenChange={(o) => { if (!o) setChangeRoleUser(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Alterar perfil — {changeRoleUser?.nome ?? changeRoleUser?.email}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Label>Novo perfil</Label>
-            <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as PrimaryRole)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PRIMARY_ROLES.map((r) => (
-                  <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setChangeRoleUser(null)}>Cancelar</Button>
-            <Button
-              disabled={roleMutation.isPending}
-              onClick={() => {
-                if (changeRoleUser) {
-                  roleMutation.mutate({ userId: changeRoleUser.id, role: selectedRole });
-                }
-              }}
-            >
-              {roleMutation.isPending ? "Salvando…" : "Confirmar"}
+              {cadastroMutation.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
