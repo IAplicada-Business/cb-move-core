@@ -6,6 +6,9 @@ import { resolvePostAuthPath } from "./auth-routes";
 import { mustResetPassword, type PostAuthPath } from "./password-reset";
 import { isCliente, isStaff } from "./permissions";
 import { diag } from "./client-diagnostics";
+import { withTimeout } from "./edge-functions";
+
+const LOAD_ROLES_TIMEOUT_MS = 8_000;
 
 type AuthContextValue = {
   session: Session | null;
@@ -29,36 +32,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPaciente, setIsPaciente] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const rolesUserIdRef = React.useRef<string | null>(null);
+  const rolesLoadingUserIdRef = React.useRef<string | null>(null);
 
   async function loadRoles(userId: string) {
+    if (rolesUserIdRef.current === userId) return;
+    if (rolesLoadingUserIdRef.current === userId) return;
+
+    rolesLoadingUserIdRef.current = userId;
     diag.info("auth", "carregando papéis", { userId });
 
-    const [rolesResult, pacResult] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      (supabase as any).from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
-    ]);
+    try {
+      const [rolesResult, pacResult] = await withTimeout(
+        Promise.all([
+          supabase.from("user_roles").select("role").eq("user_id", userId),
+          (supabase as any).from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
+        ]),
+        LOAD_ROLES_TIMEOUT_MS,
+      );
 
-    if (rolesResult.error) {
-      diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
+      if (rolesResult.error) {
+        diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
+      }
+      if (pacResult.error) {
+        diag.error("auth", "falha ao buscar paciente vinculado", pacResult.error);
+      }
+
+      const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
+      setRoles(fetchedRoles);
+
+      const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
+      setPacienteId(pacId);
+      setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
+      rolesUserIdRef.current = userId;
+
+      diag.info("auth", "papéis carregados", {
+        userId,
+        roles: fetchedRoles,
+        pacienteId: pacId,
+        isPaciente: isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)),
+      });
+    } catch (error) {
+      diag.error("auth", "loadRoles falhou ou expirou", error);
+    } finally {
+      if (rolesLoadingUserIdRef.current === userId) {
+        rolesLoadingUserIdRef.current = null;
+      }
     }
-    if (pacResult.error) {
-      diag.error("auth", "falha ao buscar paciente vinculado", pacResult.error);
-    }
-
-    const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
-    setRoles(fetchedRoles);
-
-    const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
-    setPacienteId(pacId);
-    setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
-    rolesUserIdRef.current = userId;
-
-    diag.info("auth", "papéis carregados", {
-      userId,
-      roles: fetchedRoles,
-      pacienteId: pacId,
-      isPaciente: isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)),
-    });
   }
 
   async function clearRoles() {
@@ -66,9 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPacienteId(null);
     setIsPaciente(false);
     rolesUserIdRef.current = null;
+    rolesLoadingUserIdRef.current = null;
   }
 
-  async function applySession(next: Session | null, options?: { reloadRoles?: boolean }) {
+  async function applySession(
+    next: Session | null,
+    options?: { reloadRoles?: boolean; awaitRoles?: boolean },
+  ) {
     setSession(next);
     if (!next?.user) {
       await clearRoles();
@@ -77,8 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const shouldReload =
       options?.reloadRoles !== false && rolesUserIdRef.current !== next.user.id;
-    if (shouldReload) {
-      await loadRoles(next.user.id);
+    if (!shouldReload) return;
+
+    const rolesPromise = loadRoles(next.user.id);
+    if (options?.awaitRoles) {
+      await rolesPromise;
     }
   }
 
@@ -93,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }, 8_000);
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
       diag.info("auth", `onAuthStateChange: ${event}`, {
@@ -103,23 +129,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === "INITIAL_SESSION") return;
 
-      if (event === "SIGNED_OUT") {
-        await applySession(null);
-        return;
-      }
+      // Evita deadlock: não chamar Supabase dentro do callback de auth.
+      window.setTimeout(() => {
+        if (!mounted) return;
 
-      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-        setSession(nextSession);
-        return;
-      }
+        void (async () => {
+          if (event === "SIGNED_OUT") {
+            await applySession(null);
+            return;
+          }
 
-      if (nextSession?.user && (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY")) {
-        try {
-          await applySession(nextSession);
-        } catch (error) {
-          diag.error("auth", `falha ao aplicar sessão (${event})`, error);
-        }
-      }
+          if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+            setSession(nextSession);
+            return;
+          }
+
+          if (nextSession?.user && (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY")) {
+            try {
+              await applySession(nextSession);
+            } catch (error) {
+              diag.error("auth", `falha ao aplicar sessão (${event})`, error);
+            }
+          }
+        })();
+      }, 0);
     });
 
     void (async () => {
@@ -136,7 +169,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userId: data.session?.user?.id,
         });
 
-        await applySession(data.session);
+        setSession(data.session);
+        if (data.session?.user) {
+          void loadRoles(data.session.user.id);
+        } else {
+          await clearRoles();
+        }
       } catch (error) {
         diag.error("auth", "bootstrap: exceção ao restaurar sessão", error);
       } finally {
@@ -178,7 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       if (data.session) {
-        await applySession(data.session);
+        await applySession(data.session, { awaitRoles: true });
         if (mustResetPassword(data.session.user)) return "/redefinir-senha";
         return resolvePostAuthPath(data.session.user.id);
       }
