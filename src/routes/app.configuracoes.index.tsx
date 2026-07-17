@@ -29,16 +29,6 @@ const CARDS = [
     ),
   },
   {
-    href: "/app/configuracoes/integracoes",
-    title: "Integrações",
-    description: "Configure as integrações com Cora, Safe Notas e Resend.",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 0-4.5H6v4.5Zm0 0H3.75m2.25 0v4.5m0-4.5h2.25m-2.25 4.5H3.75M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-      </svg>
-    ),
-  },
-  {
     href: "/app/configuracoes/instrumentos",
     title: "Instrumentos",
     description: "Catálogo de instrumentos de avaliação neurológica.",

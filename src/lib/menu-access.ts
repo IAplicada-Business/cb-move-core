@@ -13,9 +13,7 @@ export type MenuKey =
   | "cfg.geral"
   | "cfg.convenios"
   | "cfg.instrumentos"
-  | "cfg.templates"
-  | "cfg.integracoes"
-  | "help.ajuda";
+  | "cfg.templates";
 
 export type MenuItemDef = {
   key: MenuKey;
@@ -65,13 +63,7 @@ export const MENU_GROUPS: MenuGroupDef[] = [
       { key: "cfg.convenios", to: "/app/configuracoes/convenios", label: "Convênios" },
       { key: "cfg.instrumentos", to: "/app/configuracoes/instrumentos", label: "Instrumentos" },
       { key: "cfg.templates", to: "/app/configuracoes/templates", label: "Templates" },
-      { key: "cfg.integracoes", to: "/app/configuracoes/integracoes", label: "Integrações" },
     ],
-  },
-  {
-    id: "ajuda",
-    label: "Suporte",
-    items: [{ key: "help.ajuda", to: "/app/ajuda", label: "Ajuda" }],
   },
 ];
 
@@ -91,8 +83,6 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "cfg.convenios": false,
   "cfg.instrumentos": false,
   "cfg.templates": false,
-  "cfg.integracoes": false,
-  "help.ajuda": true,
 };
 
 export function menuLabel(key: MenuKey): string {

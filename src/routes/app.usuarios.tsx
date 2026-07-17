@@ -133,6 +133,62 @@ function statusLabel(user: UserRow | undefined): string {
   return "Cadastrado — aguardando 1º acesso";
 }
 
+function AcessosMatrix({
+  loading,
+  menuDraft,
+  setMenuDraft,
+  enabledCount,
+  onSave,
+  saving,
+}: {
+  loading: boolean;
+  menuDraft: Partial<Record<MenuKey, boolean>>;
+  setMenuDraft: (
+    updater: (prev: Partial<Record<MenuKey, boolean>>) => Partial<Record<MenuKey, boolean>>,
+  ) => void;
+  enabledCount: number;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  if (loading) return <LoadingState />;
+  return (
+    <div className="space-y-4 rounded-xl border bg-card p-4">
+      {MENU_GROUPS.map((group) => (
+        <div key={group.id}>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {group.label}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {group.items.map((item) => (
+              <label
+                key={item.key}
+                className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/30"
+              >
+                <Checkbox
+                  checked={!!menuDraft[item.key]}
+                  onCheckedChange={(checked) =>
+                    setMenuDraft((prev) => ({ ...prev, [item.key]: !!checked }))
+                  }
+                />
+                <span>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div className="flex items-center justify-between border-t pt-4">
+        <p className="text-xs text-muted-foreground">
+          {enabledCount} de {ALL_MENU_KEYS.length} itens habilitados para Membro
+        </p>
+        <Button disabled={saving} onClick={onSave}>
+          {saving ? "Salvando…" : "Salvar acessos"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function UsuariosPage() {
   const { roles, user } = useAuth();
   const qc = useQueryClient();
@@ -162,7 +218,7 @@ function UsuariosPage() {
   const { data: menuPerms, isLoading: loadingMenu } = useQuery({
     queryKey: queryKeys.usuarios.menuPermissions("membro"),
     queryFn: () => fetchMenuPermissions("membro"),
-    enabled: isAdmin && tab === "acessos",
+    enabled: isAdmin && (tab === "acessos" || (cadastroOpen && cadastroForm.role === "membro")),
   });
 
   useEffect(() => {
@@ -394,49 +450,24 @@ function UsuariosPage() {
             Clientes usam o portal e veem apenas suas sessões e documentos.
           </div>
 
-          {loadingMenu ? (
-            <LoadingState />
-          ) : (
-            <div className="space-y-4 rounded-xl border bg-card p-4">
-              {MENU_GROUPS.map((group) => (
-                <div key={group.id}>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {group.label}
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {group.items.map((item) => (
-                      <label
-                        key={item.key}
-                        className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/30"
-                      >
-                        <Checkbox
-                          checked={!!menuDraft[item.key]}
-                          onCheckedChange={(checked) =>
-                            setMenuDraft((prev) => ({ ...prev, [item.key]: !!checked }))
-                          }
-                        />
-                        <span>{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <div className="flex items-center justify-between border-t pt-4">
-                <p className="text-xs text-muted-foreground">
-                  {enabledCount} de {ALL_MENU_KEYS.length} itens habilitados para Membro
-                </p>
-                <Button disabled={menuMutation.isPending} onClick={() => menuMutation.mutate()}>
-                  {menuMutation.isPending ? "Salvando…" : "Salvar acessos"}
-                </Button>
-              </div>
-            </div>
-          )}
+          <AcessosMatrix
+            loading={loadingMenu}
+            menuDraft={menuDraft}
+            setMenuDraft={setMenuDraft}
+            enabledCount={enabledCount}
+            onSave={() => menuMutation.mutate()}
+            saving={menuMutation.isPending}
+          />
         </TabsContent>
       </Tabs>
 
       <Dialog open={cadastroOpen} onOpenChange={setCadastroOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent
+          className={cn(
+            "max-h-[85vh] overflow-y-auto",
+            cadastroForm.role === "membro" ? "max-w-2xl" : "max-w-md",
+          )}
+        >
           <DialogHeader>
             <DialogTitle>
               {findUserByEmail(users, cadastroForm.email) ? "Atualizar cadastro" : "Cadastrar usuário"}
@@ -474,6 +505,26 @@ function UsuariosPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {cadastroForm.role === "membro" && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <Label className="mb-0">Acessos do perfil Membro</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Vale para todos os usuários com perfil Membro (não é por pessoa). Ajuste aqui e já salve, sem precisar trocar de aba.
+                </p>
+                <AcessosMatrix
+                  loading={loadingMenu}
+                  menuDraft={menuDraft}
+                  setMenuDraft={setMenuDraft}
+                  enabledCount={enabledCount}
+                  onSave={() => menuMutation.mutate()}
+                  saving={menuMutation.isPending}
+                />
+              </div>
+            )}
 
             {cadastroForm.role === "cliente" && (
               <div className="space-y-2 rounded-lg border bg-muted/20 p-3">

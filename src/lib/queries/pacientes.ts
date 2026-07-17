@@ -175,6 +175,44 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | 
   return map(data as unknown as Row);
 }
 
+export async function setPacienteAtivo(id: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase.from("pacientes").update({ ativo }).eq("id", id);
+  if (error) throw error;
+}
+
+export type PacienteDeleteBlockReason = {
+  cobrancas: number;
+  sessoes: number;
+  agendamentos: number;
+};
+
+export async function checkPacienteDependencias(id: string): Promise<PacienteDeleteBlockReason> {
+  const [cobrancas, sessoes, agendamentos] = await Promise.all([
+    supabase.from("cobrancas").select("id", { count: "exact", head: true }).eq("paciente_id", id),
+    supabase.from("sessoes").select("id", { count: "exact", head: true }).eq("paciente_id", id),
+    supabase.from("agendamentos").select("id", { count: "exact", head: true }).eq("paciente_id", id),
+  ]);
+  if (cobrancas.error) throw cobrancas.error;
+  if (sessoes.error) throw sessoes.error;
+  if (agendamentos.error) throw agendamentos.error;
+  return {
+    cobrancas: cobrancas.count ?? 0,
+    sessoes: sessoes.count ?? 0,
+    agendamentos: agendamentos.count ?? 0,
+  };
+}
+
+export async function deletePaciente(id: string): Promise<void> {
+  const deps = await checkPacienteDependencias(id);
+  if (deps.cobrancas > 0 || deps.sessoes > 0 || deps.agendamentos > 0) {
+    throw new Error(
+      "Este paciente já tem histórico (cobranças, sessões ou agendamentos) e não pode ser excluído. Use \"Inativar\" para removê-lo das listas ativas sem perder o histórico.",
+    );
+  }
+  const { error } = await supabase.from("pacientes").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function updatePaciente(
   id: string,
   input: Partial<Omit<Paciente, "id" | "createdAt" | "convenioNome">>

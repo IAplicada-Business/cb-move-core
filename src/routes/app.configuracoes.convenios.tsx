@@ -21,6 +21,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
@@ -145,6 +149,21 @@ async function toggleAtivo(id: string, ativo: boolean): Promise<void> {
   if (error) throw error;
 }
 
+async function deleteConvenio(id: string): Promise<void> {
+  const { count, error: countError } = await supabase
+    .from("pacientes")
+    .select("id", { count: "exact", head: true })
+    .eq("convenio_id", id);
+  if (countError) throw countError;
+  if ((count ?? 0) > 0) {
+    throw new Error(
+      "Este convênio está vinculado a pacientes cadastrados e não pode ser excluído. Use o botão Ativo/Inativo.",
+    );
+  }
+  const { error } = await supabase.from("convenios").delete().eq("id", id);
+  if (error) throw error;
+}
+
 const defaultForm: FormValues = {
   nome: "",
   ativo: true,
@@ -187,6 +206,7 @@ function ConveniosPage() {
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Convenio | null>(null);
+  const [deleting, setDeleting] = useState<Convenio | null>(null);
 
   const { data: convenios = [], isLoading } = useQuery({
     queryKey: queryKeys.convenios.all,
@@ -211,6 +231,16 @@ function ConveniosPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) => toggleAtivo(id, ativo),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.convenios.all }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteConvenio(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.convenios.all });
+      toast.success("Convênio excluído");
+      setDeleting(null);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -313,6 +343,12 @@ function ConveniosPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEdit(c)}>Editar</DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleting(c)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -461,6 +497,31 @@ function ConveniosPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir convênio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
+              convênios sem pacientes vinculados. Caso já tenha pacientes, use o botão Ativo/Inativo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) deleteMutation.mutate(deleting.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

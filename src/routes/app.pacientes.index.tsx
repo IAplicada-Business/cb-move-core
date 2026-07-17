@@ -14,7 +14,14 @@ import { TipoBadge } from "@/components/domain/TipoBadge";
 import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
 import { queryKeys } from "@/lib/queries";
 import { formatPhone } from "@/lib/format";
-import { fetchPacientes, createPaciente, updatePaciente, type Paciente } from "@/lib/queries/pacientes";
+import {
+  fetchPacientes,
+  createPaciente,
+  updatePaciente,
+  deletePaciente,
+  setPacienteAtivo,
+  type Paciente,
+} from "@/lib/queries/pacientes";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 
@@ -34,6 +41,12 @@ import {
 } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/pacientes/")({
   head: () => ({ meta: [{ title: "Pacientes · CB MOVE" }] }),
@@ -47,6 +60,14 @@ const schema = z.object({
   email: z.string().email("E-mail inválido").nullable().optional().or(z.literal("")),
   tipo: z.enum(["particular", "judicial", "convenio", "puc"] as const),
   regimeCobranca: z.enum(["mensalista", "por_sessao"] as const),
+  valorMensal: z.string().nullable().optional().refine(
+    (v) => !v || /^\d+([.,]\d{1,2})?$/.test(v),
+    "Valor inválido",
+  ),
+  valorSessao: z.string().nullable().optional().refine(
+    (v) => !v || /^\d+([.,]\d{1,2})?$/.test(v),
+    "Valor inválido",
+  ),
   modeloRelatorio: z.enum(["convencional", "unimed", "sharepoint", "puc"] as const).nullable().optional(),
   convenioId: z.string().nullable().optional(),
   numeroProcesso: z.string().nullable().optional(),
@@ -73,6 +94,13 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function parseValorBr(value: string | null | undefined): number | null {
+  if (!value?.trim()) return null;
+  const normalized = value.trim().replace(",", ".");
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
 function maskCPF(cpf: string | null | undefined) {
   if (!cpf) return "—";
   const v = cpf.replace(/\D/g, "").padStart(11, "0").slice(0, 11);
@@ -93,6 +121,7 @@ function PacientesPage() {
   const [filterTipo, setFilterTipo] = useState<PacienteTipo | "todos">("todos");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Paciente | null>(null);
+  const [deleting, setDeleting] = useState<Paciente | null>(null);
 
   const { data: pacientes = [], isLoading } = useQuery({
     queryKey: queryKeys.pacientes.list({ search, tipo: filterTipo === "todos" ? undefined : filterTipo }),
@@ -132,10 +161,13 @@ function PacientesPage() {
       cidade: "",
       uf: "",
       codigoMunicipioIbge: "",
+      valorMensal: "",
+      valorSessao: "",
     },
   });
 
   const tipoWatch = form.watch("tipo");
+  const regimeWatch = form.watch("regimeCobranca");
 
   const mutation = useMutation({
     mutationFn: async (vals: FormValues) => {
@@ -153,8 +185,8 @@ function PacientesPage() {
         diasSemana: vals.diasSemana?.trim() || null,
         observacoes: vals.observacoes || null,
         ativo: vals.ativo,
-        valorMensal: null,
-        valorSessao: null,
+        valorMensal: parseValorBr(vals.valorMensal),
+        valorSessao: parseValorBr(vals.valorSessao),
         fisioterapeutaId: null,
         advogadoNome: null,
         advogadoEmail: null,
@@ -183,6 +215,22 @@ function PacientesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const toggleAtivoMutation = useMutation({
+    mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) => setPacienteAtivo(id, ativo),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.pacientes.all }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deletePaciente(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.pacientes.all });
+      toast.success("Paciente excluído");
+      setDeleting(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function openNew() {
     setEditing(null);
     form.reset({
@@ -207,6 +255,8 @@ function PacientesPage() {
       cidade: "",
       uf: "",
       codigoMunicipioIbge: "",
+      valorMensal: "",
+      valorSessao: "",
     });
     setModalOpen(true);
   }
@@ -235,6 +285,8 @@ function PacientesPage() {
       cidade: p.cidade ?? "",
       uf: p.uf ?? "",
       codigoMunicipioIbge: p.codigoMunicipioIbge != null ? String(p.codigoMunicipioIbge) : "",
+      valorMensal: p.valorMensal != null ? String(p.valorMensal).replace(".", ",") : "",
+      valorSessao: p.valorSessao != null ? String(p.valorSessao).replace(".", ",") : "",
     });
     setModalOpen(true);
   }
@@ -308,6 +360,7 @@ function PacientesPage() {
                 <TableHead>Convênio / Processo</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Modelo relatório</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -333,6 +386,17 @@ function PacientesPage() {
                     {p.modeloRelatorio ?? "convencional"}
                   </TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={p.ativo}
+                        onCheckedChange={(v) => toggleAtivoMutation.mutate({ id: p.id, ativo: v })}
+                      />
+                      <span className={cn("text-xs", p.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                        {p.ativo ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -346,6 +410,12 @@ function PacientesPage() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEdit(p)}>Editar</DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleting(p)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -427,6 +497,24 @@ function PacientesPage() {
                   </FormItem>
                 )} />
               </div>
+
+              {regimeWatch === "mensalista" ? (
+                <FormField control={form.control} name="valorMensal" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor mensal (R$)</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="1028,00" inputMode="decimal" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              ) : (
+                <FormField control={form.control} name="valorSessao" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor por sessão (R$)</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="150,00" inputMode="decimal" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
 
               <FormField control={form.control} name="modeloRelatorio" render={({ field }) => (
                 <FormItem>
@@ -571,6 +659,32 @@ function PacientesPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir paciente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
+              pacientes sem histórico de cobranças, sessões ou agendamentos. Caso já tenha
+              histórico, use o botão de status na tabela para inativá-lo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) deleteMutation.mutate(deleting.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

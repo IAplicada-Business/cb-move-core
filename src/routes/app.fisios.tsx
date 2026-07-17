@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Users } from "lucide-react";
+import { MoreHorizontal, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -18,6 +18,13 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -81,12 +88,34 @@ async function toggleAtivo(id: string, ativo: boolean): Promise<void> {
   if (error) throw error;
 }
 
+async function checkFisioDependencias(id: string): Promise<{ sessoes: number; agendamentos: number }> {
+  const [sessoes, agendamentos] = await Promise.all([
+    supabase.from("sessoes").select("id", { count: "exact", head: true }).eq("fisioterapeuta_id", id),
+    supabase.from("agendamentos").select("id", { count: "exact", head: true }).eq("fisioterapeuta_id", id),
+  ]);
+  if (sessoes.error) throw sessoes.error;
+  if (agendamentos.error) throw agendamentos.error;
+  return { sessoes: sessoes.count ?? 0, agendamentos: agendamentos.count ?? 0 };
+}
+
+async function deleteFisio(id: string): Promise<void> {
+  const deps = await checkFisioDependencias(id);
+  if (deps.sessoes > 0 || deps.agendamentos > 0) {
+    throw new Error(
+      "Este fisioterapeuta já tem sessões ou agendamentos vinculados e não pode ser excluído. Use o botão Ativo/Inativo para removê-lo das listas ativas sem perder o histórico.",
+    );
+  }
+  const { error } = await supabase.from("fisioterapeutas").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 function FisiosPage() {
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Fisio | null>(null);
+  const [deleting, setDeleting] = useState<Fisio | null>(null);
 
   const { data: fisios = [], isLoading } = useQuery({
     queryKey: queryKeys.fisioterapeutas.all,
@@ -112,6 +141,16 @@ function FisiosPage() {
     mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) => toggleAtivo(id, ativo),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.all });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteFisio(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.all });
+      toast.success("Fisioterapeuta excluído");
+      setDeleting(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -200,14 +239,31 @@ function FisiosPage() {
                     aria-label="Ativo/Inativo"
                   />
                   <span className="text-xs text-muted-foreground">{f.ativo ? "Ativo" : "Inativo"}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto text-xs h-7"
-                    onClick={() => openEdit(f)}
-                  >
-                    Editar
-                  </Button>
+                  <div className="ml-auto flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => openEdit(f)}
+                    >
+                      Editar
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleting(f)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
             </div>
@@ -266,6 +322,32 @@ function FisiosPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir fisioterapeuta</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
+              fisioterapeutas sem sessões ou agendamentos vinculados. Caso já tenha histórico, use o
+              botão Ativo/Inativo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) deleteMutation.mutate(deleting.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -9,7 +9,11 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Pré-carrega a rota (loader + code-split chunk) ao passar o mouse/focar
+    // um link, então o clique parece instantâneo em vez de esperar o
+    // JS + dados carregarem só depois do clique.
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 30_000,
   });
 
   return router;

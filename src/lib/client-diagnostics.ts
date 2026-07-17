@@ -82,6 +82,17 @@ if (typeof window !== "undefined") {
 
 export function createQueryClientWithDiagnostics() {
   return new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Sem isso, o padrão do React Query é staleTime: 0 — toda query é
+        // refeita a cada montagem/foco de janela, o que deixa a navegação
+        // entre menus lenta (spinner em toda troca de aba, mesmo revisitando
+        // uma tela recém-carregada). 30s é suficiente para listas
+        // administrativas que não mudam a cada segundo.
+        staleTime: 30_000,
+        gcTime: 5 * 60_000,
+      },
+    },
     queryCache: new QueryCache({
       onError: (error, query) => {
         diag.error("react-query", "falha em query", {

@@ -8,6 +8,7 @@ export type TranscricaoResult = {
   subjetivo: string;
   objetivo: string;
   plano: string;
+  aviso?: string;
 };
 
 type Props = {
@@ -69,16 +70,22 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
     rec.lang = "pt-BR";
 
     rec.onresult = (e) => {
+      // `e.results` sempre contém o histórico completo da sessão (modo contínuo),
+      // não apenas o resultado mais recente — por isso reconstruímos o texto final
+      // e interino do zero em cada evento, em vez de acumular sobre o texto
+      // anterior (o que duplicava/"deformava" a transcrição a cada nova frase).
+      let final = "";
       let interim = "";
-      let final = finalTextRef.current;
-      for (let i = e.results.length - 1; i >= 0; i--) {
-        if (e.results[i].isFinal) {
-          final += e.results[i][0].transcript + " ";
-          finalTextRef.current = final;
+      for (let i = 0; i < e.results.length; i++) {
+        const result = e.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) {
+          final += transcript + " ";
         } else {
-          interim = e.results[i][0].transcript;
+          interim += transcript;
         }
       }
+      finalTextRef.current = final;
       const merged = (final + interim).trim();
       liveTextRef.current = merged;
       setLiveText(merged);
@@ -113,37 +120,36 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
     return { transcricao_raw, subjetivo: "", objetivo: "", plano: "" };
   }
 
-  function isEdgeUnavailable(err: unknown): boolean {
-    const msg = err instanceof Error ? err.message : String(err);
-    return /404|not found|failed to send|edge function|non-2xx/i.test(msg);
-  }
-
   async function sendText(transcricao_raw: string) {
     setProcessing(true);
     try {
-      const result = await invokeEdgeFunction<TranscricaoResult>("transcribe-audio", {
-        transcricao_raw,
-        paciente_id: pacienteId,
-      });
+      const result = await invokeEdgeFunction<TranscricaoResult>(
+        "transcribe-audio",
+        { transcricao_raw, paciente_id: pacienteId },
+        { timeoutMs: 20_000 },
+      );
 
-      if (!result.subjetivo && !result.objetivo && !result.plano) {
+      if (result.aviso) {
+        toast.info(result.aviso);
+      } else if (!result.subjetivo && !result.objetivo && !result.plano) {
         toast.info("Transcrição salva. Configure ANTHROPIC_API_KEY para estruturação automática S/O/P.");
       } else {
         toast.success("Evolução estruturada pela IA");
       }
       onResult(result);
+    } catch (err) {
+      // Qualquer falha ao chamar a IA (rede, timeout, função indisponível) NUNCA
+      // deve descartar o que já foi ditado — sempre preserva a transcrição bruta
+      // e abre a evolução para revisão manual do S/O/P.
+      toast.warning(
+        "Não foi possível estruturar com IA agora (" +
+          (err instanceof Error ? err.message : "erro desconhecido") +
+          "). Transcrição mantida — preencha S/O/P manualmente.",
+      );
+      onResult(fallbackResult(transcricao_raw));
+    } finally {
       setLiveText("");
       liveTextRef.current = "";
-    } catch (err) {
-      if (isEdgeUnavailable(err)) {
-        toast.info("Serviço de IA indisponível — transcrição mantida; preencha S/O/P manualmente.");
-        onResult(fallbackResult(transcricao_raw));
-        setLiveText("");
-        liveTextRef.current = "";
-        return;
-      }
-      toast.error("Erro: " + (err instanceof Error ? err.message : "Desconhecido"));
-    } finally {
       setProcessing(false);
     }
   }

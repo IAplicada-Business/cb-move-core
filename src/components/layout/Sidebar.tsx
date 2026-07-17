@@ -13,7 +13,7 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { groups, primary } = useMenuAccess();
   const [open, setOpen] = React.useState<Record<string, boolean>>({
-    op: true, fin: true, team: true, cfg: false, ajuda: false,
+    op: true, fin: true, team: true, cfg: false,
   });
 
   const userName = (user?.user_metadata?.nome as string | undefined)
