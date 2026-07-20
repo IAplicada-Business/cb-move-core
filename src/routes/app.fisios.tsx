@@ -9,8 +9,11 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { FisioDetalhesSheet } from "@/components/domain/FisioDetalhesSheet";
 import { queryKeys } from "@/lib/queries";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchFisios, upsertFisio, toggleFisioAtivo, deleteFisio, type Fisio, type FisioFormValues,
+} from "@/lib/queries/fisioterapeutas";
 import { initials } from "@/lib/format";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +28,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -34,19 +40,6 @@ export const Route = createFileRoute("/app/fisios")({
   component: FisiosPage,
 });
 
-// ─── types ───────────────────────────────────────────────────────────────────
-
-type Fisio = {
-  id: string;
-  nome: string;
-  registro_profissional: string | null;
-  email: string | null;
-  ativo: boolean;
-  created_at: string;
-};
-
-// ─── schema ───────────────────────────────────────────────────────────────────
-
 const schema = z.object({
   nome: z.string().min(2, "Nome obrigatório"),
   registro_profissional: z.string().nullable().optional(),
@@ -55,67 +48,12 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-// ─── queries ──────────────────────────────────────────────────────────────────
-
-async function fetchFisios(): Promise<Fisio[]> {
-  const { data, error } = await supabase
-    .from("fisioterapeutas")
-    .select("*")
-    .order("nome");
-  if (error) throw error;
-  return (data ?? []) as Fisio[];
-}
-
-async function upsertFisio(id: string | null, vals: FormValues): Promise<void> {
-  const payload = {
-    nome: vals.nome,
-    registro_profissional: vals.registro_profissional || null,
-    email: vals.email || null,
-    ativo: vals.ativo,
-  };
-
-  if (id) {
-    const { error } = await supabase.from("fisioterapeutas").update(payload).eq("id", id);
-    if (error) throw error;
-  } else {
-    const { error } = await supabase.from("fisioterapeutas").insert(payload);
-    if (error) throw error;
-  }
-}
-
-async function toggleAtivo(id: string, ativo: boolean): Promise<void> {
-  const { error } = await supabase.from("fisioterapeutas").update({ ativo }).eq("id", id);
-  if (error) throw error;
-}
-
-async function checkFisioDependencias(id: string): Promise<{ sessoes: number; agendamentos: number }> {
-  const [sessoes, agendamentos] = await Promise.all([
-    supabase.from("sessoes").select("id", { count: "exact", head: true }).eq("fisioterapeuta_id", id),
-    supabase.from("agendamentos").select("id", { count: "exact", head: true }).eq("fisioterapeuta_id", id),
-  ]);
-  if (sessoes.error) throw sessoes.error;
-  if (agendamentos.error) throw agendamentos.error;
-  return { sessoes: sessoes.count ?? 0, agendamentos: agendamentos.count ?? 0 };
-}
-
-async function deleteFisio(id: string): Promise<void> {
-  const deps = await checkFisioDependencias(id);
-  if (deps.sessoes > 0 || deps.agendamentos > 0) {
-    throw new Error(
-      "Este fisioterapeuta já tem sessões ou agendamentos vinculados e não pode ser excluído. Use o botão Ativo/Inativo para removê-lo das listas ativas sem perder o histórico.",
-    );
-  }
-  const { error } = await supabase.from("fisioterapeutas").delete().eq("id", id);
-  if (error) throw error;
-}
-
-// ─── page ─────────────────────────────────────────────────────────────────────
-
 function FisiosPage() {
   const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Fisio | null>(null);
   const [deleting, setDeleting] = useState<Fisio | null>(null);
+  const [viewing, setViewing] = useState<Fisio | null>(null);
 
   const { data: fisios = [], isLoading } = useQuery({
     queryKey: queryKeys.fisioterapeutas.all,
@@ -128,7 +66,7 @@ function FisiosPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (vals: FormValues) => upsertFisio(editing?.id ?? null, vals),
+    mutationFn: (vals: FisioFormValues) => upsertFisio(editing?.id ?? null, vals),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.all });
       toast.success(editing ? "Fisioterapeuta atualizado" : "Fisioterapeuta criado");
@@ -138,7 +76,7 @@ function FisiosPage() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) => toggleAtivo(id, ativo),
+    mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) => toggleFisioAtivo(id, ativo),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.all });
     },
@@ -151,6 +89,7 @@ function FisiosPage() {
       qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.all });
       toast.success("Fisioterapeuta excluído");
       setDeleting(null);
+      setViewing(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -169,6 +108,7 @@ function FisiosPage() {
       email: f.email ?? "",
       ativo: f.ativo,
     });
+    setViewing(null);
     setModalOpen(true);
   }
 
@@ -200,61 +140,58 @@ function FisiosPage() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {fisios.map((f) => (
-            <div
-              key={f.id}
-              className="rounded-xl border bg-card p-5 shadow-sm flex gap-4 items-start"
-            >
-              {/* Avatar */}
-              <div className="flex-shrink-0 h-12 w-12 rounded-full bg-cb-cyan-600 flex items-center justify-center text-white font-bold text-sm">
-                {initials(f.nome)}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-foreground truncate">{f.nome}</p>
-                  <span
-                    className={cn(
-                      "flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border",
-                      f.ativo
-                        ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
-                        : "bg-muted text-muted-foreground border-border"
-                    )}
-                  >
-                    {f.ativo ? "Ativo" : "Inativo"}
-                  </span>
-                </div>
-                {f.registro_profissional && (
-                  <p className="text-xs text-muted-foreground mt-0.5">CREFITO: {f.registro_profissional}</p>
-                )}
-                {f.email && (
-                  <p className="text-xs text-muted-foreground truncate">{f.email}</p>
-                )}
-
-                <div className="mt-3 flex items-center gap-3">
-                  <Switch
-                    checked={f.ativo}
-                    onCheckedChange={(v) => toggleMutation.mutate({ id: f.id, ativo: v })}
-                    aria-label="Ativo/Inativo"
-                  />
-                  <span className="text-xs text-muted-foreground">{f.ativo ? "Ativo" : "Inativo"}</span>
-                  <div className="ml-auto flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-7"
-                      onClick={() => openEdit(f)}
-                    >
-                      Editar
-                    </Button>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>CREFITO</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {fisios.map((f) => (
+                <TableRow
+                  key={f.id}
+                  className="cursor-pointer"
+                  onClick={() => setViewing(f)}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2.5">
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">
+                        {initials(f.nome)}
+                      </div>
+                      <span className="text-cb-cyan-800">{f.nome}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {f.registro_profissional || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{f.email || "—"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        checked={f.ativo}
+                        onCheckedChange={(v) => toggleMutation.mutate({ id: f.id, ativo: v })}
+                        aria-label="Ativo/Inativo"
+                      />
+                      <span className={cn("text-xs", f.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                        {f.ativo ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setViewing(f)}>Ver detalhes</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(f)}>Editar</DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => setDeleting(f)}
@@ -263,13 +200,20 @@ function FisiosPage() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
+
+      <FisioDetalhesSheet
+        fisio={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={openEdit}
+        onDelete={(f) => setDeleting(f)}
+      />
 
       {/* Modal */}
       <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>

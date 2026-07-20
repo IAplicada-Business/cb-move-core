@@ -1,18 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend,
-} from "recharts";
-import { DollarSign, Clock, AlertTriangle, FileCheck2 } from "lucide-react";
+import { Users, Stethoscope, CalendarClock, AlertOctagon, TrendingUp } from "lucide-react";
+
 import { KpiCard } from "@/components/domain/KpiCard";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
-import { TipoBadge } from "@/components/domain/TipoBadge";
-import { fetchRecentCobrancas } from "@/lib/queries/cobrancas";
-import { fetchKpis, fetchReceitaMensal } from "@/lib/queries/dashboard";
+import {
+  fetchDivergenciasProntuario,
+  fetchOperacionalKpis,
+  fetchProximasAgendas,
+} from "@/lib/queries/dashboard";
 import { queryKeys } from "@/lib/queries";
-import { brl, formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -25,128 +26,163 @@ export const Route = createFileRoute("/app/")({
 function Dashboard() {
   const now = new Date();
   const ano = now.getFullYear();
+  const mes = now.getMonth() + 1;
 
   const kpis = useQuery({
-    queryKey: queryKeys.dashboard.kpis(ano, now.getMonth() + 1),
-    queryFn: fetchKpis,
+    queryKey: queryKeys.dashboard.operacional(ano, mes),
+    queryFn: fetchOperacionalKpis,
   });
 
-  const receita = useQuery({
-    queryKey: queryKeys.dashboard.receitaMensal(ano, ano),
-    queryFn: () => fetchReceitaMensal(ano, ano),
+  const proximas = useQuery({
+    queryKey: queryKeys.dashboard.proximasAgendas(),
+    queryFn: () => fetchProximasAgendas(15),
   });
 
-  const recent = useQuery({
-    queryKey: queryKeys.cobrancas.recent(10),
-    queryFn: () => fetchRecentCobrancas(10),
+  const divergencias = useQuery({
+    queryKey: queryKeys.dashboard.divergencias(ano, mes),
+    queryFn: () => fetchDivergenciasProntuario(20),
   });
-
-  const hasChartData = (receita.data ?? []).some((d) => d.total > 0);
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Visão geral do mês corrente</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Visão operacional — pacientes, equipe, agendas e conformidade do prontuário
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild className="gap-2">
+          <Link to="/app/financeiro">
+            <TrendingUp className="h-4 w-4" />
+            Dashboard Financeiro
+          </Link>
+        </Button>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Receita do mês"
-          value={brl(kpis.data?.receitaMes ?? 0)}
+          label="Pacientes ativos"
+          value={kpis.data?.totalPacientesAtivos ?? 0}
           accent="cyan"
-          icon={<DollarSign className="h-4 w-4 text-cb-cyan-600" />}
+          icon={<Users className="h-4 w-4 text-cb-cyan-600" />}
         />
         <KpiCard
-          label="A receber"
-          value={brl(kpis.data?.aReceber ?? 0)}
+          label="Fisioterapeutas ativos"
+          value={kpis.data?.totalFisiosAtivos ?? 0}
+          accent="purple"
+          icon={<Stethoscope className="h-4 w-4 text-cb-purple" />}
+        />
+        <KpiCard
+          label="Agendas próximas (7 dias)"
+          value={kpis.data?.agendasProximas ?? 0}
           accent="orange"
-          icon={<Clock className="h-4 w-4 text-cb-orange" />}
+          icon={<CalendarClock className="h-4 w-4 text-cb-orange" />}
+          hint="Agendado ou confirmado"
         />
         <KpiCard
-          label="Inadimplência"
-          value={brl(kpis.data?.inadimplencia ?? 0)}
+          label="Divergência prontuário × agenda"
+          value={kpis.data?.divergenciaProntuario ?? 0}
           accent="magenta"
-          icon={<AlertTriangle className="h-4 w-4 text-cb-magenta" />}
-        />
-        <KpiCard
-          label="NFs emitidas"
-          value={kpis.data?.nfsEmitidas ?? 0}
-          accent="lime"
-          icon={<FileCheck2 className="h-4 w-4" style={{ color: "var(--cb-lime)" }} />}
+          icon={<AlertOctagon className="h-4 w-4 text-cb-magenta" />}
+          hint="Realizadas no mês sem evolução"
         />
       </div>
 
-      <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold text-foreground">Receita por mês × tipo</h2>
-        {receita.isLoading ? (
-          <LoadingState />
-        ) : !hasChartData ? (
-          <EmptyState
-            title="Sem faturamento"
-            description="Quando houver cobranças, o gráfico aparece aqui."
-          />
-        ) : (
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={receita.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--cb-line)" />
-                <XAxis dataKey="mes" stroke="var(--cb-muted)" fontSize={12} />
-                <YAxis
-                  stroke="var(--cb-muted)"
-                  fontSize={12}
-                  width={72}
-                  tickFormatter={(v) =>
-                    new Intl.NumberFormat("pt-BR", {
-                      notation: "compact",
-                      maximumFractionDigits: 1,
-                    }).format(Number(v))
-                  }
-                />
-                <Tooltip formatter={(v: number) => brl(v)} />
-                <Legend />
-                <Bar dataKey="particular" stackId="a" fill="var(--cb-cyan-600)" name="Particular" />
-                <Bar dataKey="judicial" stackId="a" fill="var(--cb-magenta)" name="Judicial" />
-                <Bar dataKey="convenio" stackId="a" fill="var(--cb-purple)" name="Convênio" />
-                <Bar dataKey="puc" stackId="a" fill="var(--cb-orange)" name="PUC" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </section>
+      {(kpis.data?.divergenciaProntuario ?? 0) > 0 && (
+        <div className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
+          <strong>{kpis.data?.divergenciaProntuario}</strong> sessão(ões) marcada(s) como realizada(s) neste mês
+          ainda não têm evolução registrada no prontuário. Confira a lista abaixo ou{" "}
+          <Link to="/app/prontuario" className="font-medium underline">abrir prontuários</Link>.
+        </div>
+      )}
 
       <section className="rounded-xl border bg-card shadow-sm">
         <header className="border-b px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">Últimas cobranças</h2>
+          <h2 className="text-sm font-semibold text-foreground">Próximas agendas (7 dias)</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Agendamentos com status agendado ou confirmado
+          </p>
         </header>
-        {recent.isLoading ? (
+        {proximas.isLoading ? (
           <div className="p-5"><LoadingState /></div>
-        ) : (recent.data ?? []).length === 0 ? (
+        ) : (proximas.data ?? []).length === 0 ? (
           <div className="p-5">
             <EmptyState
-              title="Sem cobranças"
-              description="Crie a primeira cobrança em Financeiro › Cobranças."
+              title="Nenhuma agenda nos próximos 7 dias"
+              description="Novos agendamentos aparecerão aqui."
             />
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Data/hora</TableHead>
                 <TableHead>Paciente</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Vencimento</TableHead>
+                <TableHead>Fisioterapeuta</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(recent.data ?? []).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.pacienteNome ?? "—"}</TableCell>
-                  <TableCell><TipoBadge value={c.tipo} /></TableCell>
-                  <TableCell>{brl(c.valor)}</TableCell>
-                  <TableCell>{formatDate(c.vencimento)}</TableCell>
-                  <TableCell><StatusBadge value={c.status} /></TableCell>
+              {(proximas.data ?? []).map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {formatDateTime(a.inicio)}
+                  </TableCell>
+                  <TableCell className="font-medium">{a.pacienteNome}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{a.fisioNome}</TableCell>
+                  <TableCell>
+                    <StatusBadge value={a.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <footer className="border-t px-5 py-3">
+          <Button variant="link" size="sm" className="h-auto p-0" asChild>
+            <Link to="/app/agenda">Ver agenda completa</Link>
+          </Button>
+        </footer>
+      </section>
+
+      <section className="rounded-xl border bg-card shadow-sm">
+        <header className="border-b px-5 py-4">
+          <h2 className="text-sm font-semibold text-foreground">Divergências prontuário × agenda</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Sessões realizadas neste mês sem evolução registrada no mesmo dia
+          </p>
+        </header>
+        {divergencias.isLoading ? (
+          <div className="p-5"><LoadingState /></div>
+        ) : (divergencias.data ?? []).length === 0 ? (
+          <div className="p-5">
+            <EmptyState
+              title="Nenhuma divergência no mês"
+              description="Todas as sessões realizadas têm evolução correspondente no prontuário."
+            />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Paciente</TableHead>
+                <TableHead className="w-32" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(divergencias.data ?? []).map((d) => (
+                <TableRow key={`${d.pacienteId}_${d.data}`}>
+                  <TableCell className="whitespace-nowrap">{formatDate(d.data)}</TableCell>
+                  <TableCell className="font-medium">{d.pacienteNome}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                      <Link to="/app/prontuario" search={{ pacienteId: d.pacienteId }}>
+                        Abrir prontuário
+                      </Link>
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -54,6 +54,7 @@ export const queryKeys = {
   fisioterapeutas: {
     all: ["fisioterapeutas"] as const,
     ativos: ["fisioterapeutas", "ativos"] as const,
+    metrics: (fisioId: string) => ["fisioterapeutas", "metrics", fisioId] as const,
   },
   fisioHorarios: {
     all: ["fisio_horarios"] as const,
@@ -84,6 +85,9 @@ export const queryKeys = {
   },
   dashboard: {
     kpis: (year: number, month: number) => ["dashboard", "kpis", year, month] as const,
+    operacional: (year: number, month: number) => ["dashboard", "operacional", year, month] as const,
+    proximasAgendas: () => ["dashboard", "proximasAgendas"] as const,
+    divergencias: (year: number, month: number) => ["dashboard", "divergencias", year, month] as const,
     receitaMensal: (anoInicio: number, anoFim: number) => ["dashboard", "receitaMensal", anoInicio, anoFim] as const,
   },
   userRoles: {

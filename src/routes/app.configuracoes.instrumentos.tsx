@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { FlaskConical, Eye } from "lucide-react";
+import { FlaskConical, Eye, MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -19,17 +20,29 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/app/configuracoes/instrumentos")({
   head: () => ({ meta: [{ title: "Instrumentos clínicos · CB MOVE" }] }),
   component: InstrumentosPage,
 });
-
-// ─── types ───────────────────────────────────────────────────────────────────
 
 type CampoInstrumento = {
   id: string;
@@ -51,8 +64,6 @@ type Instrumento = {
   campos: CampoInstrumento[] | null;
 };
 
-// ─── queries ─────────────────────────────────────────────────────────────────
-
 async function fetchInstrumentos(): Promise<Instrumento[]> {
   const { data, error } = await supabase
     .from("instrumentos_clinicos")
@@ -63,7 +74,31 @@ async function fetchInstrumentos(): Promise<Instrumento[]> {
   return (data ?? []) as unknown as Instrumento[];
 }
 
-// ─── subcomponentes ───────────────────────────────────────────────────────────
+async function updateInstrumento(
+  id: string,
+  vals: { nome: string; descricao: string | null; status: string },
+): Promise<void> {
+  const { error } = await supabase
+    .from("instrumentos_clinicos")
+    .update({ nome: vals.nome, descricao: vals.descricao, status: vals.status })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+async function deleteInstrumento(id: string): Promise<void> {
+  const { count, error: countError } = await supabase
+    .from("instrumentos_aplicados")
+    .select("id", { count: "exact", head: true })
+    .eq("instrumento_id", id);
+  if (countError) throw countError;
+  if ((count ?? 0) > 0) {
+    throw new Error(
+      "Este instrumento já foi aplicado em prontuários e não pode ser excluído. Altere o status para inativo.",
+    );
+  }
+  const { error } = await supabase.from("instrumentos_clinicos").delete().eq("id", id);
+  if (error) throw error;
+}
 
 const TIPO_LABEL: Record<string, string> = {
   select: "Seleção",
@@ -134,15 +169,51 @@ function CamposDialog({
   );
 }
 
-// ─── page ─────────────────────────────────────────────────────────────────────
-
 function InstrumentosPage() {
+  const qc = useQueryClient();
   const { data: instrumentos = [], isLoading } = useQuery({
     queryKey: queryKeys.instrumentos.all,
     queryFn: fetchInstrumentos,
   });
 
   const [viewingInstrumento, setViewingInstrumento] = useState<Instrumento | null>(null);
+  const [editing, setEditing] = useState<Instrumento | null>(null);
+  const [deleting, setDeleting] = useState<Instrumento | null>(null);
+  const [editForm, setEditForm] = useState({ nome: "", descricao: "", status: "ativo" });
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateInstrumento(editing!.id, {
+        nome: editForm.nome.trim(),
+        descricao: editForm.descricao.trim() || null,
+        status: editForm.status,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.instrumentos.all });
+      toast.success("Instrumento atualizado");
+      setEditing(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteInstrumento(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.instrumentos.all });
+      toast.success("Instrumento excluído");
+      setDeleting(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function openEdit(inst: Instrumento) {
+    setEditing(inst);
+    setEditForm({
+      nome: inst.nome,
+      descricao: inst.descricao ?? "",
+      status: inst.status,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -172,7 +243,7 @@ function InstrumentosPage() {
                 <TableHead>Versão</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Campos</TableHead>
-                <TableHead className="w-[80px]" />
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -200,20 +271,33 @@ function InstrumentosPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {numCampos} {numCampos === 1 ? "campo" : "campos"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-1.5"
+                        className="gap-1.5 h-8"
                         onClick={() => setViewingInstrumento(inst)}
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Ver campos
                       </Button>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(inst)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(inst)}
+                          >
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 );
@@ -227,6 +311,78 @@ function InstrumentosPage() {
         instrumento={viewingInstrumento}
         onClose={() => setViewingInstrumento(null)}
       />
+
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar instrumento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nome</Label>
+              <Input
+                value={editForm.nome}
+                onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descrição</Label>
+              <Textarea
+                value={editForm.descricao}
+                onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select
+                value={editForm.status}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">Ativo</SelectItem>
+                  <SelectItem value="inativo">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button
+              disabled={updateMutation.isPending || !editForm.nome.trim()}
+              onClick={() => updateMutation.mutate()}
+            >
+              {updateMutation.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir instrumento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
+              instrumentos que nunca foram aplicados em prontuários.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) deleteMutation.mutate(deleting.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

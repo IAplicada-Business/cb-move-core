@@ -1,12 +1,13 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, User, ClipboardCheck, FileText } from "lucide-react";
+import { ArrowLeft, User, ClipboardCheck, FileText, Receipt } from "lucide-react";
 
 import { LoadingState } from "@/components/domain/LoadingState";
 import { HistoricoComparecimentoTable } from "@/components/domain/HistoricoComparecimentoTable";
 import { MonthPicker, monthPickerLabel } from "@/components/domain/MonthPicker";
 import { PacienteComparecimentoCard } from "@/components/domain/PacienteComparecimentoCard";
+import { PacienteFinanceiroTab } from "@/components/domain/PacienteFinanceiroTab";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { fetchPaciente } from "@/lib/queries/pacientes";
@@ -92,6 +93,10 @@ function PacienteDetalhe() {
             <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
             Comparecimento
           </TabsTrigger>
+          <TabsTrigger value="financeiro">
+            <Receipt className="mr-1.5 h-3.5 w-3.5" />
+            Financeiro
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dados" className="mt-6">
@@ -126,6 +131,12 @@ function PacienteDetalhe() {
               <div className="col-span-2">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Dias da semana</p>
                 <p className="mt-1 text-foreground">{paciente.diasSemana ?? "—"}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Motivo do acompanhamento</p>
+                <p className="mt-1 whitespace-pre-wrap text-foreground">
+                  {paciente.motivoAcompanhamento ?? "—"}
+                </p>
               </div>
             </div>
           </div>
@@ -174,6 +185,10 @@ function PacienteDetalhe() {
               />
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="financeiro" className="mt-6">
+          <PacienteFinanceiroTab pacienteId={pacienteId} />
         </TabsContent>
       </Tabs>
     </div>

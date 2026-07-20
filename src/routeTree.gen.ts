@@ -28,6 +28,7 @@ import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
 import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
 import { Route as AppNotasFiscaisRouteImport } from './routes/app.notas-fiscais'
 import { Route as AppFisiosRouteImport } from './routes/app.fisios'
+import { Route as AppFinanceiroRouteImport } from './routes/app.financeiro'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppCobrancasRouteImport } from './routes/app.cobrancas'
 import { Route as AppAjudaRouteImport } from './routes/app.ajuda'
@@ -136,6 +137,11 @@ const AppFisiosRoute = AppFisiosRouteImport.update({
   path: '/fisios',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFinanceiroRoute = AppFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
@@ -212,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/financeiro': typeof AppFinanceiroRoute
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/app/agenda': typeof AppAgendaRoute
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
+  '/app/financeiro': typeof AppFinanceiroRoute
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/prontuario': typeof AppProntuarioRoute
@@ -275,6 +283,7 @@ export interface FileRoutesById {
   '/app/ajuda': typeof AppAjudaRoute
   '/app/cobrancas': typeof AppCobrancasRoute
   '/app/configuracoes': typeof AppConfiguracoesRouteWithChildren
+  '/app/financeiro': typeof AppFinanceiroRoute
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/app/ajuda'
     | '/app/cobrancas'
     | '/app/configuracoes'
+    | '/app/financeiro'
     | '/app/fisios'
     | '/app/notas-fiscais'
     | '/app/pacientes'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/app/agenda'
     | '/app/ajuda'
     | '/app/cobrancas'
+    | '/app/financeiro'
     | '/app/fisios'
     | '/app/notas-fiscais'
     | '/app/prontuario'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/app/ajuda'
     | '/app/cobrancas'
     | '/app/configuracoes'
+    | '/app/financeiro'
     | '/app/fisios'
     | '/app/notas-fiscais'
     | '/app/pacientes'
@@ -539,6 +551,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFisiosRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/financeiro': {
+      id: '/app/financeiro'
+      path: '/financeiro'
+      fullPath: '/app/financeiro'
+      preLoaderRoute: typeof AppFinanceiroRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/configuracoes': {
       id: '/app/configuracoes'
       path: '/configuracoes'
@@ -666,6 +685,7 @@ interface AppRouteChildren {
   AppAjudaRoute: typeof AppAjudaRoute
   AppCobrancasRoute: typeof AppCobrancasRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRouteWithChildren
+  AppFinanceiroRoute: typeof AppFinanceiroRoute
   AppFisiosRoute: typeof AppFisiosRoute
   AppNotasFiscaisRoute: typeof AppNotasFiscaisRoute
   AppPacientesRoute: typeof AppPacientesRouteWithChildren
@@ -680,6 +700,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAjudaRoute: AppAjudaRoute,
   AppCobrancasRoute: AppCobrancasRoute,
   AppConfiguracoesRoute: AppConfiguracoesRouteWithChildren,
+  AppFinanceiroRoute: AppFinanceiroRoute,
   AppFisiosRoute: AppFisiosRoute,
   AppNotasFiscaisRoute: AppNotasFiscaisRoute,
   AppPacientesRoute: AppPacientesRouteWithChildren,

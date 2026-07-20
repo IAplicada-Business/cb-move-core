@@ -74,6 +74,7 @@ const schema = z.object({
   frequenciaAtendimento: z.string().nullable().optional(),
   diasSemana: z.string().nullable().optional(),
   observacoes: z.string().nullable().optional(),
+  motivoAcompanhamento: z.string().nullable().optional(),
   ativo: z.boolean(),
   endereco: z.string().nullable().optional(),
   numeroEndereco: z.string().nullable().optional(),
@@ -152,6 +153,7 @@ function PacientesPage() {
       frequenciaAtendimento: "",
       diasSemana: "",
       observacoes: "",
+      motivoAcompanhamento: "",
       ativo: true,
       endereco: "",
       numeroEndereco: "",
@@ -184,6 +186,7 @@ function PacientesPage() {
         frequenciaAtendimento: vals.frequenciaAtendimento?.trim() || null,
         diasSemana: vals.diasSemana?.trim() || null,
         observacoes: vals.observacoes || null,
+        motivoAcompanhamento: vals.motivoAcompanhamento?.trim() || null,
         ativo: vals.ativo,
         valorMensal: parseValorBr(vals.valorMensal),
         valorSessao: parseValorBr(vals.valorSessao),
@@ -246,6 +249,7 @@ function PacientesPage() {
       frequenciaAtendimento: "",
       diasSemana: "",
       observacoes: "",
+      motivoAcompanhamento: "",
       ativo: true,
       endereco: "",
       numeroEndereco: "",
@@ -276,6 +280,7 @@ function PacientesPage() {
       frequenciaAtendimento: p.frequenciaAtendimento ?? "",
       diasSemana: p.diasSemana ?? "",
       observacoes: p.observacoes ?? "",
+      motivoAcompanhamento: p.motivoAcompanhamento ?? "",
       ativo: p.ativo,
       endereco: p.endereco ?? "",
       numeroEndereco: p.numeroEndereco ?? "",
@@ -640,6 +645,21 @@ function PacientesPage() {
                   <CampoDiasSemana field={field} />
                 )} />
               </div>
+
+              <FormField control={form.control} name="motivoAcompanhamento" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Motivo do acompanhamento</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      value={field.value ?? ""}
+                      rows={2}
+                      placeholder="Por que este paciente está em tratamento na clínica (diagnóstico, indicação, etc.)"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               <FormField control={form.control} name="observacoes" render={({ field }) => (
                 <FormItem>

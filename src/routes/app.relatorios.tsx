@@ -1,37 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Briefcase,
   Building2,
-  Download,
+  CheckCircle2,
   ExternalLink,
-  FileSpreadsheet,
   FileText,
   Gavel,
   GraduationCap,
-  Printer,
+  Loader2,
+  TrendingUp,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/domain/EmptyState";
-import { KpiCard } from "@/components/domain/KpiCard";
-import { LoadingState } from "@/components/domain/LoadingState";
 import { MonthPicker } from "@/components/domain/MonthPicker";
 import { queryKeys } from "@/lib/queries";
-import { downloadCSV } from "@/lib/csv";
-import {
-  competenciaLabel,
-  extratoToCsvRows,
-} from "@/lib/domain/extrato-financeiro";
-import { brl } from "@/lib/format";
-import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal } from "@/lib/queries/prontuario";
-import {
-  fetchFinanceiroKpisPorTipo,
-  fetchRelatorioReceitaConvenio,
-} from "@/lib/queries/financeiro";
+import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
@@ -41,52 +29,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 
 export const Route = createFileRoute("/app/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios · CB MOVE" }] }),
   component: RelatoriosPage,
 });
-
-const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-// Anel de 5 arcos sólidos da marca CB MOVE — mesma geometria usada no PDF
-// de "Relatórios por tipo" (gerar-relatorio-mensal). Usamos SVG puro em vez
-// de conic-gradient + mask porque muitos drivers de impressão (Microsoft
-// Print to PDF, etc.) não renderizam máscaras CSS corretamente.
-const RING_SEGMENTS = [
-  { color: "#D946A0", start: 130, end: 202 },
-  { color: "#F58A1F", start: 202, end: 274 },
-  { color: "#C5D932", start: 274, end: 346 },
-  { color: "#3FB5BC", start: 346, end: 418 },
-  { color: "#7B4FB5", start: 418, end: 490 },
-];
-
-function polarPoint(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
-
-function buildBrandRingSvg(size: number): string {
-  const r = size / 2 - 3;
-  const c = size / 2;
-  const arcs = RING_SEGMENTS.map((seg) => {
-    const start = polarPoint(c, c, r, seg.start);
-    const end = polarPoint(c, c, r, seg.end);
-    return `<path d="M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}" stroke="${seg.color}" stroke-width="${(size * 0.13).toFixed(2)}" fill="none" stroke-linecap="round" />`;
-  }).join("");
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}</svg>`;
-}
-
-const TIPO_KPI: Record<PacienteTipo, { label: string; accent: "cyan" | "magenta" | "purple" | "orange" }> = {
-  particular: { label: "Particular", accent: "cyan" },
-  judicial: { label: "Judicial", accent: "magenta" },
-  convenio: { label: "Convênio", accent: "purple" },
-  puc: { label: "PUC", accent: "orange" },
-};
 
 const TIPO_RELATORIO: Record<
   PacienteTipo,
@@ -106,7 +53,7 @@ const TIPO_RELATORIO: Record<
   },
   convenio: {
     label: "Convênio",
-    descricao: "Modelo Unimed / convênios",
+    descricao: "Modelo Unimed / convênios — gere para 1 paciente ou para todos de uma vez",
     icon: Building2,
     accent: "text-purple-600 bg-purple-50",
   },
@@ -118,122 +65,6 @@ const TIPO_RELATORIO: Record<
   },
 };
 
-function competenciaOpcoes() {
-  const now = new Date();
-  const opts: { label: string; mes: number; ano: number }[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
-      mes: d.getMonth() + 1,
-      ano: d.getFullYear(),
-    });
-  }
-  return opts;
-}
-
-function TabReceitaConvenio() {
-  const now = new Date();
-  const [mes, setMes] = useState(now.getMonth() + 1);
-  const [ano, setAno] = useState(now.getFullYear());
-  const compOpts = competenciaOpcoes();
-
-  const kpisQuery = useQuery({
-    queryKey: queryKeys.financeiro.kpisPorTipo(ano, mes),
-    queryFn: () => fetchFinanceiroKpisPorTipo(mes, ano),
-  });
-
-  const tabelaQuery = useQuery({
-    queryKey: queryKeys.financeiro.receitaConvenio(ano, mes),
-    queryFn: () => fetchRelatorioReceitaConvenio(mes, ano),
-  });
-
-  const kpis = kpisQuery.data ?? [];
-  const dados = tabelaQuery.data ?? [];
-  const loading = kpisQuery.isLoading || tabelaQuery.isLoading;
-
-  const kpiMap = Object.fromEntries(kpis.map((k) => [k.tipo, k]));
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-base font-semibold">Receita por convênio</h2>
-        <Select
-          value={`${mes}-${ano}`}
-          onValueChange={(v) => {
-            const [m, a] = v.split("-");
-            setMes(Number(m));
-            setAno(Number(a));
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {compOpts.map((o) => (
-              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
-          const cfg = TIPO_KPI[tipo];
-          const k = kpiMap[tipo];
-          return (
-            <KpiCard
-              key={tipo}
-              label={cfg.label}
-              value={brl(k?.valor ?? 0)}
-              accent={cfg.accent}
-              hint={`${k?.pacientes ?? 0} paciente(s)`}
-            />
-          );
-        })}
-      </div>
-
-      {loading ? (
-        <LoadingState />
-      ) : dados.length === 0 ? (
-        <EmptyState
-          title="Sem dados"
-          description="Não há cobranças registradas para esta competência."
-        />
-      ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Convênio</TableHead>
-                <TableHead className="text-right">Pacientes</TableHead>
-                <TableHead className="text-right">Sessões</TableHead>
-                <TableHead className="text-right">NFs emitidas</TableHead>
-                <TableHead className="text-right">Faturado</TableHead>
-                <TableHead className="text-right">Recebido</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {dados.map((d) => (
-                <TableRow key={d.convenio}>
-                  <TableCell className="font-medium">{d.convenio}</TableCell>
-                  <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
-                  <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
-                  <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
-                  <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">{brl(d.recebido)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 type RelatorioGerado = {
   relatorio_id: string;
   modelo: string;
@@ -241,6 +72,22 @@ type RelatorioGerado = {
   competencia: string;
   total_sessoes: number;
   pdf_url?: string;
+};
+
+type ConvenioOpcao = { id: string; nome: string };
+
+async function fetchConveniosAtivos(): Promise<ConvenioOpcao[]> {
+  const { data, error } = await supabase.from("convenios").select("id, nome").eq("ativo", true).order("nome");
+  if (error) throw error;
+  return (data ?? []) as ConvenioOpcao[];
+}
+
+type LoteResultado = {
+  pacienteId: string;
+  pacienteNome: string;
+  status: "ok" | "erro";
+  detalhe: string;
+  pdfUrl?: string;
 };
 
 function GerarRelatorioDialog({
@@ -252,16 +99,29 @@ function GerarRelatorioDialog({
 }) {
   const cfg = TIPO_RELATORIO[tipo];
   const now = new Date();
+  const [convenioId, setConvenioId] = useState("");
   const [pacienteId, setPacienteId] = useState("");
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
   const [resultado, setResultado] = useState<RelatorioGerado | null>(null);
+  const [lote, setLote] = useState<LoteResultado[] | null>(null);
+  const [loteRodando, setLoteRodando] = useState(false);
   const queryClient = useQueryClient();
+
+  const conveniosQuery = useQuery({
+    queryKey: queryKeys.convenios.all,
+    queryFn: fetchConveniosAtivos,
+    enabled: tipo === "convenio",
+  });
 
   const pacientesQuery = useQuery({
     queryKey: queryKeys.pacientes.list({ tipo, ativo: true }),
     queryFn: () => fetchPacientes({ tipo, ativo: true }),
   });
+
+  const pacientesFiltrados = (pacientesQuery.data ?? []).filter(
+    (p) => tipo !== "convenio" || !convenioId || p.convenioId === convenioId,
+  );
 
   const gerarMutation = useMutation({
     mutationFn: () => gerarRelatorioMensal({ pacienteId, mes, ano }),
@@ -273,7 +133,40 @@ function GerarRelatorioDialog({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  async function gerarEmLote() {
+    if (pacientesFiltrados.length === 0) return;
+    setLoteRodando(true);
+    setLote([]);
+    const resultados: LoteResultado[] = [];
+    for (const p of pacientesFiltrados) {
+      try {
+        const data = (await gerarRelatorioMensal({ pacienteId: p.id, mes, ano })) as RelatorioGerado;
+        resultados.push({
+          pacienteId: p.id,
+          pacienteNome: p.nome,
+          status: "ok",
+          detalhe: `${data.total_sessoes} sessão(ões) no período`,
+          pdfUrl: data.pdf_url,
+        });
+      } catch (e) {
+        resultados.push({
+          pacienteId: p.id,
+          pacienteNome: p.nome,
+          status: "erro",
+          detalhe: e instanceof Error ? e.message : "Erro ao gerar relatório",
+        });
+      }
+      setLote([...resultados]);
+    }
+    setLoteRodando(false);
+    void queryClient.invalidateQueries({ queryKey: ["prontuario", "relatorios"] });
+    const ok = resultados.filter((r) => r.status === "ok").length;
+    if (ok === resultados.length) toast.success(`${ok} relatório(s) gerado(s) com sucesso`);
+    else toast.warning(`${ok}/${resultados.length} relatório(s) gerado(s) — verifique os erros`);
+  }
+
   const paciente = pacientesQuery.data?.find((p) => p.id === pacienteId);
+  const convenioSelecionado = conveniosQuery.data?.find((c) => c.id === convenioId);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -289,7 +182,38 @@ function GerarRelatorioDialog({
           <p className="text-sm text-muted-foreground">{cfg.descricao}</p>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Paciente</label>
+            <label className="text-sm font-medium">Competência</label>
+            <MonthPicker
+              mes={mes}
+              ano={ano}
+              onChange={(m, a) => { setMes(m); setAno(a); setResultado(null); setLote(null); }}
+              className="w-full"
+            />
+          </div>
+
+          {tipo === "convenio" && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Convênio</label>
+              <Select
+                value={convenioId}
+                onValueChange={(v) => { setConvenioId(v); setPacienteId(""); setResultado(null); setLote(null); }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o convênio…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(conveniosQuery.data ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              {tipo === "convenio" ? "Paciente (opcional para gerar 1 de cada vez)" : "Paciente"}
+            </label>
             <Select value={pacienteId} onValueChange={(v) => { setPacienteId(v); setResultado(null); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o paciente…" />
@@ -298,24 +222,14 @@ function GerarRelatorioDialog({
                 {pacientesQuery.isLoading && (
                   <SelectItem value="__loading" disabled>Carregando…</SelectItem>
                 )}
-                {pacientesQuery.data?.length === 0 && (
-                  <SelectItem value="__empty" disabled>Nenhum paciente do tipo {cfg.label}</SelectItem>
+                {pacientesFiltrados.length === 0 && (
+                  <SelectItem value="__empty" disabled>Nenhum paciente encontrado</SelectItem>
                 )}
-                {(pacientesQuery.data ?? []).map((p) => (
+                {pacientesFiltrados.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Competência</label>
-            <MonthPicker
-              mes={mes}
-              ano={ano}
-              onChange={(m, a) => { setMes(m); setAno(a); setResultado(null); }}
-              className="w-full"
-            />
           </div>
 
           {resultado && (
@@ -343,8 +257,55 @@ function GerarRelatorioDialog({
             onClick={() => gerarMutation.mutate()}
           >
             <FileText className="h-4 w-4 mr-1.5" />
-            {gerarMutation.isPending ? "Gerando…" : "Gerar relatório"}
+            {gerarMutation.isPending ? "Gerando…" : "Gerar relatório deste paciente"}
           </Button>
+
+          {tipo === "convenio" && convenioId && pacientesFiltrados.length > 0 && (
+            <Button
+              variant="secondary"
+              className="w-full"
+              disabled={loteRodando}
+              onClick={gerarEmLote}
+            >
+              {loteRodando ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4 mr-1.5" />
+              )}
+              {loteRodando
+                ? `Gerando… (${lote?.length ?? 0}/${pacientesFiltrados.length})`
+                : `Gerar para todos os ${pacientesFiltrados.length} pacientes de ${convenioSelecionado?.nome ?? "este convênio"}`}
+            </Button>
+          )}
+
+          {lote && lote.length > 0 && (
+            <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border p-2">
+              {lote.map((r) => (
+                <div key={r.pacienteId} className="flex items-center gap-2 text-sm">
+                  {r.status === "ok" ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#047857]" />
+                  ) : (
+                    <XCircle className="h-4 w-4 shrink-0 text-destructive" />
+                  )}
+                  <span className="flex-1 truncate">{r.pacienteNome}</span>
+                  {r.pdfUrl ? (
+                    <a
+                      href={r.pdfUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 text-xs text-cb-cyan-700 hover:underline"
+                    >
+                      PDF
+                    </a>
+                  ) : (
+                    <span className="shrink-0 truncate text-xs text-muted-foreground" title={r.detalhe}>
+                      {r.detalhe}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {paciente && !paciente.email && (
             <p className="text-xs text-muted-foreground">
@@ -357,17 +318,25 @@ function GerarRelatorioDialog({
   );
 }
 
-function TabRelatoriosPorTipo() {
+function RelatoriosPage() {
   const [tipoSelecionado, setTipoSelecionado] = useState<PacienteTipo | null>(null);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold">Relatórios por tipo de atendimento</h2>
-        <p className="text-sm text-muted-foreground">
-          Escolha o tipo de paciente para gerar o relatório de atendimento no modelo correspondente.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <header className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Relatórios por tipo de atendimento</h1>
+          <p className="text-sm text-muted-foreground">
+            Escolha o tipo de paciente para gerar o relatório de atendimento no modelo correspondente. Para
+            convênios, é possível gerar de uma vez para todos os pacientes vinculados.
+          </p>
+        </div>
+        <Button variant="outline" asChild className="gap-2">
+          <Link to="/app/financeiro">
+            <TrendingUp className="h-4 w-4" /> Dashboard Financeiro
+          </Link>
+        </Button>
+      </header>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {(Object.keys(TIPO_RELATORIO) as PacienteTipo[]).map((tipo) => {
@@ -392,308 +361,6 @@ function TabRelatoriosPorTipo() {
       {tipoSelecionado && (
         <GerarRelatorioDialog tipo={tipoSelecionado} onClose={() => setTipoSelecionado(null)} />
       )}
-    </div>
-  );
-}
-
-function TabExtratoFinanceiro() {
-  const now = new Date();
-  const [mes, setMes] = useState(now.getMonth() + 1);
-  const [ano, setAno] = useState(now.getFullYear());
-  const printRef = useRef<HTMLDivElement>(null);
-  const compOpts = competenciaOpcoes();
-
-  const extratoQuery = useQuery({
-    queryKey: queryKeys.financeiro.extrato(ano, mes),
-    queryFn: () => fetchExtratoFinanceiro(mes, ano),
-  });
-
-  const extrato = extratoQuery.data;
-  const linhas = extrato?.linhas ?? [];
-  const loading = extratoQuery.isLoading;
-
-  function exportarCsv() {
-    if (!extrato || linhas.length === 0) return;
-    const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
-    downloadCSV(`extrato-financeiro-${mesNome}-${ano}.csv`, extratoToCsvRows(extrato));
-    toast.success("Extrato exportado em CSV");
-  }
-
-  function imprimir() {
-    if (!printRef.current) return;
-    const conteudo = printRef.current.innerHTML;
-    const geradoEm = new Date().toLocaleDateString("pt-BR");
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <title>Extrato financeiro · ${competenciaLabel(mes, ano)}</title>
-    <style>
-      body { font-family: Calibri, Arial, sans-serif; font-size: 11px; margin: 24px; color: #111; }
-      h1 { font-size: 16px; margin: 0 0 4px; }
-      p { margin: 0 0 16px; color: #555; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
-      th { background: #f3f4f6; font-weight: 700; }
-      .num { text-align: right; white-space: nowrap; }
-      .total td { font-weight: 700; background: #f9fafb; }
-      .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; }
-
-      /* Marca CB MOVE */
-      .brand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-      .brand-mark { flex: 0 0 auto; line-height: 0; }
-      .brand-word { display: flex; flex-direction: column; line-height: 1.15; }
-      .brand-word b { font-size: 13px; letter-spacing: 0.2px; color: #2c2c2c; }
-      .brand-word span { font-size: 7.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #6b7280; }
-      .brand-doc-title { margin-left: auto; text-align: right; }
-      .brand-doc-title b { font-size: 12px; display: block; color: #2c2c2c; }
-      .brand-doc-title span { font-size: 10px; color: #6b7280; }
-      .brand-bar { height: 3px; background: #2D8388; border-radius: 2px; margin: 8px 0 18px; }
-      .brand-footer { display: flex; height: 3px; border-radius: 2px; overflow: hidden; margin-top: 28px; }
-      .brand-footer span { flex: 1; }
-      .brand-footer .m { background: #D946A0; }
-      .brand-footer .o { background: #F58A1F; }
-      .brand-footer .l { background: #C5D932; }
-      .brand-footer .c { background: #3FB5BC; }
-      .brand-footer .p { background: #7B4FB5; }
-      .footer-text { font-size: 8.5px; color: #6b7280; text-align: center; margin-top: 6px; }
-    </style>
-  </head>
-  <body>
-    <div class="brand-header">
-      <div class="brand-mark">${buildBrandRingSvg(28)}</div>
-      <div class="brand-word"><b>CB MOVE</b><span>Neuroscience</span></div>
-      <div class="brand-doc-title"><b>Extrato Financeiro</b><span>${competenciaLabel(mes, ano)}</span></div>
-    </div>
-    <div class="brand-bar"></div>
-    ${conteudo}
-    <div class="brand-footer"><span class="m"></span><span class="o"></span><span class="l"></span><span class="c"></span><span class="p"></span></div>
-    <p class="footer-text">Documento gerado pela CB MOVE Neuroscience em ${geradoEm}</p>
-  </body>
-</html>`;
-
-    // Impressão via iframe oculto na própria página — evita bloqueio de pop-up
-    // e problemas de document.write/blob em novas abas.
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.setAttribute("aria-hidden", "true");
-    document.body.appendChild(iframe);
-
-    const cleanup = () => {
-      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    };
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      toast.error("Não foi possível preparar a impressão");
-      cleanup();
-      return;
-    }
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    const win = iframe.contentWindow;
-    win?.addEventListener("afterprint", cleanup);
-    window.setTimeout(() => {
-      win?.focus();
-      win?.print();
-    }, 150);
-    window.setTimeout(cleanup, 60_000);
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold">Extrato financeiro mensal</h2>
-          <p className="text-sm text-muted-foreground">
-            Formato alinhado ao Relatório Financeiro 2026 da clínica
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Select
-            value={`${mes}-${ano}`}
-            onValueChange={(v) => {
-              const [m, a] = v.split("-");
-              setMes(Number(m));
-              setAno(Number(a));
-            }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {compOpts.map((o) => (
-                <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportarCsv}
-            disabled={!extrato || linhas.length === 0}
-          >
-            <Download className="h-4 w-4 mr-1" />
-            Exportar CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={imprimir}
-            disabled={!extrato || linhas.length === 0}
-          >
-            <Printer className="h-4 w-4 mr-1" />
-            Imprimir / PDF
-          </Button>
-        </div>
-      </div>
-
-      {extrato && linhas.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <KpiCard
-            label="R$ Previsto"
-            value={brl(extrato.totalPrevisto)}
-            accent="cyan"
-            hint={`${extrato.qtdLinhas} linha(s)`}
-          />
-          <KpiCard
-            label="R$ Recebido"
-            value={brl(extrato.totalRecebido)}
-            accent="purple"
-            hint={
-              extrato.totalPrevisto > 0
-                ? `${Math.round((extrato.totalRecebido / extrato.totalPrevisto) * 100)}% do previsto`
-                : "—"
-            }
-          />
-          <KpiCard
-            label="A receber"
-            value={brl(Math.max(extrato.totalPrevisto - extrato.totalRecebido, 0))}
-            accent="orange"
-            hint={competenciaLabel(mes, ano)}
-          />
-        </div>
-      )}
-
-      {loading ? (
-        <LoadingState />
-      ) : extratoQuery.isError ? (
-        <EmptyState
-          title="Erro ao carregar extrato"
-          description={extratoQuery.error instanceof Error ? extratoQuery.error.message : "Tente novamente."}
-        />
-      ) : linhas.length === 0 ? (
-        <EmptyState
-          icon={<FileSpreadsheet className="h-8 w-8" />}
-          title="Sem cobranças nesta competência"
-          description="Não há linhas para gerar o extrato financeiro do período selecionado."
-        />
-      ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
-          <div ref={printRef}>
-            <div className="px-4 py-3 border-b bg-muted/30 print:block">
-              <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
-              <p className="text-xs text-muted-foreground">
-                CB MOVE Neuroscience · Relatório Financeiro
-              </p>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome do Paciente</TableHead>
-                  <TableHead>Avaliação</TableHead>
-                  <TableHead>Frequência</TableHead>
-                  <TableHead>Dias da Semana</TableHead>
-                  <TableHead className="text-right">Nº Sessões</TableHead>
-                  <TableHead>Plano</TableHead>
-                  <TableHead className="text-right">R$ Sessão/Mês</TableHead>
-                  <TableHead className="text-right">R$ Previsto</TableHead>
-                  <TableHead className="text-right">R$ Recebido</TableHead>
-                  <TableHead>SITUAÇÃO</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {linhas.map((l) => (
-                  <TableRow key={l.cobrancaId}>
-                    <TableCell className="font-medium whitespace-nowrap">{l.pacienteNome}</TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">{l.avaliacao ?? "—"}</TableCell>
-                    <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
-                    <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{l.numSessoes ?? "—"}</TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
-                    <TableCell className="text-right tabular-nums whitespace-nowrap">
-                      {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
-                      {l.valorPrevisto > 0 ? brl(l.valorPrevisto) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums whitespace-nowrap">
-                      {l.valorRecebido != null ? brl(l.valorRecebido) : ""}
-                    </TableCell>
-                    <TableCell className="text-sm max-w-xs">{l.situacao}</TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="bg-muted/40">
-                  <TableCell colSpan={7} className="font-semibold">Total</TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">
-                    {brl(extrato!.totalPrevisto)}
-                  </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">
-                    {brl(extrato!.totalRecebido)}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      )}
-
-      <p className="text-xs text-muted-foreground px-1">
-        Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao criar a cobrança.
-      </p>
-    </div>
-  );
-}
-
-function RelatoriosPage() {
-  return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Relatórios consolidados</h1>
-        <p className="text-sm text-muted-foreground">Análises e exportações financeiras</p>
-      </header>
-
-      <Tabs defaultValue="extrato-financeiro">
-        <TabsList>
-          <TabsTrigger value="extrato-financeiro">Extrato financeiro</TabsTrigger>
-          <TabsTrigger value="receita-convenio">Receita por convênio</TabsTrigger>
-          <TabsTrigger value="relatorios-tipo">Relatórios por tipo</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="extrato-financeiro" className="mt-4">
-          <TabExtratoFinanceiro />
-        </TabsContent>
-
-        <TabsContent value="receita-convenio" className="mt-4">
-          <TabReceitaConvenio />
-        </TabsContent>
-
-        <TabsContent value="relatorios-tipo" className="mt-4">
-          <TabRelatoriosPorTipo />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

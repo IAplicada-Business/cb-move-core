@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -11,8 +12,17 @@ import { formatDate } from "@/lib/format";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -21,8 +31,6 @@ export const Route = createFileRoute("/app/configuracoes/templates")({
   head: () => ({ meta: [{ title: "Templates · CB MOVE" }] }),
   component: TemplatesPage,
 });
-
-// ─── types ───────────────────────────────────────────────────────────────────
 
 type Template = {
   id: string;
@@ -35,8 +43,6 @@ type Template = {
   conteudo: unknown;
 };
 
-// ─── queries ─────────────────────────────────────────────────────────────────
-
 async function fetchTemplates(): Promise<Template[]> {
   const { data, error } = await supabase
     .from("templates_versionados")
@@ -47,15 +53,52 @@ async function fetchTemplates(): Promise<Template[]> {
   return (data ?? []) as Template[];
 }
 
-// ─── page ────────────────────────────────────────────────────────────────────
+async function updateTemplateAtivo(id: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase.from("templates_versionados").update({ ativo }).eq("id", id);
+  if (error) throw error;
+}
+
+async function deleteTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from("templates_versionados").delete().eq("id", id);
+  if (error) throw error;
+}
 
 function TemplatesPage() {
+  const qc = useQueryClient();
   const [preview, setPreview] = useState<Template | null>(null);
+  const [editing, setEditing] = useState<Template | null>(null);
+  const [editAtivo, setEditAtivo] = useState(true);
+  const [deleting, setDeleting] = useState<Template | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: queryKeys.templates.all,
     queryFn: fetchTemplates,
   });
+
+  const updateMutation = useMutation({
+    mutationFn: () => updateTemplateAtivo(editing!.id, editAtivo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.templates.all });
+      toast.success("Template atualizado");
+      setEditing(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteTemplate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.templates.all });
+      toast.success("Template excluído");
+      setDeleting(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function openEdit(t: Template) {
+    setEditing(t);
+    setEditAtivo(t.ativo);
+  }
 
   return (
     <div className="space-y-6">
@@ -83,7 +126,7 @@ function TemplatesPage() {
                 <TableHead>Versão</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Criado em</TableHead>
-                <TableHead className="w-24" />
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -108,14 +151,23 @@ function TemplatesPage() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(t.created_at)}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => setPreview(t)}
-                    >
-                      Visualizar
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setPreview(t)}>Visualizar</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(t)}>Editar</DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleting(t)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -124,7 +176,6 @@ function TemplatesPage() {
         </div>
       )}
 
-      {/* Preview modal */}
       <Dialog open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -135,6 +186,49 @@ function TemplatesPage() {
           </pre>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar template</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-3">
+            <Switch checked={editAtivo} onCheckedChange={setEditAtivo} id="template-ativo" />
+            <Label htmlFor="template-ativo">Ativo</Label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}>
+              {updateMutation.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o template <strong>{deleting?.codigo}</strong> v{deleting?.versao}?
+              Relatórios que dependem deste código podem deixar de funcionar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) deleteMutation.mutate(deleting.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

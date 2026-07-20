@@ -23,6 +23,7 @@ export type Paciente = {
   formaPagamentoPreferida: FormaPagamento | null;
   ativo: boolean;
   observacoes: string | null;
+  motivoAcompanhamento: string | null;
   createdAt: string;
   /** Usado na emissão de NFS-e para tomador particular (endereço do próprio paciente). */
   endereco: string | null;
@@ -56,6 +57,7 @@ type Row = {
   forma_pagamento_preferida: FormaPagamento | null;
   ativo: boolean;
   observacoes: string | null;
+  motivo_acompanhamento: string | null;
   created_at: string;
   convenios?: { nome: string } | null;
   endereco: string | null;
@@ -90,6 +92,7 @@ const map = (r: Row): Paciente => ({
   formaPagamentoPreferida: r.forma_pagamento_preferida,
   ativo: r.ativo,
   observacoes: r.observacoes,
+  motivoAcompanhamento: r.motivo_acompanhamento,
   createdAt: r.created_at,
   endereco: r.endereco,
   numeroEndereco: r.numero_endereco,
@@ -160,6 +163,7 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | 
       forma_pagamento_preferida: input.formaPagamentoPreferida ?? null,
       ativo: input.ativo,
       observacoes: input.observacoes,
+      motivo_acompanhamento: input.motivoAcompanhamento,
       endereco: input.endereco,
       numero_endereco: input.numeroEndereco,
       complemento: input.complemento,
@@ -240,6 +244,7 @@ export async function updatePaciente(
       forma_pagamento_preferida: input.formaPagamentoPreferida ?? null,
       ativo: input.ativo,
       observacoes: input.observacoes,
+      motivo_acompanhamento: input.motivoAcompanhamento,
       endereco: input.endereco,
       numero_endereco: input.numeroEndereco,
       complemento: input.complemento,

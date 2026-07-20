@@ -568,7 +568,9 @@ function LinhaAEmitir({ row, onEmitir }: { row: CobrancaSemNf; onEmitir: () => v
         )}
       </TableCell>
       <TableCell><TipoBadge value={row.tipo} /></TableCell>
-      <TableCell className="text-sm">—</TableCell>
+      <TableCell className="text-sm">
+        <StatusBadge value={row.status} />
+      </TableCell>
       <TableCell>
         <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 border-amber-200">
           A emitir
@@ -709,8 +711,11 @@ function NotasFiscaisPage() {
         <div className="space-y-4">
           {aEmitir.length > 0 && (
             <div className="rounded-xl border border-amber-200 bg-card shadow-sm overflow-hidden">
-              <div className="px-4 py-2 border-b bg-amber-50/80 text-sm font-semibold text-amber-900">
-                A emitir — {aEmitir.length} cobrança(s) sem NF
+              <div className="px-4 py-2 border-b bg-amber-50/80 text-sm text-amber-900 space-y-0.5">
+                <p className="font-semibold">A emitir — {aEmitir.length} cobrança(s) sem NF</p>
+                <p className="text-xs font-normal text-amber-800">
+                  A emissão da NF não depende do pagamento — você pode emitir mesmo com a cobrança pendente/vencida e dar baixa depois.
+                </p>
               </div>
               <Table>
                 <TableHeader>
@@ -719,7 +724,7 @@ function NotasFiscaisPage() {
                     <TableHead>Paciente</TableHead>
                     <TableHead>Destinatário</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Emissão</TableHead>
+                    <TableHead>Pagamento</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="w-24"></TableHead>

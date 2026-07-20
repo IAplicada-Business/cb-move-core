@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CheckCircle2, Copy, ExternalLink, FileText, Loader2, QrCode, Send, X,
+  CheckCircle2, Copy, ExternalLink, FileText, Loader2, QrCode, Send, SplitSquareHorizontal, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,11 +80,18 @@ function podeEnviarBoletoPaciente(c: Cobranca) {
   return cobrancaAtiva(c) && Boolean(c.boletoUrl);
 }
 
+const FORMAS_PARCELAVEIS: FormaPagamento[] = ["deposito", "transferencia", "alvara_judicial"];
+
+function podeParcelar(c: Cobranca) {
+  return cobrancaAtiva(c) && !c.parcelamentoGrupoId && FORMAS_PARCELAVEIS.includes(c.formaPagamento as FormaPagamento);
+}
+
 type Props = {
   pacienteId: string | null;
   pacienteNome?: string | null;
   onClose: () => void;
   onMarcarPago: (c: Cobranca) => void;
+  onParcelar: (c: Cobranca) => void;
 };
 
 export function PacienteCobrancaSheet({
@@ -92,6 +99,7 @@ export function PacienteCobrancaSheet({
   pacienteNome,
   onClose,
   onMarcarPago,
+  onParcelar,
 }: Props) {
   const qc = useQueryClient();
   const open = !!pacienteId;
@@ -237,6 +245,11 @@ export function PacienteCobrancaSheet({
                         <div className="text-left">
                           <p className="text-sm font-medium">
                             {mesAbrev(c.competenciaMes, c.competenciaAno)}
+                            {c.parcelaNumero && c.parcelaTotal && (
+                              <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                (parcela {c.parcelaNumero}/{c.parcelaTotal})
+                              </span>
+                            )}
                           </p>
                           <p className="text-xs text-muted-foreground tabular-nums">
                             {brl(c.valor)} · {formaPgtoLabel(c.formaPagamento)}
@@ -354,6 +367,12 @@ export function PacienteCobrancaSheet({
                             <Button size="sm" variant="outline" onClick={() => onMarcarPago(c)}>
                               <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                               Marcar pago
+                            </Button>
+                          )}
+                          {podeParcelar(c) && (
+                            <Button size="sm" variant="outline" onClick={() => onParcelar(c)}>
+                              <SplitSquareHorizontal className="h-3.5 w-3.5 mr-1" />
+                              Parcelar
                             </Button>
                           )}
                           {c.status !== "cancelado" && (

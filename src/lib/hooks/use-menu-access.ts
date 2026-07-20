@@ -25,6 +25,7 @@ const ICONS: Record<string, LucideIcon> = {
   "/app/agenda": Calendar,
   "/app/cobrancas": Receipt,
   "/app/notas-fiscais": FileSpreadsheet,
+  "/app/financeiro": BarChart3,
   "/app/relatorios": BarChart3,
   "/app/fisios": Stethoscope,
   "/app/usuarios": UserCog,

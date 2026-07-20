@@ -92,6 +92,7 @@ export async function fetchNFs(filters?: {
   tipo?: PacienteTipo;
   competenciaMes?: number;
   competenciaAno?: number;
+  pacienteId?: string;
   search?: string;
 }): Promise<NotaFiscal[]> {
   let query = supabase
@@ -101,6 +102,7 @@ export async function fetchNFs(filters?: {
 
   if (filters?.status) query = query.eq("status", filters.status);
   if (filters?.tipo) query = query.eq("tipo", filters.tipo);
+  if (filters?.pacienteId) query = query.eq("paciente_id", filters.pacienteId);
   if (filters?.competenciaMes && filters?.competenciaAno) {
     query = query
       .eq("competencia_mes", filters.competenciaMes)

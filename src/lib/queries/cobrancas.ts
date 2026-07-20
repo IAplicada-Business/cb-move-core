@@ -25,6 +25,9 @@ export type Cobranca = {
   diasSemana: string | null;
   qtdSessoes: number | null;
   createdAt: string;
+  parcelamentoGrupoId: string | null;
+  parcelaNumero: number | null;
+  parcelaTotal: number | null;
 };
 
 type Row = {
@@ -48,6 +51,9 @@ type Row = {
   dias_semana: string | null;
   qtd_sessoes: number | null;
   created_at: string;
+  parcelamento_grupo_id: string | null;
+  parcela_numero: number | null;
+  parcela_total: number | null;
   pacientes?: { nome: string; cpf: string | null; email: string | null } | null;
 };
 
@@ -75,6 +81,9 @@ const map = (r: Row): Cobranca => ({
   diasSemana: r.dias_semana,
   qtdSessoes: r.qtd_sessoes,
   createdAt: r.created_at,
+  parcelamentoGrupoId: r.parcelamento_grupo_id,
+  parcelaNumero: r.parcela_numero,
+  parcelaTotal: r.parcela_total,
 });
 
 export async function fetchRecentCobrancas(limit = 10): Promise<Cobranca[]> {
@@ -141,6 +150,9 @@ export async function createCobranca(input: {
   frequenciaAtendimento?: string;
   diasSemana?: string;
   observacoes?: string;
+  parcelamentoGrupoId?: string;
+  parcelaNumero?: number;
+  parcelaTotal?: number;
 }): Promise<Cobranca> {
   const { data, error } = await supabase
     .from("cobrancas")
@@ -158,6 +170,9 @@ export async function createCobranca(input: {
       frequencia_atendimento: input.frequenciaAtendimento || null,
       dias_semana: input.diasSemana || null,
       observacoes: input.observacoes,
+      parcelamento_grupo_id: input.parcelamentoGrupoId,
+      parcela_numero: input.parcelaNumero,
+      parcela_total: input.parcelaTotal,
     })
     .select("*, pacientes(nome, cpf, email)")
     .single();
@@ -213,4 +228,70 @@ export async function marcarComoPago(id: string, pagoEm: string): Promise<void> 
     .update({ status: "pago", pago_em: pagoEm })
     .eq("id", id);
   if (error) throw error;
+}
+
+/**
+ * Divide um valor recebido fora do fluxo de boleto (depósito/PIX/alvará
+ * judicial) em N cobranças mensais futuras. Usado quando o valor recebido
+ * cobre vários meses de tratamento de uma vez (ex.: alvará judicial).
+ */
+export async function parcelarCobranca(input: {
+  cobrancaOriginal: Cobranca;
+  valorTotal: number;
+  numeroParcelas: number;
+  competenciaInicialMes: number;
+  competenciaInicialAno: number;
+  cancelarOriginal: boolean;
+}): Promise<Cobranca[]> {
+  const { cobrancaOriginal: orig, valorTotal, numeroParcelas, cancelarOriginal } = input;
+  if (numeroParcelas < 2) throw new Error("Informe ao menos 2 parcelas");
+
+  const grupoId = crypto.randomUUID();
+  const baseCentavos = Math.round((valorTotal * 100) / numeroParcelas);
+  const totalCentavos = Math.round(valorTotal * 100);
+  const diaVencimento = orig.vencimento ? new Date(orig.vencimento).getDate() : 10;
+
+  const criadas: Cobranca[] = [];
+  let acumuladoCentavos = 0;
+  for (let i = 0; i < numeroParcelas; i++) {
+    const isUltima = i === numeroParcelas - 1;
+    const valorCentavos = isUltima ? totalCentavos - acumuladoCentavos : baseCentavos;
+    acumuladoCentavos += valorCentavos;
+
+    const dataComp = new Date(input.competenciaInicialAno, input.competenciaInicialMes - 1 + i, 1);
+    const mes = dataComp.getMonth() + 1;
+    const ano = dataComp.getFullYear();
+    const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+    const vencimento = new Date(ano, mes - 1, Math.min(diaVencimento, ultimoDiaMes))
+      .toISOString()
+      .split("T")[0];
+
+    const cobranca = await createCobranca({
+      pacienteId: orig.pacienteId,
+      tipo: orig.tipo,
+      regime: orig.regime ?? undefined,
+      servico: orig.servico ?? "Fisioterapia",
+      valor: valorCentavos / 100,
+      formaPagamento: orig.formaPagamento ?? "deposito",
+      vencimento,
+      competenciaMes: mes,
+      competenciaAno: ano,
+      frequenciaAtendimento: orig.frequenciaAtendimento ?? undefined,
+      diasSemana: orig.diasSemana ?? undefined,
+      observacoes: `Parcela ${i + 1}/${numeroParcelas} — valor recebido via ${orig.formaPagamento ?? "depósito"} em ${orig.competenciaMes ?? ""}/${orig.competenciaAno ?? ""}.`,
+      parcelamentoGrupoId: grupoId,
+      parcelaNumero: i + 1,
+      parcelaTotal: numeroParcelas,
+    });
+    criadas.push(cobranca);
+  }
+
+  if (cancelarOriginal) {
+    await updateCobranca(orig.id, {
+      status: "cancelado",
+      observacoes: `${orig.observacoes ? orig.observacoes + " — " : ""}Substituída por parcelamento em ${numeroParcelas}x (grupo ${grupoId.slice(0, 8)}).`,
+    });
+  }
+
+  return criadas;
 }

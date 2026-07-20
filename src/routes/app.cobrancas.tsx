@@ -20,7 +20,7 @@ import { PacienteCobrancaSheet } from "@/components/domain/PacienteCobrancaSheet
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
-  fetchCobrancas, createCobranca, marcarComoPago,
+  fetchCobrancas, createCobranca, marcarComoPago, parcelarCobranca,
   type Cobranca,
 } from "@/lib/queries/cobrancas";
 import { fetchFinanceiroKpis } from "@/lib/queries/financeiro";
@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/table";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/app/cobrancas")({
   head: () => ({ meta: [{ title: "Cobranças · CB MOVE" }] }),
@@ -113,6 +114,16 @@ const marcarPagoSchema = z.object({
 });
 
 type MarcarPagoForm = z.infer<typeof marcarPagoSchema>;
+
+const parcelarSchema = z.object({
+  valorTotal: z.coerce.number().positive("Valor deve ser positivo"),
+  numeroParcelas: z.coerce.number().int().min(2, "Informe ao menos 2 parcelas").max(60),
+  competenciaInicialMes: z.coerce.number().min(1).max(12),
+  competenciaInicialAno: z.coerce.number().min(2020).max(2100),
+  cancelarOriginal: z.boolean(),
+});
+
+type ParcelarForm = z.infer<typeof parcelarSchema>;
 
 // ─── Modal Nova Cobrança ─────────────────────────────────────────────────────
 
@@ -515,6 +526,155 @@ function ModalMarcarPago({
   );
 }
 
+// ─── Modal Parcelar Cobrança ─────────────────────────────────────────────────
+
+function proximoMes(mes: number, ano: number) {
+  const d = new Date(ano, mes, 1);
+  return { mes: d.getMonth() + 1, ano: d.getFullYear() };
+}
+
+function ModalParcelarCobranca({
+  cobranca,
+  onClose,
+}: {
+  cobranca: Cobranca | null;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const inicial = cobranca
+    ? proximoMes(cobranca.competenciaMes ?? new Date().getMonth() + 1, cobranca.competenciaAno ?? new Date().getFullYear())
+    : { mes: new Date().getMonth() + 1, ano: new Date().getFullYear() };
+
+  const form = useForm<ParcelarForm>({
+    resolver: zodResolver(parcelarSchema),
+    values: cobranca
+      ? {
+          valorTotal: cobranca.valor,
+          numeroParcelas: 2,
+          competenciaInicialMes: inicial.mes,
+          competenciaInicialAno: inicial.ano,
+          cancelarOriginal: true,
+        }
+      : undefined,
+  });
+
+  const valorTotal = form.watch("valorTotal");
+  const numeroParcelas = form.watch("numeroParcelas");
+  const valorParcela = numeroParcelas > 0 ? (valorTotal || 0) / numeroParcelas : 0;
+
+  const mutation = useMutation({
+    mutationFn: (data: ParcelarForm) =>
+      parcelarCobranca({
+        cobrancaOriginal: cobranca!,
+        valorTotal: data.valorTotal,
+        numeroParcelas: data.numeroParcelas,
+        competenciaInicialMes: data.competenciaInicialMes,
+        competenciaInicialAno: data.competenciaInicialAno,
+        cancelarOriginal: data.cancelarOriginal,
+      }),
+    onSuccess: (criadas) => {
+      qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
+      qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
+      qc.invalidateQueries({ queryKey: ["financeiro", "extrato"] });
+      toast.success(`${criadas.length} parcela(s) criada(s) com sucesso`);
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={!!cobranca} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Parcelar cobrança</DialogTitle>
+        </DialogHeader>
+        {cobranca && (
+          <p className="text-sm text-muted-foreground -mt-2">
+            <span className="font-medium text-foreground">{cobranca.pacienteNome}</span>
+            {" — recebido via "}
+            {cobranca.formaPagamento === "deposito" ? "depósito" : cobranca.formaPagamento === "alvara_judicial" ? "alvará judicial" : "transferência"}.
+            Divida em N cobranças mensais futuras a partir da competência escolhida.
+          </p>
+        )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="valorTotal" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor total (R$)</FormLabel>
+                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="numeroParcelas" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nº de parcelas</FormLabel>
+                  <FormControl><Input type="number" min={2} max={60} {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="competenciaInicialMes" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>1ª competência</FormLabel>
+                  <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {MESES_FULL.map((m, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="competenciaInicialAno" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ano</FormLabel>
+                  <FormControl><Input type="number" {...field} min={2020} max={2100} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            {valorTotal > 0 && numeroParcelas >= 2 && (
+              <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+                {numeroParcelas}x de <span className="font-medium tabular-nums">{brl(valorParcela)}</span>
+                {" "}começando em {MESES_ABREV[(form.watch("competenciaInicialMes") - 1 + 12) % 12]}/{form.watch("competenciaInicialAno")}
+              </div>
+            )}
+
+            <FormField control={form.control} name="cancelarOriginal" render={({ field }) => (
+              <FormItem className="flex items-start gap-2 space-y-0">
+                <FormControl>
+                  <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
+                </FormControl>
+                <div>
+                  <FormLabel className="font-normal">
+                    Cancelar a cobrança original ao criar as parcelas
+                  </FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Evita contar o valor duas vezes nos relatórios financeiros.
+                  </p>
+                </div>
+              </FormItem>
+            )} />
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? "Gerando…" : "Criar parcelas"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Modal Conciliação Bradesco ───────────────────────────────────────────────
 
 const confiancaCls: Record<MatchCobranca["confianca"], string> = {
@@ -753,6 +913,7 @@ function CobrancasPage() {
   const [filtroComp, setFiltroComp] = useState<string>(compDefault);
   const [modalNova, setModalNova] = useState(false);
   const [marcarPago, setMarcarPago] = useState<Cobranca | null>(null);
+  const [parcelando, setParcelando] = useState<Cobranca | null>(null);
   const [modalExtrato, setModalExtrato] = useState(false);
   const [pacienteSheetId, setPacienteSheetId] = useState<string | null>(null);
   const [pacienteSheetNome, setPacienteSheetNome] = useState<string | null>(null);
@@ -995,6 +1156,7 @@ function CobrancasPage() {
 
       <ModalNovaCobranca open={modalNova} onClose={() => setModalNova(false)} />
       <ModalMarcarPago cobranca={marcarPago} onClose={() => setMarcarPago(null)} />
+      <ModalParcelarCobranca cobranca={parcelando} onClose={() => setParcelando(null)} />
       <ModalExtrato
         open={modalExtrato}
         onClose={() => setModalExtrato(false)}
@@ -1008,6 +1170,7 @@ function CobrancasPage() {
           setPacienteSheetNome(null);
         }}
         onMarcarPago={(c) => setMarcarPago(c)}
+        onParcelar={(c) => setParcelando(c)}
       />
     </div>
   );

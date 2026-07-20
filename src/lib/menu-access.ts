@@ -7,6 +7,7 @@ export type MenuKey =
   | "app.agenda"
   | "fin.cobrancas"
   | "fin.notas-fiscais"
+  | "fin.financeiro"
   | "fin.relatorios"
   | "team.fisios"
   | "team.usuarios"
@@ -44,6 +45,7 @@ export const MENU_GROUPS: MenuGroupDef[] = [
     items: [
       { key: "fin.cobrancas", to: "/app/cobrancas", label: "Cobranças" },
       { key: "fin.notas-fiscais", to: "/app/notas-fiscais", label: "Notas Fiscais" },
+      { key: "fin.financeiro", to: "/app/financeiro", label: "Dashboard Financeiro" },
       { key: "fin.relatorios", to: "/app/relatorios", label: "Relatórios" },
     ],
   },
@@ -76,6 +78,7 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "app.agenda": true,
   "fin.cobrancas": false,
   "fin.notas-fiscais": false,
+  "fin.financeiro": false,
   "fin.relatorios": false,
   "team.fisios": true,
   "team.usuarios": false,
