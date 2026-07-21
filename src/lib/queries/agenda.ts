@@ -107,7 +107,7 @@ export async function updateAgendamentoStatus(
   status: StatusAgendamento,
   usuarioId?: string | null,
   statusAnterior?: StatusAgendamento,
-  options?: { mirrorSessoes?: boolean },
+  options?: { mirrorSessoes?: boolean; fisioterapeutaIdsExtra?: string[] },
 ): Promise<void> {
   const mirrorSessoes = options?.mirrorSessoes !== false;
   const { error } = await supabase.from("agendamentos").update({ status }).eq("id", id);
@@ -143,6 +143,7 @@ export async function updateAgendamentoStatus(
             data,
             sigla: siglaAlvo,
             fisioterapeutaId: ag.fisioterapeuta_id,
+            fisioterapeutaIdsExtra: options?.fisioterapeutaIdsExtra ?? [],
             hora,
           });
         }

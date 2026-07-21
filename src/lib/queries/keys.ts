@@ -83,6 +83,15 @@ export const queryKeys = {
     cobrancasSemNf: (year: number, month: number) => ["financeiro", "cobrancasSemNf", year, month] as const,
     extrato: (year: number, month: number) => ["financeiro", "extrato", year, month] as const,
   },
+  periodizacao: {
+    byPaciente: (pacienteId: string) => ["periodizacao", pacienteId] as const,
+  },
+  sessaoFisioterapeutas: {
+    bySessao: (sessaoId: string) => ["sessao_fisioterapeutas", sessaoId] as const,
+  },
+  prontuariosConsolidados: {
+    list: (search?: string) => ["prontuarios_consolidados", search ?? ""] as const,
+  },
   dashboard: {
     kpis: (year: number, month: number) => ["dashboard", "kpis", year, month] as const,
     operacional: (year: number, month: number) => ["dashboard", "operacional", year, month] as const,

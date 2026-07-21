@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { FormaPagamento, ModeloRelatorio, PacienteTipo, RegimeCobranca } from "../types";
+import type { FormaPagamento, ModeloRelatorio, ModoEmissaoNf, PacienteTipo, RegimeCobranca } from "../types";
 
 export type Paciente = {
   id: string;
@@ -24,6 +24,8 @@ export type Paciente = {
   ativo: boolean;
   observacoes: string | null;
   motivoAcompanhamento: string | null;
+  modoEmissaoNf: ModoEmissaoNf;
+  diaEmissaoNf: number | null;
   createdAt: string;
   /** Usado na emissão de NFS-e para tomador particular (endereço do próprio paciente). */
   endereco: string | null;
@@ -58,6 +60,8 @@ type Row = {
   ativo: boolean;
   observacoes: string | null;
   motivo_acompanhamento: string | null;
+  modo_emissao_nf: ModoEmissaoNf;
+  dia_emissao_nf: number | null;
   created_at: string;
   convenios?: { nome: string } | null;
   endereco: string | null;
@@ -93,6 +97,8 @@ const map = (r: Row): Paciente => ({
   ativo: r.ativo,
   observacoes: r.observacoes,
   motivoAcompanhamento: r.motivo_acompanhamento,
+  modoEmissaoNf: r.modo_emissao_nf ?? "automatico_pagamento",
+  diaEmissaoNf: r.dia_emissao_nf,
   createdAt: r.created_at,
   endereco: r.endereco,
   numeroEndereco: r.numero_endereco,
@@ -164,6 +170,8 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | 
       ativo: input.ativo,
       observacoes: input.observacoes,
       motivo_acompanhamento: input.motivoAcompanhamento,
+      modo_emissao_nf: input.modoEmissaoNf ?? "automatico_pagamento",
+      dia_emissao_nf: input.diaEmissaoNf,
       endereco: input.endereco,
       numero_endereco: input.numeroEndereco,
       complemento: input.complemento,
@@ -245,6 +253,8 @@ export async function updatePaciente(
       ativo: input.ativo,
       observacoes: input.observacoes,
       motivo_acompanhamento: input.motivoAcompanhamento,
+      modo_emissao_nf: input.modoEmissaoNf ?? "automatico_pagamento",
+      dia_emissao_nf: input.diaEmissaoNf,
       endereco: input.endereco,
       numero_endereco: input.numeroEndereco,
       complemento: input.complemento,

@@ -24,6 +24,7 @@ import { Route as PortalExerciciosRouteImport } from './routes/portal.exercicios
 import { Route as PortalContatoRouteImport } from './routes/portal.contato'
 import { Route as AppUsuariosRouteImport } from './routes/app.usuarios'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppProntuariosRouteImport } from './routes/app.prontuarios'
 import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
 import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
 import { Route as AppNotasFiscaisRouteImport } from './routes/app.notas-fiscais'
@@ -115,6 +116,11 @@ const AppUsuariosRoute = AppUsuariosRouteImport.update({
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProntuariosRoute = AppProntuariosRouteImport.update({
+  id: '/prontuarios',
+  path: '/prontuarios',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProntuarioRoute = AppProntuarioRouteImport.update({
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
   '/app/prontuario': typeof AppProntuarioRoute
+  '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
   '/portal/contato': typeof PortalContatoRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/prontuario': typeof AppProntuarioRoute
+  '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
   '/portal/contato': typeof PortalContatoRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
   '/app/prontuario': typeof AppProntuarioRoute
+  '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
   '/portal/contato': typeof PortalContatoRoute
@@ -324,6 +333,7 @@ export interface FileRouteTypes {
     | '/app/notas-fiscais'
     | '/app/pacientes'
     | '/app/prontuario'
+    | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
     | '/portal/contato'
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/app/fisios'
     | '/app/notas-fiscais'
     | '/app/prontuario'
+    | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
     | '/portal/contato'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/app/notas-fiscais'
     | '/app/pacientes'
     | '/app/prontuario'
+    | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
     | '/portal/contato'
@@ -521,6 +533,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/app/relatorios'
       preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prontuarios': {
+      id: '/app/prontuarios'
+      path: '/prontuarios'
+      fullPath: '/app/prontuarios'
+      preLoaderRoute: typeof AppProntuariosRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/prontuario': {
@@ -690,6 +709,7 @@ interface AppRouteChildren {
   AppNotasFiscaisRoute: typeof AppNotasFiscaisRoute
   AppPacientesRoute: typeof AppPacientesRouteWithChildren
   AppProntuarioRoute: typeof AppProntuarioRoute
+  AppProntuariosRoute: typeof AppProntuariosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -705,6 +725,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNotasFiscaisRoute: AppNotasFiscaisRoute,
   AppPacientesRoute: AppPacientesRouteWithChildren,
   AppProntuarioRoute: AppProntuarioRoute,
+  AppProntuariosRoute: AppProntuariosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppUsuariosRoute: AppUsuariosRoute,
   AppIndexRoute: AppIndexRoute,

@@ -6,6 +6,7 @@ import {
   type MetricaComparecimento,
 } from "@/lib/domain/frequencia";
 import { fetchPaciente } from "@/lib/queries/pacientes";
+import { syncSessaoFisioterapeutasExtras } from "@/lib/queries/sessao-fisioterapeutas";
 import type { FrequenciaSigla, PacienteTipo } from "@/lib/types";
 
 export type SessaoGradeRow = {
@@ -360,6 +361,7 @@ export async function upsertSessaoSigla(input: {
   data: string;
   sigla: FrequenciaSigla;
   fisioterapeutaId?: string | null;
+  fisioterapeutaIdsExtra?: string[];
   hora?: string | null;
 }): Promise<void> {
   const { data: existingRows, error: findError } = await supabase
@@ -381,17 +383,35 @@ export async function upsertSessaoSigla(input: {
   if (existingId) {
     const { error } = await supabase.from("sessoes").update(patch).eq("id", existingId);
     if (error) throw error;
+    if (input.fisioterapeutaIdsExtra?.length || input.fisioterapeutaId) {
+      await syncSessaoFisioterapeutasExtras(
+        existingId,
+        input.fisioterapeutaId ?? null,
+        input.fisioterapeutaIdsExtra ?? [],
+      );
+    }
     return;
   }
 
-  const { error } = await supabase.from("sessoes").insert({
-    paciente_id: input.pacienteId,
-    data: input.data,
-    sigla: input.sigla,
-    fisioterapeuta_id: input.fisioterapeutaId ?? null,
-    hora: input.hora ?? null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("sessoes")
+    .insert({
+      paciente_id: input.pacienteId,
+      data: input.data,
+      sigla: input.sigla,
+      fisioterapeuta_id: input.fisioterapeutaId ?? null,
+      hora: input.hora ?? null,
+    })
+    .select("id")
+    .single();
   if (error) throw error;
+  if (inserted?.id && (input.fisioterapeutaIdsExtra?.length || input.fisioterapeutaId)) {
+    await syncSessaoFisioterapeutasExtras(
+      inserted.id,
+      input.fisioterapeutaId ?? null,
+      input.fisioterapeutaIdsExtra ?? [],
+    );
+  }
 }
 
 export async function clearSessaoSigla(pacienteId: string, data: string): Promise<void> {

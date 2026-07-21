@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      // Porta dedicada ao CBmove (8080/8081 costumam estar ocupadas por outros projetos locais).
+      port: 8090,
+      strictPort: true,
+    },
+  },
 });

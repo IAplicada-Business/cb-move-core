@@ -75,6 +75,11 @@ const schema = z.object({
   diasSemana: z.string().nullable().optional(),
   observacoes: z.string().nullable().optional(),
   motivoAcompanhamento: z.string().nullable().optional(),
+  modoEmissaoNf: z.enum(["automatico_pagamento", "data_especifica"] as const).default("automatico_pagamento"),
+  diaEmissaoNf: z.string().nullable().optional().refine(
+    (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
+    "Dia entre 1 e 28",
+  ),
   ativo: z.boolean(),
   endereco: z.string().nullable().optional(),
   numeroEndereco: z.string().nullable().optional(),
@@ -154,6 +159,8 @@ function PacientesPage() {
       diasSemana: "",
       observacoes: "",
       motivoAcompanhamento: "",
+      modoEmissaoNf: "automatico_pagamento" as const,
+      diaEmissaoNf: "",
       ativo: true,
       endereco: "",
       numeroEndereco: "",
@@ -187,6 +194,8 @@ function PacientesPage() {
         diasSemana: vals.diasSemana?.trim() || null,
         observacoes: vals.observacoes || null,
         motivoAcompanhamento: vals.motivoAcompanhamento?.trim() || null,
+        modoEmissaoNf: vals.modoEmissaoNf,
+        diaEmissaoNf: vals.modoEmissaoNf === "data_especifica" ? parseValorBr(vals.diaEmissaoNf) : null,
         ativo: vals.ativo,
         valorMensal: parseValorBr(vals.valorMensal),
         valorSessao: parseValorBr(vals.valorSessao),
@@ -250,6 +259,8 @@ function PacientesPage() {
       diasSemana: "",
       observacoes: "",
       motivoAcompanhamento: "",
+      modoEmissaoNf: "automatico_pagamento" as const,
+      diaEmissaoNf: "",
       ativo: true,
       endereco: "",
       numeroEndereco: "",
@@ -281,6 +292,8 @@ function PacientesPage() {
       diasSemana: p.diasSemana ?? "",
       observacoes: p.observacoes ?? "",
       motivoAcompanhamento: p.motivoAcompanhamento ?? "",
+      modoEmissaoNf: p.modoEmissaoNf ?? "automatico_pagamento",
+      diaEmissaoNf: p.diaEmissaoNf != null ? String(p.diaEmissaoNf) : "",
       ativo: p.ativo,
       endereco: p.endereco ?? "",
       numeroEndereco: p.numeroEndereco ?? "",
@@ -660,6 +673,34 @@ function PacientesPage() {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Emissão de NF</p>
+                <FormField control={form.control} name="modoEmissaoNf" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modo de emissão</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="automatico_pagamento">Automático após pagamento (Cora/boleto)</SelectItem>
+                        <SelectItem value="data_especifica">Data fixa mensal no cadastro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                {form.watch("modoEmissaoNf") === "data_especifica" && (
+                  <FormField control={form.control} name="diaEmissaoNf" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dia do mês (1–28)</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} type="number" min={1} max={28} placeholder="10" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+              </div>
 
               <FormField control={form.control} name="observacoes" render={({ field }) => (
                 <FormItem>

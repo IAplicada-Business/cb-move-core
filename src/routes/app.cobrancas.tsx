@@ -985,6 +985,14 @@ function CobrancasPage() {
         </div>
       </header>
 
+      <div className="rounded-lg border border-cb-cyan-600/20 bg-cb-cyan-50/40 px-4 py-3 text-sm text-foreground">
+        Para depósito, PIX ou alvará: em{" "}
+        <a href="/app/notas-fiscais" className="font-medium text-cb-cyan-800 underline">
+          Notas Fiscais
+        </a>
+        , emita a NF antes do pagamento; depois marque a cobrança como paga aqui.
+      </div>
+
       {(query.isError || (!todosMeses && kpisQuery.isError)) && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {(query.error as Error)?.message

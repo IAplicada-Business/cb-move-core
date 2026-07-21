@@ -24,3 +24,5 @@ export type StatusAgendamento =
   | "horario_extra";
 export type FrequenciaSigla = "P" | "F" | "FJ" | "NJ" | "RC" | "NR";
 export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint" | "puc";
+export type ModoEmissaoNf = "automatico_pagamento" | "data_especifica";
+export type PeriodizacaoStatus = "planejada" | "em_andamento" | "concluida" | "cancelada";

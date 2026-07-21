@@ -76,6 +76,7 @@ export type InstrumentoAplicado = {
 };
 
 export type GerarRelatorioResult = {
+  relatorio_id?: string;
   competencia: string;
   total_sessoes: number;
   aviso?: string;
@@ -316,4 +317,12 @@ export async function gerarRelatorioMensal(input: {
     mes: input.mes,
     ano: input.ano,
   });
+}
+
+export async function solicitarAssinaturaRelatorio(relatorioId: string): Promise<{
+  aviso?: string;
+  status?: string;
+  assinatura_link?: string;
+}> {
+  return invokeEdgeFunction("sign-relatorio", { relatorio_id: relatorioId });
 }

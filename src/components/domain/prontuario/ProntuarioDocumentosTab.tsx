@@ -24,6 +24,8 @@ type Props = {
   competenciaAno: number;
   gerando: boolean;
   onGerar: () => void;
+  onFinalizar?: (relatorioId: string) => void;
+  finalizandoId?: string | null;
 };
 
 export function ProntuarioDocumentosTab({
@@ -34,6 +36,8 @@ export function ProntuarioDocumentosTab({
   competenciaAno,
   gerando,
   onGerar,
+  onFinalizar,
+  finalizandoId,
 }: Props) {
   const relatoriosCompetencia = relatorios.filter(
     (r) => r.competencia_mes === competenciaMes && r.competencia_ano === competenciaAno,
@@ -72,7 +76,7 @@ export function ProntuarioDocumentosTab({
                 <TableHead>Modelo</TableHead>
                 <TableHead>Gerado em</TableHead>
                 <TableHead>Assinado</TableHead>
-                <TableHead className="text-right">PDF</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -83,19 +87,32 @@ export function ProntuarioDocumentosTab({
                   <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
                   <TableCell>{r.assinado ? "Sim" : "Não"}</TableCell>
                   <TableCell className="text-right">
-                    {r.pdf_url ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1"
-                        onClick={() => window.open(r.pdf_url!, "_blank")}
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Abrir
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    <div className="flex justify-end gap-1">
+                      {canEdit && onFinalizar && r.pdf_url && !r.assinado && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8"
+                          disabled={finalizandoId === r.id}
+                          onClick={() => onFinalizar(r.id)}
+                        >
+                          {finalizandoId === r.id ? "Enviando…" : "Finalizar / assinar"}
+                        </Button>
+                      )}
+                      {r.pdf_url ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1"
+                          onClick={() => window.open(r.pdf_url!, "_blank")}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          PDF
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

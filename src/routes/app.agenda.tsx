@@ -15,6 +15,7 @@ import { FisioHorariosDialog } from "@/components/domain/FisioHorariosDialog";
 import { PacientePlanoSessoesCard } from "@/components/domain/PacientePlanoSessoesCard";
 import { RemarcarAgendamentoSection } from "@/components/domain/RemarcarAgendamentoSection";
 import { RemarcarDialog } from "@/components/domain/RemarcarDialog";
+import { SessaoMultiFisioEditor } from "@/components/domain/SessaoMultiFisioEditor";
 import { FrequenciaMensalGrid } from "@/components/domain/FrequenciaMensalGrid";
 import { LoadingState } from "@/components/domain/LoadingState";
 import {
@@ -1302,6 +1303,15 @@ function AgendaPage() {
                     <p className="text-xs text-muted-foreground">Serviço</p>
                     <p>{selectedAgend.servico}</p>
                   </div>
+                )}
+
+                {selectedAgend.paciente_id &&
+                  (selectedAgend.status === "realizado" || selectedAgend.status === "faltou") && (
+                  <SessaoMultiFisioEditor
+                    pacienteId={selectedAgend.paciente_id}
+                    dataIso={selectedAgend.inicio.slice(0, 10)}
+                    fisioPrincipalId={selectedAgend.fisioterapeuta_id}
+                  />
                 )}
 
                 {podeGerir && selectedAgend.paciente_id && ["agendado", "confirmado"].includes(selectedAgend.status) && (

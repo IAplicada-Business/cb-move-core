@@ -12,7 +12,7 @@ import { ProntuarioAvaliacoesTab } from "@/components/domain/prontuario/Prontuar
 import { ProntuarioDocumentosTab } from "@/components/domain/prontuario/ProntuarioDocumentosTab";
 import { ProntuarioEvolucaoDiariaTab } from "@/components/domain/prontuario/ProntuarioEvolucaoDiariaTab";
 import { ProntuarioHistoricoStatusTab } from "@/components/domain/prontuario/ProntuarioHistoricoStatusTab";
-import { ProntuarioPatientHero } from "@/components/domain/prontuario/ProntuarioPatientHero";
+import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { ProntuarioToolbar } from "@/components/domain/prontuario/ProntuarioToolbar";
 import { countSessoesRealizadas, filterSessoesPorCompetencia } from "@/components/domain/prontuario/utils";
 import { useAuth } from "@/lib/auth";
@@ -30,6 +30,7 @@ import {
   fetchSessoesProntuario,
   fetchFisioterapeutasAtivos,
   gerarRelatorioMensal,
+  solicitarAssinaturaRelatorio,
   updateEvolucao,
   type Evolucao,
   type EvolucaoInsert,
@@ -86,6 +87,7 @@ function ProntuarioPage() {
   const [competenciaMes, setCompetenciaMes] = useState(now.getMonth() + 1);
   const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
+  const [finalizandoRelatorioId, setFinalizandoRelatorioId] = useState<string | null>(null);
 
   const { data: pacientesLista = [], isLoading: loadPacientesLista } = useQuery({
     queryKey: queryKeys.pacientes.list({ ativo: true }),
@@ -219,6 +221,9 @@ function ProntuarioPage() {
       qc.invalidateQueries({ queryKey: queryKeys.prontuario.relatorios(selectedId) });
       toast.success(`Relatório gerado: ${data.competencia} — ${data.total_sessoes} sessões`);
       if (data.aviso) toast.info(data.aviso);
+      if (data.relatorio_id && canEdit) {
+        toast.info('Use "Finalizar / assinar" no documento para solicitar assinatura digital.');
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao gerar relatório";
       if (msg.includes("501") || msg.toLowerCase().includes("credencial")) {
@@ -228,6 +233,21 @@ function ProntuarioPage() {
       }
     } finally {
       setGerandoRelatorio(false);
+    }
+  }
+
+  async function handleFinalizarRelatorio(relatorioId: string) {
+    if (!selectedId) return;
+    setFinalizandoRelatorioId(relatorioId);
+    try {
+      const res = await solicitarAssinaturaRelatorio(relatorioId);
+      qc.invalidateQueries({ queryKey: queryKeys.prontuario.relatorios(selectedId) });
+      if (res.aviso) toast.info(res.aviso);
+      else toast.success("Solicitação de assinatura enviada");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao finalizar relatório");
+    } finally {
+      setFinalizandoRelatorioId(null);
     }
   }
 
@@ -310,6 +330,9 @@ function ProntuarioPage() {
           <TabsTrigger value="documentos" className={TAB_TRIGGER_CLS}>
             Documentos
           </TabsTrigger>
+          <TabsTrigger value="periodizacao" className={TAB_TRIGGER_CLS}>
+            Periodização
+          </TabsTrigger>
           <TabsTrigger value="historico" className={TAB_TRIGGER_CLS}>
             Histórico de status
           </TabsTrigger>
@@ -355,7 +378,13 @@ function ProntuarioPage() {
             competenciaAno={competenciaAno}
             gerando={gerandoRelatorio}
             onGerar={handleGerarRelatorio}
+            onFinalizar={handleFinalizarRelatorio}
+            finalizandoId={finalizandoRelatorioId}
           />
+        </TabsContent>
+
+        <TabsContent value="periodizacao" className="mt-0">
+          <PacientePeriodizacaoTab pacienteId={selectedId} readOnly={!canEdit} />
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
