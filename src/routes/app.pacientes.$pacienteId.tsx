@@ -32,6 +32,7 @@ function PacienteDetalhe() {
   const now = React.useMemo(() => new Date(), []);
   const [mesSelecionado, setMesSelecionado] = React.useState(now.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = React.useState(now.getFullYear());
+  const [activeTab, setActiveTab] = React.useState("dados");
 
   function selecionarMes(mes: number, ano: number) {
     setMesSelecionado(mes);
@@ -47,13 +48,13 @@ function PacienteDetalhe() {
   const { data: comparecimentoAtual, isLoading: loadComparecimento } = useQuery({
     queryKey: queryKeys.sessoes.comparecimentoMes(pacienteId, mesSelecionado, anoSelecionado),
     queryFn: () => fetchComparecimentoMesPaciente(pacienteId, mesSelecionado, anoSelecionado),
-    enabled: !!pacienteId,
+    enabled: !!pacienteId && activeTab === "comparecimento",
   });
 
   const { data: historico = [], isLoading: loadHistorico } = useQuery({
     queryKey: queryKeys.sessoes.comparecimentoHistorico(pacienteId, 12),
     queryFn: () => fetchHistoricoComparecimentoPaciente(pacienteId, 12),
-    enabled: !!pacienteId,
+    enabled: !!pacienteId && activeTab === "comparecimento",
   });
 
   if (loadPac) return <LoadingState />;
@@ -84,7 +85,7 @@ function PacienteDetalhe() {
         </Button>
       </div>
 
-      <Tabs defaultValue="dados">
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dados">
         <TabsList>
           <TabsTrigger value="dados">
             <User className="mr-1.5 h-3.5 w-3.5" />

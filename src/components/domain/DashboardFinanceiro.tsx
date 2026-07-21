@@ -188,7 +188,9 @@ export function DashboardFinanceiro() {
     window.setTimeout(cleanup, 60_000);
   }
 
-  const loading = kpisQuery.isLoading || receitaQuery.isLoading || extratoQuery.isLoading;
+  const loadingKpis = kpisQuery.isLoading;
+  const loadingReceita = receitaQuery.isLoading;
+  const loadingExtrato = extratoQuery.isLoading;
 
   return (
     <div className="space-y-6">
@@ -227,132 +229,136 @@ export function DashboardFinanceiro() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <KpiCard label="Receita total" value={brl(totalReceita)} accent="lime" hint={competenciaLabel(mes, ano)} />
-        {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
-          const cfg = TIPO_KPI[tipo];
-          const k = kpiMap[tipo];
-          return (
-            <KpiCard
-              key={tipo}
-              label={cfg.label}
-              value={brl(k?.valor ?? 0)}
-              accent={cfg.accent}
-              hint={`${k?.pacientes ?? 0} paciente(s)`}
-            />
-          );
-        })}
+        {loadingKpis ? (
+          <div className="col-span-full"><LoadingState /></div>
+        ) : (
+          <>
+            <KpiCard label="Receita total" value={brl(totalReceita)} accent="lime" hint={competenciaLabel(mes, ano)} />
+            {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
+              const cfg = TIPO_KPI[tipo];
+              const k = kpiMap[tipo];
+              return (
+                <KpiCard
+                  key={tipo}
+                  label={cfg.label}
+                  value={brl(k?.valor ?? 0)}
+                  accent={cfg.accent}
+                  hint={`${k?.pacientes ?? 0} paciente(s)`}
+                />
+              );
+            })}
+          </>
+        )}
       </div>
 
-      {loading ? (
-        <LoadingState />
-      ) : (
-        <>
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Receita por convênio</h3>
-            {receita.length === 0 ? (
-              <EmptyState title="Sem dados" description="Não há cobranças de convênio nesta competência." />
-            ) : (
-              <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Convênio</TableHead>
-                      <TableHead className="text-right">Pacientes</TableHead>
-                      <TableHead className="text-right">Sessões</TableHead>
-                      <TableHead className="text-right">NFs emitidas</TableHead>
-                      <TableHead className="text-right">Faturado</TableHead>
-                      <TableHead className="text-right">Recebido</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {receita.map((d) => (
-                      <TableRow key={d.convenio}>
-                        <TableCell className="font-medium">{d.convenio}</TableCell>
-                        <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
-                        <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
-                        <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
-                        <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">{brl(d.recebido)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </section>
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Receita por convênio</h3>
+        {loadingReceita ? (
+          <LoadingState />
+        ) : receita.length === 0 ? (
+          <EmptyState title="Sem dados" description="Não há cobranças de convênio nesta competência." />
+        ) : (
+          <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Convênio</TableHead>
+                  <TableHead className="text-right">Pacientes</TableHead>
+                  <TableHead className="text-right">Sessões</TableHead>
+                  <TableHead className="text-right">NFs emitidas</TableHead>
+                  <TableHead className="text-right">Faturado</TableHead>
+                  <TableHead className="text-right">Recebido</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {receita.map((d) => (
+                  <TableRow key={d.convenio}>
+                    <TableCell className="font-medium">{d.convenio}</TableCell>
+                    <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
+                    <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
+                    <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
+                    <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">{brl(d.recebido)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
 
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Extrato financeiro detalhado</h3>
-            {linhas.length === 0 ? (
-              <EmptyState
-                icon={<FileSpreadsheet className="h-8 w-8" />}
-                title="Sem cobranças nesta competência"
-                description="Não há linhas para gerar o extrato financeiro do período selecionado."
-              />
-            ) : (
-              <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
-                <div ref={printRef}>
-                  <div className="px-4 py-3 border-b bg-muted/30 print:block">
-                    <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
-                    <p className="text-xs text-muted-foreground">CB MOVE Neuroscience · Relatório Financeiro</p>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome do Paciente</TableHead>
-                        <TableHead>Avaliação</TableHead>
-                        <TableHead>Frequência</TableHead>
-                        <TableHead>Dias da Semana</TableHead>
-                        <TableHead className="text-right">Nº Sessões</TableHead>
-                        <TableHead>Plano</TableHead>
-                        <TableHead className="text-right">R$ Sessão/Mês</TableHead>
-                        <TableHead className="text-right">R$ Previsto</TableHead>
-                        <TableHead className="text-right">R$ Recebido</TableHead>
-                        <TableHead>SITUAÇÃO</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {linhas.map((l) => (
-                        <TableRow key={l.cobrancaId}>
-                          <TableCell className="font-medium whitespace-nowrap">{l.pacienteNome}</TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">{l.avaliacao ?? "—"}</TableCell>
-                          <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
-                          <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
-                          <TableCell className="text-right tabular-nums">{l.numSessoes ?? "—"}</TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
-                          <TableCell className="text-right tabular-nums whitespace-nowrap">
-                            {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
-                            {l.valorPrevisto > 0 ? brl(l.valorPrevisto) : "—"}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums whitespace-nowrap">
-                            {l.valorRecebido != null ? brl(l.valorRecebido) : ""}
-                          </TableCell>
-                          <TableCell className="text-sm max-w-xs">{l.situacao}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="bg-muted/40">
-                        <TableCell colSpan={7} className="font-semibold">Total</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums">
-                          {brl(extrato!.totalPrevisto)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold tabular-nums">
-                          {brl(extrato!.totalRecebido)}
-                        </TableCell>
-                        <TableCell />
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">Extrato financeiro detalhado</h3>
+        {loadingExtrato ? (
+          <LoadingState />
+        ) : linhas.length === 0 ? (
+          <EmptyState
+            icon={<FileSpreadsheet className="h-8 w-8" />}
+            title="Sem cobranças nesta competência"
+            description="Não há linhas para gerar o extrato financeiro do período selecionado."
+          />
+        ) : (
+          <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+            <div ref={printRef}>
+              <div className="px-4 py-3 border-b bg-muted/30 print:block">
+                <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
+                <p className="text-xs text-muted-foreground">CB MOVE Neuroscience · Relatório Financeiro</p>
               </div>
-            )}
-            <p className="text-xs text-muted-foreground px-1">
-              Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao criar a cobrança.
-            </p>
-          </section>
-        </>
-      )}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome do Paciente</TableHead>
+                    <TableHead>Avaliação</TableHead>
+                    <TableHead>Frequência</TableHead>
+                    <TableHead>Dias da Semana</TableHead>
+                    <TableHead className="text-right">Nº Sessões</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead className="text-right">R$ Sessão/Mês</TableHead>
+                    <TableHead className="text-right">R$ Previsto</TableHead>
+                    <TableHead className="text-right">R$ Recebido</TableHead>
+                    <TableHead>SITUAÇÃO</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linhas.map((l) => (
+                    <TableRow key={l.cobrancaId}>
+                      <TableCell className="font-medium whitespace-nowrap">{l.pacienteNome}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{l.avaliacao ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{l.numSessoes ?? "—"}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">
+                        {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
+                        {l.valorPrevisto > 0 ? brl(l.valorPrevisto) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums whitespace-nowrap">
+                        {l.valorRecebido != null ? brl(l.valorRecebido) : ""}
+                      </TableCell>
+                      <TableCell className="text-sm max-w-xs">{l.situacao}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-muted/40">
+                    <TableCell colSpan={7} className="font-semibold">Total</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">
+                      {brl(extrato!.totalPrevisto)}
+                    </TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">
+                      {brl(extrato!.totalRecebido)}
+                    </TableCell>
+                    <TableCell />
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground px-1">
+          Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao criar a cobrança.
+        </p>
+      </section>
     </div>
   );
 }

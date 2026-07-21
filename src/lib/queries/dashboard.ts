@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchFinanceiroKpis } from "./financeiro";
+
+function toIsoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 export type DashboardKpis = {
   receitaMes: number;
@@ -38,122 +41,34 @@ export type ReceitaMensalItem = {
   total: number;
 };
 
-export async function fetchKpis(): Promise<DashboardKpis> {
-  const now = new Date();
-  const mes = now.getMonth() + 1;
-  const ano = now.getFullYear();
+export type DashboardHomeData = {
+  kpis: OperacionalKpis;
+  divergencias: DivergenciaProntuario[];
+  proximasAgendas: ProximaAgenda[];
+};
 
-  const [financeiro, nfResult] = await Promise.all([
-    fetchFinanceiroKpis(mes, ano),
+export async function fetchDashboardHome(ano: number, mes: number): Promise<DashboardHomeData> {
+  const mesInicio = new Date(ano, mes - 1, 1);
+  const mesFim = new Date(ano, mes, 1);
+  const now = new Date();
+  const proximosSeteDias = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const [
+    pacientesResult,
+    fisiosResult,
+    agendasProximasResult,
+    realizadosResult,
+    evolucoesResult,
+    proximasListResult,
+  ] = await Promise.all([
+    supabase.from("pacientes").select("id", { count: "exact", head: true }).eq("ativo", true),
+    supabase.from("fisioterapeutas").select("id", { count: "exact", head: true }).eq("ativo", true),
     supabase
-      .from("notas_fiscais")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "emitida")
-      .gte("emissao", `${ano}-${String(mes).padStart(2, "0")}-01`)
-      .lt("emissao", `${String(mes === 12 ? ano + 1 : ano)}-${String(mes === 12 ? 1 : mes + 1).padStart(2, "0")}-01`),
-  ]);
-
-  if (nfResult.error) throw nfResult.error;
-
-  return {
-    receitaMes: financeiro.pago,
-    aReceber: financeiro.pendente,
-    inadimplencia: financeiro.vencido,
-    nfsEmitidas: nfResult.count ?? 0,
-  };
-}
-
-function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-export async function fetchOperacionalKpis(): Promise<OperacionalKpis> {
-  const now = new Date();
-  const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1);
-  const mesFim = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const proximosSeteDias = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  const [pacientesResult, fisiosResult, agendasProximasResult, realizadosResult, evolucoesResult] =
-    await Promise.all([
-      supabase.from("pacientes").select("id", { count: "exact", head: true }).eq("ativo", true),
-      supabase.from("fisioterapeutas").select("id", { count: "exact", head: true }).eq("ativo", true),
-      supabase
-        .from("agendamentos")
-        .select("id", { count: "exact", head: true })
-        .in("status", ["agendado", "confirmado"])
-        .gte("inicio", now.toISOString())
-        .lt("inicio", proximosSeteDias.toISOString()),
-      supabase
-        .from("agendamentos")
-        .select("paciente_id, inicio")
-        .eq("status", "realizado")
-        .gte("inicio", mesInicio.toISOString())
-        .lt("inicio", mesFim.toISOString()),
-      supabase
-        .from("prontuario_evolucoes")
-        .select("paciente_id, data")
-        .gte("data", toIsoDate(mesInicio))
-        .lt("data", toIsoDate(mesFim)),
-    ]);
-
-  if (pacientesResult.error) throw pacientesResult.error;
-  if (fisiosResult.error) throw fisiosResult.error;
-  if (agendasProximasResult.error) throw agendasProximasResult.error;
-  if (realizadosResult.error) throw realizadosResult.error;
-  if (evolucoesResult.error) throw evolucoesResult.error;
-
-  const evolucoesChaves = new Set(
-    (evolucoesResult.data ?? []).map((e) => `${e.paciente_id}_${e.data}`),
-  );
-
-  const divergenciaProntuario = (realizadosResult.data ?? []).filter((a) => {
-    if (!a.paciente_id) return false;
-    const data = a.inicio.slice(0, 10);
-    return !evolucoesChaves.has(`${a.paciente_id}_${data}`);
-  }).length;
-
-  return {
-    totalPacientesAtivos: pacientesResult.count ?? 0,
-    totalFisiosAtivos: fisiosResult.count ?? 0,
-    agendasProximas: agendasProximasResult.count ?? 0,
-    divergenciaProntuario,
-  };
-}
-
-export async function fetchProximasAgendas(limit = 15): Promise<ProximaAgenda[]> {
-  const now = new Date();
-  const proximosSeteDias = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  const { data, error } = await supabase
-    .from("agendamentos")
-    .select("id, inicio, status, pacientes(nome), fisioterapeutas(nome)")
-    .in("status", ["agendado", "confirmado"])
-    .gte("inicio", now.toISOString())
-    .lt("inicio", proximosSeteDias.toISOString())
-    .order("inicio", { ascending: true })
-    .limit(limit);
-
-  if (error) throw error;
-
-  return (data ?? []).map((row) => {
-    const pac = row.pacientes as { nome: string } | null;
-    const fisio = row.fisioterapeutas as { nome: string } | null;
-    return {
-      id: row.id,
-      inicio: row.inicio,
-      status: row.status,
-      pacienteNome: pac?.nome ?? "—",
-      fisioNome: fisio?.nome ?? "—",
-    };
-  });
-}
-
-export async function fetchDivergenciasProntuario(limit = 20): Promise<DivergenciaProntuario[]> {
-  const now = new Date();
-  const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1);
-  const mesFim = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  const [realizadosResult, evolucoesResult] = await Promise.all([
+      .from("agendamentos")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["agendado", "confirmado"])
+      .gte("inicio", now.toISOString())
+      .lt("inicio", proximosSeteDias.toISOString()),
     supabase
       .from("agendamentos")
       .select("paciente_id, inicio, pacientes(nome)")
@@ -166,30 +81,84 @@ export async function fetchDivergenciasProntuario(limit = 20): Promise<Divergenc
       .select("paciente_id, data")
       .gte("data", toIsoDate(mesInicio))
       .lt("data", toIsoDate(mesFim)),
+    supabase
+      .from("agendamentos")
+      .select("id, inicio, status, pacientes(nome), fisioterapeutas(nome)")
+      .in("status", ["agendado", "confirmado"])
+      .gte("inicio", now.toISOString())
+      .lt("inicio", proximosSeteDias.toISOString())
+      .order("inicio", { ascending: true })
+      .limit(15),
   ]);
 
+  if (pacientesResult.error) throw pacientesResult.error;
+  if (fisiosResult.error) throw fisiosResult.error;
+  if (agendasProximasResult.error) throw agendasProximasResult.error;
   if (realizadosResult.error) throw realizadosResult.error;
   if (evolucoesResult.error) throw evolucoesResult.error;
+  if (proximasListResult.error) throw proximasListResult.error;
 
   const evolucoesChaves = new Set(
     (evolucoesResult.data ?? []).map((e) => `${e.paciente_id}_${e.data}`),
   );
 
-  const divergencias: DivergenciaProntuario[] = [];
+  const divergenciasAll: DivergenciaProntuario[] = [];
   for (const a of realizadosResult.data ?? []) {
     if (!a.paciente_id) continue;
     const data = a.inicio.slice(0, 10);
     if (evolucoesChaves.has(`${a.paciente_id}_${data}`)) continue;
     const pac = a.pacientes as { nome: string } | null;
-    divergencias.push({
+    divergenciasAll.push({
       pacienteId: a.paciente_id,
       pacienteNome: pac?.nome ?? "—",
       data,
     });
-    if (divergencias.length >= limit) break;
   }
+  const divergencias = divergenciasAll.slice(0, 20);
 
-  return divergencias;
+  const proximasAgendas: ProximaAgenda[] = (proximasListResult.data ?? []).map((row) => {
+    const pac = row.pacientes as { nome: string } | null;
+    const fisio = row.fisioterapeutas as { nome: string } | null;
+    return {
+      id: row.id,
+      inicio: row.inicio,
+      status: row.status,
+      pacienteNome: pac?.nome ?? "—",
+      fisioNome: fisio?.nome ?? "—",
+    };
+  });
+
+  return {
+    kpis: {
+      totalPacientesAtivos: pacientesResult.count ?? 0,
+      totalFisiosAtivos: fisiosResult.count ?? 0,
+      agendasProximas: agendasProximasResult.count ?? 0,
+      divergenciaProntuario: divergenciasAll.length,
+    },
+    divergencias,
+    proximasAgendas,
+  };
+}
+
+/** @deprecated Use fetchDashboardHome */
+export async function fetchOperacionalKpis(): Promise<OperacionalKpis> {
+  const now = new Date();
+  const data = await fetchDashboardHome(now.getFullYear(), now.getMonth() + 1);
+  return data.kpis;
+}
+
+/** @deprecated Use fetchDashboardHome */
+export async function fetchProximasAgendas(limit = 15): Promise<ProximaAgenda[]> {
+  const now = new Date();
+  const data = await fetchDashboardHome(now.getFullYear(), now.getMonth() + 1);
+  return data.proximasAgendas.slice(0, limit);
+}
+
+/** @deprecated Use fetchDashboardHome */
+export async function fetchDivergenciasProntuario(limit = 20): Promise<DivergenciaProntuario[]> {
+  const now = new Date();
+  const data = await fetchDashboardHome(now.getFullYear(), now.getMonth() + 1);
+  return data.divergencias.slice(0, limit);
 }
 
 export async function fetchReceitaMensal(anoInicio: number, anoFim: number): Promise<ReceitaMensalItem[]> {
