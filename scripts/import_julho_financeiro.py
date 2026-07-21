@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
-"""
-Reimporta Relatório Financeiro 2026 (abas) para cobrancas.
-
-  python scripts/import_meses_financeiro.py --dry-run
-  python scripts/import_meses_financeiro.py --apply --meses 1-7
-
-Por padrão: substitui cobranças migrado_logjur das competências pedidas e reinsere a partir da planilha.
-"""
+"""Importa aba JULHO do Relatório Financeiro 2026 para cobrancas (espelha import-relatorio-financeiro.ts)."""
 from __future__ import annotations
 
 import argparse
-import datetime
 import json
 import os
 import re
 import sys
 import unicodedata
 import urllib.error
-import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,12 +23,6 @@ MES_NOME = {
     1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
     7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez",
 }
-ABA_MES = {
-    "JANEIRO": 1, "FEVEREIRO": 2, "MARÇO": 3, "MARCO": 3,
-    "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7,
-    "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10, "NOVEMBRO": 11, "DEZEMBRO": 12,
-}
-MES_ABA = {v: k for k, v in ABA_MES.items() if k != "MARCO"}
 
 
 def norm_nome(n: str) -> str:
@@ -46,21 +31,14 @@ def norm_nome(n: str) -> str:
     return "".join(c for c in n if unicodedata.category(c) != "Mn")
 
 
-def cell(row, idx, default=""):
-    if len(row) <= idx or row[idx] is None:
-        return default
-    return row[idx]
-
-
 def parse_valor(v) -> float | None:
     if isinstance(v, (int, float)) and float(v) > 0:
         return float(v)
     s = str(v or "").replace("R$", "").replace(" ", "")
-    if not s:
-        return None
-    # BR: 10.280,00 → 10280.00 ; 10280,00 → 10280.00 ; 10.28 → 10.28
-    if "," in s:
+    if "," in s and "." in s:
         s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
     try:
         f = float(s)
         return f if f > 0 else None
@@ -151,7 +129,12 @@ def infer_status(sit: str, tem_retro: bool) -> str:
 def infer_vencimento(sit: str, mes: int, ano: int) -> str:
     m = re.search(r"dia\s*0?(\d{1,2})", sit, re.I)
     dia = min(int(m.group(1)), 28) if m else 15
-    last = (datetime.date(ano + (1 if mes == 12 else 0), 1 if mes == 12 else mes + 1, 1) - datetime.timedelta(days=1)).day
+    # last day of month
+    if mes == 12:
+        last = 31
+    else:
+        import datetime
+        last = (datetime.date(ano, mes + 1, 1) - datetime.timedelta(days=1)).day
     d = min(dia, last)
     return f"{ano}-{mes:02d}-{d:02d}"
 
@@ -171,6 +154,12 @@ def infer_servico(frequencia: str, mes: int, ano: int) -> str:
     return f"Fisioterapia Neurológica {suffix}"
 
 
+def cell(row, idx, default=""):
+    if len(row) <= idx or row[idx] is None:
+        return default
+    return row[idx]
+
+
 def deve_ignorar(row) -> bool:
     nome = str(cell(row, 0) or "").strip()
     plano = str(cell(row, 5) or "").strip()
@@ -178,9 +167,6 @@ def deve_ignorar(row) -> bool:
     if not nome or len(nome) < 3:
         return True
     if nome == "Nome do Paciente":
-        return True
-    # linhas de título/lixo da planilha
-    if "altera" in nome.lower() and "agenda" in nome.lower():
         return True
     if plano == "*****":
         return True
@@ -242,12 +228,12 @@ class Supa:
         if not url.startswith("http"):
             raise SystemExit(f"SUPABASE_URL inválida: {url!r}")
         if not key:
-            raise SystemExit("Chave Supabase ausente")
+            raise SystemExit("SUPABASE_SERVICE_ROLE_KEY / PUBLISHABLE_KEY ausente")
         self.url = url.rstrip("/")
         self.key = key
         print(f"Supabase: {self.url}")
 
-    def _req(self, method: str, path: str, body=None, prefer: str | None = None, extra_headers: dict | None = None):
+    def _req(self, method: str, path: str, body=None, prefer: str | None = None):
         headers = {
             "apikey": self.key,
             "Authorization": f"Bearer {self.key}",
@@ -255,25 +241,24 @@ class Supa:
         }
         if prefer:
             headers["Prefer"] = prefer
-        if extra_headers:
-            headers.update(extra_headers)
         data = None if body is None else json.dumps(body).encode()
-        # Keep PostgREST operators; encode spaces and other unsafe chars in filters.
-        safe_path = urllib.parse.quote(path, safe="/?&=(),.*:_-")
-        req = urllib.request.Request(f"{self.url}/rest/v1/{safe_path}", data=data, headers=headers, method=method)
+        req = urllib.request.Request(f"{self.url}/rest/v1/{path}", data=data, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=120) as res:
+            with urllib.request.urlopen(req, timeout=60) as res:
                 raw = res.read().decode()
-                return json.loads(raw) if raw else None, res.headers
+                return json.loads(raw) if raw else None
         except urllib.error.HTTPError as e:
-            detail = e.read().decode()[:800]
+            detail = e.read().decode()[:500]
             raise RuntimeError(f"HTTP {e.code} {path}: {detail}") from e
 
     def get_pacientes(self):
         rows = []
         offset = 0
         while True:
-            chunk, _ = self._req("GET", f"pacientes?select=id,nome,tipo,valor_mensal&order=nome&offset={offset}&limit=1000")
+            chunk = self._req(
+                "GET",
+                f"pacientes?select=id,nome,tipo,valor_mensal&order=nome&offset={offset}&limit=1000",
+            )
             if not chunk:
                 break
             rows.extend(chunk)
@@ -282,130 +267,72 @@ class Supa:
             offset += 1000
         return rows
 
-    def delete_migradas(self, ano: int, meses: list[int]) -> int:
-        """Apaga cobranças migradas das competências (inclui retroativas migrado_logjur)."""
-        mes_or = ",".join(str(m) for m in meses)
-        # PostgREST: or=(observacoes.ilike.*migrado_logjur*,observacoes.ilike.*Retroativa*)
-        filt = (
-            f"competencia_ano=eq.{ano}&competencia_mes=in.({mes_or})"
-            f"&or=(observacoes.ilike.*migrado_logjur*,observacoes.ilike.*Retroativa*)"
-        )
-        # count first
-        _, headers = self._req(
-            "GET",
-            f"cobrancas?select=id&{filt}",
-            prefer="count=exact",
-            extra_headers={"Range": "0-0"},
-        )
-        cr = headers.get("Content-Range") or headers.get("content-range") or ""
-        # Content-Range: 0-0/123
-        total = 0
-        if "/" in cr:
-            try:
-                total = int(cr.split("/")[-1])
-            except Exception:
-                total = 0
-        self._req("DELETE", f"cobrancas?{filt}", prefer="return=minimal")
-        return total
-
     def insert_paciente(self, row: dict) -> str:
-        data, _ = self._req("POST", "pacientes", row, prefer="return=representation")
+        data = self._req("POST", "pacientes", row, prefer="return=representation")
         return data[0]["id"]
 
     def insert_cobranca(self, row: dict) -> None:
         self._req("POST", "cobrancas", row, prefer="return=minimal")
 
 
-def resolve_aba_name(wb_names: list[str], mes: int) -> str | None:
-    wanted = MES_ABA.get(mes)
-    for n in wb_names:
-        if ABA_MES.get(n.upper()) == mes:
-            return n
-        if wanted and n.upper().replace("Ç", "C") == wanted.replace("Ç", "C"):
-            return n
-    return None
-
-
-def build_rows(xlsx: Path, pacientes_db: list[dict], meses: list[int], ano: int = 2026) -> tuple[list[CobrancaRow], dict[int, int]]:
+def build_rows(xlsx: Path, pacientes_db: list[dict]) -> tuple[list[CobrancaRow], list[str]]:
     wb = openpyxl.load_workbook(xlsx, data_only=True, read_only=True)
+    if "JULHO" not in wb.sheetnames:
+        raise SystemExit(f"Aba JULHO não encontrada. Abas: {wb.sheetnames}")
+    rows = list(wb["JULHO"].iter_rows(values_only=True))
+    wb.close()
+    dados = rows[2:]
+    mes, ano = 7, 2026
     cobrancas: list[CobrancaRow] = []
-    vazios_por_mes: dict[int, int] = {m: 0 for m in meses}
-    novos: set[str] = set()
+    vazios: list[str] = []
+    novos = set()
 
-    for mes in meses:
-        aba = resolve_aba_name(wb.sheetnames, mes)
-        if not aba:
-            print(f"  ! Aba do mes {mes} nao encontrada")
+    for row in dados:
+        if not row or deve_ignorar(row):
             continue
-        rows = list(wb[aba].iter_rows(values_only=True))
-        dados = rows[2:]
-        print(f"  Aba {aba}: {len(dados)} linhas brutas")
+        nome = str(cell(row, 0) or "").strip()
+        frequencia = str(cell(row, 2) or "").strip()
+        dias = str(cell(row, 3) or "").strip()
+        plano = str(cell(row, 5) or "").strip()
+        valor = parse_valor(cell(row, 7, None))
+        sit = str(cell(row, 9) or "").strip()
+        qtd_raw = cell(row, 4, None)
 
-        for row in dados:
-            if not row or deve_ignorar(row):
-                continue
-            nome = str(cell(row, 0) or "").strip()
-            frequencia = str(cell(row, 2) or "").strip()
-            dias = str(cell(row, 3) or "").strip()
-            plano = str(cell(row, 5) or "").strip()
-            valor = parse_valor(cell(row, 7, None))
-            sit = str(cell(row, 9) or "").strip()
-            qtd_raw = cell(row, 4, None)
+        if valor is None:
+            vazios.append(nome)
+            continue
 
-            if valor is None:
-                vazios_por_mes[mes] += 1
-                continue
+        nom_n = norm_nome(nome)
+        match = None
+        for p in pacientes_db:
+            pn = norm_nome(p["nome"])
+            if pn == nom_n or pn in nom_n or nom_n in pn or levenshtein_sim(nom_n, pn) >= 0.82:
+                match = p
+                break
 
-            nom_n = norm_nome(nome)
-            match = None
-            for p in pacientes_db:
-                pn = norm_nome(p["nome"])
-                if pn == nom_n or pn in nom_n or nom_n in pn or levenshtein_sim(nom_n, pn) >= 0.82:
-                    match = p
-                    break
+        tipo = infer_tipo(sit)
+        modelo = infer_modelo(sit)
+        retro = parse_datas_retroativas(sit, mes, ano)
+        tem_retro = len(retro) > 0
+        valor_mensal_pac = float(match["valor_mensal"]) if match and match.get("valor_mensal") else None
+        valor_retro = calc_valor_retroativo(valor_mensal_pac, valor)
+        valor_mes = calc_valor_mes_atual(valor)
 
-            tipo = infer_tipo(sit)
-            modelo = infer_modelo(sit)
-            retro = parse_datas_retroativas(sit, mes, ano)
-            tem_retro = len(retro) > 0
-            valor_mensal_pac = float(match["valor_mensal"]) if match and match.get("valor_mensal") else None
-            valor_retro = calc_valor_retroativo(valor_mensal_pac, valor)
-            valor_mes = calc_valor_mes_atual(valor)
+        try:
+            qtd = int(qtd_raw) if qtd_raw not in (None, "") else None
+        except Exception:
+            qtd = None
 
-            try:
-                qtd = int(qtd_raw) if qtd_raw not in (None, "") else None
-            except Exception:
-                qtd = None
+        base_obs = f"migrado_logjur | {sit}".strip()
+        alertas = []
+        if not match and nom_n not in novos:
+            alertas.append("novo paciente")
+        if valor > 50000:
+            alertas.append(f"VALOR ALTO: R$ {valor}")
+        if tem_retro:
+            alertas.append(f"{len(retro)} retroativa(s)")
 
-            base_obs = f"migrado_logjur | {sit}".strip()
-            alertas = []
-            if not match and nom_n not in novos:
-                alertas.append("novo paciente")
-
-            for i, (rm, ra) in enumerate(retro):
-                cobrancas.append(
-                    CobrancaRow(
-                        paciente_nome=nome,
-                        match_id=match["id"] if match else None,
-                        novo_p=not match,
-                        tipo=tipo,
-                        modelo=modelo,
-                        regime=infer_regime(plano),
-                        servico=f"{infer_servico(frequencia, rm, ra)} [retroativa]",
-                        competencia_mes=rm,
-                        competencia_ano=ra,
-                        vencimento=infer_vencimento(sit, rm, ra),
-                        valor=valor_retro,
-                        status="regularizar_retroativa",
-                        forma_pgto=infer_forma_pgto(sit),
-                        qtd_sessoes=None,
-                        frequencia=frequencia or None,
-                        dias_semana=dias or None,
-                        obs=f"Retroativa detectada no relatório financeiro | {base_obs}",
-                        is_retroativa=True,
-                    )
-                )
-
+        for i, (rm, ra) in enumerate(retro):
             cobrancas.append(
                 CobrancaRow(
                     paciente_nome=nome,
@@ -414,84 +341,86 @@ def build_rows(xlsx: Path, pacientes_db: list[dict], meses: list[int], ano: int 
                     tipo=tipo,
                     modelo=modelo,
                     regime=infer_regime(plano),
-                    servico=infer_servico(frequencia, mes, ano),
-                    competencia_mes=mes,
-                    competencia_ano=ano,
-                    vencimento=infer_vencimento(sit, mes, ano),
-                    valor=valor_mes,
-                    status=infer_status(sit, tem_retro),
+                    servico=f"{infer_servico(frequencia, rm, ra)} [retroativa]",
+                    competencia_mes=rm,
+                    competencia_ano=ra,
+                    vencimento=infer_vencimento(sit, rm, ra),
+                    valor=valor_retro,
+                    status="regularizar_retroativa",
                     forma_pgto=infer_forma_pgto(sit),
-                    qtd_sessoes=qtd,
+                    qtd_sessoes=None,
                     frequencia=frequencia or None,
                     dias_semana=dias or None,
-                    obs=base_obs,
-                    is_retroativa=False,
-                    alertas=alertas,
+                    obs=f"Retroativa detectada no relatório financeiro | {base_obs}",
+                    is_retroativa=True,
                 )
             )
-            if not match:
-                novos.add(nom_n)
 
-    wb.close()
-    return cobrancas, vazios_por_mes
+        cobrancas.append(
+            CobrancaRow(
+                paciente_nome=nome,
+                match_id=match["id"] if match else None,
+                novo_p=not match,
+                tipo=tipo,
+                modelo=modelo,
+                regime=infer_regime(plano),
+                servico=infer_servico(frequencia, mes, ano),
+                competencia_mes=mes,
+                competencia_ano=ano,
+                vencimento=infer_vencimento(sit, mes, ano),
+                valor=valor_mes,
+                status=infer_status(sit, tem_retro),
+                forma_pgto=infer_forma_pgto(sit),
+                qtd_sessoes=qtd,
+                frequencia=frequencia or None,
+                dias_semana=dias or None,
+                obs=base_obs,
+                is_retroativa=False,
+                alertas=alertas,
+            )
+        )
+        if not match:
+            novos.add(nom_n)
 
-
-def parse_meses(s: str) -> list[int]:
-    s = s.strip()
-    if "-" in s:
-        a, b = s.split("-", 1)
-        return list(range(int(a), int(b) + 1))
-    return [int(x) for x in s.split(",") if x.strip()]
+    return cobrancas, vazios
 
 
 def main() -> None:
     load_app_env()
-    # limpa URL quoted do shell
-    for k in ("SUPABASE_URL", "VITE_SUPABASE_URL"):
-        if k in os.environ:
-            os.environ[k] = os.environ[k].strip().strip("\"'")
-
     ap = argparse.ArgumentParser()
-    ap.add_argument("--file", default="scripts/drive_import/relatorio_financeiro_2026_fresh.xlsx")
-    ap.add_argument("--meses", default="1-7", help="ex: 1-6 ou 1,2,3,7")
+    ap.add_argument(
+        "--file",
+        default=str(Path("scripts/drive_import/relatorio_financeiro_2026_fresh.xlsx")),
+    )
     ap.add_argument("--apply", action="store_true")
-    ap.add_argument("--ano", type=int, default=2026)
     args = ap.parse_args()
-
     xlsx = Path(args.file)
     if not xlsx.exists():
-        raise SystemExit(f"Arquivo nao encontrado: {xlsx}")
+        raise SystemExit(f"Arquivo não encontrado: {xlsx}")
 
-    meses = parse_meses(args.meses)
     sb = Supa()
     pacientes = sb.get_pacientes()
+    cobrancas, vazios = build_rows(xlsx, pacientes)
+
+    jul = [c for c in cobrancas if c.competencia_mes == 7]
+    retro = [c for c in cobrancas if c.is_retroativa]
+    novos = {norm_nome(c.paciente_nome) for c in cobrancas if c.novo_p}
+    soma_jul = sum(c.valor for c in jul)
+
     print(f"Arquivo: {xlsx}")
-    print(f"Meses: {meses} | Ano: {args.ano} | Modo: {'APPLY' if args.apply else 'DRY-RUN'}")
+    print(f"Modo: {'APPLY' if args.apply else 'DRY-RUN'}")
     print(f"Pacientes DB: {len(pacientes)}")
-
-    cobrancas, vazios = build_rows(xlsx, pacientes, meses, args.ano)
-    por_mes: dict[int, list[CobrancaRow]] = {m: [] for m in meses}
-    for c in cobrancas:
-        if c.competencia_ano == args.ano and c.competencia_mes in por_mes:
-            por_mes[c.competencia_mes].append(c)
-
-    print("\nResumo a inserir (competencia do mes; retroativas de outros meses entram no lote total):")
-    for m in meses:
-        lst = por_mes[m]
-        soma = sum(c.valor for c in lst)
-        print(f"  {MES_NOME[m]}/{args.ano}: {len(lst)} cobrancas | soma R$ {soma:,.2f} | vazios planilha={vazios.get(m,0)}")
-    print(f"Total registros (incl. retro p/ fora do range): {len(cobrancas)}")
-    print(f"Pacientes novos: {len({norm_nome(c.paciente_nome) for c in cobrancas if c.novo_p})}")
+    print(f"Linhas valor vazio (ignoradas): {len(vazios)}")
+    print(f"Cobranças a inserir: {len(cobrancas)} (julho={len(jul)}, retro={len(retro)})")
+    print(f"Pacientes novos: {len(novos)}")
+    print(f"Soma julho: R$ {soma_jul:,.2f}")
+    print("\nAmostra julho (20):")
+    for c in jul[:20]:
+        print(f"  {c.paciente_nome[:35]:35} R$ {c.valor:10.2f} {c.status:22} {c.forma_pgto}")
 
     if not args.apply:
-        print("\nDRY-RUN ok. Use --apply para apagar migradas e inserir.")
+        print("\nDRY-RUN ok. Rode com --apply para inserir.")
         return
-
-    # competências a limpar: meses do lote + destinos de retroativas dentro de 2026
-    limpar = sorted(set(meses) | {c.competencia_mes for c in cobrancas if c.competencia_ano == args.ano})
-    print(f"\nApagando migrado_logjur/retroativa em {args.ano} meses {limpar}...")
-    deleted = sb.delete_migradas(args.ano, limpar)
-    print(f"  removidas (estimativa Content-Range): {deleted}")
 
     cache: dict[str, str] = {}
     ok = 0
@@ -539,7 +468,7 @@ def main() -> None:
             errs.append(f"COB {c.paciente_nome} {c.competencia_mes}/{c.competencia_ano}: {e}")
 
     print(f"\nInseridas: {ok} | Erros: {len(errs)}")
-    for e in errs[:30]:
+    for e in errs[:20]:
         print(" ", e)
 
 

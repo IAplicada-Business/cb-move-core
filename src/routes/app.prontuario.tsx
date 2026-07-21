@@ -86,6 +86,7 @@ function ProntuarioPage() {
 
   const [competenciaMes, setCompetenciaMes] = useState(now.getMonth() + 1);
   const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
+  const [activeTab, setActiveTab] = useState("evolucao-diaria");
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
   const [finalizandoRelatorioId, setFinalizandoRelatorioId] = useState<string | null>(null);
 
@@ -109,37 +110,37 @@ function ProntuarioPage() {
   const { data: evolucoes = [], isLoading: loadEvolucoes } = useQuery({
     queryKey: queryKeys.prontuario.evolucoes(selectedId ?? ""),
     queryFn: () => fetchEvolucoes(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "evolucao-diaria",
   });
 
   const { data: relatorios = [], isLoading: loadRelatorios } = useQuery({
     queryKey: queryKeys.prontuario.relatorios(selectedId ?? ""),
     queryFn: () => fetchRelatoriosPaciente(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "documentos",
   });
 
   const { data: historico = [], isLoading: loadHistorico } = useQuery({
     queryKey: queryKeys.prontuario.historico(selectedId ?? ""),
     queryFn: () => fetchHistoricoStatus(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "historico",
   });
 
   const { data: fisios = [] } = useQuery({
     queryKey: queryKeys.fisioterapeutas.ativos,
     queryFn: fetchFisioterapeutasAtivos,
-    enabled: !!selectedId && canEdit,
+    enabled: !!selectedId && canEdit && (activeTab === "evolucao-diaria" || evolucaoDialogOpen),
   });
 
   const { data: instrumentosAtivos = [] } = useQuery({
     queryKey: [...queryKeys.instrumentos.all, "ativos"],
     queryFn: fetchInstrumentosAtivos,
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "avaliacoes",
   });
 
   const { data: instrumentosAplicados = [], isLoading: loadAvaliacoes } = useQuery({
     queryKey: queryKeys.prontuario.avaliacoes(selectedId ?? ""),
     queryFn: () => fetchInstrumentosAplicados(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "avaliacoes",
   });
 
   useEffect(() => {
@@ -319,7 +320,7 @@ function ProntuarioPage() {
 
       {toolbar}
 
-      <Tabs defaultValue="evolucao-diaria" className="space-y-5">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
           <TabsTrigger value="evolucao-diaria" className={TAB_TRIGGER_CLS}>
             Evolução diária
