@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   CheckCircle2, Copy, ExternalLink, FileText, Loader2, QrCode, Send, SplitSquareHorizontal, X,
 } from "lucide-react";
@@ -29,6 +30,7 @@ import {
 import {
   fetchCobrancas, updateCobranca, type Cobranca,
 } from "@/lib/queries/cobrancas";
+import { fetchCobrancaIdsComNf } from "@/lib/queries/notas-fiscais";
 import { queryKeys } from "@/lib/queries";
 import type { CobrancaStatus, FormaPagamento } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -82,6 +84,13 @@ function podeEnviarBoletoPaciente(c: Cobranca) {
 
 const FORMAS_PARCELAVEIS: FormaPagamento[] = ["deposito", "transferencia", "alvara_judicial"];
 
+const FORMAS_NF_ANTES_PAGAMENTO: FormaPagamento[] = ["deposito", "transferencia", "alvara_judicial"];
+
+function precisaNfAntesPagamento(c: Cobranca): boolean {
+  if (c.status === "pago") return false;
+  return FORMAS_NF_ANTES_PAGAMENTO.includes(c.formaPagamento as FormaPagamento);
+}
+
 function podeParcelar(c: Cobranca) {
   return cobrancaAtiva(c) && !c.parcelamentoGrupoId && FORMAS_PARCELAVEIS.includes(c.formaPagamento as FormaPagamento);
 }
@@ -109,6 +118,14 @@ export function PacienteCobrancaSheet({
     queryFn: () => fetchCobrancas({ pacienteId: pacienteId! }),
     enabled: open,
   });
+
+  const cobrancaIds = histQuery.data?.map((c) => c.id) ?? [];
+  const nfIdsQuery = useQuery({
+    queryKey: ["notas_fiscais", "cobrancaIds", cobrancaIds],
+    queryFn: () => fetchCobrancaIdsComNf(cobrancaIds),
+    enabled: open && cobrancaIds.length > 0,
+  });
+  const cobrancaIdsComNf = nfIdsQuery.data ?? new Set<string>();
 
   const resumo: PacienteCobrancaResumo | null = histQuery.data
     ? (agregarCobrancasPorPaciente(histQuery.data)[0] ?? null)
@@ -260,6 +277,24 @@ export function PacienteCobrancaSheet({
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-3 pb-2 text-sm">
+                        {precisaNfAntesPagamento(c) && !cobrancaIdsComNf.has(c.id) && (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                            Emita a NF em{" "}
+                            <Link
+                              to="/app/notas-fiscais"
+                              className="font-medium underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Notas Fiscais
+                            </Link>{" "}
+                            antes de marcar como paga.
+                          </div>
+                        )}
+                        {precisaNfAntesPagamento(c) && cobrancaIdsComNf.has(c.id) && (
+                          <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                            NF vinculada
+                          </span>
+                        )}
                         <div className="grid grid-cols-2 gap-2 text-muted-foreground">
                           <span>Vencimento</span>
                           <span className="text-right text-foreground">{formatDate(c.vencimento)}</span>

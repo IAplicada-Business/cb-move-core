@@ -49,6 +49,9 @@ export const can = {
   manageUsers: (roles: AppRole[]) => hasRole(roles, "admin"),
   viewFinance: (roles: AppRole[]) => hasRole(roles, ["admin", "membro", "gestao"]),
   editProntuario: (roles: AppRole[]) => hasRole(roles, ["admin", "membro", "fisio"]),
+  removePeriodizacaoPdf: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
+  removeRelatorioAtendimentoPdf: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
+  deleteRelatorioAtendimento: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
   manageAgenda: (roles: AppRole[]) => hasRole(roles, ["admin", "membro", "gestao", "recepcao"]),
   accessApp: (roles: AppRole[]) => isStaff(roles),
 };

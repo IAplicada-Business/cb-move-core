@@ -19,7 +19,7 @@
 
 ## 2. Deploy
 
-- **Repositório:** github.com/mmarques30/cb-move-harmony
+- **Repositório:** github.com/IAplicada-Business/cb-move-harmony
 - **Plataforma:** Lovable (auto-sync com o repositório — rebuild automático em ~60s após push)
 - **Supabase project_id:** grlkbtnwvxorlfglyzid
 - **URL Supabase:** configurada via variável de ambiente VITE_SUPABASE_URL

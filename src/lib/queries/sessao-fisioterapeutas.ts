@@ -27,19 +27,21 @@ export async function fetchSessaoFisioterapeutas(sessaoId: string): Promise<Sess
   }));
 }
 
-/** Define todos os fisios de uma sessão; o primeiro da lista é o principal. */
+/** Define todos os fisios de uma sessão; principalId (ou primeiro) é o principal. */
 export async function setSessaoFisioterapeutas(
   sessaoId: string,
   fisioterapeutaIds: string[],
+  principalId?: string | null,
 ): Promise<void> {
   const unique = [...new Set(fisioterapeutaIds.filter(Boolean))];
   if (unique.length === 0) return;
 
-  const principalId = unique[0];
+  const principal = principalId && unique.includes(principalId) ? principalId : unique[0];
+  const ordered = [principal, ...unique.filter((id) => id !== principal)];
 
   const { error: updError } = await supabase
     .from("sessoes")
-    .update({ fisioterapeuta_id: principalId })
+    .update({ fisioterapeuta_id: principal })
     .eq("id", sessaoId);
   if (updError) throw updError;
 
@@ -49,7 +51,7 @@ export async function setSessaoFisioterapeutas(
     .eq("sessao_id", sessaoId);
   if (delError) throw delError;
 
-  const rows = unique.map((fisioterapeutaId, idx) => ({
+  const rows = ordered.map((fisioterapeutaId, idx) => ({
     sessao_id: sessaoId,
     fisioterapeuta_id: fisioterapeutaId,
     principal: idx === 0,
