@@ -50,9 +50,10 @@ test.describe("smoke autenticado", () => {
     await expect(page.getByRole("heading", { name: /dashboard financeiro/i })).toBeVisible();
   });
 
-  test("prontuários consolidados", async ({ page }) => {
-    await page.goto("/app/prontuarios");
-    await expect(page.getByRole("heading", { name: /prontuários consolidados/i })).toBeVisible();
+  test("visão geral de prontuários", async ({ page }) => {
+    await page.goto("/app/prontuario?tab=visao-geral");
+    await expect(page.getByRole("heading", { name: "Prontuário" })).toBeVisible();
+    await expect(page.getByText(/Visão Geral Prontuários/i)).toBeVisible();
   });
 
   test("lista de pacientes", async ({ page }) => {

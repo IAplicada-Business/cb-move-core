@@ -16,7 +16,7 @@ function sessao(
 }
 
 describe("evolucaoStatus", () => {
-  it("retorna assinada quando S/O/P completos", () => {
+  it("retorna registrada quando S/O/P completos", () => {
     expect(
       evolucaoStatus({
         subjetivo: "Relato",
@@ -24,7 +24,7 @@ describe("evolucaoStatus", () => {
         plano: "Conduta",
         transcricao_raw: null,
       }),
-    ).toBe("assinada");
+    ).toBe("registrada");
   });
 
   it("retorna rascunho com transcrição sem SOAP", () => {

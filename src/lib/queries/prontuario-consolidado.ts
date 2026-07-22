@@ -13,7 +13,7 @@ export type ProntuarioConsolidadoRow = {
 export async function fetchProntuariosConsolidados(search?: string): Promise<ProntuarioConsolidadoRow[]> {
   const { data: pacientes, error: pErr } = await supabase
     .from("pacientes")
-    .select("id, nome, tipo, fisioterapeutas(nome)")
+    .select("id, nome, tipo, fisioterapeutas!fisioterapeuta_id(nome)")
     .eq("ativo", true)
     .order("nome");
   if (pErr) throw pErr;
@@ -58,7 +58,7 @@ export async function fetchProntuariosConsolidados(search?: string): Promise<Pro
 
   const relPorPaciente = new Map<string, string>();
   for (const r of relRes.data ?? []) {
-    if (!relPorPaciente.has(r.paciente_id)) {
+    if (r.status != null && !relPorPaciente.has(r.paciente_id)) {
       relPorPaciente.set(r.paciente_id, r.status);
     }
   }

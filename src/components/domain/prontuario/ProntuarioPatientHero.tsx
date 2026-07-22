@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Download, Mic } from "lucide-react";
 import { toast } from "sonner";
 
-import { tipoPacienteLabel, pacienteCodigoCurto, plazoSessoesLabel } from "@/components/domain/prontuario/utils";
+import { tipoPacienteLabel, pacienteCodigoCurto, plazoSessoesLabel, PLANO_TOTAL_PADRAO } from "@/components/domain/prontuario/utils";
 import type { ProntuarioPaciente } from "@/lib/queries/prontuario";
 import { Button } from "@/components/ui/button";
 import {
@@ -116,7 +116,7 @@ export function ProntuarioPatientHero({
           {paciente.fisioterapeutaNome ?? "—"}
         </InfoCell>
         <InfoCell label="Plano">
-          {plazoSessoesLabel(sessoesRealizadas)}
+          {plazoSessoesLabel(sessoesRealizadas, paciente.planoTotalSessoes ?? PLANO_TOTAL_PADRAO)}
         </InfoCell>
       </div>
     </div>

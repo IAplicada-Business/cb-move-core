@@ -36,9 +36,9 @@ export function evolucaoStatus(ev: {
   objetivo: string | null;
   plano: string | null;
   transcricao_raw: string | null;
-}): "assinada" | "rascunho" {
+}): "registrada" | "rascunho" {
   const completa = Boolean(ev.subjetivo?.trim() && ev.objetivo?.trim() && ev.plano?.trim());
-  if (completa) return "assinada";
+  if (completa) return "registrada";
   if (ev.transcricao_raw?.trim() || ev.subjetivo || ev.objetivo || ev.plano) return "rascunho";
   return "rascunho";
 }
