@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -987,9 +987,9 @@ function CobrancasPage() {
 
       <div className="rounded-lg border border-cb-cyan-600/20 bg-cb-cyan-50/40 px-4 py-3 text-sm text-foreground">
         Para depósito, PIX ou alvará: em{" "}
-        <Link to="/app/notas-fiscais" className="font-medium text-cb-cyan-800 underline">
+        <a href="/app/notas-fiscais" className="font-medium text-cb-cyan-800 underline">
           Notas Fiscais
-        </Link>
+        </a>
         , emita a NF antes do pagamento; depois marque a cobrança como paga aqui.
       </div>
 

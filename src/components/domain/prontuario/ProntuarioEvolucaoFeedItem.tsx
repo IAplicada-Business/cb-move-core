@@ -74,12 +74,12 @@ export function ProntuarioEvolucaoFeedItem({
           <span
             className={cn(
               "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-              status === "registrada"
+              status === "assinada"
                 ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
                 : "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]",
             )}
           >
-            {status === "registrada" ? "Registrada" : "Rascunho · revisar"}
+            {status === "assinada" ? "Assinada" : "Rascunho · revisar"}
           </span>
           {canEdit && (
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onEdit(evolucao)}>

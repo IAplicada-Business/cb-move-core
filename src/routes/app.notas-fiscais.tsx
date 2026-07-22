@@ -589,7 +589,7 @@ function NotasFiscaisPage() {
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<NfStatus | "">("");
   const [filtroTipo, setFiltroTipo] = useState<PacienteTipo | "">("");
-  const [filtroComp, setFiltroComp] = useState(`${now.getMonth() + 1}-${now.getFullYear()}`);
+  const [filtroComp, setFiltroComp] = useState(FILTRO_TODAS_COMP);
   const [modalEmitir, setModalEmitir] = useState(false);
   const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
@@ -611,12 +611,10 @@ function NotasFiscaisPage() {
     queryFn: () => fetchNFs(filters),
   });
 
-  const semNfMes = compMes ?? now.getMonth() + 1;
-  const semNfAno = compAno ?? now.getFullYear();
-
   const semNfQuery = useQuery({
-    queryKey: queryKeys.financeiro.cobrancasSemNf(semNfAno, semNfMes),
-    queryFn: () => fetchCobrancasSemNf(semNfMes, semNfAno),
+    queryKey: queryKeys.financeiro.cobrancasSemNf(compAno ?? now.getFullYear(), compMes ?? now.getMonth() + 1),
+    queryFn: () => fetchCobrancasSemNf(compMes ?? now.getMonth() + 1, compAno ?? now.getFullYear()),
+    enabled: !!(compMes && compAno),
   });
 
   const nfs = query.data ?? [];

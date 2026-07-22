@@ -10,9 +10,6 @@ export type PeriodizacaoSessao = {
   atividadesPrevistas: string | null;
   status: PeriodizacaoStatus;
   sessaoId: string | null;
-  fisioterapeutaId: string | null;
-  fisioterapeutaNome: string | null;
-  driveDocUrl: string | null;
   updatedAt: string;
 };
 
@@ -24,10 +21,7 @@ type Row = {
   atividades_previstas: string | null;
   status: PeriodizacaoStatus;
   sessao_id: string | null;
-  fisioterapeuta_id: string | null;
-  drive_doc_url: string | null;
   updated_at: string;
-  fisioterapeutas?: { nome: string } | null;
 };
 
 const map = (r: Row): PeriodizacaoSessao => ({
@@ -38,16 +32,13 @@ const map = (r: Row): PeriodizacaoSessao => ({
   atividadesPrevistas: r.atividades_previstas,
   status: r.status,
   sessaoId: r.sessao_id,
-  fisioterapeutaId: r.fisioterapeuta_id,
-  fisioterapeutaNome: r.fisioterapeutas?.nome ?? null,
-  driveDocUrl: r.drive_doc_url,
   updatedAt: r.updated_at,
 });
 
 export async function fetchPeriodizacaoPaciente(pacienteId: string): Promise<PeriodizacaoSessao[]> {
   const { data, error } = await supabase
     .from("periodizacao_sessoes")
-    .select("*, fisioterapeutas(nome)")
+    .select("*")
     .eq("paciente_id", pacienteId)
     .order("numero_sessao", { ascending: true });
   if (error) throw error;
@@ -62,8 +53,6 @@ export async function upsertPeriodizacaoItem(input: {
   atividadesPrevistas?: string | null;
   status?: PeriodizacaoStatus;
   sessaoId?: string | null;
-  fisioterapeutaId?: string | null;
-  driveDocUrl?: string | null;
 }): Promise<PeriodizacaoSessao> {
   const payload = {
     paciente_id: input.pacienteId,
@@ -72,8 +61,6 @@ export async function upsertPeriodizacaoItem(input: {
     atividades_previstas: input.atividadesPrevistas ?? null,
     status: input.status ?? "planejada",
     sessao_id: input.sessaoId ?? null,
-    fisioterapeuta_id: input.fisioterapeutaId ?? null,
-    drive_doc_url: input.driveDocUrl ?? null,
     updated_at: new Date().toISOString(),
   };
 
@@ -82,7 +69,7 @@ export async function upsertPeriodizacaoItem(input: {
       .from("periodizacao_sessoes")
       .update(payload)
       .eq("id", input.id)
-      .select("*, fisioterapeutas(nome)")
+      .select("*")
       .single();
     if (error) throw error;
     return map(data as Row);
@@ -91,7 +78,7 @@ export async function upsertPeriodizacaoItem(input: {
   const { data, error } = await supabase
     .from("periodizacao_sessoes")
     .insert(payload)
-    .select("*, fisioterapeutas(nome)")
+    .select("*")
     .single();
   if (error) throw error;
   return map(data as Row);

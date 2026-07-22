@@ -242,21 +242,6 @@ export async function countNotasMonth(year: number, month: number): Promise<numb
   return count ?? 0;
 }
 
-export async function fetchCobrancaIdsComNf(cobrancaIds: string[]): Promise<Set<string>> {
-  if (cobrancaIds.length === 0) return new Set();
-  const { data, error } = await supabase
-    .from("notas_fiscais")
-    .select("cobranca_id")
-    .in("cobranca_id", cobrancaIds)
-    .not("cobranca_id", "is", null);
-  if (error) throw error;
-  return new Set(
-    (data ?? [])
-      .map((row) => row.cobranca_id as string | null)
-      .filter((id): id is string => !!id),
-  );
-}
-
 export async function fetchNFsPorPacienteAno(
   pacienteId: string,
   ano: number

@@ -12,20 +12,12 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
-import {
-  PacienteConsultaExperimentalSection,
-  consultaDraftFromPaciente,
-  emptyConsultaExperimentalDraft,
-  hasConsultaExperimentalDraft,
-  type ConsultaExperimentalDraft,
-} from "@/components/domain/PacienteConsultaExperimentalSection";
 import { queryKeys } from "@/lib/queries";
 import { formatPhone } from "@/lib/format";
 import {
   fetchPacientes,
   createPaciente,
   updatePaciente,
-  updateConsultaExperimental,
   deletePaciente,
   setPacienteAtivo,
   type Paciente,
@@ -136,9 +128,6 @@ function PacientesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Paciente | null>(null);
   const [deleting, setDeleting] = useState<Paciente | null>(null);
-  const [consultaDraft, setConsultaDraft] = useState<ConsultaExperimentalDraft>(
-    emptyConsultaExperimentalDraft,
-  );
 
   const { data: pacientes = [], isLoading } = useQuery({
     queryKey: queryKeys.pacientes.list({ search, tipo: filterTipo === "todos" ? undefined : filterTipo }),
@@ -225,24 +214,13 @@ function PacientesPage() {
       };
       if (editing) {
         await updatePaciente(editing.id, payload);
-        return editing.id;
+      } else {
+        await createPaciente(payload);
       }
-      const created = await createPaciente(payload);
-      if (hasConsultaExperimentalDraft(consultaDraft)) {
-        await updateConsultaExperimental(created.id, {
-          consultaExperimentalEm: consultaDraft.data || null,
-          consultaExperimentalFisioId: consultaDraft.fisioId || null,
-          consultaExperimentalObservacoes: consultaDraft.observacoes.trim() || null,
-        });
-      }
-      return created.id;
     },
-    onSuccess: (pacienteId) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.pacientes.all });
       qc.invalidateQueries({ queryKey: ["financeiro", "extrato"] });
-      if (pacienteId) {
-        qc.invalidateQueries({ queryKey: queryKeys.prontuario.evolucoes(pacienteId) });
-      }
       toast.success(editing ? "Paciente atualizado" : "Paciente criado");
       closeModal();
     },
@@ -267,7 +245,6 @@ function PacientesPage() {
 
   function openNew() {
     setEditing(null);
-    setConsultaDraft(emptyConsultaExperimentalDraft());
     form.reset({
       nome: "",
       cpf: "",
@@ -301,7 +278,6 @@ function PacientesPage() {
 
   function openEdit(p: Paciente) {
     setEditing(p);
-    setConsultaDraft(consultaDraftFromPaciente(p));
     form.reset({
       nome: p.nome,
       cpf: p.cpf ?? "",
@@ -336,7 +312,6 @@ function PacientesPage() {
   function closeModal() {
     setModalOpen(false);
     setEditing(null);
-    setConsultaDraft(emptyConsultaExperimentalDraft());
   }
 
   const total = pacientes.length;
@@ -470,7 +445,7 @@ function PacientesPage() {
       )}
 
       <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar paciente" : "Novo paciente"}</DialogTitle>
           </DialogHeader>
@@ -683,16 +658,6 @@ function PacientesPage() {
                   <CampoDiasSemana field={field} />
                 )} />
               </div>
-
-              <PacienteConsultaExperimentalSection
-                embedded
-                value={consultaDraft}
-                onChange={setConsultaDraft}
-                pacienteId={editing?.id}
-                onSaved={(patch) =>
-                  setEditing((prev) => (prev ? { ...prev, ...patch } : prev))
-                }
-              />
 
               <FormField control={form.control} name="motivoAcompanhamento" render={({ field }) => (
                 <FormItem>

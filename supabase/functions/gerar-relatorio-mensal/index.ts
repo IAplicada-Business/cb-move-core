@@ -1,13 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb, type PDFPage } from "https://esm.sh/pdf-lib@1.17.1";
-import {
-  buildRelatorioLinhas,
-  calcularRodapeFinanceiro,
-  countSessoesRealizadas,
-  formatFrequenciaRodape,
-} from "../_shared/relatorio-atendimento-linhas.ts";
-import { gerarPdfGradeV2 } from "../_shared/pdf-grade-v2.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -240,14 +233,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { paciente_id, mes, ano, modelo_pdf: modeloPdfBody } = await req.json();
+    const { paciente_id, mes, ano } = await req.json();
     if (!paciente_id || !mes || !ano) throw new Error("paciente_id, mes e ano obrigatórios");
-    const modeloPdf = modeloPdfBody === "legado" ? "legado" : "grade_v2";
-    const cargaHoraria = "1h25";
 
     const { data: paciente, error: pacErr } = await supabase
       .from("pacientes")
-      .select("*, convenios(nome, cnpj), fisioterapeutas!fisioterapeuta_id(nome)")
+      .select("*, convenios(nome, cnpj), fisioterapeutas(nome)")
       .eq("id", paciente_id)
       .single();
     if (pacErr || !paciente) throw new Error("Paciente não encontrado");
@@ -278,30 +269,10 @@ serve(async (req) => {
     const fimMes = new Date(ano, mes, 0).toISOString().split("T")[0];
     const { data: sessoes } = await supabase
       .from("sessoes")
-      .select("id, data, sigla, fisioterapeuta_id, fisioterapeutas(nome)")
+      .select("*, fisioterapeutas(nome)")
       .eq("paciente_id", paciente_id)
       .gte("data", inicioMes)
       .lte("data", fimMes);
-
-    const sessaoIds = (sessoes ?? []).map((s: { id: string }) => s.id);
-    let joins: Array<{
-      sessao_id: string;
-      fisioterapeuta_id: string;
-      fisioterapeutas?: { nome: string } | null;
-    }> = [];
-    if (sessaoIds.length > 0) {
-      const { data: joinRows } = await supabase
-        .from("sessao_fisioterapeutas")
-        .select("sessao_id, fisioterapeuta_id, fisioterapeutas(nome)")
-        .in("sessao_id", sessaoIds);
-      joins = joinRows ?? [];
-    }
-
-    const totalSessoes = countSessoesRealizadas(sessoes ?? []);
-    const valorSessao = Number(paciente.valor_sessao ?? 0);
-    const rodape = calcularRodapeFinanceiro(totalSessoes, valorSessao);
-    const linhas = buildRelatorioLinhas(sessoes ?? [], joins, cargaHoraria);
-    const frequenciaTexto = formatFrequenciaRodape(paciente.frequencia_atendimento);
 
     const { data: evolucoes } = await supabase
       .from("prontuario_evolucoes")
@@ -311,7 +282,9 @@ serve(async (req) => {
       .lte("data", fimMes)
       .order("data");
 
-    const totalSessoesLegado = totalSessoes;
+    const totalSessoes = (sessoes ?? []).filter((s: { sigla?: string }) =>
+      ["P", "RC"].includes(s.sigla ?? "")
+    ).length;
     const evolucaoResumo = (evolucoes ?? [])
       .map((e: { subjetivo?: string; objetivo?: string; plano?: string }) =>
         [e.subjetivo, e.objetivo, e.plano].filter(Boolean).join("\n")
@@ -323,7 +296,7 @@ serve(async (req) => {
       paciente_nome: paciente.nome,
       paciente_cpf: paciente.cpf ?? "",
       competencia: `${MES_NOME[mes]}/${ano}`,
-      total_sessoes: String(totalSessoesLegado),
+      total_sessoes: String(totalSessoes),
       evolucao_resumo: evolucaoResumo || "Sem evoluções registradas no período.",
       plano_terapeutico: planoTerapeutico,
       fisio_nome: paciente.fisioterapeutas?.nome ?? "",
@@ -331,7 +304,7 @@ serve(async (req) => {
       convenio_nome: paciente.convenios?.nome ?? "",
       convenio_cnpj: paciente.convenios?.cnpj ?? "",
       cid: "",
-      sessoes: String(totalSessoesLegado),
+      sessoes: String(totalSessoes),
     };
 
     const camposExtras: { label: string; valor: string }[] = [];
@@ -345,26 +318,14 @@ serve(async (req) => {
       camposExtras.push({ label: "Convênio/Instituição", valor: placeholders.convenio_nome });
     }
 
-    const pdfBytes =
-      modeloPdf === "grade_v2"
-        ? await gerarPdfGradeV2({
-            pacienteNome: paciente.nome,
-            competenciaLabel: `${MES_NOME[mes]}/${ano}`,
-            frequenciaTexto,
-            linhas,
-            numSessoes: rodape.numSessoes,
-            valorSessao: rodape.valorSessao,
-            valorTotal: rodape.valorTotal,
-            cargaHoraria,
-          })
-        : await gerarPdf({
-            titulo: MODELO_TITULO[modelo] ?? "Relatório de Atendimento",
-            tipoPaciente: paciente.tipo ?? "particular",
-            placeholders,
-            camposExtras,
-            evolucaoResumo: placeholders.evolucao_resumo,
-            planoTerapeutico,
-          });
+    const pdfBytes = await gerarPdf({
+      titulo: MODELO_TITULO[modelo] ?? "Relatório de Atendimento",
+      tipoPaciente: paciente.tipo ?? "particular",
+      placeholders,
+      camposExtras,
+      evolucaoResumo: placeholders.evolucao_resumo,
+      planoTerapeutico,
+    });
 
     const fileName = `relatorio-${paciente_id}-${ano}-${String(mes).padStart(2, "0")}-${Date.now()}.pdf`;
     const { error: uploadErr } = await supabase.storage
@@ -387,42 +348,18 @@ serve(async (req) => {
         status: "gerado",
         pdf_url: pdfUrl,
         template_versionado_id: template?.id ?? null,
-        modelo_pdf: modeloPdf,
-        num_sessoes: rodape.numSessoes,
-        valor_sessao: rodape.valorSessao,
-        valor_total: rodape.valorTotal,
-        frequencia_texto: frequenciaTexto,
-        carga_horaria: cargaHoraria,
       })
       .select()
       .single();
     if (relErr) throw relErr;
 
-    if (modeloPdf === "grade_v2" && linhas.length > 0) {
-      const { error: linhasErr } = await supabase.from("relatorio_atendimento_linhas").insert(
-        linhas.map((l) => ({
-          relatorio_id: relatorio.id,
-          data: l.data,
-          carga_horaria: l.cargaHoraria,
-          fisioterapeuta_id: l.fisioterapeutaId,
-          fisioterapeuta_nome: l.fisioterapeutaNome,
-          ordem_no_dia: l.ordemNoDia,
-        })),
-      );
-      if (linhasErr) throw new Error(`Falha ao salvar linhas: ${linhasErr.message}`);
-    }
-
     return new Response(
       JSON.stringify({
         relatorio_id: relatorio.id,
         modelo,
-        modelo_pdf: modeloPdf,
         paciente_nome: paciente.nome,
         competencia: `${MES_NOME[mes]}/${ano}`,
-        total_sessoes: totalSessoesLegado,
-        num_sessoes: rodape.numSessoes,
-        valor_sessao: rodape.valorSessao,
-        valor_total: rodape.valorTotal,
+        total_sessoes: totalSessoes,
         pdf_url: pdfUrl,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

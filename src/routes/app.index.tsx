@@ -6,7 +6,12 @@ import { KpiCard } from "@/components/domain/KpiCard";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
-import { dashboardHomeOptions } from "@/lib/queries/options";
+import {
+  fetchDivergenciasProntuario,
+  fetchOperacionalKpis,
+  fetchProximasAgendas,
+} from "@/lib/queries/dashboard";
+import { queryKeys } from "@/lib/queries";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,14 +20,6 @@ import {
 
 export const Route = createFileRoute("/app/")({
   head: () => ({ meta: [{ title: "Dashboard · CB MOVE" }] }),
-  loader: ({ context }) => {
-    const now = new Date();
-    const ano = now.getFullYear();
-    const mes = now.getMonth() + 1;
-    return context.queryClient.ensureQueryData(dashboardHomeOptions(ano, mes));
-  },
-  pendingComponent: () => <LoadingState />,
-  pendingMs: 200,
   component: Dashboard,
 });
 
@@ -31,11 +28,20 @@ function Dashboard() {
   const ano = now.getFullYear();
   const mes = now.getMonth() + 1;
 
-  const { data, isLoading } = useQuery(dashboardHomeOptions(ano, mes));
+  const kpis = useQuery({
+    queryKey: queryKeys.dashboard.operacional(ano, mes),
+    queryFn: fetchOperacionalKpis,
+  });
 
-  const kpis = data?.kpis;
-  const proximas = data?.proximasAgendas ?? [];
-  const divergencias = data?.divergencias ?? [];
+  const proximas = useQuery({
+    queryKey: queryKeys.dashboard.proximasAgendas(),
+    queryFn: () => fetchProximasAgendas(15),
+  });
+
+  const divergencias = useQuery({
+    queryKey: queryKeys.dashboard.divergencias(ano, mes),
+    queryFn: () => fetchDivergenciasProntuario(20),
+  });
 
   return (
     <div className="space-y-6">
@@ -57,39 +63,37 @@ function Dashboard() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Pacientes ativos"
-          value={kpis?.totalPacientesAtivos ?? 0}
+          value={kpis.data?.totalPacientesAtivos ?? 0}
           accent="cyan"
           icon={<Users className="h-4 w-4 text-cb-cyan-600" />}
         />
         <KpiCard
           label="Fisioterapeutas ativos"
-          value={kpis?.totalFisiosAtivos ?? 0}
+          value={kpis.data?.totalFisiosAtivos ?? 0}
           accent="purple"
           icon={<Stethoscope className="h-4 w-4 text-cb-purple" />}
         />
         <KpiCard
           label="Agendas próximas (7 dias)"
-          value={kpis?.agendasProximas ?? 0}
+          value={kpis.data?.agendasProximas ?? 0}
           accent="orange"
           icon={<CalendarClock className="h-4 w-4 text-cb-orange" />}
           hint="Agendado ou confirmado"
         />
         <KpiCard
           label="Divergência prontuário × agenda"
-          value={kpis?.divergenciaProntuario ?? 0}
+          value={kpis.data?.divergenciaProntuario ?? 0}
           accent="magenta"
           icon={<AlertOctagon className="h-4 w-4 text-cb-magenta" />}
           hint="Realizadas no mês sem evolução"
         />
       </div>
 
-      {(kpis?.divergenciaProntuario ?? 0) > 0 && (
+      {(kpis.data?.divergenciaProntuario ?? 0) > 0 && (
         <div className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
-          <strong>{kpis?.divergenciaProntuario}</strong> sessão(ões) marcada(s) como realizada(s) neste mês
+          <strong>{kpis.data?.divergenciaProntuario}</strong> sessão(ões) marcada(s) como realizada(s) neste mês
           ainda não têm evolução registrada no prontuário. Confira a lista abaixo ou{" "}
-          <Link to="/app/prontuario" search={{ tab: "visao-geral" }} className="font-medium underline">
-            abrir prontuários
-          </Link>.
+          <Link to="/app/prontuario" className="font-medium underline">abrir prontuários</Link>.
         </div>
       )}
 
@@ -100,9 +104,9 @@ function Dashboard() {
             Agendamentos com status agendado ou confirmado
           </p>
         </header>
-        {isLoading ? (
+        {proximas.isLoading ? (
           <div className="p-5"><LoadingState /></div>
-        ) : proximas.length === 0 ? (
+        ) : (proximas.data ?? []).length === 0 ? (
           <div className="p-5">
             <EmptyState
               title="Nenhuma agenda nos próximos 7 dias"
@@ -120,7 +124,7 @@ function Dashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {proximas.map((a) => (
+              {(proximas.data ?? []).map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="whitespace-nowrap text-sm">
                     {formatDateTime(a.inicio)}
@@ -149,9 +153,9 @@ function Dashboard() {
             Sessões realizadas neste mês sem evolução registrada no mesmo dia
           </p>
         </header>
-        {isLoading ? (
+        {divergencias.isLoading ? (
           <div className="p-5"><LoadingState /></div>
-        ) : divergencias.length === 0 ? (
+        ) : (divergencias.data ?? []).length === 0 ? (
           <div className="p-5">
             <EmptyState
               title="Nenhuma divergência no mês"
@@ -168,7 +172,7 @@ function Dashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {divergencias.map((d) => (
+              {(divergencias.data ?? []).map((d) => (
                 <TableRow key={`${d.pacienteId}_${d.data}`}>
                   <TableCell className="whitespace-nowrap">{formatDate(d.data)}</TableCell>
                   <TableCell className="font-medium">{d.pacienteNome}</TableCell>

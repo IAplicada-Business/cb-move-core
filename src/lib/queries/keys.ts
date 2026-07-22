@@ -93,7 +93,7 @@ export const queryKeys = {
     list: (search?: string) => ["prontuarios_consolidados", search ?? ""] as const,
   },
   dashboard: {
-    home: (year: number, month: number) => ["dashboard", "home", year, month] as const,
+    kpis: (year: number, month: number) => ["dashboard", "kpis", year, month] as const,
     operacional: (year: number, month: number) => ["dashboard", "operacional", year, month] as const,
     proximasAgendas: () => ["dashboard", "proximasAgendas"] as const,
     divergencias: (year: number, month: number) => ["dashboard", "divergencias", year, month] as const,

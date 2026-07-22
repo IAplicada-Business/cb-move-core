@@ -3,7 +3,7 @@
 > Registro de sessão para retomada. Atualizado em 16/07/2026.
 
 ## Contexto
-Projeto **CBmove** — app em produção em `cb-move-core.lovable.app`, Supabase `grlkbtnwvxorlfglyzid`, branch `main` no GitHub `IAplicada-Business/cb-move-harmony`.
+Projeto **CBmove** — app em produção em `cb-move-core.lovable.app`, Supabase `grlkbtnwvxorlfglyzid`, branch `main` no GitHub `mmarques30/cb-move-harmony`.
 
 ## Concluído nesta sessão
 

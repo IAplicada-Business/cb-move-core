@@ -26,7 +26,6 @@ import openpyxl
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from load_app_env import load_app_env
-from lib.retroativos_valor import calc_valor_mes_atual, calc_valor_retroativo
 
 MES_NOME = {
     1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
@@ -273,7 +272,7 @@ class Supa:
         rows = []
         offset = 0
         while True:
-            chunk, _ = self._req("GET", f"pacientes?select=id,nome,tipo,valor_mensal&order=nome&offset={offset}&limit=1000")
+            chunk, _ = self._req("GET", f"pacientes?select=id,nome,tipo&order=nome&offset={offset}&limit=1000")
             if not chunk:
                 break
             rows.extend(chunk)
@@ -367,10 +366,12 @@ def build_rows(xlsx: Path, pacientes_db: list[dict], meses: list[int], ano: int 
             tipo = infer_tipo(sit)
             modelo = infer_modelo(sit)
             retro = parse_datas_retroativas(sit, mes, ano)
+            # só gera retroativa se o mês destino também está no lote (evita lixo fora do range)
+            # Na verdade R5 deve criar em qualquer mês passado — manter todas
             tem_retro = len(retro) > 0
-            valor_mensal_pac = float(match["valor_mensal"]) if match and match.get("valor_mensal") else None
-            valor_retro = calc_valor_retroativo(valor_mensal_pac, valor)
-            valor_mes = calc_valor_mes_atual(valor)
+            total_comp = len(retro) + 1
+            valor_por = round(valor / total_comp, 2)
+            valor_ult = round(valor - valor_por * (total_comp - 1), 2)
 
             try:
                 qtd = int(qtd_raw) if qtd_raw not in (None, "") else None
@@ -383,6 +384,7 @@ def build_rows(xlsx: Path, pacientes_db: list[dict], meses: list[int], ano: int 
                 alertas.append("novo paciente")
 
             for i, (rm, ra) in enumerate(retro):
+                is_last = i == len(retro) - 1 and len(retro) == total_comp - 1
                 cobrancas.append(
                     CobrancaRow(
                         paciente_nome=nome,
@@ -395,7 +397,7 @@ def build_rows(xlsx: Path, pacientes_db: list[dict], meses: list[int], ano: int 
                         competencia_mes=rm,
                         competencia_ano=ra,
                         vencimento=infer_vencimento(sit, rm, ra),
-                        valor=valor_retro,
+                        valor=valor_ult if is_last else valor_por,
                         status="regularizar_retroativa",
                         forma_pgto=infer_forma_pgto(sit),
                         qtd_sessoes=None,
@@ -418,7 +420,7 @@ def build_rows(xlsx: Path, pacientes_db: list[dict], meses: list[int], ano: int 
                     competencia_mes=mes,
                     competencia_ano=ano,
                     vencimento=infer_vencimento(sit, mes, ano),
-                    valor=valor_mes,
+                    valor=valor_ult if tem_retro else valor,
                     status=infer_status(sit, tem_retro),
                     forma_pgto=infer_forma_pgto(sit),
                     qtd_sessoes=qtd,
