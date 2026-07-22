@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { syncConsultaExperimentalProntuario } from "@/lib/queries/prontuario";
 import type { FormaPagamento, ModeloRelatorio, ModoEmissaoNf, PacienteTipo, RegimeCobranca } from "../types";
 
 export type Paciente = {
@@ -26,6 +27,12 @@ export type Paciente = {
   motivoAcompanhamento: string | null;
   modoEmissaoNf: ModoEmissaoNf;
   diaEmissaoNf: number | null;
+  consultaExperimentalEm: string | null;
+  consultaExperimentalFisioId: string | null;
+  consultaExperimentalObservacoes: string | null;
+  periodizacaoPdfUrl: string | null;
+  planoTotalSessoes: number | null;
+  consultaExperimentalFisioNome: string | null;
   createdAt: string;
   /** Usado na emissão de NFS-e para tomador particular (endereço do próprio paciente). */
   endereco: string | null;
@@ -62,8 +69,14 @@ type Row = {
   motivo_acompanhamento: string | null;
   modo_emissao_nf: ModoEmissaoNf;
   dia_emissao_nf: number | null;
+  consulta_experimental_em: string | null;
+  consulta_experimental_fisio_id: string | null;
+  consulta_experimental_observacoes: string | null;
+  periodizacao_pdf_url: string | null;
+  plano_total_sessoes: number | null;
   created_at: string;
   convenios?: { nome: string } | null;
+  consulta_experimental_fisio?: { nome: string } | null;
   endereco: string | null;
   numero_endereco: string | null;
   complemento: string | null;
@@ -99,6 +112,12 @@ const map = (r: Row): Paciente => ({
   motivoAcompanhamento: r.motivo_acompanhamento,
   modoEmissaoNf: r.modo_emissao_nf ?? "automatico_pagamento",
   diaEmissaoNf: r.dia_emissao_nf,
+  consultaExperimentalEm: r.consulta_experimental_em,
+  consultaExperimentalFisioId: r.consulta_experimental_fisio_id,
+  consultaExperimentalObservacoes: r.consulta_experimental_observacoes,
+  periodizacaoPdfUrl: r.periodizacao_pdf_url,
+  planoTotalSessoes: r.plano_total_sessoes,
+  consultaExperimentalFisioNome: r.consulta_experimental_fisio?.nome ?? null,
   createdAt: r.created_at,
   endereco: r.endereco,
   numeroEndereco: r.numero_endereco,
@@ -143,6 +162,77 @@ export async function fetchPaciente(id: string): Promise<Paciente | null> {
     .single();
   if (error) throw error;
   return data ? map(data as unknown as Row) : null;
+}
+
+export async function updateConsultaExperimental(
+  pacienteId: string,
+  input: {
+    consultaExperimentalEm: string | null;
+    consultaExperimentalFisioId: string | null;
+    consultaExperimentalObservacoes: string | null;
+  },
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from("pacientes")
+    .update({
+      consulta_experimental_em: input.consultaExperimentalEm,
+      consulta_experimental_fisio_id: input.consultaExperimentalFisioId,
+      consulta_experimental_observacoes: input.consultaExperimentalObservacoes,
+    })
+    .eq("id", pacienteId);
+  if (error) throw error;
+
+  await syncConsultaExperimentalProntuario(pacienteId, input);
+}
+
+export async function updatePeriodizacaoPdfUrl(
+  pacienteId: string,
+  periodizacaoPdfUrl: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc("set_periodizacao_pdf_url", {
+    p_paciente_id: pacienteId,
+    p_url: periodizacaoPdfUrl,
+  });
+  if (error) throw error;
+}
+
+const PERIODIZACAO_PDF_BUCKET = "periodizacao-pdf";
+
+function periodizacaoPdfStoragePath(pacienteId: string): string {
+  return `${pacienteId}/periodizacao.pdf`;
+}
+
+export async function uploadPeriodizacaoPdf(pacienteId: string, file: File): Promise<string> {
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Selecione um arquivo PDF.");
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error("O PDF deve ter no máximo 10 MB.");
+  }
+
+  const path = periodizacaoPdfStoragePath(pacienteId);
+  const { error: uploadError } = await supabase.storage.from(PERIODIZACAO_PDF_BUCKET).upload(path, file, {
+    upsert: true,
+    contentType: "application/pdf",
+  });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from(PERIODIZACAO_PDF_BUCKET).getPublicUrl(path);
+  try {
+    await updatePeriodizacaoPdfUrl(pacienteId, data.publicUrl);
+  } catch (err) {
+    await supabase.storage.from(PERIODIZACAO_PDF_BUCKET).remove([path]);
+    throw err;
+  }
+  return data.publicUrl;
+}
+
+export async function removePeriodizacaoPdf(pacienteId: string): Promise<void> {
+  const path = periodizacaoPdfStoragePath(pacienteId);
+  const { error: removeError } = await supabase.storage.from(PERIODIZACAO_PDF_BUCKET).remove([path]);
+  if (removeError && !/not found/i.test(removeError.message)) throw removeError;
+  await updatePeriodizacaoPdfUrl(pacienteId, null);
 }
 
 export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | "convenioNome">): Promise<Paciente> {

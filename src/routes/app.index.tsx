@@ -87,7 +87,9 @@ function Dashboard() {
         <div className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
           <strong>{kpis?.divergenciaProntuario}</strong> sessão(ões) marcada(s) como realizada(s) neste mês
           ainda não têm evolução registrada no prontuário. Confira a lista abaixo ou{" "}
-          <Link to="/app/prontuario" className="font-medium underline">abrir prontuários</Link>.
+          <Link to="/app/prontuario" search={{ tab: "visao-geral" }} className="font-medium underline">
+            abrir prontuários
+          </Link>.
         </div>
       )}
 
