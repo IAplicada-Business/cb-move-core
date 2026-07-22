@@ -7,11 +7,14 @@ import { z } from "zod";
 
 import type { TranscricaoResult } from "@/components/domain/EvolucaoAudioRecorder";
 import { EmptyState } from "@/components/domain/EmptyState";
+import { LoadingState } from "@/components/domain/LoadingState";
 import { EvolucaoEditor } from "@/components/domain/EvolucaoEditor";
 import { ProntuarioAvaliacoesTab } from "@/components/domain/prontuario/ProntuarioAvaliacoesTab";
 import { ProntuarioDocumentosTab } from "@/components/domain/prontuario/ProntuarioDocumentosTab";
 import { ProntuarioEvolucaoDiariaTab } from "@/components/domain/prontuario/ProntuarioEvolucaoDiariaTab";
 import { ProntuarioHistoricoStatusTab } from "@/components/domain/prontuario/ProntuarioHistoricoStatusTab";
+import { ProntuarioPatientHero } from "@/components/domain/prontuario/ProntuarioPatientHero";
+import { ProntuarioVisaoGeralTab } from "@/components/domain/prontuario/ProntuarioVisaoGeralTab";
 import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { ProntuarioToolbar } from "@/components/domain/prontuario/ProntuarioToolbar";
 import { countSessoesRealizadas, filterSessoesPorCompetencia } from "@/components/domain/prontuario/utils";
@@ -54,15 +57,32 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+const prontuarioTabSchema = z.enum([
+  "visao-geral",
+  "evolucao-diaria",
+  "avaliacoes",
+  "documentos",
+  "periodizacao",
+  "historico",
+]);
+
 const prontuarioSearchSchema = z.object({
   pacienteId: z.string().uuid().optional(),
+  tab: prontuarioTabSchema.optional(),
 });
+
+type ProntuarioTab = z.infer<typeof prontuarioTabSchema>;
 
 const TAB_TRIGGER_CLS = cn(
   "rounded-none border-b-2 border-transparent bg-transparent px-1 pb-3 pt-2 shadow-none",
   "data-[state=active]:border-cb-cyan-600 data-[state=active]:text-cb-cyan-800 data-[state=active]:shadow-none",
   "text-muted-foreground font-medium",
 );
+
+function resolveTab(tab: ProntuarioTab | undefined, pacienteId: string | undefined): ProntuarioTab {
+  if (tab) return tab;
+  return pacienteId ? "evolucao-diaria" : "visao-geral";
+}
 
 export const Route = createFileRoute("/app/prontuario")({
   head: () => ({ meta: [{ title: "Prontuário · CB MOVE" }] }),
@@ -73,12 +93,13 @@ export const Route = createFileRoute("/app/prontuario")({
 function ProntuarioPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { pacienteId: pacienteIdFromUrl } = Route.useSearch();
+  const { pacienteId: pacienteIdFromUrl, tab: tabFromUrl } = Route.useSearch();
   const { roles, user } = useAuth();
   const canEdit = can.editProntuario(roles);
 
   const now = new Date();
   const [selectedId, setSelectedId] = useState<string | null>(pacienteIdFromUrl ?? null);
+  const activeTab = resolveTab(tabFromUrl, pacienteIdFromUrl);
 
   const [evolucaoDialogOpen, setEvolucaoDialogOpen] = useState(false);
   const [editingEvolucao, setEditingEvolucao] = useState<Evolucao | null>(null);
@@ -94,57 +115,60 @@ function ProntuarioPage() {
     queryFn: () => fetchPacientes({ ativo: true }),
   });
 
-  const { data: paciente } = useQuery({
+  const { data: paciente, isLoading: loadPaciente, isError: pacienteError, error: pacienteErr } = useQuery({
     queryKey: queryKeys.prontuario.paciente(selectedId ?? ""),
     queryFn: () => fetchPacienteProntuario(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab !== "visao-geral",
   });
 
   const { data: sessoes = [], isLoading: loadSessoes } = useQuery({
     queryKey: queryKeys.prontuario.sessoes(selectedId ?? ""),
     queryFn: () => fetchSessoesProntuario(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab !== "visao-geral",
   });
 
   const { data: evolucoes = [], isLoading: loadEvolucoes } = useQuery({
     queryKey: queryKeys.prontuario.evolucoes(selectedId ?? ""),
     queryFn: () => fetchEvolucoes(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "evolucao-diaria",
   });
 
   const { data: relatorios = [], isLoading: loadRelatorios } = useQuery({
     queryKey: queryKeys.prontuario.relatorios(selectedId ?? ""),
     queryFn: () => fetchRelatoriosPaciente(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "documentos",
   });
 
   const { data: historico = [], isLoading: loadHistorico } = useQuery({
     queryKey: queryKeys.prontuario.historico(selectedId ?? ""),
     queryFn: () => fetchHistoricoStatus(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "historico",
   });
 
   const { data: fisios = [] } = useQuery({
     queryKey: queryKeys.fisioterapeutas.ativos,
     queryFn: fetchFisioterapeutasAtivos,
-    enabled: !!selectedId && canEdit,
+    enabled: !!selectedId && canEdit && (activeTab === "evolucao-diaria" || evolucaoDialogOpen),
   });
 
   const { data: instrumentosAtivos = [] } = useQuery({
     queryKey: [...queryKeys.instrumentos.all, "ativos"],
     queryFn: fetchInstrumentosAtivos,
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "avaliacoes",
   });
 
   const { data: instrumentosAplicados = [], isLoading: loadAvaliacoes } = useQuery({
     queryKey: queryKeys.prontuario.avaliacoes(selectedId ?? ""),
     queryFn: () => fetchInstrumentosAplicados(selectedId!),
-    enabled: !!selectedId,
+    enabled: !!selectedId && activeTab === "avaliacoes",
   });
 
   useEffect(() => {
     if (pacienteIdFromUrl && pacienteIdFromUrl !== selectedId) {
       setSelectedId(pacienteIdFromUrl);
+    }
+    if (!pacienteIdFromUrl && selectedId) {
+      setSelectedId(null);
     }
   }, [pacienteIdFromUrl, selectedId]);
 
@@ -174,9 +198,36 @@ function ProntuarioPage() {
     setDraftEvolucao(null);
   }
 
-  function selectPacienteId(id: string) {
+  function navigateProntuario(next: { pacienteId?: string; tab: ProntuarioTab }) {
+    navigate({
+      to: "/app/prontuario",
+      search: {
+        pacienteId: next.pacienteId,
+        tab: next.tab,
+      },
+    });
+  }
+
+  function selectPacienteId(id: string, tab: ProntuarioTab = "evolucao-diaria") {
     setSelectedId(id);
-    navigate({ to: "/app/prontuario", search: { pacienteId: id } });
+    navigateProntuario({ pacienteId: id, tab });
+  }
+
+  function handleTabChange(tab: string) {
+    const nextTab = tab as ProntuarioTab;
+    if (nextTab === "visao-geral") {
+      setSelectedId(null);
+      navigateProntuario({ tab: "visao-geral" });
+      return;
+    }
+    if (!selectedId) {
+      navigateProntuario({ tab: nextTab });
+      return;
+    }
+    navigateProntuario({
+      pacienteId: selectedId,
+      tab: nextTab,
+    });
   }
 
   function openNovaEvolucao(draft?: Partial<Evolucao>) {
@@ -269,16 +320,47 @@ function ProntuarioPage() {
       pacientes={pacientesOptions}
       pacientesLoading={loadPacientesLista}
       selectedPacienteId={selectedId}
-      onSelectPaciente={selectPacienteId}
+      onSelectPaciente={(id) => selectPacienteId(id)}
       competenciaMes={competenciaMes}
       competenciaAno={competenciaAno}
       onCompetenciaChange={handleCompetenciaChange}
     />
   );
 
-  if (!selectedId || !paciente) {
+  const isVisaoGeralTab = activeTab === "visao-geral";
+  const isPatientContext = !isVisaoGeralTab;
+  const showPatientHero =
+    isPatientContext && !!selectedId && !!paciente && !loadPaciente && !pacienteError;
+
+  function renderPatientRequired() {
     return (
-      <div className="space-y-6">
+      <EmptyState
+        icon={<FileText className="h-8 w-8" />}
+        title="Nenhum paciente selecionado"
+        description="Selecione um paciente na barra acima ou abra a partir da Visão Geral."
+      />
+    );
+  }
+
+  function renderPatientLoading() {
+    return <LoadingState label="Carregando prontuário do paciente…" />;
+  }
+
+  function renderPatientError() {
+    return (
+      <EmptyState
+        icon={<FileText className="h-8 w-8" />}
+        title="Não foi possível abrir o prontuário"
+        description={
+          pacienteErr instanceof Error ? pacienteErr.message : "Paciente não encontrado ou sem permissão de acesso."
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {isVisaoGeralTab && (
         <header className="space-y-2">
           <Breadcrumb>
             <BreadcrumbList className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -294,33 +376,28 @@ function ProntuarioPage() {
             </BreadcrumbList>
           </Breadcrumb>
           <h1 className="text-2xl font-bold text-foreground">Prontuário</h1>
-          <p className="text-sm text-muted-foreground">Selecione um paciente para abrir o prontuário clínico.</p>
+          <p className="text-sm text-muted-foreground">
+            Visão consolidada de todos os prontuários — KPIs e acesso rápido ao prontuário individual.
+          </p>
         </header>
+      )}
 
-        {toolbar}
-
-        <EmptyState
-          icon={<FileText className="h-8 w-8" />}
-          title="Nenhum paciente selecionado"
-          description="Selecione um paciente na lista ou abra a partir da ficha em Pacientes."
+      {showPatientHero && (
+        <ProntuarioPatientHero
+          paciente={paciente}
+          sessoesRealizadas={sessoesRealizadas}
+          canEdit={canEdit}
+          onGravarEvolucao={() => openNovaEvolucao()}
         />
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="space-y-6">
-      <ProntuarioPatientHero
-        paciente={paciente}
-        sessoesRealizadas={sessoesRealizadas}
-        canEdit={canEdit}
-        onGravarEvolucao={() => openNovaEvolucao()}
-      />
+      {isPatientContext && toolbar}
 
-      {toolbar}
-
-      <Tabs defaultValue="evolucao-diaria" className="space-y-5">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
+          <TabsTrigger value="visao-geral" className={TAB_TRIGGER_CLS}>
+            Visão Geral Prontuários
+          </TabsTrigger>
           <TabsTrigger value="evolucao-diaria" className={TAB_TRIGGER_CLS}>
             Evolução diária
           </TabsTrigger>
@@ -338,62 +415,111 @@ function ProntuarioPage() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="visao-geral" className="mt-0">
+          <ProntuarioVisaoGeralTab onOpenPaciente={(id) => selectPacienteId(id)} />
+        </TabsContent>
+
         <TabsContent value="evolucao-diaria" className="mt-0">
-          <ProntuarioEvolucaoDiariaTab
-            evolucoes={evolucoes}
-            loading={loadEvolucoes}
-            canEdit={canEdit}
-            pacienteId={selectedId}
-            mesFiltro={competenciaMes}
-            anoFiltro={competenciaAno}
-            onEdit={(e) => {
-              setEditingEvolucao(e);
-              setDraftEvolucao(null);
-              setEvolucaoDialogOpen(true);
-            }}
-            onTranscricao={handleTranscricao}
-          />
+          {!selectedId ? (
+            renderPatientRequired()
+          ) : loadPaciente ? (
+            renderPatientLoading()
+          ) : pacienteError || !paciente ? (
+            renderPatientError()
+          ) : (
+            <ProntuarioEvolucaoDiariaTab
+              evolucoes={evolucoes}
+              loading={loadEvolucoes}
+              canEdit={canEdit}
+              pacienteId={selectedId}
+              mesFiltro={competenciaMes}
+              anoFiltro={competenciaAno}
+              onEdit={(e) => {
+                setEditingEvolucao(e);
+                setDraftEvolucao(null);
+                setEvolucaoDialogOpen(true);
+              }}
+              onTranscricao={handleTranscricao}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="avaliacoes" className="mt-0">
-          <ProntuarioAvaliacoesTab
-            aplicados={instrumentosAplicados}
-            instrumentos={instrumentosAtivos}
-            pacienteId={selectedId}
-            loading={loadAvaliacoes}
-            canEdit={canEdit}
-            aplicadoPor={user?.id}
-            onSaved={() =>
-              qc.invalidateQueries({ queryKey: queryKeys.prontuario.avaliacoes(selectedId) })
-            }
-          />
+          {!selectedId ? (
+            renderPatientRequired()
+          ) : loadPaciente ? (
+            renderPatientLoading()
+          ) : pacienteError || !paciente ? (
+            renderPatientError()
+          ) : (
+            <ProntuarioAvaliacoesTab
+              aplicados={instrumentosAplicados}
+              instrumentos={instrumentosAtivos}
+              pacienteId={selectedId}
+              loading={loadAvaliacoes}
+              canEdit={canEdit}
+              aplicadoPor={user?.id}
+              onSaved={() =>
+                qc.invalidateQueries({ queryKey: queryKeys.prontuario.avaliacoes(selectedId) })
+              }
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="documentos" className="mt-0">
-          <ProntuarioDocumentosTab
-            relatorios={relatorios}
-            loading={loadRelatorios}
-            canEdit={canEdit}
-            competenciaMes={competenciaMes}
-            competenciaAno={competenciaAno}
-            gerando={gerandoRelatorio}
-            onGerar={handleGerarRelatorio}
-            onFinalizar={handleFinalizarRelatorio}
-            finalizandoId={finalizandoRelatorioId}
-          />
+          {!selectedId ? (
+            renderPatientRequired()
+          ) : loadPaciente ? (
+            renderPatientLoading()
+          ) : pacienteError || !paciente ? (
+            renderPatientError()
+          ) : (
+            <ProntuarioDocumentosTab
+              pacienteId={selectedId}
+              relatorios={relatorios}
+              loading={loadRelatorios}
+              canEdit={canEdit}
+              competenciaMes={competenciaMes}
+              competenciaAno={competenciaAno}
+              gerando={gerandoRelatorio}
+              onGerar={handleGerarRelatorio}
+              onFinalizar={handleFinalizarRelatorio}
+              finalizandoId={finalizandoRelatorioId}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="periodizacao" className="mt-0">
-          <PacientePeriodizacaoTab pacienteId={selectedId} readOnly={!canEdit} />
+          {!selectedId ? (
+            renderPatientRequired()
+          ) : loadPaciente ? (
+            renderPatientLoading()
+          ) : pacienteError || !paciente ? (
+            renderPatientError()
+          ) : (
+            <PacientePeriodizacaoTab
+              pacienteId={selectedId}
+              paciente={paciente ?? undefined}
+              readOnly={!canEdit}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
-          <ProntuarioHistoricoStatusTab
-            historico={historico}
-            sessoes={sessoesFiltradas}
-            loadingHistorico={loadHistorico}
-            loadingSessoes={loadSessoes}
-          />
+          {!selectedId ? (
+            renderPatientRequired()
+          ) : loadPaciente ? (
+            renderPatientLoading()
+          ) : pacienteError || !paciente ? (
+            renderPatientError()
+          ) : (
+            <ProntuarioHistoricoStatusTab
+              historico={historico}
+              sessoes={sessoesFiltradas}
+              loadingHistorico={loadHistorico}
+              loadingSessoes={loadSessoes}
+            />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -407,7 +533,7 @@ function ProntuarioPage() {
               Registre a evolução SOAP do dia. Use o microfone para transcrever e estruturar com IA, ou preencha manualmente.
             </DialogDescription>
           </DialogHeader>
-          {selectedId && canEdit && (
+          {selectedId && paciente && canEdit && (
             <EvolucaoEditor
               key={editingEvolucao?.id ?? draftEvolucao?.transcricao_raw ?? "nova"}
               evolucao={editingEvolucao ?? draftEvolucao ?? undefined}

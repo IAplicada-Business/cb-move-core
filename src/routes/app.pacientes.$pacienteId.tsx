@@ -1,14 +1,13 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, User, ClipboardCheck, FileText, Receipt, ListOrdered } from "lucide-react";
+import { ArrowLeft, User, ClipboardCheck, FileText, Receipt } from "lucide-react";
 
 import { LoadingState } from "@/components/domain/LoadingState";
 import { HistoricoComparecimentoTable } from "@/components/domain/HistoricoComparecimentoTable";
 import { MonthPicker, monthPickerLabel } from "@/components/domain/MonthPicker";
 import { PacienteComparecimentoCard } from "@/components/domain/PacienteComparecimentoCard";
 import { PacienteFinanceiroTab } from "@/components/domain/PacienteFinanceiroTab";
-import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { fetchPaciente } from "@/lib/queries/pacientes";
@@ -32,6 +31,7 @@ function PacienteDetalhe() {
   const now = React.useMemo(() => new Date(), []);
   const [mesSelecionado, setMesSelecionado] = React.useState(now.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = React.useState(now.getFullYear());
+  const [activeTab, setActiveTab] = React.useState("dados");
 
   function selecionarMes(mes: number, ano: number) {
     setMesSelecionado(mes);
@@ -47,13 +47,13 @@ function PacienteDetalhe() {
   const { data: comparecimentoAtual, isLoading: loadComparecimento } = useQuery({
     queryKey: queryKeys.sessoes.comparecimentoMes(pacienteId, mesSelecionado, anoSelecionado),
     queryFn: () => fetchComparecimentoMesPaciente(pacienteId, mesSelecionado, anoSelecionado),
-    enabled: !!pacienteId,
+    enabled: !!pacienteId && activeTab === "comparecimento",
   });
 
   const { data: historico = [], isLoading: loadHistorico } = useQuery({
     queryKey: queryKeys.sessoes.comparecimentoHistorico(pacienteId, 12),
     queryFn: () => fetchHistoricoComparecimentoPaciente(pacienteId, 12),
-    enabled: !!pacienteId,
+    enabled: !!pacienteId && activeTab === "comparecimento",
   });
 
   if (loadPac) return <LoadingState />;
@@ -84,7 +84,7 @@ function PacienteDetalhe() {
         </Button>
       </div>
 
-      <Tabs defaultValue="dados">
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dados">
         <TabsList>
           <TabsTrigger value="dados">
             <User className="mr-1.5 h-3.5 w-3.5" />
@@ -93,10 +93,6 @@ function PacienteDetalhe() {
           <TabsTrigger value="comparecimento">
             <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
             Comparecimento
-          </TabsTrigger>
-          <TabsTrigger value="periodizacao">
-            <ListOrdered className="mr-1.5 h-3.5 w-3.5" />
-            Periodização
           </TabsTrigger>
           <TabsTrigger value="financeiro">
             <Receipt className="mr-1.5 h-3.5 w-3.5" />
@@ -190,10 +186,6 @@ function PacienteDetalhe() {
               />
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="periodizacao" className="mt-6">
-          <PacientePeriodizacaoTab pacienteId={pacienteId} />
         </TabsContent>
 
         <TabsContent value="financeiro" className="mt-6">

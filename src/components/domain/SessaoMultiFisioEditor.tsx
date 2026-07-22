@@ -62,7 +62,7 @@ export function SessaoMultiFisioEditor({ pacienteId, dataIso, fisioPrincipalId }
   }, [links, fisioPrincipalId]);
 
   const saveMutation = useMutation({
-    mutationFn: () => setSessaoFisioterapeutas(sessaoId!, selected),
+    mutationFn: () => setSessaoFisioterapeutas(sessaoId!, selected, fisioPrincipalId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sessaoFisioterapeutas.bySessao(sessaoId!) });
       toast.success("Fisioterapeutas da sessão atualizados");

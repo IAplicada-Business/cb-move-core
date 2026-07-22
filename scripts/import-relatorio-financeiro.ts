@@ -10,13 +10,14 @@
  *   R2: Valor vazio → data/_revisar_valores_vazios.csv (NÃO inserir R$0)
  *   R3: SHAREPOINT = modelo_relatorio_preferido='sharepoint', tipo='convenio'
  *   R4: Múltiplas linhas por paciente = cobranças separadas (servico diferencia)
- *   R5: Competências retroativas em SITUAÇÃO → cobranças extras com valor dividido
+ *   R5: Competências retroativas → valor mensal cheio por mês (sem dividir previsto)
  */
 
 import XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 import * as path from 'path';
 import * as fs from 'fs';
+import { calcValorMesAtual, calcValorRetroativo, parseValorBr } from '../src/lib/domain/retroativos-valor';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
@@ -39,10 +40,7 @@ function normNome(n: string) {
 }
 
 function parseValor(v: unknown): number | null {
-  if (typeof v === 'number' && v > 0) return v;
-  const s = String(v ?? '').replace(/[R$\s]/g, '').replace(',', '.');
-  const f = parseFloat(s);
-  return isNaN(f) || f <= 0 ? null : f;
+  return parseValorBr(v);
 }
 
 // REGRA 5: extrai competências retroativas mencionadas em SITUAÇÃO
@@ -224,8 +222,8 @@ async function main() {
   const wb = XLSX.readFile(filePath);
   const abas = abaFiltro ? [abaFiltro] : wb.SheetNames.filter(n => ABA_MES[n.toUpperCase()]);
 
-  const { data: pacs } = await supabase.from('pacientes').select('id, nome, tipo');
-  const pacientesDb = pacs ?? [];
+  const { data: pacs } = await supabase.from('pacientes').select('id, nome, tipo, valor_mensal');
+  const pacientesDb = (pacs ?? []) as Array<{ id: string; nome: string; tipo: string; valor_mensal: number | null }>;
 
   const todasCobrancas: CobrancaRow[] = [];
   const valoresVazios: ValorVazioRow[] = [];
@@ -280,10 +278,9 @@ async function main() {
       // REGRA 5: detecta competências retroativas
       const retroativas = parseDatasRetroativas(sit, mes, ano);
       const temRetro = retroativas.length > 0;
-      const totalCompetencias = retroativas.length + 1; // +1 = mês atual
-      const valorPorComp = Math.round((valor / totalCompetencias) * 100) / 100;
-      // última parcela absorve centavos de arredondamento
-      const valorUltima = Math.round((valor - valorPorComp * (totalCompetencias - 1)) * 100) / 100;
+      const valorMensalPac = match?.valor_mensal != null ? Number(match.valor_mensal) : null;
+      const valorRetro = calcValorRetroativo(valorMensalPac, valor);
+      const valorMes = calcValorMesAtual(valor);
 
       const alertas: string[] = [];
       if (!match && !novosNomes.has(normNome(nome))) alertas.push('novo paciente');
@@ -294,8 +291,7 @@ async function main() {
       const baseObs = `migrado_logjur | ${sit}`.trim().replace(/\s+/g, ' ');
 
       // Cobranças retroativas (REGRA 5)
-      retroativas.forEach((ret, i) => {
-        const isLast = i === retroativas.length - 1 && retroativas.length === totalCompetencias - 1;
+      retroativas.forEach((ret) => {
         todasCobrancas.push({
           pacienteNome: nome,
           matchId: match?.id ?? null,
@@ -307,7 +303,7 @@ async function main() {
           competenciaMes: ret.mes,
           competenciaAno: ret.ano,
           vencimento: inferVencimento(sit, ret.mes, ret.ano),
-          valor: isLast ? valorUltima : valorPorComp,
+          valor: valorRetro,
           status: 'regularizar_retroativa',
           formaPgto: inferFormaPgto(sit),
           qtdSessoes: null,
@@ -320,7 +316,7 @@ async function main() {
       });
 
       // Cobrança do mês atual
-      const valorAtual = temRetro ? valorUltima : valor;
+      const valorAtual = valorMes;
       todasCobrancas.push({
         pacienteNome: nome,
         matchId: match?.id ?? null,
