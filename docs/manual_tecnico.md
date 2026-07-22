@@ -19,7 +19,7 @@
 
 ## 2. Deploy
 
-- **Repositório:** github.com/IAplicada-Business/cb-move-harmony
+- **Repositório:** github.com/IAplicada-Business/cb-move-core
 - **Plataforma:** Lovable (auto-sync com o repositório — rebuild automático em ~60s após push)
 - **Supabase project_id:** grlkbtnwvxorlfglyzid
 - **URL Supabase:** configurada via variável de ambiente VITE_SUPABASE_URL
@@ -117,7 +117,7 @@ Os campos disponíveis no JSON `conteudo` variam por modelo — consulte os temp
 6. Aplique a migration no Supabase se necessário (não é automático).
 7. Edge Functions: `supabase functions deploy <nome> --project-ref grlkbtnwvxorlfglyzid`
 
-**Check Supabase Preview no PR:** deve apontar para `grlkbtnwvxorlfglyzid`. Se falhar com outro `project_id` (ex. `zuxjjkewcckgzrjtcbcs`), corrija em [Supabase Dashboard → Integrations → GitHub](https://supabase.com/dashboard/project/grlkbtnwvxorlfglyzid/settings/integrations) e religue o repositório `cb-move-harmony`. O merge pode seguir mesmo com esse check falho se migrations já foram aplicadas manualmente.
+**Check Supabase Preview no PR:** deve apontar para `grlkbtnwvxorlfglyzid`. Se falhar com outro `project_id` (ex. `zuxjjkewcckgzrjtcbcs`), corrija em [Supabase Dashboard → Integrations → GitHub](https://supabase.com/dashboard/project/grlkbtnwvxorlfglyzid/settings/integrations) e religue o repositório `cb-move-core`. O merge pode seguir mesmo com esse check falho se migrations já foram aplicadas manualmente.
 
 **Branches especiais do Claude Code:**
 - Branches `claude/NOME` são criadas automaticamente pelo Claude Code em worktrees isolados.
