@@ -29,6 +29,7 @@ import type { NfStatus, PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -67,6 +68,11 @@ const MESES_FULL = [
 /** Radix Select não aceita value="" em SelectItem — use "todos" como sentinela. */
 const FILTRO_TODOS = "todos";
 const FILTRO_TODAS_COMP = "todas";
+
+function documentoValidoParaNf(doc: string | null | undefined): boolean {
+  const digits = (doc ?? "").replace(/\D/g, "");
+  return digits.length === 11 || digits.length === 14;
+}
 
 function competenciaOpcoes() {
   const now = new Date();
@@ -558,9 +564,31 @@ function agruparPorCliente(nfs: NotaFiscal[]): NfGrupo[] {
   return Array.from(map.values()).sort((a, b) => b.latest.localeCompare(a.latest));
 }
 
-function LinhaAEmitir({ row, onEmitir }: { row: CobrancaSemNf; onEmitir: () => void }) {
+function LinhaAEmitir({
+  row,
+  onEmitir,
+  selected,
+  onSelectedChange,
+  selectionDisabled,
+}: {
+  row: CobrancaSemNf;
+  onEmitir: () => void;
+  selected: boolean;
+  onSelectedChange: (checked: boolean) => void;
+  selectionDisabled?: boolean;
+}) {
+  const elegivel = documentoValidoParaNf(row.destinatarioDocumento);
   return (
     <TableRow className="bg-amber-50/50 dark:bg-amber-950/20">
+      <TableCell>
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(v) => onSelectedChange(v === true)}
+          disabled={selectionDisabled || !elegivel}
+          aria-label={`Selecionar ${row.pacienteNome}`}
+          title={elegivel ? undefined : "CPF/CNPJ do destinatário inválido ou ausente"}
+        />
+      </TableCell>
       <TableCell className="font-mono text-sm text-muted-foreground">—</TableCell>
       <TableCell className="font-medium">{row.pacienteNome}</TableCell>
       <TableCell>
@@ -587,6 +615,7 @@ function LinhaAEmitir({ row, onEmitir }: { row: CobrancaSemNf; onEmitir: () => v
 }
 
 function NotasFiscaisPage() {
+  const qc = useQueryClient();
   const now = new Date();
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<NfStatus | "">("");
@@ -595,6 +624,9 @@ function NotasFiscaisPage() {
   const [modalEmitir, setModalEmitir] = useState(false);
   const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [selectedCobrancaIds, setSelectedCobrancaIds] = useState<Set<string>>(new Set());
+  const [confirmBulkEmit, setConfirmBulkEmit] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   const compOpts = competenciaOpcoes();
   const compMes = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
@@ -625,11 +657,95 @@ function NotasFiscaisPage() {
   const aEmitir = semNfQuery.data ?? [];
   const temFiltro = !!(search || filtroStatus || filtroTipo);
   const grupos = useMemo(() => agruparPorCliente(nfs), [nfs]);
+  const aEmitirElegiveis = useMemo(
+    () => aEmitir.filter((row) => documentoValidoParaNf(row.destinatarioDocumento)),
+    [aEmitir],
+  );
+  const selectedRows = useMemo(
+    () => aEmitir.filter((row) => selectedCobrancaIds.has(row.cobrancaId)),
+    [aEmitir, selectedCobrancaIds],
+  );
+  const allElegiveisSelected =
+    aEmitirElegiveis.length > 0 &&
+    aEmitirElegiveis.every((row) => selectedCobrancaIds.has(row.cobrancaId));
+  const someElegiveisSelected = aEmitirElegiveis.some((row) =>
+    selectedCobrancaIds.has(row.cobrancaId),
+  );
 
   useEffect(() => {
     setOpenGroups(search.trim() ? grupos.map((g) => g.key) : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  useEffect(() => {
+    setSelectedCobrancaIds(new Set());
+  }, [filtroComp]);
+
+  useEffect(() => {
+    const ids = new Set(aEmitir.map((row) => row.cobrancaId));
+    setSelectedCobrancaIds((prev) => {
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [aEmitir]);
+
+  const bulkEmitMutation = useMutation({
+    mutationFn: async (rows: CobrancaSemNf[]) => {
+      const erros: string[] = [];
+      let ok = 0;
+      setBulkProgress({ done: 0, total: rows.length });
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        try {
+          const nfId = await criarNfDeCobranca(row.cobrancaId);
+          await emitNfAutomatico(nfId, { timeoutMs: 30_000 });
+          ok += 1;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Erro desconhecido";
+          erros.push(`${row.pacienteNome}: ${msg}`);
+        }
+        setBulkProgress({ done: i + 1, total: rows.length });
+      }
+
+      return { ok, erros };
+    },
+    onSuccess: ({ ok, erros }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
+      qc.invalidateQueries({ queryKey: ["financeiro"] });
+      setSelectedCobrancaIds(new Set());
+      setConfirmBulkEmit(false);
+
+      if (erros.length === 0) {
+        toast.success(`${ok} nota${ok > 1 ? "s" : ""} enviada${ok > 1 ? "s" : ""} à Focus`);
+      } else if (ok > 0) {
+        toast.message(`${ok} emitida${ok > 1 ? "s" : ""}, ${erros.length} com erro`, {
+          description: erros.slice(0, 3).join(" · "),
+        });
+      } else {
+        toast.error("Nenhuma NF emitida", { description: erros.slice(0, 3).join(" · ") });
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setBulkProgress(null),
+  });
+
+  function toggleSelectAll(checked: boolean) {
+    if (checked) {
+      setSelectedCobrancaIds(new Set(aEmitirElegiveis.map((row) => row.cobrancaId)));
+      return;
+    }
+    setSelectedCobrancaIds(new Set());
+  }
+
+  function toggleRowSelection(cobrancaId: string, checked: boolean) {
+    setSelectedCobrancaIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(cobrancaId);
+      else next.delete(cobrancaId);
+      return next;
+    });
+  }
 
   function abrirEmitir(row?: CobrancaSemNf) {
     setPrefill(row ?? null);
@@ -715,15 +831,52 @@ function NotasFiscaisPage() {
         <div className="space-y-4">
           {aEmitir.length > 0 && (
             <div className="rounded-xl border border-amber-200 bg-card shadow-sm overflow-hidden">
-              <div className="px-4 py-2 border-b bg-amber-50/80 text-sm text-amber-900 space-y-0.5">
-                <p className="font-semibold">A emitir — {aEmitir.length} cobrança(s) sem NF</p>
-                <p className="text-xs font-normal text-amber-800">
-                  A emissão da NF não depende do pagamento — você pode emitir mesmo com a cobrança pendente/vencida e dar baixa depois.
-                </p>
+              <div className="px-4 py-2 border-b bg-amber-50/80 text-sm text-amber-900 space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <p className="font-semibold">A emitir — {aEmitir.length} cobrança(s) sem NF</p>
+                    <p className="text-xs font-normal text-amber-800">
+                      A emissão da NF não depende do pagamento — você pode emitir mesmo com a cobrança pendente/vencida e dar baixa depois.
+                    </p>
+                  </div>
+                  {selectedRows.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium">
+                        {selectedRows.length} selecionada{selectedRows.length > 1 ? "s" : ""}
+                      </span>
+                      <Button
+                        size="sm"
+                        disabled={bulkEmitMutation.isPending}
+                        onClick={() => setConfirmBulkEmit(true)}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkEmitMutation.isPending ? "animate-spin" : ""}`} />
+                        {bulkProgress
+                          ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
+                          : "Emitir selecionadas"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={bulkEmitMutation.isPending}
+                        onClick={() => setSelectedCobrancaIds(new Set())}
+                      >
+                        Limpar
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allElegiveisSelected ? true : someElegiveisSelected ? "indeterminate" : false}
+                        onCheckedChange={(v) => toggleSelectAll(v === true)}
+                        disabled={aEmitirElegiveis.length === 0 || bulkEmitMutation.isPending}
+                        aria-label="Selecionar todas elegíveis"
+                      />
+                    </TableHead>
                     <TableHead className="w-24">Nº</TableHead>
                     <TableHead>Paciente</TableHead>
                     <TableHead>Destinatário</TableHead>
@@ -736,7 +889,14 @@ function NotasFiscaisPage() {
                 </TableHeader>
                 <TableBody>
                   {aEmitir.map((row) => (
-                    <LinhaAEmitir key={row.cobrancaId} row={row} onEmitir={() => abrirEmitir(row)} />
+                    <LinhaAEmitir
+                      key={row.cobrancaId}
+                      row={row}
+                      selected={selectedCobrancaIds.has(row.cobrancaId)}
+                      onSelectedChange={(checked) => toggleRowSelection(row.cobrancaId, checked)}
+                      selectionDisabled={bulkEmitMutation.isPending}
+                      onEmitir={() => abrirEmitir(row)}
+                    />
                   ))}
                 </TableBody>
               </Table>
@@ -805,6 +965,30 @@ function NotasFiscaisPage() {
         onClose={() => { setModalEmitir(false); setPrefill(null); }}
         prefill={prefill}
       />
+
+      <AlertDialog open={confirmBulkEmit} onOpenChange={setConfirmBulkEmit}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Emitir {selectedRows.length} nota{selectedRows.length > 1 ? "s" : ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Serão criadas e enviadas à Focus NFe em sequência ({selectedRows.length} cobrança
+              {selectedRows.length > 1 ? "s" : ""}). Linhas sem CPF/CNPJ válido não entram na seleção.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkEmitMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bulkEmitMutation.isPending || selectedRows.length === 0}
+              onClick={(e) => {
+                e.preventDefault();
+                bulkEmitMutation.mutate(selectedRows);
+              }}
+            >
+              {bulkEmitMutation.isPending ? "Emitindo…" : "Confirmar emissão"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

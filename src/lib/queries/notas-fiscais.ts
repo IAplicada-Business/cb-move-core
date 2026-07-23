@@ -220,11 +220,15 @@ export async function emitNfManual(nfId: string, numero: string, pdfUrl: string)
   });
 }
 
-export async function emitNfAutomatico(nfId: string): Promise<EmitNfAutomaticoResult> {
-  return invokeEdgeFunction<EmitNfAutomaticoResult>("emit-nf", {
-    nf_id: nfId,
-    modo: "automatico",
-  });
+export async function emitNfAutomatico(
+  nfId: string,
+  options?: { timeoutMs?: number },
+): Promise<EmitNfAutomaticoResult> {
+  return invokeEdgeFunction<EmitNfAutomaticoResult>(
+    "emit-nf",
+    { nf_id: nfId, modo: "automatico" },
+    options,
+  );
 }
 
 export async function countNotasMonth(year: number, month: number): Promise<number> {
