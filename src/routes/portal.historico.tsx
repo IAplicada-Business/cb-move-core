@@ -32,7 +32,7 @@ function PortalHistorico() {
     if (!pacienteId) return;
     (supabase as any)
       .from("sessoes")
-      .select("id, data, sigla, fisioterapeutas(nome)")
+      .select("id, data, sigla, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
       .eq("paciente_id", pacienteId)
       .order("data", { ascending: false })
       .then(({ data }: { data: SessaoRow[] | null }) => {

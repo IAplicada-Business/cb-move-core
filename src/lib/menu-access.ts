@@ -88,6 +88,29 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "cfg.templates": false,
 };
 
+/** Menu padrão do fisioterapeuta (visão clínica filtrada). */
+export const DEFAULT_MENU_FOR_FISIO: Record<MenuKey, boolean> = {
+  ...DEFAULT_MENU_FOR_MEMBRO,
+  "team.fisios": false,
+};
+
+/** Rótulos do menu lateral quando o usuário é fisio (dados filtrados por paciente). */
+export const FISIO_MENU_LABELS: Partial<Record<MenuKey, string>> = {
+  "app.pacientes": "Meus pacientes",
+  "app.prontuario": "Prontuário",
+  "app.agenda": "Minha agenda",
+};
+
+export const FISIO_MENU_GROUP_LABELS: Partial<Record<string, string>> = {
+  op: "Minha clínica",
+};
+
+export const FISIO_MENU_SCOPE_LINES = [
+  "Pacientes sob sua responsabilidade ou atendimento",
+  "Sessões e relatórios desses pacientes",
+  "Agenda da sua coluna e dos seus pacientes",
+] as const;
+
 export function menuLabel(key: MenuKey): string {
   for (const group of MENU_GROUPS) {
     const item = group.items.find((i) => i.key === key);
@@ -99,11 +122,12 @@ export function menuLabel(key: MenuKey): string {
 export function resolveMenuAccess(
   role: PrimaryRole,
   permissions: Partial<Record<MenuKey, boolean>>,
+  defaults: Record<MenuKey, boolean> = DEFAULT_MENU_FOR_MEMBRO,
 ): Set<MenuKey> {
   if (role === "admin") return new Set(ALL_MENU_KEYS);
   const enabled = new Set<MenuKey>();
   for (const key of ALL_MENU_KEYS) {
-    const value = permissions[key] ?? DEFAULT_MENU_FOR_MEMBRO[key] ?? false;
+    const value = permissions[key] ?? defaults[key] ?? false;
     if (value) enabled.add(key);
   }
   return enabled;

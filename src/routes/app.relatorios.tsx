@@ -21,6 +21,7 @@ import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal } from "@/lib/queries/prontuario";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
+import { assertFinanceAccess } from "@/lib/route-access";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,7 @@ import {
 
 export const Route = createFileRoute("/app/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios · CB MOVE" }] }),
+  beforeLoad: () => assertFinanceAccess(),
   component: RelatoriosPage,
 });
 

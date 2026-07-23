@@ -8,7 +8,10 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { dashboardHomeOptions } from "@/lib/queries/options";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
+import { can, isFisioScopedUser } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -27,6 +30,9 @@ export const Route = createFileRoute("/app/")({
 });
 
 function Dashboard() {
+  const { roles, fisioterapeutaId } = useAuth();
+  const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
+  const podeVerFinanceiro = can.viewFinance(roles, fisioterapeutaId);
   const now = new Date();
   const ano = now.getFullYear();
   const mes = now.getMonth() + 1;
@@ -43,30 +49,41 @@ function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Visão operacional — pacientes, equipe, agendas e conformidade do prontuário
+            {isFisioScoped
+              ? "Sua visão clínica — pacientes, agenda e conformidade do prontuário"
+              : "Visão operacional — pacientes, equipe, agendas e conformidade do prontuário"}
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild className="gap-2">
-          <Link to="/app/financeiro">
-            <TrendingUp className="h-4 w-4" />
-            Dashboard Financeiro
-          </Link>
-        </Button>
+        {podeVerFinanceiro && (
+          <Button variant="outline" size="sm" asChild className="gap-2">
+            <Link to="/app/financeiro">
+              <TrendingUp className="h-4 w-4" />
+              Dashboard Financeiro
+            </Link>
+          </Button>
+        )}
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={cn(
+          "grid gap-4 sm:grid-cols-2",
+          isFisioScoped ? "xl:grid-cols-3" : "xl:grid-cols-4",
+        )}
+      >
         <KpiCard
-          label="Pacientes ativos"
+          label={isFisioScoped ? "Meus pacientes" : "Pacientes ativos"}
           value={kpis?.totalPacientesAtivos ?? 0}
           accent="cyan"
           icon={<Users className="h-4 w-4 text-cb-cyan-600" />}
         />
-        <KpiCard
-          label="Fisioterapeutas ativos"
-          value={kpis?.totalFisiosAtivos ?? 0}
-          accent="purple"
-          icon={<Stethoscope className="h-4 w-4 text-cb-purple" />}
-        />
+        {!isFisioScoped && (
+          <KpiCard
+            label="Fisioterapeutas ativos"
+            value={kpis?.totalFisiosAtivos ?? 0}
+            accent="purple"
+            icon={<Stethoscope className="h-4 w-4 text-cb-purple" />}
+          />
+        )}
         <KpiCard
           label="Agendas próximas (7 dias)"
           value={kpis?.agendasProximas ?? 0}
@@ -115,7 +132,7 @@ function Dashboard() {
               <TableRow>
                 <TableHead>Data/hora</TableHead>
                 <TableHead>Paciente</TableHead>
-                <TableHead>Fisioterapeuta</TableHead>
+                {!isFisioScoped && <TableHead>Fisioterapeuta</TableHead>}
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -126,7 +143,9 @@ function Dashboard() {
                     {formatDateTime(a.inicio)}
                   </TableCell>
                   <TableCell className="font-medium">{a.pacienteNome}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{a.fisioNome}</TableCell>
+                  {!isFisioScoped && (
+                    <TableCell className="text-sm text-muted-foreground">{a.fisioNome}</TableCell>
+                  )}
                   <TableCell>
                     <StatusBadge value={a.status} />
                   </TableCell>
@@ -137,7 +156,7 @@ function Dashboard() {
         )}
         <footer className="border-t px-5 py-3">
           <Button variant="link" size="sm" className="h-auto p-0" asChild>
-            <Link to="/app/agenda">Ver agenda completa</Link>
+            <Link to="/app/agenda">{isFisioScoped ? "Ver minha agenda" : "Ver agenda completa"}</Link>
           </Button>
         </footer>
       </section>

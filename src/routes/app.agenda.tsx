@@ -53,7 +53,7 @@ import {
   montarPropostasAgendamento,
 } from "@/lib/domain/padrao-agenda-mensal";
 import { useAuth } from "@/lib/auth";
-import { can } from "@/lib/permissions";
+import { can, isFisioScopedUser } from "@/lib/permissions";
 import { supabase } from "@/integrations/supabase/client";
 import { parseSiglaHistorico, SIGLA_HINT } from "@/lib/domain/frequencia";
 import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
@@ -444,8 +444,10 @@ type FormValues = z.output<typeof schema>;
 
 function AgendaPage() {
   const qc = useQueryClient();
-  const { user, roles } = useAuth();
-  const podeGerir = can.manageAgenda(roles);
+  const { user, roles, fisioterapeutaId } = useAuth();
+  const podeGerir = can.manageAgenda(roles, fisioterapeutaId);
+  const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
+  const fisioScopeId = isFisioScoped ? fisioterapeutaId ?? null : null;
   const today = new Date();
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(today));
   const [diaSemanaIdx, setDiaSemanaIdx] = useState(() => indexDiaNaSemana(startOfWeek(today)));
@@ -453,6 +455,8 @@ function AgendaPage() {
   const [visao, setVisao] = useState<VisaoAgenda>("semana");
   const [filterFisio, setFilterFisio] = useState(FILTRO_TODOS);
   const [filterTipo, setFilterTipo] = useState(FILTRO_TODOS);
+  const fisioFilterAtivo =
+    fisioScopeId ?? (filterFisio !== FILTRO_TODOS ? filterFisio : undefined);
   const [buscaGrade, setBuscaGrade] = useState("");
   const [selectedAgend, setSelectedAgend] = useState<Agendamento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -462,6 +466,10 @@ function AgendaPage() {
   const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
   const [remarcarPrefill, setRemarcarPrefill] = useState<SlotRemarcacaoSelecionado | null>(null);
   const [avisoDraft, setAvisoDraft] = useState("");
+
+  useEffect(() => {
+    if (fisioScopeId) setFilterFisio(fisioScopeId);
+  }, [fisioScopeId]);
 
   const periodo = useMemo(() => {
     if (visao === "mes" || visao === "frequencia") {
@@ -773,6 +781,7 @@ function AgendaPage() {
       agendamentos
         .filter((a) => a.status !== "remarcacao" && a.status !== "cancelado")
         .filter((a) => {
+        if (fisioScopeId && a.fisioterapeuta_id !== fisioScopeId) return false;
         if (filterFisio !== FILTRO_TODOS && a.fisioterapeuta_id !== filterFisio) return false;
         if (filterTipo !== FILTRO_TODOS && a.pacientes?.tipo !== filterTipo) return false;
         const q = buscaGrade.trim().toLowerCase();
@@ -783,7 +792,7 @@ function AgendaPage() {
         }
         return true;
       }),
-    [agendamentos, filterFisio, filterTipo, buscaGrade],
+    [agendamentos, filterFisio, filterTipo, buscaGrade, fisioScopeId],
   );
 
   function labelHistorico(item: HistoricoRow) {
@@ -816,23 +825,20 @@ function AgendaPage() {
     queryKey: queryKeys.fisioHorarios.indisponibilidade(
       periodo.inicio,
       periodo.fim,
-      filterFisio !== FILTRO_TODOS ? filterFisio : undefined,
+      fisioFilterAtivo,
     ),
     queryFn: () =>
       fetchFisioIndisponibilidade({
         inicio: periodo.inicio,
         fim: periodo.fim,
-        fisioterapeutaId: filterFisio !== FILTRO_TODOS ? filterFisio : undefined,
+        fisioterapeutaId: fisioFilterAtivo,
       }),
     enabled: visao === "semana" || visao === "dia",
   });
 
   const { data: disponibilidade = [] } = useQuery({
-    queryKey: queryKeys.fisioHorarios.disponibilidade(
-      filterFisio !== FILTRO_TODOS ? filterFisio : undefined,
-    ),
-    queryFn: () =>
-      fetchFisioDisponibilidade(filterFisio !== FILTRO_TODOS ? filterFisio : undefined),
+    queryKey: queryKeys.fisioHorarios.disponibilidade(fisioFilterAtivo),
+    queryFn: () => fetchFisioDisponibilidade(fisioFilterAtivo),
     enabled: visao === "semana",
   });
 
@@ -850,11 +856,15 @@ function AgendaPage() {
   });
 
   const fisiosVisiveis = useMemo(() => {
-    let list = filterFisio !== FILTRO_TODOS ? fisios.filter((f) => f.id === filterFisio) : fisios;
+    let list = fisioScopeId
+      ? fisios.filter((f) => f.id === fisioScopeId)
+      : filterFisio !== FILTRO_TODOS
+        ? fisios.filter((f) => f.id === filterFisio)
+        : fisios;
     const q = buscaGrade.trim().toLowerCase();
     if (q) list = list.filter((f) => f.nome.toLowerCase().includes(q));
     return list;
-  }, [fisios, filterFisio, buscaGrade]);
+  }, [fisios, filterFisio, buscaGrade, fisioScopeId]);
 
   const fisiosNomes = useMemo(() => fisiosVisiveis.map((f) => f.nome), [fisiosVisiveis]);
 
@@ -968,7 +978,7 @@ function AgendaPage() {
               Horários / Indisponibilidade
             </Button>
           )}
-          {visao !== "frequencia" && (
+          {podeGerir && visao !== "frequencia" && (
             <Button onClick={() => setModalOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" /> Novo agendamento
             </Button>
@@ -988,7 +998,9 @@ function AgendaPage() {
             />
           </div>
         )}
-        <FilterChip prefix="Fisio" value={filterFisio} options={fisioOptions} onChange={setFilterFisio} />
+        {!isFisioScoped && (
+          <FilterChip prefix="Fisio" value={filterFisio} options={fisioOptions} onChange={setFilterFisio} />
+        )}
         <FilterChip prefix="Tipo" value={filterTipo} options={tipoOptions} onChange={setFilterTipo} />
         {visao === "semana" && (
           <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">

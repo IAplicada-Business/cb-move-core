@@ -237,11 +237,12 @@ function ProntuarioPage() {
   }
 
   function handleTranscricao(result: TranscricaoResult) {
+    const transcricao = result.transcricao_raw?.trim() ?? "";
     openNovaEvolucao({
-      subjetivo: result.subjetivo || null,
-      objetivo: result.objetivo || null,
-      plano: result.plano || null,
-      transcricao_raw: result.transcricao_raw,
+      subjetivo: result.subjetivo?.trim() || null,
+      objetivo: result.objetivo?.trim() || null,
+      plano: result.plano?.trim() || null,
+      transcricao_raw: transcricao || null,
       fonte: "audio_ia",
       data: new Date().toISOString().split("T")[0],
     });

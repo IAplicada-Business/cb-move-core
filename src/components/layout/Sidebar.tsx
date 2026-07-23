@@ -26,6 +26,8 @@ import {
 
   SidebarGroupContent,
 
+  SidebarFooter,
+
   SidebarHeader,
 
   SidebarMenu,
@@ -60,7 +62,7 @@ export function Sidebar() {
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const { groups } = useMenuAccess();
+  const { groups, isFisioScoped, fisioScopeLines } = useMenuAccess();
 
 
 
@@ -227,6 +229,22 @@ export function Sidebar() {
         })}
 
       </SidebarContent>
+
+      {isFisioScoped && fisioScopeLines.length > 0 && (
+        <SidebarFooter className="border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:hidden">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Sua visão inclui
+          </p>
+          <ul className="mt-2 space-y-1.5 text-[11px] leading-snug text-muted-foreground">
+            {fisioScopeLines.map((line) => (
+              <li key={line} className="flex gap-1.5">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cb-cyan-600" aria-hidden />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        </SidebarFooter>
+      )}
 
     </SidebarPrimitive>
 

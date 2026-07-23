@@ -278,7 +278,7 @@ serve(async (req) => {
     const fimMes = new Date(ano, mes, 0).toISOString().split("T")[0];
     const { data: sessoes } = await supabase
       .from("sessoes")
-      .select("id, data, sigla, fisioterapeuta_id, fisioterapeutas(nome)")
+      .select("id, data, sigla, fisioterapeuta_id, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
       .eq("paciente_id", paciente_id)
       .gte("data", inicioMes)
       .lte("data", fimMes);

@@ -14,6 +14,7 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   roles: AppRole[];
+  fisioterapeutaId: string | null;
   /** true até restaurar sessão do storage e carregar papéis do usuário */
   loading: boolean;
   pacienteId: string | null;
@@ -28,6 +29,7 @@ const AuthContext = React.createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = React.useState<Session | null>(null);
   const [roles, setRoles] = React.useState<AppRole[]>([]);
+  const [fisioterapeutaId, setFisioterapeutaId] = React.useState<string | null>(null);
   const [pacienteId, setPacienteId] = React.useState<string | null>(null);
   const [isPaciente, setIsPaciente] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
@@ -42,9 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     diag.info("auth", "carregando papéis", { userId });
 
     try {
-      const [rolesResult, pacResult] = await withTimeout(
+      const [rolesResult, profileResult, pacResult] = await withTimeout(
         Promise.all([
           supabase.from("user_roles").select("role").eq("user_id", userId),
+          supabase.from("profiles").select("fisioterapeuta_id").eq("id", userId).maybeSingle(),
           (supabase as any).from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
         ]),
         LOAD_ROLES_TIMEOUT_MS,
@@ -53,12 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (rolesResult.error) {
         diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
       }
+      if (profileResult.error) {
+        diag.error("auth", "falha ao buscar profile", profileResult.error);
+      }
       if (pacResult.error) {
         diag.error("auth", "falha ao buscar paciente vinculado", pacResult.error);
       }
 
       const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
       setRoles(fetchedRoles);
+      setFisioterapeutaId(
+        (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ?? null,
+      );
 
       const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
       setPacienteId(pacId);
@@ -68,6 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       diag.info("auth", "papéis carregados", {
         userId,
         roles: fetchedRoles,
+        fisioterapeutaId:
+          (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ?? null,
         pacienteId: pacId,
         isPaciente: isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)),
       });
@@ -82,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function clearRoles() {
     setRoles([]);
+    setFisioterapeutaId(null);
     setPacienteId(null);
     setIsPaciente(false);
     rolesUserIdRef.current = null;
@@ -209,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     user: session?.user ?? null,
     roles,
+    fisioterapeutaId,
     loading,
     pacienteId,
     isPaciente,

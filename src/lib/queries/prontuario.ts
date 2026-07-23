@@ -209,7 +209,7 @@ export async function savePacienteObservacoes(id: string, observacoes: string): 
 export async function fetchSessoesProntuario(pacienteId: string): Promise<SessaoProntuario[]> {
   const { data, error } = await supabase
     .from("sessoes")
-    .select("id, data, hora, sigla, observacoes, fisioterapeutas(nome)")
+    .select("id, data, hora, sigla, observacoes, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
     .eq("paciente_id", pacienteId)
     .order("data", { ascending: false });
   if (error) throw error;
@@ -222,7 +222,7 @@ export async function fetchSessoesDoDia(
 ): Promise<SessaoProntuario[]> {
   const { data: rows, error } = await supabase
     .from("sessoes")
-    .select("id, data, hora, sigla, observacoes, fisioterapeutas(nome)")
+    .select("id, data, hora, sigla, observacoes, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
     .eq("paciente_id", pacienteId)
     .eq("data", data)
     .order("hora", { ascending: true });
@@ -316,7 +316,7 @@ export type EvolucaoComRelacoes = Evolucao & {
 export async function fetchEvolucoes(pacienteId: string): Promise<EvolucaoComRelacoes[]> {
   const { data, error } = await supabase
     .from("prontuario_evolucoes")
-    .select("*, fisioterapeutas(nome), sessoes(sigla, hora)")
+    .select("*, fisioterapeutas!prontuario_evolucoes_fisioterapeuta_id_fkey(nome), sessoes(sigla, hora)")
     .eq("paciente_id", pacienteId)
     .order("data", { ascending: false })
     .order("created_at", { ascending: false });

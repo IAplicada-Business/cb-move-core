@@ -7,6 +7,8 @@ import { z } from "zod";
 import { MoreHorizontal, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { assertFisiosAccess } from "@/lib/route-access";
+
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { FisioDetalhesSheet } from "@/components/domain/FisioDetalhesSheet";
@@ -37,6 +39,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/fisios")({
   head: () => ({ meta: [{ title: "Fisioterapeutas · CB MOVE" }] }),
+  beforeLoad: () => assertFisiosAccess(),
   component: FisiosPage,
 });
 

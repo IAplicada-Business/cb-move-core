@@ -55,6 +55,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 
 export const Route = createFileRoute("/app/pacientes/")({
   head: () => ({ meta: [{ title: "Pacientes · CB MOVE" }] }),
@@ -131,6 +133,8 @@ async function fetchConvenios() {
 
 function PacientesPage() {
   const qc = useQueryClient();
+  const { roles, fisioterapeutaId } = useAuth();
+  const podeGerirPacientes = can.managePacientes(roles, fisioterapeutaId);
   const [search, setSearch] = useState("");
   const [filterTipo, setFilterTipo] = useState<PacienteTipo | "todos">("todos");
   const [modalOpen, setModalOpen] = useState(false);
@@ -348,9 +352,11 @@ function PacientesPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo paciente
-        </Button>
+        {podeGerirPacientes && (
+          <Button onClick={openNew} className="gap-2">
+            <Plus className="h-4 w-4" /> Novo paciente
+          </Button>
+        )}
       </header>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -389,8 +395,18 @@ function PacientesPage() {
       ) : pacientes.length === 0 ? (
         <EmptyState
           title="Nenhum paciente encontrado"
-          description="Crie o primeiro paciente ou ajuste os filtros."
-          action={<Button onClick={openNew} variant="outline" className="gap-2"><Plus className="h-4 w-4" /> Novo paciente</Button>}
+          description={
+            podeGerirPacientes
+              ? "Crie o primeiro paciente ou ajuste os filtros."
+              : "Nenhum paciente vinculado à sua agenda ainda."
+          }
+          action={
+            podeGerirPacientes ? (
+              <Button onClick={openNew} variant="outline" className="gap-2">
+                <Plus className="h-4 w-4" /> Novo paciente
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card">
@@ -429,38 +445,52 @@ function PacientesPage() {
                     {p.modeloRelatorio ?? "convencional"}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={p.ativo}
-                        onCheckedChange={(v) => toggleAtivoMutation.mutate({ id: p.id, ativo: v })}
-                      />
+                    {podeGerirPacientes ? (
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={p.ativo}
+                          onCheckedChange={(v) => toggleAtivoMutation.mutate({ id: p.id, ativo: v })}
+                        />
+                        <span className={cn("text-xs", p.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                          {p.ativo ? "Ativo" : "Inativo"}
+                        </span>
+                      </div>
+                    ) : (
                       <span className={cn("text-xs", p.ativo ? "text-[#047857]" : "text-muted-foreground")}>
                         {p.ativo ? "Ativo" : "Inativo"}
                       </span>
-                    </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link to="/app/pacientes/$pacienteId" params={{ pacienteId: p.id }}>
-                            Ver ficha
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(p)}>Editar</DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleting(p)}
-                        >
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {podeGerirPacientes ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link to="/app/pacientes/$pacienteId" params={{ pacienteId: p.id }}>
+                              Ver ficha
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(p)}>Editar</DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(p)}
+                          >
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to="/app/pacientes/$pacienteId" params={{ pacienteId: p.id }}>
+                          Ver ficha
+                        </Link>
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -16,6 +16,8 @@ import {
   fetchHistoricoComparecimentoPaciente,
 } from "@/lib/queries/sessoes";
 import { formatPhone } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +30,8 @@ export const Route = createFileRoute("/app/pacientes/$pacienteId")({
 
 function PacienteDetalhe() {
   const { pacienteId } = Route.useParams();
+  const { roles, fisioterapeutaId } = useAuth();
+  const podeVerFinanceiro = can.viewFinance(roles, fisioterapeutaId);
   const now = React.useMemo(() => new Date(), []);
   const [mesSelecionado, setMesSelecionado] = React.useState(now.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = React.useState(now.getFullYear());
@@ -94,10 +98,12 @@ function PacienteDetalhe() {
             <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
             Comparecimento
           </TabsTrigger>
-          <TabsTrigger value="financeiro">
-            <Receipt className="mr-1.5 h-3.5 w-3.5" />
-            Financeiro
-          </TabsTrigger>
+          {podeVerFinanceiro && (
+            <TabsTrigger value="financeiro">
+              <Receipt className="mr-1.5 h-3.5 w-3.5" />
+              Financeiro
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="dados" className="mt-6">
@@ -188,9 +194,11 @@ function PacienteDetalhe() {
           </div>
         </TabsContent>
 
-        <TabsContent value="financeiro" className="mt-6">
-          <PacienteFinanceiroTab pacienteId={pacienteId} />
-        </TabsContent>
+        {podeVerFinanceiro && (
+          <TabsContent value="financeiro" className="mt-6">
+            <PacienteFinanceiroTab pacienteId={pacienteId} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

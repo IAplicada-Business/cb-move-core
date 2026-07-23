@@ -51,6 +51,7 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
   const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
   const finalTextRef = React.useRef("");
   const liveTextRef = React.useRef("");
+  const shouldSendRef = React.useRef(false);
 
   if (!SpeechRecognitionClass) {
     return (
@@ -60,8 +61,19 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
     );
   }
 
+  function finishRecording() {
+    const text = (finalTextRef.current || liveTextRef.current).trim();
+    if (!text) {
+      toast.warning("Nenhum áudio detectado.");
+      return;
+    }
+    void sendText(text);
+  }
+
   function startRecording() {
+    shouldSendRef.current = false;
     finalTextRef.current = "";
+    liveTextRef.current = "";
     setLiveText("");
 
     const rec = new SpeechRecognitionClass!();
@@ -85,7 +97,7 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
           interim += transcript;
         }
       }
-      finalTextRef.current = final;
+      finalTextRef.current = final.trim();
       const merged = (final + interim).trim();
       liveTextRef.current = merged;
       setLiveText(merged);
@@ -97,6 +109,10 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
 
     rec.onend = () => {
       setRecording(false);
+      recognitionRef.current = null;
+      if (!shouldSendRef.current) return;
+      shouldSendRef.current = false;
+      finishRecording();
     };
 
     recognitionRef.current = rec;
@@ -105,19 +121,19 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
   }
 
   function stopRecording() {
-    recognitionRef.current?.stop();
+    if (!recognitionRef.current) return;
+    shouldSendRef.current = true;
     setRecording(false);
-
-    const text = (finalTextRef.current || liveTextRef.current).trim();
-    if (!text) {
-      toast.warning("Nenhum áudio detectado.");
-      return;
-    }
-    sendText(text);
+    recognitionRef.current.stop();
   }
 
   function fallbackResult(transcricao_raw: string): TranscricaoResult {
-    return { transcricao_raw, subjetivo: "", objetivo: "", plano: "" };
+    return {
+      transcricao_raw,
+      subjetivo: transcricao_raw,
+      objetivo: "",
+      plano: "",
+    };
   }
 
   async function sendText(transcricao_raw: string) {
@@ -186,9 +202,9 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
         )}
       </div>
 
-      {liveText && (
-        <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground max-h-24 overflow-y-auto">
-          {liveText}
+      {(recording || liveText) && (
+        <div className="h-24 overflow-y-auto rounded-md border bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground break-words">
+          {liveText || "Ouvindo… fale a evolução da sessão."}
         </div>
       )}
     </div>

@@ -2,10 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { DashboardFinanceiro } from "@/components/domain/DashboardFinanceiro";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { assertFinanceAccess } from "@/lib/route-access";
 import { financeiroKpisPorTipoOptions } from "@/lib/queries/options";
 
 export const Route = createFileRoute("/app/financeiro")({
   head: () => ({ meta: [{ title: "Dashboard Financeiro · CB MOVE" }] }),
+  beforeLoad: () => assertFinanceAccess(),
   loader: ({ context }) => {
     const now = new Date();
     const mes = now.getMonth() + 1;

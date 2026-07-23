@@ -41,14 +41,22 @@ function buildInitialForm(
   evolucao: Partial<Evolucao> | undefined,
   defaultFisioterapeutaId?: string | null,
 ): FormState {
+  const subjetivo = evolucao?.subjetivo ?? "";
+  const objetivo = evolucao?.objetivo ?? "";
+  const plano = evolucao?.plano ?? "";
+  const transcricao_raw = evolucao?.transcricao_raw ?? "";
+  const soapVazio = !subjetivo.trim() && !objetivo.trim() && !plano.trim();
+  const subjetivoFinal =
+    soapVazio && transcricao_raw.trim() ? transcricao_raw.trim() : subjetivo;
+
   return {
     data: evolucao?.data ?? new Date().toISOString().split("T")[0],
     fisioterapeuta_id: evolucao?.fisioterapeuta_id ?? defaultFisioterapeutaId ?? "",
     sessao_id: evolucao?.sessao_id ?? "",
-    subjetivo: evolucao?.subjetivo ?? "",
-    objetivo: evolucao?.objetivo ?? "",
-    plano: evolucao?.plano ?? "",
-    transcricao_raw: evolucao?.transcricao_raw ?? "",
+    subjetivo: subjetivoFinal,
+    objetivo,
+    plano,
+    transcricao_raw,
     fonte: evolucao?.fonte ?? "manual",
   };
 }
@@ -65,6 +73,18 @@ export function EvolucaoEditor({
   const [form, setForm] = React.useState<FormState>(() =>
     buildInitialForm(evolucao, defaultFisioterapeutaId),
   );
+
+  const evolucaoDraftKey = [
+    evolucao?.id ?? "",
+    evolucao?.transcricao_raw ?? "",
+    evolucao?.subjetivo ?? "",
+    evolucao?.objetivo ?? "",
+    evolucao?.plano ?? "",
+  ].join("|");
+
+  React.useEffect(() => {
+    setForm(buildInitialForm(evolucao, defaultFisioterapeutaId));
+  }, [evolucaoDraftKey, defaultFisioterapeutaId]);
 
   const sessoesDoDiaQuery = useQuery({
     queryKey: ["prontuario", "sessoes-dia", pacienteId, form.data],

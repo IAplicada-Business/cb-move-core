@@ -2,13 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import {
+  DEFAULT_MENU_FOR_FISIO,
   DEFAULT_MENU_FOR_MEMBRO,
+  FISIO_MENU_GROUP_LABELS,
+  FISIO_MENU_LABELS,
+  FISIO_MENU_SCOPE_LINES,
   MENU_GROUPS,
   resolveMenuAccess,
   type MenuGroupDef,
   type MenuItemDef,
 } from "@/lib/menu-access";
-import { normalizeRole, type PrimaryRole } from "@/lib/permissions";
+import { isFisioScopedUser, normalizeRole, type PrimaryRole } from "@/lib/permissions";
 import { fetchMenuPermissions } from "@/lib/queries/usuarios";
 import { queryKeys } from "@/lib/queries";
 import type { LucideIcon } from "lucide-react";
@@ -46,33 +50,49 @@ export type SidebarGroup = {
 };
 
 export function useMenuAccess() {
-  const { roles } = useAuth();
+  const { roles, fisioterapeutaId } = useAuth();
   const isAdmin = roles.includes("admin");
+  const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
   const primary: PrimaryRole = isAdmin ? "admin" : (normalizeRole(roles[0]) ?? "membro");
+  const menuDefaults = isFisioScoped ? DEFAULT_MENU_FOR_FISIO : DEFAULT_MENU_FOR_MEMBRO;
 
   const { data: permissions } = useQuery({
     queryKey: queryKeys.usuarios.menuAccess,
     queryFn: () => fetchMenuPermissions("membro"),
-    enabled: !isAdmin && primary === "membro",
+    enabled: !isAdmin && primary === "membro" && !isFisioScoped,
     staleTime: 60_000,
   });
 
-  const allowedKeys = useMemo(
-    () => resolveMenuAccess(primary, permissions ?? DEFAULT_MENU_FOR_MEMBRO),
-    [primary, permissions],
-  );
+  const allowedKeys = useMemo(() => {
+    if (isFisioScoped) {
+      return resolveMenuAccess(primary, {}, DEFAULT_MENU_FOR_FISIO);
+    }
+    return resolveMenuAccess(primary, permissions ?? menuDefaults, menuDefaults);
+  }, [primary, permissions, menuDefaults, isFisioScoped]);
 
   const groups = useMemo<SidebarGroup[]>(() => {
     return MENU_GROUPS.map((group) => ({
       ...group,
+      label: isFisioScoped
+        ? (FISIO_MENU_GROUP_LABELS[group.id] ?? group.label)
+        : group.label,
       items: group.items
         .filter((item) => allowedKeys.has(item.key))
         .map((item) => ({
           ...item,
+          label: isFisioScoped
+            ? (FISIO_MENU_LABELS[item.key] ?? item.label)
+            : item.label,
           icon: ICONS[item.to] ?? HelpCircle,
         })),
     })).filter((group) => group.items.length > 0);
-  }, [allowedKeys]);
+  }, [allowedKeys, isFisioScoped]);
 
-  return { groups, primary, isAdmin };
+  return {
+    groups,
+    primary,
+    isAdmin,
+    isFisioScoped,
+    fisioScopeLines: isFisioScoped ? [...FISIO_MENU_SCOPE_LINES] : [],
+  };
 }

@@ -47,7 +47,7 @@ const map = (r: Row): PeriodizacaoSessao => ({
 export async function fetchPeriodizacaoPaciente(pacienteId: string): Promise<PeriodizacaoSessao[]> {
   const { data, error } = await supabase
     .from("periodizacao_sessoes")
-    .select("*, fisioterapeutas(nome)")
+    .select("*, fisioterapeutas!periodizacao_sessoes_fisioterapeuta_id_fkey(nome)")
     .eq("paciente_id", pacienteId)
     .order("numero_sessao", { ascending: true });
   if (error) throw error;
@@ -82,7 +82,7 @@ export async function upsertPeriodizacaoItem(input: {
       .from("periodizacao_sessoes")
       .update(payload)
       .eq("id", input.id)
-      .select("*, fisioterapeutas(nome)")
+      .select("*, fisioterapeutas!periodizacao_sessoes_fisioterapeuta_id_fkey(nome)")
       .single();
     if (error) throw error;
     return map(data as Row);
@@ -91,7 +91,7 @@ export async function upsertPeriodizacaoItem(input: {
   const { data, error } = await supabase
     .from("periodizacao_sessoes")
     .insert(payload)
-    .select("*, fisioterapeutas(nome)")
+    .select("*, fisioterapeutas!periodizacao_sessoes_fisioterapeuta_id_fkey(nome)")
     .single();
   if (error) throw error;
   return map(data as Row);
