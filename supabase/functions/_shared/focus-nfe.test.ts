@@ -2,12 +2,14 @@ import {
   buildFocusNfsenPayload,
   formatDiasAtendidos,
   tipoSessaoDeTexto,
+  verifyFocusWebhookSecret,
   FISIOTERAPIA_CODIGO_NBS,
   FISIOTERAPIA_CODIGO_TRIBUTACAO,
   POA_CODIGO_MUNICIPIO,
   type FocusNfeConfig,
   type NfForFocus,
 } from "./focus-nfe.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const baseConfig: FocusNfeConfig = {
   token: "test",
@@ -154,4 +156,27 @@ Deno.test("tipoSessaoDeTexto evita falso positivo em 2x semana", () => {
   if (tipoSessaoDeTexto("2x semana") !== "simples") throw new Error("simples sem duplo/triplo");
   if (tipoSessaoDeTexto("quadruplo") !== "quadruplo") throw new Error("quadruplo");
   if (tipoSessaoDeTexto(null) !== "simples") throw new Error("null");
+});
+
+Deno.test("verifyFocusWebhookSecret fail-closed sem secret", async () => {
+  const prev = Deno.env.get("FOCUSNFE_WEBHOOK_SECRET");
+  Deno.env.delete("FOCUSNFE_WEBHOOK_SECRET");
+
+  const admin = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: null, error: null }),
+        }),
+      }),
+    }),
+  } as unknown as SupabaseClient;
+
+  try {
+    const req = new Request("https://example.com/webhook");
+    const ok = await verifyFocusWebhookSecret(admin, req);
+    if (ok) throw new Error("deveria rejeitar quando FOCUSNFE_WEBHOOK_SECRET ausente");
+  } finally {
+    if (prev) Deno.env.set("FOCUSNFE_WEBHOOK_SECRET", prev);
+  }
 });

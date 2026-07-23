@@ -12,8 +12,9 @@ export const Route = (createFileRoute as any)("/portal/notas-fiscais")({
 
 type NF = {
   id: string;
-  competencia: string | null;
-  valor_servicos: number | null;
+  competencia_mes: number | null;
+  competencia_ano: number | null;
+  valor: number | null;
   status: string | null;
 };
 
@@ -21,6 +22,14 @@ function traduzirStatus(s: string | null): { label: string; color: string } {
   if (s === "emitida") return { label: "Disponível", color: "bg-green-100 text-green-700" };
   if (s === "cancelada") return { label: "Cancelada", color: "bg-red-100 text-red-700" };
   return { label: "Em processamento", color: "bg-orange-100 text-orange-700" };
+}
+
+function formatCompetencia(mes: number | null, ano: number | null): string {
+  if (!mes || !ano) return "—";
+  return new Date(ano, mes - 1, 1).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function PortalNotasFiscais() {
@@ -31,13 +40,18 @@ function PortalNotasFiscais() {
 
   React.useEffect(() => {
     if (!pacienteId) return;
-    (supabase as any)
+    supabase
       .from("notas_fiscais")
-      .select("id, competencia, valor_servicos, status")
+      .select("id, competencia_mes, competencia_ano, valor, status")
       .eq("paciente_id", pacienteId)
-      .order("competencia", { ascending: false })
-      .then(({ data }: { data: NF[] | null }) => {
-        setNfs(data ?? []);
+      .order("competencia_ano", { ascending: false })
+      .order("competencia_mes", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[portal/notas-fiscais]", error);
+          toast.error("Não foi possível carregar as notas fiscais.");
+        }
+        setNfs((data as NF[] | null) ?? []);
         setLoading(false);
       });
   }, [pacienteId]);
@@ -87,15 +101,10 @@ function PortalNotasFiscais() {
         <ul className="space-y-2">
           {nfs.map((nf) => {
             const { label, color } = traduzirStatus(nf.status);
-            const comp = nf.competencia
-              ? new Date(nf.competencia + "-01T12:00:00").toLocaleDateString("pt-BR", {
-                  month: "long",
-                  year: "numeric",
-                })
-              : "—";
+            const comp = formatCompetencia(nf.competencia_mes, nf.competencia_ano);
             const valor =
-              nf.valor_servicos != null
-                ? nf.valor_servicos.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+              nf.valor != null
+                ? nf.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
                 : "—";
             return (
               <li key={nf.id} className="rounded-xl border bg-white px-4 py-4 shadow-sm">

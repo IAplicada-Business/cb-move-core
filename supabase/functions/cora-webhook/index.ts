@@ -40,9 +40,15 @@ serve(async (req) => {
 
     const expectedSecret = await getIntegracaoConfigValue(admin, "CORA_WEBHOOK_SHARED_SECRET");
     const providedSecret = new URL(req.url).searchParams.get("secret");
-    if (expectedSecret && providedSecret !== expectedSecret) {
+    if (!expectedSecret) {
+      console.error("[cora-webhook] CORA_WEBHOOK_SHARED_SECRET não configurado — rejeitando");
+      return new Response(JSON.stringify({ error: "Webhook não configurado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (providedSecret !== expectedSecret) {
       console.warn("[cora-webhook] segredo inválido/ausente na URL — ignorando evento");
-      // 200 propositalmente: não dar pista a quem estiver tentando adivinhar a URL.
       return ok({ ok: false, ignored: true });
     }
 

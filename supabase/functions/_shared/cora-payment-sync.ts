@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCoraAccessToken, getCoraInvoice, resolveCoraConfig, type CoraConfig } from "./cora.ts";
 import { getIntegracaoConfigValue } from "./integracao-config.ts";
-import { INTERNAL_TRIGGER_HEADER } from "./auth.ts";
+import { triggerEmitNf } from "./trigger-emit-nf.ts";
 
 /**
  * Núcleo compartilhado da automação "boleto Cora pago -> NF disparada automaticamente".
@@ -11,8 +11,8 @@ import { INTERNAL_TRIGGER_HEADER } from "./auth.ts";
  * `GET /v2/invoices/{id}` (mTLS) antes de qualquer ação — ver docs/notas_spike_cora_stage.md.
  *
  * Fluxo por cobrança: consulta invoice -> (se PAID) RPC marcar_cobranca_paga_cora ->
- * criar_nf_de_cobranca (no-op se já existir NF) -> chamada interna a emit-nf -> log de evento
- * em `cobrancas_pagamentos_eventos`.
+ * criar_nf_de_cobranca (ou reutilizar NF pendente/erro) -> chamada interna a emit-nf ->
+ * log de evento em `cobrancas_pagamentos_eventos`.
  */
 
 export type SyncOrigin = "polling" | "webhook";
@@ -33,9 +33,12 @@ export type SyncResult = {
   erro: string | null;
 };
 
+type SyncContext = { supabaseUrl: string; serviceKey: string; autoNfEnabled: boolean };
+
+type ModoEmissaoNf = "automatico_pagamento" | "data_especifica";
+
 async function isAutoNfEnabled(admin: SupabaseClient): Promise<boolean> {
   const value = await getIntegracaoConfigValue(admin, "CORA_AUTO_NF_ENABLED");
-  // Kill switch: só desliga com valor explícito "false". Ausente/qualquer outro valor = habilitado.
   return value !== "false";
 }
 
@@ -53,12 +56,6 @@ async function logEvento(
   result: SyncResult,
   extra: { payload?: Record<string, unknown> | null } = {},
 ): Promise<void> {
-  // Nota: webhook_event_id não é gravado aqui de propósito. O dedup de entregas de
-  // webhook é uma marca única separada (1 linha por evento, cobranca_id NULL), feita pelo
-  // próprio `cora-webhook` antes de disparar a varredura — ver esse arquivo. Se anexássemos
-  // o mesmo webhook_event_id a cada linha de cobrança sincronizada aqui, o índice único
-  // parcial em webhook_event_id quebraria sempre que mais de uma cobrança fosse paga na
-  // mesma varredura.
   const { error } = await admin.from("cobrancas_pagamentos_eventos").insert({
     cobranca_id: result.cobranca_id,
     origem: origin,
@@ -76,37 +73,95 @@ async function logEvento(
   }
 }
 
-async function triggerEmitNf(
-  supabaseUrl: string,
-  serviceKey: string,
-  nfId: string,
-): Promise<{ ok: boolean; erro: string | null }> {
-  try {
-    const res = await fetch(`${supabaseUrl}/functions/v1/emit-nf`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceKey}`,
-        [INTERNAL_TRIGGER_HEADER]: "cora-payment-sync",
-      },
-      body: JSON.stringify({ nf_id: nfId }),
-    });
-    const body = await res.json().catch(() => ({}) as Record<string, unknown>);
-    if (!res.ok) {
-      const detail = typeof body?.error === "string" ? body.error : JSON.stringify(body).slice(0, 300);
-      return { ok: false, erro: `emit-nf retornou ${res.status}: ${detail}` };
-    }
-    return { ok: true, erro: null };
-  } catch (err) {
-    return { ok: false, erro: `emit-nf: ${err instanceof Error ? err.message : String(err)}` };
+async function fetchModoEmissaoNf(
+  admin: SupabaseClient,
+  cobrancaId: string,
+): Promise<ModoEmissaoNf> {
+  const { data, error } = await admin
+    .from("cobrancas")
+    .select("pacientes(modo_emissao_nf)")
+    .eq("id", cobrancaId)
+    .maybeSingle();
+  if (error) throw error;
+  const pacientes = data as { pacientes?: { modo_emissao_nf?: string | null } | null } | null;
+  const modo = pacientes?.pacientes?.modo_emissao_nf;
+  return modo === "data_especifica" ? "data_especifica" : "automatico_pagamento";
+}
+
+async function findNfEmitivel(admin: SupabaseClient, cobrancaId: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from("notas_fiscais")
+    .select("id")
+    .eq("cobranca_id", cobrancaId)
+    .in("status", ["pendente", "erro"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
+async function criarOuObterNfEmitivel(
+  admin: SupabaseClient,
+  cobrancaId: string,
+): Promise<{ nfId: string | null; criada: boolean; erro: string | null }> {
+  const { data, error: nfErr } = await admin.rpc("criar_nf_de_cobranca", { p_cobranca_id: cobrancaId });
+  if (!nfErr) {
+    const nfId = typeof data === "string" ? data : null;
+    return { nfId, criada: Boolean(nfId), erro: null };
   }
+
+  if ((nfErr.message ?? "").toLowerCase().includes("já existe nf")) {
+    const nfId = await findNfEmitivel(admin, cobrancaId);
+    return { nfId, criada: false, erro: nfId ? null : "NF existente já emitida ou em processamento" };
+  }
+
+  return { nfId: null, criada: false, erro: nfErr.message ?? String(nfErr) };
+}
+
+async function processAutoNfAfterPaid(
+  admin: SupabaseClient,
+  cobrancaId: string,
+  ctx: SyncContext,
+  result: SyncResult,
+): Promise<void> {
+  if (!ctx.autoNfEnabled) {
+    result.erro = "CORA_AUTO_NF_ENABLED=false — pagamento confirmado, NF não disparada (kill switch)";
+    return;
+  }
+
+  let modo: ModoEmissaoNf;
+  try {
+    modo = await fetchModoEmissaoNf(admin, cobrancaId);
+  } catch (err) {
+    result.erro = `modo_emissao_nf: ${err instanceof Error ? err.message : String(err)}`;
+    return;
+  }
+
+  if (modo === "data_especifica") {
+    result.erro = "Paciente em modo data_especifica — NF será emitida no cron, não no pagamento";
+    return;
+  }
+
+  const { nfId, criada, erro } = await criarOuObterNfEmitivel(admin, cobrancaId);
+  if (erro && !nfId) {
+    result.erro = erro.startsWith("criar_nf") ? erro : `criar_nf_de_cobranca: ${erro}`;
+    return;
+  }
+
+  result.nf_criada = criada;
+  if (!nfId) return;
+
+  result.nf_id = nfId;
+  const emitResult = await triggerEmitNf(ctx.supabaseUrl, ctx.serviceKey, nfId, "cora-payment-sync");
+  result.emit_nf_disparado = emitResult.ok;
+  if (!emitResult.ok) result.erro = emitResult.erro;
 }
 
 /**
  * Sincroniza uma cobrança específica contra o status real na Cora. Idempotente: se o
  * boleto ainda não estiver `PAID`, não faz nada e não grava evento (evita ruído a cada
- * ciclo de polling). Se já foi marcada `pago` por outra chamada concorrente, encerra sem
- * duplicar a criação de NF.
+ * ciclo de polling). Se já estava paga, ainda tenta emitir NF pendente/erro quando aplicável.
  */
 export async function syncCobrancaPagamentoCora(
   admin: SupabaseClient,
@@ -114,7 +169,7 @@ export async function syncCobrancaPagamentoCora(
   token: string,
   cobranca: CobrancaPendenteCora,
   origin: SyncOrigin,
-  ctx: { supabaseUrl: string; serviceKey: string; autoNfEnabled: boolean },
+  ctx: SyncContext,
 ): Promise<SyncResult> {
   const result: SyncResult = {
     cobranca_id: cobranca.id,
@@ -146,7 +201,6 @@ export async function syncCobrancaPagamentoCora(
   }
 
   if (result.cora_status !== "PAID") {
-    // Nada mudou — não é um evento relevante, não grava log (evita ruído no polling).
     return result;
   }
 
@@ -165,48 +219,10 @@ export async function syncCobrancaPagamentoCora(
     return result;
   }
 
-  if (!result.marcou_pago) {
-    // Já estava paga (corrida polling/webhook ou marcação manual prévia) — idempotente.
-    await logEvento(admin, origin, result, { payload: sanitizeInvoiceForLog(invoice) });
-    return result;
-  }
-
-  if (!ctx.autoNfEnabled) {
-    result.erro = "CORA_AUTO_NF_ENABLED=false — pagamento confirmado, NF não disparada (kill switch)";
-    await logEvento(admin, origin, result, { payload: sanitizeInvoiceForLog(invoice) });
-    return result;
-  }
-
-  let nfId: string | null = null;
-  try {
-    const { data, error: nfErr } = await admin.rpc("criar_nf_de_cobranca", { p_cobranca_id: cobranca.id });
-    if (nfErr) {
-      if (!(nfErr.message ?? "").toLowerCase().includes("já existe nf")) {
-        throw nfErr;
-      }
-      // No-op: já existia NF para esta cobrança — não reemitir.
-    } else {
-      nfId = typeof data === "string" ? data : null;
-      result.nf_criada = Boolean(nfId);
-    }
-  } catch (err) {
-    result.erro = `criar_nf_de_cobranca: ${err instanceof Error ? err.message : String(err)}`;
-    await logEvento(admin, origin, result, { payload: sanitizeInvoiceForLog(invoice) });
-    return result;
-  }
-
-  if (nfId) {
-    result.nf_id = nfId;
-    const emitResult = await triggerEmitNf(ctx.supabaseUrl, ctx.serviceKey, nfId);
-    result.emit_nf_disparado = emitResult.ok;
-    if (!emitResult.ok) result.erro = emitResult.erro;
-  }
-
+  await processAutoNfAfterPaid(admin, cobranca.id, ctx, result);
   await logEvento(admin, origin, result, { payload: sanitizeInvoiceForLog(invoice) });
   return result;
 }
-
-type SyncContext = { supabaseUrl: string; serviceKey: string; autoNfEnabled: boolean };
 
 async function buildSyncContext(admin: SupabaseClient): Promise<{ coraConfig: CoraConfig; token: string; ctx: SyncContext }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -226,11 +242,60 @@ async function buildSyncContext(admin: SupabaseClient): Promise<{ coraConfig: Co
 }
 
 /**
- * Varre todas as cobrancas com boleto automático (`boleto_modo = 'automatico'`) ainda em
- * aberto/atrasado e sincroniza cada uma contra a Cora. Usado pelo cron
- * (`cora-verificar-pagamentos`) e, como fallback, pelo webhook (`cora-webhook`) quando o
- * evento não trouxer o header `webhook-resource-id`.
+ * Reemite NF para cobranças já marcadas como pagas mas com NF pendente/erro
+ * (ex.: kill switch ligado no 1º sync, falha transiente em emit-nf).
  */
+export async function retryAutoNfCobrancasPagas(
+  admin: SupabaseClient,
+  origin: SyncOrigin,
+): Promise<{ verificadas: number; emitidas: number; resultados: SyncResult[] }> {
+  const { ctx } = await buildSyncContext(admin);
+  if (!ctx.autoNfEnabled) {
+    return { verificadas: 0, emitidas: 0, resultados: [] };
+  }
+
+  const { data: cobrancas, error: queryErr } = await admin
+    .from("cobrancas")
+    .select("id, cora_invoice_id, pacientes(modo_emissao_nf)")
+    .eq("status", "pago")
+    .eq("boleto_modo", "automatico");
+  if (queryErr) throw queryErr;
+
+  const resultados: SyncResult[] = [];
+
+  for (const row of cobrancas ?? []) {
+    const pacientes = row.pacientes as { modo_emissao_nf?: string | null } | null;
+    if (pacientes?.modo_emissao_nf === "data_especifica") continue;
+
+    const nfId = await findNfEmitivel(admin, row.id as string);
+    if (!nfId) continue;
+
+    const result: SyncResult = {
+      cobranca_id: row.id as string,
+      cora_invoice_id: (row.cora_invoice_id as string) ?? "",
+      cora_status: "PAID",
+      marcou_pago: false,
+      nf_criada: false,
+      nf_id: nfId,
+      emit_nf_disparado: false,
+      erro: "retry cobrança já paga",
+    };
+
+    const emitResult = await triggerEmitNf(ctx.supabaseUrl, ctx.serviceKey, nfId, "cora-payment-sync-retry");
+    result.emit_nf_disparado = emitResult.ok;
+    result.erro = emitResult.ok ? null : emitResult.erro;
+
+    await logEvento(admin, origin, result);
+    resultados.push(result);
+  }
+
+  return {
+    verificadas: resultados.length,
+    emitidas: resultados.filter((r) => r.emit_nf_disparado).length,
+    resultados,
+  };
+}
+
 export async function syncPagamentosCoraPendentes(
   admin: SupabaseClient,
   origin: SyncOrigin,
@@ -244,10 +309,6 @@ export async function syncPagamentosCoraPendentes(
   if (queryErr) throw queryErr;
 
   const cobrancas = (pendentes ?? []) as CobrancaPendenteCora[];
-  if (cobrancas.length === 0) {
-    return { verificadas: 0, pagas: 0, resultados: [] };
-  }
-
   const { coraConfig, token, ctx } = await buildSyncContext(admin);
 
   const resultados: SyncResult[] = [];
@@ -256,19 +317,16 @@ export async function syncPagamentosCoraPendentes(
     resultados.push(result);
   }
 
+  const retry = await retryAutoNfCobrancasPagas(admin, origin);
+  resultados.push(...retry.resultados);
+
   return {
-    verificadas: cobrancas.length,
+    verificadas: cobrancas.length + retry.verificadas,
     pagas: resultados.filter((r) => r.marcou_pago).length,
     resultados,
   };
 }
 
-/**
- * Sincroniza uma única cobrança a partir do `cora_invoice_id` — usado pelo webhook quando
- * o evento traz o header `webhook-resource-id` (o corpo da notificação vem vazio, mas esse
- * header identifica o boleto). Evita varrer todas as cobranças pendentes a cada ping.
- * Retorna `null` se nenhuma cobrança automática corresponder (ex.: evento de teste da Cora).
- */
 export async function syncCobrancaPorInvoiceId(
   admin: SupabaseClient,
   coraInvoiceId: string,

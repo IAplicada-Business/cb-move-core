@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.cora-verificar-pagamentos]
 verify_jwt = false
 
+[functions.nf-emissao-data-especifica]
+verify_jwt = false
+
 [functions.transcribe-audio]
 verify_jwt = true
 

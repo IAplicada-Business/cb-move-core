@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getIntegracaoEnv } from "../_shared/integracao-config.ts";
+import { triggerEmitNf } from "../_shared/trigger-emit-nf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,9 +38,29 @@ serve(async (req) => {
     const { data, error } = await admin.rpc("processar_nf_emissao_data_especifica", { p_dia: dia });
     if (error) throw error;
 
-    return new Response(JSON.stringify({ ok: true, resultado: data }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const resultado = (data ?? {}) as {
+      ok?: boolean;
+      nf_ids?: string[];
+      nfs_criadas?: number;
+    };
+
+    const nfIds = Array.isArray(resultado.nf_ids) ? resultado.nf_ids : [];
+    const emissoes: { nf_id: string; ok: boolean; erro?: string }[] = [];
+
+    for (const nfId of nfIds) {
+      const emit = await triggerEmitNf(supabaseUrl, serviceKey, nfId, "nf-emissao-data-especifica");
+      emissoes.push({ nf_id: nfId, ok: emit.ok, erro: emit.erro ?? undefined });
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        resultado,
+        emit_nf: emissoes,
+        emitidas: emissoes.filter((e) => e.ok).length,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Erro interno" }),

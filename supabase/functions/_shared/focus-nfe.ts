@@ -456,7 +456,7 @@ export async function verifyFocusWebhookSecret(
   req: Request,
 ): Promise<boolean> {
   const expected = await getIntegracaoConfigValue(admin, "FOCUSNFE_WEBHOOK_SECRET");
-  if (!expected) return true;
+  if (!expected) return false;
 
   const header =
     req.headers.get("X-Webhook-Secret") ??
