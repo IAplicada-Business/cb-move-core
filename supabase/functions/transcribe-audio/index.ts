@@ -19,6 +19,26 @@ Retorne APENAS um objeto JSON válido com exatamente estas chaves:
 Se a transcrição não tiver conteúdo claro para um campo, deixe a string vazia.
 Não inclua mais nenhuma chave ou texto fora do JSON.`;
 
+function parseSoapJson(rawContent: string): { subjetivo: string; objetivo: string; plano: string } {
+  const empty = { subjetivo: "", objetivo: "", plano: "" };
+  const trimmed = rawContent.trim();
+  if (!trimmed) return empty;
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = (fenced?.[1] ?? trimmed).trim();
+
+  try {
+    const parsed = JSON.parse(candidate) as Record<string, unknown>;
+    return {
+      subjetivo: String(parsed.subjetivo ?? "").trim(),
+      objetivo: String(parsed.objetivo ?? "").trim(),
+      plano: String(parsed.plano ?? "").trim(),
+    };
+  } catch {
+    return { subjetivo: trimmed, objetivo: "", plano: "" };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -90,13 +110,7 @@ serve(async (req) => {
       const anthropicData = await anthropicRes.json();
       const rawContent = anthropicData.content?.[0]?.text ?? "{}";
 
-      let soap = { subjetivo: "", objetivo: "", plano: "" };
-      try {
-        soap = JSON.parse(rawContent);
-      } catch {
-        // Se Claude não retornou JSON puro, coloca tudo no subjetivo
-        soap.subjetivo = rawContent;
-      }
+      let soap = parseSoapJson(rawContent);
 
       // Registra uso (custo Haiku: $0.25/MTok input, $1.25/MTok output)
       try {

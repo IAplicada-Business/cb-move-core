@@ -44,14 +44,35 @@ const SpeechRecognitionClass: SpeechRecognitionCtor | null =
        null)
     : null;
 
+function speechErrorMessage(code: string): string {
+  switch (code) {
+    case "network":
+      return "Serviço de voz indisponível (conexão). Use Chrome/Edge com internet ou digite a evolução abaixo.";
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Permissão de microfone negada. Libere o microfone no navegador ou digite a evolução abaixo.";
+    case "audio-capture":
+      return "Microfone não encontrado ou em uso por outro app.";
+    case "aborted":
+      return "";
+    default:
+      return `Erro no reconhecimento de voz (${code}). Tente digitar a evolução abaixo.`;
+  }
+}
+
 export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gravar evolução" }: Props) {
   const [recording, setRecording] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
   const [liveText, setLiveText] = React.useState("");
+  const [manualText, setManualText] = React.useState("");
+  const [showManual, setShowManual] = React.useState(false);
+  const [micHint, setMicHint] = React.useState<string | null>(null);
   const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
   const finalTextRef = React.useRef("");
   const liveTextRef = React.useRef("");
   const shouldSendRef = React.useRef(false);
+  const networkRetriesRef = React.useRef(0);
+  const retryingRef = React.useRef(false);
 
   if (!SpeechRecognitionClass) {
     return (
@@ -72,10 +93,26 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
 
   function startRecording() {
     shouldSendRef.current = false;
+    networkRetriesRef.current = 0;
     finalTextRef.current = "";
     liveTextRef.current = "";
     setLiveText("");
+    setMicHint(null);
 
+    void (async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        setMicHint("Permita o microfone no navegador para gravar por voz.");
+        setShowManual(true);
+        return;
+      }
+
+      startRecognition();
+    })();
+  }
+
+  function startRecognition() {
     const rec = new SpeechRecognitionClass!();
     rec.continuous = true;
     rec.interimResults = true;
@@ -104,10 +141,36 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
     };
 
     rec.onerror = (e) => {
-      if (e.error !== "no-speech") toast.error("Erro no microfone: " + e.error);
+      if (e.error === "no-speech" || e.error === "aborted") return;
+
+      if (e.error === "network" && networkRetriesRef.current < 2 && recognitionRef.current === rec) {
+        networkRetriesRef.current += 1;
+        retryingRef.current = true;
+        try {
+          rec.stop();
+          window.setTimeout(() => {
+            retryingRef.current = false;
+            if (recognitionRef.current === rec) rec.start();
+          }, 400);
+          return;
+        } catch {
+          retryingRef.current = false;
+          /* segue para mensagem abaixo */
+        }
+      }
+
+      const msg = speechErrorMessage(e.error);
+      if (msg) {
+        setMicHint(msg);
+        setShowManual(true);
+        toast.error(msg);
+      }
+      setRecording(false);
+      shouldSendRef.current = false;
     };
 
     rec.onend = () => {
+      if (retryingRef.current) return;
       setRecording(false);
       recognitionRef.current = null;
       if (!shouldSendRef.current) return;
@@ -205,6 +268,52 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
       {(recording || liveText) && (
         <div className="h-24 overflow-y-auto rounded-md border bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground break-words">
           {liveText || "Ouvindo… fale a evolução da sessão."}
+        </div>
+      )}
+
+      {micHint && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{micHint}</p>
+      )}
+
+      {!recording && (
+        <div className="space-y-2">
+          {!showManual ? (
+            <button
+              type="button"
+              className="text-xs text-cb-cyan-700 underline-offset-2 hover:underline"
+              onClick={() => setShowManual(true)}
+            >
+              Ou digite / cole a transcrição
+            </button>
+          ) : (
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <p className="text-xs font-medium text-foreground">Transcrição manual</p>
+              <textarea
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                className="min-h-[88px] w-full rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Digite ou cole o texto da evolução…"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={processing || !manualText.trim()}
+                  onClick={() => void sendText(manualText.trim())}
+                >
+                  Estruturar com IA
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowManual(false)}
+                >
+                  Ocultar
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
