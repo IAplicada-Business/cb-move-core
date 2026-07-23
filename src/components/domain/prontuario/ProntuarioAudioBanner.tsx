@@ -24,13 +24,14 @@ export function ProntuarioAudioBanner({ pacienteId, canEdit, onTranscricao }: Pr
           </p>
         </div>
       </div>
-        <div className="shrink-0 [&_button]:bg-cb-cyan-600 [&_button]:text-white [&_button]:hover:bg-cb-cyan-700 [&_button]:border-0">
-          <EvolucaoAudioRecorder
-            pacienteId={pacienteId}
-            onResult={onTranscricao}
-            buttonLabel="Iniciar gravação"
-          />
-        </div>
+      <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:min-w-[12rem]">
+        <EvolucaoAudioRecorder
+          pacienteId={pacienteId}
+          onResult={onTranscricao}
+          buttonLabel="Iniciar gravação"
+          primaryButtonClassName="w-full border-cb-cyan-600 bg-cb-cyan-600 text-white shadow-sm hover:bg-cb-cyan-700 hover:text-white sm:w-auto"
+        />
+      </div>
     </div>
   );
 }

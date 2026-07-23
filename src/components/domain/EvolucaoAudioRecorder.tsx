@@ -2,6 +2,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export type TranscricaoResult = {
   transcricao_raw: string;
@@ -15,6 +16,8 @@ type Props = {
   pacienteId: string;
   onResult: (r: TranscricaoResult) => void;
   buttonLabel?: string;
+  /** Estilo extra do botão principal (ex.: banner cyan no prontuário). */
+  primaryButtonClassName?: string;
 };
 
 // Minimal typing for the Web Speech API (SpeechRecognition isn't in every TS lib).
@@ -60,7 +63,12 @@ function speechErrorMessage(code: string): string {
   }
 }
 
-export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gravar evolução" }: Props) {
+export function EvolucaoAudioRecorder({
+  pacienteId,
+  onResult,
+  buttonLabel = "Gravar evolução",
+  primaryButtonClassName,
+}: Props) {
   const [recording, setRecording] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
   const [liveText, setLiveText] = React.useState("");
@@ -234,8 +242,8 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
+    <div className="flex w-full min-w-[12rem] flex-col items-stretch gap-2 sm:items-end">
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         {!recording ? (
           <Button
             type="button"
@@ -243,7 +251,7 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
             size="sm"
             onClick={startRecording}
             disabled={processing}
-            className="gap-2"
+            className={cn("w-full gap-2 sm:w-auto", primaryButtonClassName)}
           >
             <span>🎤</span>
             {processing ? "Processando IA..." : buttonLabel}
@@ -276,40 +284,43 @@ export function EvolucaoAudioRecorder({ pacienteId, onResult, buttonLabel = "Gra
       )}
 
       {!recording && (
-        <div className="space-y-2">
+        <div className="flex w-full flex-col gap-2 sm:items-end">
           {!showManual ? (
-            <button
+            <Button
               type="button"
-              className="text-xs text-cb-cyan-700 underline-offset-2 hover:underline"
+              variant="link"
+              size="sm"
+              className="h-auto w-full justify-center px-0 text-xs font-normal text-muted-foreground no-underline hover:text-cb-cyan-800 hover:no-underline sm:w-auto"
               onClick={() => setShowManual(true)}
             >
               Ou digite / cole a transcrição
-            </button>
+            </Button>
           ) : (
-            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
-              <p className="text-xs font-medium text-foreground">Transcrição manual</p>
+            <div className="w-full space-y-2 rounded-xl border border-border bg-card p-3 shadow-sm sm:min-w-[280px]">
+              <p className="text-xs font-semibold text-foreground">Transcrição manual</p>
               <textarea
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
-                className="min-h-[88px] w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
                 placeholder="Digite ou cole o texto da evolução…"
               />
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   type="button"
                   size="sm"
-                  disabled={processing || !manualText.trim()}
-                  onClick={() => void sendText(manualText.trim())}
+                  variant="outline"
+                  onClick={() => setShowManual(false)}
                 >
-                  Estruturar com IA
+                  Ocultar
                 </Button>
                 <Button
                   type="button"
                   size="sm"
-                  variant="ghost"
-                  onClick={() => setShowManual(false)}
+                  className={cn(primaryButtonClassName)}
+                  disabled={processing || !manualText.trim()}
+                  onClick={() => void sendText(manualText.trim())}
                 >
-                  Ocultar
+                  Estruturar com IA
                 </Button>
               </div>
             </div>
