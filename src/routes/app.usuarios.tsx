@@ -55,7 +55,6 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -138,8 +137,6 @@ function AcessosMatrix({
   menuDraft,
   setMenuDraft,
   enabledCount,
-  onSave,
-  saving,
 }: {
   loading: boolean;
   menuDraft: Partial<Record<MenuKey, boolean>>;
@@ -147,12 +144,10 @@ function AcessosMatrix({
     updater: (prev: Partial<Record<MenuKey, boolean>>) => Partial<Record<MenuKey, boolean>>,
   ) => void;
   enabledCount: number;
-  onSave: () => void;
-  saving: boolean;
 }) {
   if (loading) return <LoadingState />;
   return (
-    <div className="space-y-4 rounded-xl border bg-card p-4">
+    <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
       {MENU_GROUPS.map((group) => (
         <div key={group.id}>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -162,7 +157,7 @@ function AcessosMatrix({
             {group.items.map((item) => (
               <label
                 key={item.key}
-                className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/30"
+                className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted/30"
               >
                 <Checkbox
                   checked={!!menuDraft[item.key]}
@@ -177,14 +172,9 @@ function AcessosMatrix({
         </div>
       ))}
 
-      <div className="flex items-center justify-between border-t pt-4">
-        <p className="text-xs text-muted-foreground">
-          {enabledCount} de {ALL_MENU_KEYS.length} itens habilitados para Membro
-        </p>
-        <Button disabled={saving} onClick={onSave}>
-          {saving ? "Salvando…" : "Salvar acessos"}
-        </Button>
-      </div>
+      <p className="border-t pt-3 text-xs text-muted-foreground">
+        {enabledCount} de {ALL_MENU_KEYS.length} itens habilitados para Membro
+      </p>
     </div>
   );
 }
@@ -194,7 +184,6 @@ function UsuariosPage() {
   const qc = useQueryClient();
   const isAdmin = roles.includes("admin");
 
-  const [tab, setTab] = useState<"usuarios" | "acessos">("usuarios");
   const [cadastroOpen, setCadastroOpen] = useState(false);
   const [cadastroForm, setCadastroForm] = useState({
     nome: "",
@@ -218,7 +207,7 @@ function UsuariosPage() {
   const { data: menuPerms, isLoading: loadingMenu } = useQuery({
     queryKey: queryKeys.usuarios.menuPermissions("membro"),
     queryFn: () => fetchMenuPermissions("membro"),
-    enabled: isAdmin && (tab === "acessos" || (cadastroOpen && cadastroForm.role === "membro")),
+    enabled: isAdmin && cadastroOpen && cadastroForm.role === "membro",
   });
 
   useEffect(() => {
@@ -243,10 +232,18 @@ function UsuariosPage() {
   });
 
   const cadastroMutation = useMutation({
-    mutationFn: createUser,
+    mutationFn: async (input: Parameters<typeof createUser>[0]) => {
+      const result = await createUser(input);
+      if (input.role === "membro") {
+        await saveMenuPermissions("membro", menuDraft);
+      }
+      return result;
+    },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
-      toast.success(res.message ?? "Usuário cadastrado");
+      qc.invalidateQueries({ queryKey: queryKeys.usuarios.menuPermissions("membro") });
+      qc.invalidateQueries({ queryKey: queryKeys.usuarios.menuAccess });
+      toast.success(res.message ?? "Usuário salvo");
       setCadastroOpen(false);
       setCadastroForm({ nome: "", email: "", role: "membro", paciente_id: "" });
     },
@@ -259,16 +256,6 @@ function UsuariosPage() {
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
       toast.success(res.message ?? "Usuário excluído");
       setUserToDelete(null);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const menuMutation = useMutation({
-    mutationFn: () => saveMenuPermissions("membro", menuDraft),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.usuarios.menuPermissions("membro") });
-      qc.invalidateQueries({ queryKey: queryKeys.usuarios.menuAccess });
-      toast.success("Acessos ao menu salvos");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -324,10 +311,10 @@ function UsuariosPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Usuários e acessos</h1>
+          <h1 className="text-2xl font-bold text-foreground">Usuários do sistema</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Equipe de referência — cadastre com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>.
-            No primeiro login, cada pessoa define a senha pessoal.
+            Cadastre a equipe com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>.
+            Para perfil Membro, defina os acessos ao menu no mesmo fluxo de cadastro.
           </p>
         </div>
         <Button onClick={() => openCadastro()}>
@@ -336,130 +323,106 @@ function UsuariosPage() {
         </Button>
       </header>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <TabsList>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="acessos">Acessos ao menu</TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          <Users className="mr-2 inline h-4 w-4" />
+          Lista extraída de <em>Informações Colaboradores.docx</em>, mais usuários cadastrados no sistema.
+          {" "}
+          <strong>{users.length}</strong> cadastrados
+          {" "}
+          (<strong>{cadastradosCount}</strong> da equipe de referência).
+        </div>
 
-        <TabsContent value="usuarios" className="mt-4 space-y-4">
-          <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-            <Users className="mr-2 inline h-4 w-4" />
-            Lista extraída de <em>Informações Colaboradores.docx</em>, mais usuários cadastrados no sistema.
-            {" "}
-            <strong>{users.length}</strong> cadastrados
-            {" "}
-            (<strong>{cadastradosCount}</strong> da equipe de referência).
-          </div>
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nome ou e-mail…"
+            className="pl-9"
+          />
+        </div>
 
-          <div className="relative max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nome ou e-mail…"
-              className="pl-9"
-            />
-          </div>
-
-          {isLoading ? (
-            <LoadingState />
-          ) : isError ? (
-            <EmptyState
-              icon={<Users className="h-8 w-8" />}
-              title="Erro ao carregar usuários"
-              description={error instanceof Error ? error.message : "Tente novamente."}
-              action={
-                <Button onClick={() => refetch()} disabled={isFetching}>
-                  {isFetching ? "Carregando…" : "Tentar novamente"}
-                </Button>
-              }
-            />
-          ) : filteredUsuarioRows.length === 0 ? (
-            <EmptyState
-              icon={<Search className="h-8 w-8" />}
-              title="Nenhum usuário encontrado"
-              description="Tente buscar por outro nome ou e-mail."
-            />
-          ) : (
-            <div className="overflow-hidden rounded-xl border bg-card">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>E-mail</TableHead>
-                    <TableHead>Perfil</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-56 text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsuarioRows.map((row) => {
-                    const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
-                    const isSelf = row.registered?.id === user?.id;
-                    return (
-                      <TableRow key={row.key}>
-                        <TableCell className="font-medium">{row.nome}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{row.email}</TableCell>
-                        <TableCell>
-                          <RoleBadge role={displayRole} />
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {statusLabel(row.registered)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+        {isLoading ? (
+          <LoadingState />
+        ) : isError ? (
+          <EmptyState
+            icon={<Users className="h-8 w-8" />}
+            title="Erro ao carregar usuários"
+            description={error instanceof Error ? error.message : "Tente novamente."}
+            action={
+              <Button onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? "Carregando…" : "Tentar novamente"}
+              </Button>
+            }
+          />
+        ) : filteredUsuarioRows.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-8 w-8" />}
+            title="Nenhum usuário encontrado"
+            description="Tente buscar por outro nome ou e-mail."
+          />
+        ) : (
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead>Perfil</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-56 text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsuarioRows.map((row) => {
+                  const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
+                  const isSelf = row.registered?.id === user?.id;
+                  return (
+                    <TableRow key={row.key}>
+                      <TableCell className="font-medium">{row.nome}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{row.email}</TableCell>
+                      <TableCell>
+                        <RoleBadge role={displayRole} />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {statusLabel(row.registered)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openCadastro({
+                              nome: row.nome,
+                              email: row.email,
+                              role: normalizeRole(row.registered?.role) ?? row.perfil,
+                            })}
+                          >
+                            {row.registered ? "Editar" : "Cadastrar"}
+                          </Button>
+                          {row.registered && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => openCadastro({
-                                nome: row.nome,
-                                email: row.email,
-                                role: normalizeRole(row.registered?.role) ?? row.perfil,
-                              })}
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              disabled={isSelf}
+                              title={isSelf ? "Você não pode excluir seu próprio usuário" : "Excluir usuário"}
+                              onClick={() => setUserToDelete(row)}
                             >
-                              {row.registered ? "Atualizar cadastro" : "Cadastrar"}
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            {row.registered && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                disabled={isSelf}
-                                title={isSelf ? "Você não pode excluir seu próprio usuário" : "Excluir usuário"}
-                                onClick={() => setUserToDelete(row)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="acessos" className="mt-4 space-y-4">
-          <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-            <Shield className="mr-2 inline h-4 w-4" />
-            Administradores veem tudo. Aqui você define o que o perfil <strong>Membro</strong> enxerga no menu.
-            Clientes usam o portal e veem apenas suas sessões e documentos.
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
-
-          <AcessosMatrix
-            loading={loadingMenu}
-            menuDraft={menuDraft}
-            setMenuDraft={setMenuDraft}
-            enabledCount={enabledCount}
-            onSave={() => menuMutation.mutate()}
-            saving={menuMutation.isPending}
-          />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       <Dialog open={cadastroOpen} onOpenChange={setCadastroOpen}>
         <DialogContent
@@ -510,18 +473,17 @@ function UsuariosPage() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <Label className="mb-0">Acessos do perfil Membro</Label>
+                  <Label className="mb-0">Acessos ao menu (Membro)</Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Vale para todos os usuários com perfil Membro (não é por pessoa). Ajuste aqui e já salve, sem precisar trocar de aba.
+                  Define o que todos os usuários com perfil Membro enxergam no menu lateral.
+                  Administradores veem tudo; clientes usam o portal.
                 </p>
                 <AcessosMatrix
                   loading={loadingMenu}
                   menuDraft={menuDraft}
                   setMenuDraft={setMenuDraft}
                   enabledCount={enabledCount}
-                  onSave={() => menuMutation.mutate()}
-                  saving={menuMutation.isPending}
                 />
               </div>
             )}
@@ -563,7 +525,11 @@ function UsuariosPage() {
                 paciente_id: cadastroForm.role === "cliente" ? cadastroForm.paciente_id : null,
               })}
             >
-              {cadastroMutation.isPending ? "Salvando…" : "Salvar"}
+              {cadastroMutation.isPending
+                ? "Salvando…"
+                : cadastroForm.role === "membro"
+                  ? "Salvar usuário e acessos"
+                  : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
