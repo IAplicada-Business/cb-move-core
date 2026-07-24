@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authErrorResponse, requireFinanceUser } from "../_shared/auth.ts";
+import { authErrorResponse, requireFinanceUserOrInternal } from "../_shared/auth.ts";
 import { buildCoraInvoicePayload, assertCoraIdempotencyKey, parseCoraInvoiceResponse } from "../_shared/cora-invoice.ts";
 import { coraConfigHint, createCoraInvoice, getCoraAccessToken, resolveCoraConfig } from "../_shared/cora.ts";
 
@@ -43,7 +43,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { admin } = await requireFinanceUser(req);
+    const { admin } = await requireFinanceUserOrInternal(req);
     const body = await req.json();
     const { cobranca_id, modo, boleto_url, cora_invoice_id } = body;
 

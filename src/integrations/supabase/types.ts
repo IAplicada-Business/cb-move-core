@@ -938,6 +938,7 @@ export type Database = {
           created_at: string
           criado_em: string
           dia_emissao_nf: number | null
+          dia_emissao_boleto: number | null
           dias_semana: string | null
           email: string | null
           endereco: string | null
@@ -951,6 +952,7 @@ export type Database = {
             | Database["public"]["Enums"]["modelo_relatorio"]
             | null
           modo_emissao_nf: Database["public"]["Enums"]["modo_emissao_nf"]
+          modo_emissao_boleto: Database["public"]["Enums"]["modo_emissao_nf"]
           motivo_acompanhamento: string | null
           nome: string
           numero_endereco: string | null
@@ -984,6 +986,7 @@ export type Database = {
           created_at?: string
           criado_em?: string
           dia_emissao_nf?: number | null
+          dia_emissao_boleto?: number | null
           dias_semana?: string | null
           email?: string | null
           endereco?: string | null
@@ -997,6 +1000,7 @@ export type Database = {
             | Database["public"]["Enums"]["modelo_relatorio"]
             | null
           modo_emissao_nf?: Database["public"]["Enums"]["modo_emissao_nf"]
+          modo_emissao_boleto?: Database["public"]["Enums"]["modo_emissao_nf"]
           motivo_acompanhamento?: string | null
           nome: string
           numero_endereco?: string | null
@@ -1030,6 +1034,7 @@ export type Database = {
           created_at?: string
           criado_em?: string
           dia_emissao_nf?: number | null
+          dia_emissao_boleto?: number | null
           dias_semana?: string | null
           email?: string | null
           endereco?: string | null
@@ -1043,6 +1048,7 @@ export type Database = {
             | Database["public"]["Enums"]["modelo_relatorio"]
             | null
           modo_emissao_nf?: Database["public"]["Enums"]["modo_emissao_nf"]
+          modo_emissao_boleto?: Database["public"]["Enums"]["modo_emissao_nf"]
           motivo_acompanhamento?: string | null
           nome?: string
           numero_endereco?: string | null

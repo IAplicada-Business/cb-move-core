@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/edge-functions";
 import type { CobrancaStatus, FormaPagamento, PacienteTipo, RegimeCobranca } from "../types";
 
 export type Cobranca = {
@@ -222,12 +223,37 @@ export async function updateCobranca(id: string, input: Partial<{
   if (error) throw error;
 }
 
-export async function marcarComoPago(id: string, pagoEm: string): Promise<void> {
+export type MarcarComoPagoResult = {
+  nfDisparada: boolean;
+  nfId: string | null;
+  nfErro: string | null;
+};
+
+export async function marcarComoPago(id: string, pagoEm: string): Promise<MarcarComoPagoResult> {
   const { error } = await supabase
     .from("cobrancas")
     .update({ status: "pago", pago_em: pagoEm })
     .eq("id", id);
   if (error) throw error;
+
+  try {
+    const result = await invokeEdgeFunction<{
+      emit_nf_disparado?: boolean;
+      nf_id?: string | null;
+      erro?: string | null;
+    }>("auto-nf-apos-pagamento", { cobranca_id: id }, { timeoutMs: 35_000 });
+    return {
+      nfDisparada: Boolean(result.emit_nf_disparado),
+      nfId: result.nf_id ?? null,
+      nfErro: result.erro ?? null,
+    };
+  } catch (err) {
+    return {
+      nfDisparada: false,
+      nfId: null,
+      nfErro: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 /**

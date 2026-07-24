@@ -48,6 +48,8 @@ export type CobrancaSemNf = {
   cobrancaId: string;
   pacienteId: string;
   pacienteNome: string;
+  pacienteCpf: string | null;
+  pacienteTelefone: string | null;
   tipo: PacienteTipo;
   valor: number;
   competenciaMes: number | null;
@@ -149,6 +151,8 @@ export async function fetchCobrancasSemNf(mes: number, ano: number): Promise<Cob
     cobranca_id: string;
     paciente_id: string;
     paciente_nome: string;
+    paciente_cpf: string | null;
+    paciente_telefone: string | null;
     tipo: PacienteTipo;
     valor: number | string;
     competencia_mes: number | null;
@@ -160,6 +164,8 @@ export async function fetchCobrancasSemNf(mes: number, ano: number): Promise<Cob
     cobrancaId: r.cobranca_id,
     pacienteId: r.paciente_id,
     pacienteNome: r.paciente_nome,
+    pacienteCpf: r.paciente_cpf,
+    pacienteTelefone: r.paciente_telefone,
     tipo: r.tipo,
     valor: Number(r.valor) || 0,
     competenciaMes: r.competencia_mes,

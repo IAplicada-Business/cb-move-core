@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { syncConsultaExperimentalProntuario } from "@/lib/queries/prontuario";
-import type { FormaPagamento, ModeloRelatorio, ModoEmissaoNf, PacienteTipo, RegimeCobranca } from "../types";
+import type { FormaPagamento, ModeloRelatorio, ModoEmissaoBoleto, ModoEmissaoNf, PacienteTipo, RegimeCobranca } from "../types";
 
 export type Paciente = {
   id: string;
@@ -27,6 +27,8 @@ export type Paciente = {
   motivoAcompanhamento: string | null;
   modoEmissaoNf: ModoEmissaoNf;
   diaEmissaoNf: number | null;
+  modoEmissaoBoleto: ModoEmissaoBoleto;
+  diaEmissaoBoleto: number | null;
   consultaExperimentalEm: string | null;
   consultaExperimentalFisioId: string | null;
   consultaExperimentalObservacoes: string | null;
@@ -69,6 +71,8 @@ type Row = {
   motivo_acompanhamento: string | null;
   modo_emissao_nf: ModoEmissaoNf;
   dia_emissao_nf: number | null;
+  modo_emissao_boleto: ModoEmissaoBoleto;
+  dia_emissao_boleto: number | null;
   consulta_experimental_em: string | null;
   consulta_experimental_fisio_id: string | null;
   consulta_experimental_observacoes: string | null;
@@ -112,6 +116,8 @@ const map = (r: Row): Paciente => ({
   motivoAcompanhamento: r.motivo_acompanhamento,
   modoEmissaoNf: r.modo_emissao_nf ?? "automatico_pagamento",
   diaEmissaoNf: r.dia_emissao_nf,
+  modoEmissaoBoleto: r.modo_emissao_boleto ?? "automatico_pagamento",
+  diaEmissaoBoleto: r.dia_emissao_boleto,
   consultaExperimentalEm: r.consulta_experimental_em,
   consultaExperimentalFisioId: r.consulta_experimental_fisio_id,
   consultaExperimentalObservacoes: r.consulta_experimental_observacoes,
@@ -262,6 +268,8 @@ export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | 
       motivo_acompanhamento: input.motivoAcompanhamento,
       modo_emissao_nf: input.modoEmissaoNf ?? "automatico_pagamento",
       dia_emissao_nf: input.diaEmissaoNf,
+      modo_emissao_boleto: input.modoEmissaoBoleto ?? "automatico_pagamento",
+      dia_emissao_boleto: input.diaEmissaoBoleto,
       endereco: input.endereco,
       numero_endereco: input.numeroEndereco,
       complemento: input.complemento,
@@ -345,6 +353,8 @@ export async function updatePaciente(
       motivo_acompanhamento: input.motivoAcompanhamento,
       modo_emissao_nf: input.modoEmissaoNf ?? "automatico_pagamento",
       dia_emissao_nf: input.diaEmissaoNf,
+      modo_emissao_boleto: input.modoEmissaoBoleto ?? "automatico_pagamento",
+      dia_emissao_boleto: input.diaEmissaoBoleto,
       endereco: input.endereco,
       numero_endereco: input.numeroEndereco,
       complemento: input.complemento,

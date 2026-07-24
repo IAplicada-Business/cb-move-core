@@ -90,6 +90,11 @@ const schema = z.object({
     (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
     "Dia entre 1 e 28",
   ),
+  modoEmissaoBoleto: z.enum(["automatico_pagamento", "data_especifica"] as const).default("automatico_pagamento"),
+  diaEmissaoBoleto: z.string().nullable().optional().refine(
+    (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
+    "Dia entre 1 e 28",
+  ),
   ativo: z.boolean(),
   endereco: z.string().nullable().optional(),
   numeroEndereco: z.string().nullable().optional(),
@@ -176,6 +181,8 @@ function PacientesPage() {
       motivoAcompanhamento: "",
       modoEmissaoNf: "automatico_pagamento" as const,
       diaEmissaoNf: "",
+      modoEmissaoBoleto: "automatico_pagamento" as const,
+      diaEmissaoBoleto: "",
       ativo: true,
       endereco: "",
       numeroEndereco: "",
@@ -211,6 +218,8 @@ function PacientesPage() {
         motivoAcompanhamento: vals.motivoAcompanhamento?.trim() || null,
         modoEmissaoNf: vals.modoEmissaoNf,
         diaEmissaoNf: vals.modoEmissaoNf === "data_especifica" ? parseValorBr(vals.diaEmissaoNf) : null,
+        modoEmissaoBoleto: vals.modoEmissaoBoleto,
+        diaEmissaoBoleto: vals.modoEmissaoBoleto === "data_especifica" ? parseValorBr(vals.diaEmissaoBoleto) : null,
         ativo: vals.ativo,
         valorMensal: parseValorBr(vals.valorMensal),
         valorSessao: parseValorBr(vals.valorSessao),
@@ -288,6 +297,8 @@ function PacientesPage() {
       motivoAcompanhamento: "",
       modoEmissaoNf: "automatico_pagamento" as const,
       diaEmissaoNf: "",
+      modoEmissaoBoleto: "automatico_pagamento" as const,
+      diaEmissaoBoleto: "",
       ativo: true,
       endereco: "",
       numeroEndereco: "",
@@ -322,6 +333,8 @@ function PacientesPage() {
       motivoAcompanhamento: p.motivoAcompanhamento ?? "",
       modoEmissaoNf: p.modoEmissaoNf ?? "automatico_pagamento",
       diaEmissaoNf: p.diaEmissaoNf != null ? String(p.diaEmissaoNf) : "",
+      modoEmissaoBoleto: p.modoEmissaoBoleto ?? "automatico_pagamento",
+      diaEmissaoBoleto: p.diaEmissaoBoleto != null ? String(p.diaEmissaoBoleto) : "",
       ativo: p.ativo,
       endereco: p.endereco ?? "",
       numeroEndereco: p.numeroEndereco ?? "",
@@ -761,6 +774,37 @@ function PacientesPage() {
                       <FormControl>
                         <Input {...field} value={field.value ?? ""} type="number" min={1} max={28} placeholder="10" />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-medium text-muted-foreground">Emissão de boleto</p>
+                <FormField control={form.control} name="modoEmissaoBoleto" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modo de emissão</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="automatico_pagamento">Manual na tela Cobranças</SelectItem>
+                        <SelectItem value="data_especifica">Data fixa mensal no cadastro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                {form.watch("modoEmissaoBoleto") === "data_especifica" && (
+                  <FormField control={form.control} name="diaEmissaoBoleto" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dia do mês (1–28)</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} type="number" min={1} max={28} placeholder="5" />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Requer CPF e e-mail no cadastro. Vencimento ≈ dia + 7. Envio automático se n8n estiver configurado.
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )} />

@@ -12,6 +12,15 @@ verify_jwt = false
 [functions.nf-emissao-data-especifica]
 verify_jwt = false
 
+[functions.boleto-emissao-data-especifica]
+verify_jwt = false
+
+[functions.emit-nf]
+verify_jwt = false
+
+[functions.auto-nf-apos-pagamento]
+verify_jwt = false
+
 [functions.transcribe-audio]
 verify_jwt = true
 

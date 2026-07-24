@@ -481,10 +481,20 @@ function ModalMarcarPago({
 
   const mutation = useMutation({
     mutationFn: (data: MarcarPagoForm) => marcarComoPago(cobranca!.id, data.pagoEm),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
       qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
-      toast.success("Cobrança marcada como paga");
+      qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
+      if (result.nfDisparada) {
+        toast.success("Cobrança marcada como paga e NF enviada à Focus");
+      } else if (result.nfErro?.includes("data_especifica")) {
+        toast.success("Cobrança marcada como paga (NF será emitida na data cadastrada)");
+      } else if (result.nfErro) {
+        toast.success("Cobrança marcada como paga");
+        toast.warning(`NF não disparada: ${result.nfErro}`);
+      } else {
+        toast.success("Cobrança marcada como paga");
+      }
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),

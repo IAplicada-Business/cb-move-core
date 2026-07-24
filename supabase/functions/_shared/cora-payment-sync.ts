@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCoraAccessToken, getCoraInvoice, resolveCoraConfig, type CoraConfig } from "./cora.ts";
-import { getIntegracaoConfigValue } from "./integracao-config.ts";
+import {
+  buildAutoNfContext,
+  findNfEmitivel,
+  processAutoNfAfterPaid,
+} from "./auto-nf-after-paid.ts";
 import { triggerEmitNf } from "./trigger-emit-nf.ts";
 
 /**
@@ -33,14 +37,7 @@ export type SyncResult = {
   erro: string | null;
 };
 
-type SyncContext = { supabaseUrl: string; serviceKey: string; autoNfEnabled: boolean };
-
-type ModoEmissaoNf = "automatico_pagamento" | "data_especifica";
-
-async function isAutoNfEnabled(admin: SupabaseClient): Promise<boolean> {
-  const value = await getIntegracaoConfigValue(admin, "CORA_AUTO_NF_ENABLED");
-  return value !== "false";
-}
+type SyncContext = Awaited<ReturnType<typeof buildAutoNfContext>>;
 
 function sanitizeInvoiceForLog(invoice: Record<string, unknown>): Record<string, unknown> {
   return {
@@ -71,91 +68,6 @@ async function logEvento(
   if (error) {
     console.error("[cora-payment-sync] falha ao gravar cobrancas_pagamentos_eventos", error);
   }
-}
-
-async function fetchModoEmissaoNf(
-  admin: SupabaseClient,
-  cobrancaId: string,
-): Promise<ModoEmissaoNf> {
-  const { data, error } = await admin
-    .from("cobrancas")
-    .select("pacientes(modo_emissao_nf)")
-    .eq("id", cobrancaId)
-    .maybeSingle();
-  if (error) throw error;
-  const pacientes = data as { pacientes?: { modo_emissao_nf?: string | null } | null } | null;
-  const modo = pacientes?.pacientes?.modo_emissao_nf;
-  return modo === "data_especifica" ? "data_especifica" : "automatico_pagamento";
-}
-
-async function findNfEmitivel(admin: SupabaseClient, cobrancaId: string): Promise<string | null> {
-  const { data, error } = await admin
-    .from("notas_fiscais")
-    .select("id")
-    .eq("cobranca_id", cobrancaId)
-    .in("status", ["pendente", "erro"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.id ?? null;
-}
-
-async function criarOuObterNfEmitivel(
-  admin: SupabaseClient,
-  cobrancaId: string,
-): Promise<{ nfId: string | null; criada: boolean; erro: string | null }> {
-  const { data, error: nfErr } = await admin.rpc("criar_nf_de_cobranca", { p_cobranca_id: cobrancaId });
-  if (!nfErr) {
-    const nfId = typeof data === "string" ? data : null;
-    return { nfId, criada: Boolean(nfId), erro: null };
-  }
-
-  if ((nfErr.message ?? "").toLowerCase().includes("já existe nf")) {
-    const nfId = await findNfEmitivel(admin, cobrancaId);
-    return { nfId, criada: false, erro: nfId ? null : "NF existente já emitida ou em processamento" };
-  }
-
-  return { nfId: null, criada: false, erro: nfErr.message ?? String(nfErr) };
-}
-
-async function processAutoNfAfterPaid(
-  admin: SupabaseClient,
-  cobrancaId: string,
-  ctx: SyncContext,
-  result: SyncResult,
-): Promise<void> {
-  if (!ctx.autoNfEnabled) {
-    result.erro = "CORA_AUTO_NF_ENABLED=false — pagamento confirmado, NF não disparada (kill switch)";
-    return;
-  }
-
-  let modo: ModoEmissaoNf;
-  try {
-    modo = await fetchModoEmissaoNf(admin, cobrancaId);
-  } catch (err) {
-    result.erro = `modo_emissao_nf: ${err instanceof Error ? err.message : String(err)}`;
-    return;
-  }
-
-  if (modo === "data_especifica") {
-    result.erro = "Paciente em modo data_especifica — NF será emitida no cron, não no pagamento";
-    return;
-  }
-
-  const { nfId, criada, erro } = await criarOuObterNfEmitivel(admin, cobrancaId);
-  if (erro && !nfId) {
-    result.erro = erro.startsWith("criar_nf") ? erro : `criar_nf_de_cobranca: ${erro}`;
-    return;
-  }
-
-  result.nf_criada = criada;
-  if (!nfId) return;
-
-  result.nf_id = nfId;
-  const emitResult = await triggerEmitNf(ctx.supabaseUrl, ctx.serviceKey, nfId, "cora-payment-sync");
-  result.emit_nf_disparado = emitResult.ok;
-  if (!emitResult.ok) result.erro = emitResult.erro;
 }
 
 /**
@@ -219,26 +131,25 @@ export async function syncCobrancaPagamentoCora(
     return result;
   }
 
-  await processAutoNfAfterPaid(admin, cobranca.id, ctx, result);
+  const autoNf = await processAutoNfAfterPaid(admin, cobranca.id, ctx);
+  result.nf_criada = autoNf.nf_criada;
+  result.nf_id = autoNf.nf_id;
+  result.emit_nf_disparado = autoNf.emit_nf_disparado;
+  result.erro = autoNf.erro;
+
   await logEvento(admin, origin, result, { payload: sanitizeInvoiceForLog(invoice) });
   return result;
 }
 
 async function buildSyncContext(admin: SupabaseClient): Promise<{ coraConfig: CoraConfig; token: string; ctx: SyncContext }> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error("SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes");
-  }
-
   const coraConfig = await resolveCoraConfig(admin);
   if (!coraConfig) {
     throw new Error("Integração Cora não configurada (CORA_CLIENT_ID/CERTIFICATE/PRIVATE_KEY)");
   }
 
   const token = await getCoraAccessToken(coraConfig);
-  const autoNfEnabled = await isAutoNfEnabled(admin);
-  return { coraConfig, token, ctx: { supabaseUrl, serviceKey, autoNfEnabled } };
+  const ctx = await buildAutoNfContext(admin);
+  return { coraConfig, token, ctx };
 }
 
 /**
@@ -264,27 +175,55 @@ export async function retryAutoNfCobrancasPagas(
   const resultados: SyncResult[] = [];
 
   for (const row of cobrancas ?? []) {
+    const cobrancaId = row.id as string;
     const pacientes = row.pacientes as { modo_emissao_nf?: string | null } | null;
     if (pacientes?.modo_emissao_nf === "data_especifica") continue;
 
-    const nfId = await findNfEmitivel(admin, row.id as string);
-    if (!nfId) continue;
+    const nfId = await findNfEmitivel(admin, cobrancaId);
+    if (nfId) {
+      const result: SyncResult = {
+        cobranca_id: cobrancaId,
+        cora_invoice_id: (row.cora_invoice_id as string) ?? "",
+        cora_status: "PAID",
+        marcou_pago: false,
+        nf_criada: false,
+        nf_id: nfId,
+        emit_nf_disparado: false,
+        erro: "retry cobrança já paga",
+      };
 
+      const emitResult = await triggerEmitNf(ctx.supabaseUrl, nfId, {
+        mode: "internal",
+        serviceKey: ctx.serviceKey,
+        origin: "cora-payment-sync-retry",
+      });
+      result.emit_nf_disparado = emitResult.ok;
+      result.erro = emitResult.ok ? null : emitResult.erro;
+
+      await logEvento(admin, origin, result);
+      resultados.push(result);
+      continue;
+    }
+
+    const { count, error: nfCountErr } = await admin
+      .from("notas_fiscais")
+      .select("id", { count: "exact", head: true })
+      .eq("cobranca_id", cobrancaId)
+      .neq("status", "cancelada");
+    if (nfCountErr) throw nfCountErr;
+    if ((count ?? 0) > 0) continue;
+
+    const autoNf = await processAutoNfAfterPaid(admin, cobrancaId, ctx);
     const result: SyncResult = {
-      cobranca_id: row.id as string,
+      cobranca_id: cobrancaId,
       cora_invoice_id: (row.cora_invoice_id as string) ?? "",
       cora_status: "PAID",
       marcou_pago: false,
-      nf_criada: false,
-      nf_id: nfId,
-      emit_nf_disparado: false,
-      erro: "retry cobrança já paga",
+      nf_criada: autoNf.nf_criada,
+      nf_id: autoNf.nf_id,
+      emit_nf_disparado: autoNf.emit_nf_disparado,
+      erro: autoNf.erro,
     };
-
-    const emitResult = await triggerEmitNf(ctx.supabaseUrl, ctx.serviceKey, nfId, "cora-payment-sync-retry");
-    result.emit_nf_disparado = emitResult.ok;
-    result.erro = emitResult.ok ? null : emitResult.erro;
-
     await logEvento(admin, origin, result);
     resultados.push(result);
   }

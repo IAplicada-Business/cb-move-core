@@ -66,5 +66,10 @@ export async function invokeEdgeFunction<T>(
 
   const message = await extractEdgeErrorMessage(error, data);
   if (message) throw new Error(message);
+  if (error) {
+    throw new Error(
+      error instanceof Error ? error.message : "Erro ao chamar edge function",
+    );
+  }
   return data as T;
 }

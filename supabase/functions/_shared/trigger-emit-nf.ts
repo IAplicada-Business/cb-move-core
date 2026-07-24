@@ -1,19 +1,28 @@
 import { INTERNAL_TRIGGER_HEADER } from "./auth.ts";
 
+type TriggerEmitNfOptions =
+  | { mode: "internal"; serviceKey: string; origin: string }
+  | { mode: "user"; authorization: string };
+
 export async function triggerEmitNf(
   supabaseUrl: string,
-  serviceKey: string,
   nfId: string,
-  origin = "internal",
+  options: TriggerEmitNfOptions,
 ): Promise<{ ok: boolean; erro: string | null }> {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: options.mode === "user"
+        ? options.authorization
+        : `Bearer ${options.serviceKey}`,
+    };
+    if (options.mode === "internal") {
+      headers[INTERNAL_TRIGGER_HEADER] = options.origin;
+    }
+
     const res = await fetch(`${supabaseUrl}/functions/v1/emit-nf`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceKey}`,
-        [INTERNAL_TRIGGER_HEADER]: origin,
-      },
+      headers,
       body: JSON.stringify({ nf_id: nfId }),
     });
     const body = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -23,6 +32,9 @@ export async function triggerEmitNf(
     }
     return { ok: true, erro: null };
   } catch (err) {
-    return { ok: false, erro: `emit-nf: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      ok: false,
+      erro: `emit-nf: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }

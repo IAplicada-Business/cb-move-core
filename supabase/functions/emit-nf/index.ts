@@ -231,7 +231,7 @@ serve(async (req) => {
         pacientes (
           email, telefone, valor_sessao, frequencia_atendimento,
           endereco, numero_endereco, complemento, bairro, cep, cidade, uf, codigo_municipio_ibge,
-          fisioterapeutas ( nome, registro_profissional ),
+          fisioterapeutas!pacientes_fisioterapeuta_id_fkey ( nome, registro_profissional ),
           convenios (
             cnpj, razao_social, email_nf,
             endereco, numero, complemento, bairro, cep, cidade, uf, codigo_municipio_ibge
@@ -240,7 +240,8 @@ serve(async (req) => {
       `)
       .eq("id", nf_id)
       .single();
-    if (error || !nf) throw new Error("NF não encontrada");
+    if (error) throw new Error(error.message ?? "Erro ao carregar NF");
+    if (!nf) throw new Error("NF não encontrada");
 
     const paciente = (nf as { pacientes?: PacienteTomadorRow | null }).pacientes ?? null;
     const fisio = resolveFisio(paciente);

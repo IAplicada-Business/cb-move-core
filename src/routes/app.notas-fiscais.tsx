@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
   fetchNFs, createNF, emitNfManual, emitNfAutomatico, sendNfEmail, updateNF, uploadNfPdf,
+  documentoValidoParaNf, documentoElegivelCobranca, emitFocusDeCobranca, prepararEmitFocus,
   type NotaFiscal,
 } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
@@ -29,7 +30,6 @@ import type { NfStatus, PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -69,9 +69,12 @@ const MESES_FULL = [
 const FILTRO_TODOS = "todos";
 const FILTRO_TODAS_COMP = "todas";
 
-function documentoValidoParaNf(doc: string | null | undefined): boolean {
-  const digits = (doc ?? "").replace(/\D/g, "");
-  return digits.length === 11 || digits.length === 14;
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return "Erro desconhecido";
 }
 
 function competenciaOpcoes() {
@@ -379,16 +382,37 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
 }
 
 
-function NFRow({ nf, hidePaciente }: { nf: NotaFiscal; hidePaciente?: boolean }) {
+function NFRow({
+  nf,
+  hidePaciente,
+  selectable,
+  selected,
+  onSelectedChange,
+  selectionDisabled,
+}: {
+  nf: NotaFiscal;
+  hidePaciente?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelectedChange?: (checked: boolean) => void;
+  selectionDisabled?: boolean;
+}) {
   const qc = useQueryClient();
   const isJudicial = nf.tipo === "judicial";
   const [confirmReemitir, setConfirmReemitir] = useState(false);
+  const podeSelecionar =
+    selectable &&
+    (nf.status === "pendente" || nf.status === "erro") &&
+    documentoValidoParaNf(nf.destinatarioDocumento);
 
   const podeFocus =
     nf.status === "erro" || nf.status === "pendente" || nf.status === "processando";
 
   const focusMutation = useMutation({
-    mutationFn: () => emitNfAutomatico(nf.id),
+    mutationFn: async () => {
+      await prepararEmitFocus(nf);
+      return emitNfAutomatico(nf.id);
+    },
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
       if (result.status === "processando") {
@@ -426,15 +450,39 @@ function NFRow({ nf, hidePaciente }: { nf: NotaFiscal; hidePaciente?: boolean })
   return (
     <>
       <TableRow>
-        <TableCell className="font-mono text-sm text-muted-foreground">{nf.numero ?? "—"}</TableCell>
+        {selectable && (
+          <TableCell className="pl-4">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              checked={!!selected}
+              onChange={(e) => onSelectedChange?.(e.target.checked)}
+              disabled={selectionDisabled || !podeSelecionar}
+              aria-label={`Selecionar NF ${nf.pacienteNome ?? nf.id}`}
+              title={
+                podeSelecionar
+                  ? undefined
+                  : nf.status === "processando"
+                    ? "NF já enviada à Focus"
+                    : "CPF/CNPJ ausente — complete o cadastro"
+              }
+            />
+          </TableCell>
+        )}
+        <TableCell className={`font-mono text-sm text-muted-foreground ${selectable ? "" : "pl-4"}`}>
+          {nf.numero ?? "—"}
+        </TableCell>
         {!hidePaciente && <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>}
         <TableCell>
-          <div>{nf.destinatarioNome ?? "—"}</div>
-          {isJudicial && nf.corpoPacienteNome && (
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Corpo: {nf.corpoPacienteNome}{nf.corpoNumeroProcesso && ` · proc. ${nf.corpoNumeroProcesso}`}
-            </div>
-          )}
+          <DestinatarioDetalhes
+            nome={nf.destinatarioNome}
+            documento={nf.destinatarioDocumento}
+            telefone={nf.pacienteTelefone}
+            corpoNome={nf.corpoPacienteNome}
+            corpoCpf={nf.corpoPacienteCpf}
+            corpoProcesso={nf.corpoNumeroProcesso}
+            isJudicial={isJudicial}
+          />
         </TableCell>
         <TableCell><TipoBadge value={nf.tipo} /></TableCell>
         <TableCell className="text-sm">{formatDate(nf.emissao)}</TableCell>
@@ -564,6 +612,43 @@ function agruparPorCliente(nfs: NotaFiscal[]): NfGrupo[] {
   return Array.from(map.values()).sort((a, b) => b.latest.localeCompare(a.latest));
 }
 
+function DestinatarioDetalhes({
+  nome,
+  documento,
+  telefone,
+  corpoNome,
+  corpoCpf,
+  corpoProcesso,
+  isJudicial,
+}: {
+  nome: string | null | undefined;
+  documento?: string | null;
+  telefone?: string | null;
+  corpoNome?: string | null;
+  corpoCpf?: string | null;
+  corpoProcesso?: string | null;
+  isJudicial?: boolean;
+}) {
+  return (
+    <>
+      <div>{nome ?? "—"}</div>
+      {documento && (
+        <div className="text-xs text-muted-foreground">CPF/CNPJ: {documento}</div>
+      )}
+      {telefone && (
+        <div className="text-xs text-muted-foreground">Tel: {telefone}</div>
+      )}
+      {isJudicial && corpoNome && (
+        <div className="text-xs text-muted-foreground mt-0.5">
+          Corpo: {corpoNome}
+          {corpoCpf && ` · CPF ${corpoCpf}`}
+          {corpoProcesso && ` · proc. ${corpoProcesso}`}
+        </div>
+      )}
+    </>
+  );
+}
+
 function LinhaAEmitir({
   row,
   onEmitir,
@@ -577,24 +662,47 @@ function LinhaAEmitir({
   onSelectedChange: (checked: boolean) => void;
   selectionDisabled?: boolean;
 }) {
-  const elegivel = documentoValidoParaNf(row.destinatarioDocumento);
+  const elegivel = documentoElegivelCobranca(row);
+  const docExibicao = row.destinatarioDocumento ?? row.pacienteCpf;
   return (
-    <TableRow className="bg-amber-50/50 dark:bg-amber-950/20">
-      <TableCell>
-        <Checkbox
+    <TableRow
+      className={`bg-amber-50/50 dark:bg-amber-950/20 ${!elegivel ? "opacity-90" : ""} ${selectionDisabled ? "" : "cursor-pointer hover:bg-amber-100/60"}`}
+      onClick={() => {
+        if (!selectionDisabled) onSelectedChange(!selected);
+      }}
+    >
+      <TableCell onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           checked={selected}
-          onCheckedChange={(v) => onSelectedChange(v === true)}
-          disabled={selectionDisabled || !elegivel}
+          onChange={(e) => onSelectedChange(e.target.checked)}
+          disabled={selectionDisabled}
           aria-label={`Selecionar ${row.pacienteNome}`}
-          title={elegivel ? undefined : "CPF/CNPJ do destinatário inválido ou ausente"}
         />
       </TableCell>
       <TableCell className="font-mono text-sm text-muted-foreground">—</TableCell>
       <TableCell className="font-medium">{row.pacienteNome}</TableCell>
       <TableCell>
-        <div>{row.destinatarioNome ?? "—"}</div>
-        {row.destinatarioDocumento && (
-          <div className="text-xs text-muted-foreground">{row.destinatarioDocumento}</div>
+        <DestinatarioDetalhes
+          nome={row.destinatarioNome ?? row.pacienteNome}
+          documento={docExibicao}
+          telefone={row.pacienteTelefone}
+        />
+        {!elegivel && (
+          <span className="mt-1 inline-flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-destructive/10 text-destructive border-destructive/30">
+              Sem CPF/CNPJ no cadastro
+            </span>
+            <Link
+              to="/app/pacientes/$pacienteId"
+              params={{ pacienteId: row.pacienteId }}
+              className="text-xs text-primary underline underline-offset-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Completar cadastro
+            </Link>
+          </span>
         )}
       </TableCell>
       <TableCell><TipoBadge value={row.tipo} /></TableCell>
@@ -607,7 +715,7 @@ function LinhaAEmitir({
         </span>
       </TableCell>
       <TableCell className="text-right font-medium tabular-nums">{brl(row.valor)}</TableCell>
-      <TableCell>
+      <TableCell onClick={(e) => e.stopPropagation()}>
         <Button size="sm" variant="outline" onClick={onEmitir}>Emitir</Button>
       </TableCell>
     </TableRow>
@@ -625,8 +733,14 @@ function NotasFiscaisPage() {
   const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [selectedCobrancaIds, setSelectedCobrancaIds] = useState<Set<string>>(new Set());
+  const [selectedNfIds, setSelectedNfIds] = useState<Set<string>>(new Set());
   const [confirmBulkEmit, setConfirmBulkEmit] = useState(false);
+  const [confirmBulkEmitNfs, setConfirmBulkEmitNfs] = useState(false);
+  const [bulkTargetCobrancas, setBulkTargetCobrancas] = useState<CobrancaSemNf[]>([]);
+  const [bulkTargetNfs, setBulkTargetNfs] = useState<NotaFiscal[]>([]);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const selectAllNfRef = useRef<HTMLInputElement>(null);
 
   const compOpts = competenciaOpcoes();
   const compMes = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
@@ -651,6 +765,8 @@ function NotasFiscaisPage() {
   const semNfQuery = useQuery({
     queryKey: queryKeys.financeiro.cobrancasSemNf(semNfAno, semNfMes),
     queryFn: () => fetchCobrancasSemNf(semNfMes, semNfAno),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const nfs = query.data ?? [];
@@ -658,19 +774,38 @@ function NotasFiscaisPage() {
   const temFiltro = !!(search || filtroStatus || filtroTipo);
   const grupos = useMemo(() => agruparPorCliente(nfs), [nfs]);
   const aEmitirElegiveis = useMemo(
-    () => aEmitir.filter((row) => documentoValidoParaNf(row.destinatarioDocumento)),
+    () => aEmitir.filter((row) => documentoElegivelCobranca(row)),
     [aEmitir],
   );
-  const selectedRows = useMemo(
+  const nfsFocusPendentes = useMemo(
+    () =>
+      nfs.filter(
+        (nf) =>
+          (nf.status === "pendente" || nf.status === "erro") &&
+          documentoValidoParaNf(nf.destinatarioDocumento),
+      ),
+    [nfs],
+  );
+  const selectedNfs = useMemo(
+    () => nfs.filter((nf) => selectedNfIds.has(nf.id)),
+    [nfs, selectedNfIds],
+  );
+  const allNfsFocusSelected =
+    nfsFocusPendentes.length > 0 &&
+    nfsFocusPendentes.every((nf) => selectedNfIds.has(nf.id));
+  const someNfsFocusSelected = nfsFocusPendentes.some((nf) => selectedNfIds.has(nf.id));
+  const selectedCobrancas = useMemo(
     () => aEmitir.filter((row) => selectedCobrancaIds.has(row.cobrancaId)),
     [aEmitir, selectedCobrancaIds],
   );
-  const allElegiveisSelected =
-    aEmitirElegiveis.length > 0 &&
-    aEmitirElegiveis.every((row) => selectedCobrancaIds.has(row.cobrancaId));
-  const someElegiveisSelected = aEmitirElegiveis.some((row) =>
-    selectedCobrancaIds.has(row.cobrancaId),
+  const selectedCobrancasElegiveis = useMemo(
+    () => selectedCobrancas.filter((row) => documentoElegivelCobranca(row)),
+    [selectedCobrancas],
   );
+  const aEmitirSemDocumento = aEmitir.length - aEmitirElegiveis.length;
+  const allCobrancasSelected =
+    aEmitir.length > 0 && aEmitir.every((row) => selectedCobrancaIds.has(row.cobrancaId));
+  const someCobrancasSelected = aEmitir.some((row) => selectedCobrancaIds.has(row.cobrancaId));
 
   useEffect(() => {
     setOpenGroups(search.trim() ? grupos.map((g) => g.key) : []);
@@ -679,6 +814,7 @@ function NotasFiscaisPage() {
 
   useEffect(() => {
     setSelectedCobrancaIds(new Set());
+    setSelectedNfIds(new Set());
   }, [filtroComp]);
 
   useEffect(() => {
@@ -689,23 +825,46 @@ function NotasFiscaisPage() {
     });
   }, [aEmitir]);
 
+  useEffect(() => {
+    const ids = new Set(nfsFocusPendentes.map((nf) => nf.id));
+    setSelectedNfIds((prev) => {
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [nfsFocusPendentes]);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someCobrancasSelected && !allCobrancasSelected;
+    }
+  }, [someCobrancasSelected, allCobrancasSelected]);
+
+  useEffect(() => {
+    if (selectAllNfRef.current) {
+      selectAllNfRef.current.indeterminate = someNfsFocusSelected && !allNfsFocusSelected;
+    }
+  }, [someNfsFocusSelected, allNfsFocusSelected]);
+
   const bulkEmitMutation = useMutation({
-    mutationFn: async (rows: CobrancaSemNf[]) => {
+    mutationFn: async (cobrancas: CobrancaSemNf[]) => {
       const erros: string[] = [];
       let ok = 0;
-      setBulkProgress({ done: 0, total: rows.length });
+      setBulkProgress({ done: 0, total: cobrancas.length });
 
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      for (let i = 0; i < cobrancas.length; i++) {
+        const row = cobrancas[i];
         try {
-          const nfId = await criarNfDeCobranca(row.cobrancaId);
-          await emitNfAutomatico(nfId, { timeoutMs: 30_000 });
+          const result = await emitFocusDeCobranca(row.cobrancaId, { timeoutMs: 30_000 });
+          if (!result?.ok || result.status !== "processando") {
+            throw new Error(
+              result?.error ?? result?.message ?? "Focus não aceitou a emissão",
+            );
+          }
           ok += 1;
         } catch (e) {
-          const msg = e instanceof Error ? e.message : "Erro desconhecido";
-          erros.push(`${row.pacienteNome}: ${msg}`);
+          erros.push(`${row.pacienteNome}: ${errorMessage(e)}`);
         }
-        setBulkProgress({ done: i + 1, total: rows.length });
+        setBulkProgress({ done: i + 1, total: cobrancas.length });
       }
 
       return { ok, erros };
@@ -714,6 +873,7 @@ function NotasFiscaisPage() {
       qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
       qc.invalidateQueries({ queryKey: ["financeiro"] });
       setSelectedCobrancaIds(new Set());
+      setBulkTargetCobrancas([]);
       setConfirmBulkEmit(false);
 
       if (erros.length === 0) {
@@ -726,16 +886,103 @@ function NotasFiscaisPage() {
         toast.error("Nenhuma NF emitida", { description: erros.slice(0, 3).join(" · ") });
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(errorMessage(e)),
     onSettled: () => setBulkProgress(null),
   });
 
-  function toggleSelectAll(checked: boolean) {
-    if (checked) {
-      setSelectedCobrancaIds(new Set(aEmitirElegiveis.map((row) => row.cobrancaId)));
+  const bulkEmitNfsMutation = useMutation({
+    mutationFn: async (notas: NotaFiscal[]) => {
+      const erros: string[] = [];
+      let ok = 0;
+      setBulkProgress({ done: 0, total: notas.length });
+
+      for (let i = 0; i < notas.length; i++) {
+        const nf = notas[i];
+        try {
+          await prepararEmitFocus(nf);
+          const result = await emitNfAutomatico(nf.id, { timeoutMs: 30_000 });
+          if (!result?.ok || result.status !== "processando") {
+            throw new Error(
+              result?.error ?? result?.message ?? "Focus não aceitou a emissão",
+            );
+          }
+          ok += 1;
+        } catch (e) {
+          erros.push(`${nf.pacienteNome ?? nf.destinatarioNome}: ${errorMessage(e)}`);
+        }
+        setBulkProgress({ done: i + 1, total: notas.length });
+      }
+
+      return { ok, erros };
+    },
+    onSuccess: ({ ok, erros }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.notasFiscais.all });
+      setSelectedNfIds(new Set());
+      setBulkTargetNfs([]);
+      setConfirmBulkEmitNfs(false);
+
+      if (erros.length === 0) {
+        toast.success(`${ok} nota${ok > 1 ? "s" : ""} enviada${ok > 1 ? "s" : ""} à Focus`);
+      } else if (ok > 0) {
+        toast.message(`${ok} emitida${ok > 1 ? "s" : ""}, ${erros.length} com erro`, {
+          description: erros.slice(0, 3).join(" · "),
+        });
+      } else {
+        toast.error("Nenhuma NF emitida", { description: erros.slice(0, 3).join(" · ") });
+      }
+    },
+    onError: (e: Error) => toast.error(errorMessage(e)),
+    onSettled: () => setBulkProgress(null),
+  });
+
+  const bulkBusy = bulkEmitMutation.isPending || bulkEmitNfsMutation.isPending;
+
+  function toggleSelectAllHeader() {
+    if (allCobrancasSelected) {
+      setSelectedCobrancaIds(new Set());
       return;
     }
-    setSelectedCobrancaIds(new Set());
+    setSelectedCobrancaIds(new Set(aEmitir.map((row) => row.cobrancaId)));
+  }
+
+  function toggleSelectAllNfsHeader() {
+    if (allNfsFocusSelected) {
+      setSelectedNfIds(new Set());
+      return;
+    }
+    setSelectedNfIds(new Set(nfsFocusPendentes.map((nf) => nf.id)));
+  }
+
+  function toggleNfSelection(nfId: string, checked: boolean) {
+    setSelectedNfIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(nfId);
+      else next.delete(nfId);
+      return next;
+    });
+  }
+
+  function abrirConfirmBulkEmitNfs() {
+    if (selectedNfs.length === 0) return;
+    setBulkTargetNfs(selectedNfs);
+    setConfirmBulkEmitNfs(true);
+  }
+
+  function abrirConfirmBulkEmit() {
+    if (selectedCobrancas.length === 0) return;
+    if (selectedCobrancasElegiveis.length === 0) {
+      toast.error("Nenhuma cobrança selecionada pode ir à Focus", {
+        description: "Complete o CPF/CNPJ no cadastro do paciente (Pacientes → editar).",
+      });
+      return;
+    }
+    if (selectedCobrancasElegiveis.length < selectedCobrancas.length) {
+      toast.message(
+        `${selectedCobrancas.length - selectedCobrancasElegiveis.length} sem CPF/CNPJ serão ignoradas`,
+      );
+    }
+    setBulkTargetCobrancas(selectedCobrancasElegiveis);
+    setConfirmBulkEmit(true);
   }
 
   function toggleRowSelection(cobrancaId: string, checked: boolean) {
@@ -829,27 +1076,55 @@ function NotasFiscaisPage() {
         />
       ) : (
         <div className="space-y-4">
-          {aEmitir.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-card shadow-sm overflow-hidden">
-              <div className="px-4 py-2 border-b bg-amber-50/80 text-sm text-amber-900 space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="space-y-0.5">
-                    <p className="font-semibold">A emitir — {aEmitir.length} cobrança(s) sem NF</p>
-                    <p className="text-xs font-normal text-amber-800">
-                      A emissão da NF não depende do pagamento — você pode emitir mesmo com a cobrança pendente/vencida e dar baixa depois.
+          <div className="rounded-xl border border-amber-200 bg-card shadow-sm overflow-hidden">
+            <div className="px-4 py-2 border-b bg-amber-50/80 text-sm text-amber-900 space-y-0.5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <p className="font-semibold">
+                    A emitir — {semNfQuery.isLoading ? "…" : `${aEmitir.length} cobrança(s) sem NF`}
+                    {!semNfQuery.isLoading && compMes && compAno && (
+                      <span className="font-normal text-amber-800">
+                        {" "}· {MESES_ABREV[compMes - 1]}/{compAno}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs font-normal text-amber-800">
+                    Selecione cobranças sem NF e emita em lote via Focus. Use o filtro de competência acima para outro mês.
+                  </p>
+                  {!semNfQuery.isLoading && aEmitirSemDocumento > 0 && (
+                    <p className="text-xs font-medium text-destructive">
+                      {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para selecionar,
+                      mas só emite após completar o cadastro em Pacientes.
                     </p>
-                  </div>
-                  {selectedRows.length > 0 && (
+                  )}
+                  {semNfQuery.isError && (
+                    <p className="text-xs text-destructive font-medium">
+                      Erro ao carregar fila: {semNfQuery.error instanceof Error ? semNfQuery.error.message : "Falha na consulta"}
+                    </p>
+                  )}
+                  {!semNfQuery.isLoading && !semNfQuery.isError && aEmitir.length === 0 && compMes && compAno && (
+                    <p className="text-xs text-amber-900 font-medium">
+                      Nenhuma cobrança sem NF nesta competência — troque o mês no filtro (ex.: Jun/2026).
+                    </p>
+                  )}
+                </div>
+                  {selectedCobrancas.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-medium">
-                        {selectedRows.length} selecionada{selectedRows.length > 1 ? "s" : ""}
+                        {selectedCobrancas.length} selecionada{selectedCobrancas.length > 1 ? "s" : ""}
+                        {selectedCobrancasElegiveis.length < selectedCobrancas.length && (
+                          <span className="text-destructive">
+                            {" "}({selectedCobrancasElegiveis.length} elegível
+                            {selectedCobrancasElegiveis.length > 1 ? "eis" : ""})
+                          </span>
+                        )}
                       </span>
                       <Button
                         size="sm"
-                        disabled={bulkEmitMutation.isPending}
-                        onClick={() => setConfirmBulkEmit(true)}
+                        disabled={bulkBusy || selectedCobrancasElegiveis.length === 0}
+                        onClick={abrirConfirmBulkEmit}
                       >
-                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkEmitMutation.isPending ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
                         {bulkProgress
                           ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
                           : "Emitir selecionadas"}
@@ -857,7 +1132,7 @@ function NotasFiscaisPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        disabled={bulkEmitMutation.isPending}
+                        disabled={bulkBusy}
                         onClick={() => setSelectedCobrancaIds(new Set())}
                       >
                         Limpar
@@ -866,15 +1141,35 @@ function NotasFiscaisPage() {
                   )}
                 </div>
               </div>
+              {semNfQuery.isLoading ? (
+                <div className="px-4 py-6"><LoadingState /></div>
+              ) : aEmitir.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                  Nenhuma linha para selecionar nesta competência.
+                  {compOpts.filter((o) => `${o.mes}-${o.ano}` !== filtroComp).slice(0, 1).map((o) => (
+                    <Button
+                      key={`${o.mes}-${o.ano}`}
+                      variant="link"
+                      className="h-auto p-0 ml-1 text-sm"
+                      onClick={() => setFiltroComp(`${o.mes}-${o.ano}`)}
+                    >
+                      Ver {o.label}
+                    </Button>
+                  ))}
+                </p>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">
-                      <Checkbox
-                        checked={allElegiveisSelected ? true : someElegiveisSelected ? "indeterminate" : false}
-                        onCheckedChange={(v) => toggleSelectAll(v === true)}
-                        disabled={aEmitirElegiveis.length === 0 || bulkEmitMutation.isPending}
-                        aria-label="Selecionar todas elegíveis"
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                        checked={allCobrancasSelected}
+                        onChange={toggleSelectAllHeader}
+                        disabled={aEmitir.length === 0 || bulkBusy}
+                        aria-label="Selecionar todas as cobranças"
                       />
                     </TableHead>
                     <TableHead className="w-24">Nº</TableHead>
@@ -894,12 +1189,41 @@ function NotasFiscaisPage() {
                       row={row}
                       selected={selectedCobrancaIds.has(row.cobrancaId)}
                       onSelectedChange={(checked) => toggleRowSelection(row.cobrancaId, checked)}
-                      selectionDisabled={bulkEmitMutation.isPending}
+                      selectionDisabled={bulkBusy}
                       onEmitir={() => abrirEmitir(row)}
                     />
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </div>
+
+          {nfsFocusPendentes.length > 0 && (
+            <div className="rounded-xl border border-sky-200 bg-card shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b bg-sky-50/80 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-sky-950">
+                    Aguardando Focus — {nfsFocusPendentes.length} NF(s) pendente(s)
+                  </p>
+                  <p className="text-xs text-sky-900">
+                    NF já criada no sistema; selecione e envie em lote à Focus NFe.
+                  </p>
+                </div>
+                {selectedNfs.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium">
+                      {selectedNfs.length} selecionada{selectedNfs.length > 1 ? "s" : ""}
+                    </span>
+                    <Button size="sm" disabled={bulkBusy} onClick={abrirConfirmBulkEmitNfs}>
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
+                      {bulkProgress ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…` : "Enviar à Focus"}
+                    </Button>
+                    <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedNfIds(new Set())}>
+                      Limpar
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -939,7 +1263,20 @@ function NotasFiscaisPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-24 pl-4">Nº</TableHead>
+                          {nfsFocusPendentes.length > 0 && (
+                            <TableHead className="w-10 pl-4">
+                              <input
+                                ref={selectAllNfRef}
+                                type="checkbox"
+                                className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                                checked={allNfsFocusSelected}
+                                onChange={toggleSelectAllNfsHeader}
+                                disabled={nfsFocusPendentes.length === 0 || bulkBusy}
+                                aria-label="Selecionar todas pendentes de Focus"
+                              />
+                            </TableHead>
+                          )}
+                          <TableHead className={nfsFocusPendentes.length > 0 ? "w-24" : "w-24 pl-4"}>Nº</TableHead>
                           <TableHead>Destinatário</TableHead>
                           <TableHead>Tipo</TableHead>
                           <TableHead>Emissão</TableHead>
@@ -949,7 +1286,17 @@ function NotasFiscaisPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {grupo.nfs.map((nf) => <NFRow key={nf.id} nf={nf} hidePaciente />)}
+                        {grupo.nfs.map((nf) => (
+                          <NFRow
+                            key={nf.id}
+                            nf={nf}
+                            hidePaciente
+                            selectable={nfsFocusPendentes.length > 0}
+                            selected={selectedNfIds.has(nf.id)}
+                            onSelectedChange={(checked) => toggleNfSelection(nf.id, checked)}
+                            selectionDisabled={bulkBusy}
+                          />
+                        ))}
                       </TableBody>
                     </Table>
                   </AccordionContent>
@@ -966,26 +1313,64 @@ function NotasFiscaisPage() {
         prefill={prefill}
       />
 
-      <AlertDialog open={confirmBulkEmit} onOpenChange={setConfirmBulkEmit}>
+      <AlertDialog
+        open={confirmBulkEmit}
+        onOpenChange={(open) => {
+          if (!open && !bulkBusy) {
+            setConfirmBulkEmit(false);
+            setBulkTargetCobrancas([]);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Emitir {selectedRows.length} nota{selectedRows.length > 1 ? "s" : ""}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Emitir {bulkTargetCobrancas.length} nota{bulkTargetCobrancas.length > 1 ? "s" : ""}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Serão criadas e enviadas à Focus NFe em sequência ({selectedRows.length} cobrança
-              {selectedRows.length > 1 ? "s" : ""}). Linhas sem CPF/CNPJ válido não entram na seleção.
+              Serão criadas e enviadas à Focus NFe em sequência ({bulkTargetCobrancas.length} cobrança
+              {bulkTargetCobrancas.length > 1 ? "s" : ""}). CPF/CNPJ e telefone vêm do cadastro do paciente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkEmitMutation.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={bulkEmitMutation.isPending || selectedRows.length === 0}
-              onClick={(e) => {
-                e.preventDefault();
-                bulkEmitMutation.mutate(selectedRows);
-              }}
+            <AlertDialogCancel disabled={bulkBusy}>Cancelar</AlertDialogCancel>
+            <Button
+              disabled={bulkBusy || bulkTargetCobrancas.length === 0}
+              onClick={() => bulkEmitMutation.mutate(bulkTargetCobrancas)}
             >
-              {bulkEmitMutation.isPending ? "Emitindo…" : "Confirmar emissão"}
-            </AlertDialogAction>
+              {bulkBusy ? "Emitindo…" : "Confirmar emissão"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmBulkEmitNfs}
+        onOpenChange={(open) => {
+          if (!open && !bulkBusy) {
+            setConfirmBulkEmitNfs(false);
+            setBulkTargetNfs([]);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Enviar {bulkTargetNfs.length} NF{bulkTargetNfs.length > 1 ? "s" : ""} à Focus?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              As notas selecionadas serão sincronizadas com o cadastro (CPF/telefone) e enviadas à
+              Focus NFe em sequência.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancelar</AlertDialogCancel>
+            <Button
+              disabled={bulkBusy || bulkTargetNfs.length === 0}
+              onClick={() => bulkEmitNfsMutation.mutate(bulkTargetNfs)}
+            >
+              {bulkBusy ? "Enviando…" : "Confirmar envio"}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

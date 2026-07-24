@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
+import { criarNfDeCobranca, resolverDestinatarioNf } from "@/lib/queries/financeiro";
 import type { NfStatus, PacienteTipo } from "../types";
 
 export type EmitNfAutomaticoResult = {
@@ -20,6 +21,8 @@ export type NotaFiscal = {
   numero: string | null;
   pacienteId: string;
   pacienteNome: string | null;
+  pacienteCpf: string | null;
+  pacienteTelefone: string | null;
   cobrancaId: string | null;
   tipo: PacienteTipo;
   destinatarioNome: string | null;
@@ -60,7 +63,7 @@ type Row = {
   status: NfStatus;
   pdf_url: string | null;
   created_at: string;
-  pacientes?: { nome: string } | null;
+  pacientes?: { nome: string; cpf: string | null; telefone: string | null } | null;
 };
 
 const map = (r: Row): NotaFiscal => ({
@@ -68,6 +71,8 @@ const map = (r: Row): NotaFiscal => ({
   numero: r.numero,
   pacienteId: r.paciente_id,
   pacienteNome: r.pacientes?.nome ?? null,
+  pacienteCpf: r.pacientes?.cpf ?? null,
+  pacienteTelefone: r.pacientes?.telefone ?? null,
   cobrancaId: r.cobranca_id,
   tipo: r.tipo,
   destinatarioNome: r.destinatario_nome,
@@ -97,7 +102,7 @@ export async function fetchNFs(filters?: {
 }): Promise<NotaFiscal[]> {
   let query = supabase
     .from("notas_fiscais")
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, telefone)")
     .order("created_at", { ascending: false });
 
   if (filters?.status) query = query.eq("status", filters.status);
@@ -158,7 +163,7 @@ export async function createNF(input: {
       corpo_numero_processo: input.corpoNumeroProcesso ?? null,
       corpo_total_sessoes: input.corpoTotalSessoes ?? null,
     })
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, telefone)")
     .single();
   if (error) throw error;
   return map(data as unknown as Row);
@@ -173,6 +178,10 @@ export async function updateNF(
     emissao: string;
     destinatarioNome: string;
     destinatarioDocumento: string;
+    corpoPacienteNome: string;
+    corpoPacienteCpf: string;
+    corpoNumeroProcesso: string;
+    corpoTotalSessoes: number;
   }>,
 ): Promise<NotaFiscal> {
   const { data, error } = await supabase
@@ -184,9 +193,13 @@ export async function updateNF(
       ...(patch.emissao != null ? { emissao: patch.emissao } : {}),
       ...(patch.destinatarioNome != null ? { destinatario_nome: patch.destinatarioNome } : {}),
       ...(patch.destinatarioDocumento != null ? { destinatario_documento: patch.destinatarioDocumento } : {}),
+      ...(patch.corpoPacienteNome != null ? { corpo_paciente_nome: patch.corpoPacienteNome } : {}),
+      ...(patch.corpoPacienteCpf != null ? { corpo_paciente_cpf: patch.corpoPacienteCpf } : {}),
+      ...(patch.corpoNumeroProcesso != null ? { corpo_numero_processo: patch.corpoNumeroProcesso } : {}),
+      ...(patch.corpoTotalSessoes != null ? { corpo_total_sessoes: patch.corpoTotalSessoes } : {}),
     })
     .eq("id", id)
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, telefone)")
     .single();
   if (error) throw error;
   return map(data as unknown as Row);
@@ -246,6 +259,83 @@ export async function countNotasMonth(year: number, month: number): Promise<numb
   return count ?? 0;
 }
 
+export function documentoValidoParaNf(doc: string | null | undefined): boolean {
+  const digits = (doc ?? "").replace(/\D/g, "");
+  return digits.length === 11 || digits.length === 14;
+}
+
+export function documentoElegivelCobranca(
+  row: Pick<{ destinatarioDocumento: string | null; pacienteCpf: string | null }, "destinatarioDocumento" | "pacienteCpf">,
+): boolean {
+  return documentoValidoParaNf(row.destinatarioDocumento) || documentoValidoParaNf(row.pacienteCpf);
+}
+
+/** Atualiza destinatário/corpo da NF a partir do cadastro + cobrança (antes de emitir à Focus). */
+export async function sincronizarNfComCobranca(nf: NotaFiscal): Promise<NotaFiscal> {
+  if (!nf.cobrancaId) return nf;
+  const dest = await resolverDestinatarioNf(nf.cobrancaId);
+  return updateNF(nf.id, {
+    destinatarioNome: dest.destinatarioNome,
+    destinatarioDocumento: dest.destinatarioDocumento ?? undefined,
+    corpoPacienteNome: dest.corpoPacienteNome ?? undefined,
+    corpoPacienteCpf: dest.corpoPacienteCpf ?? undefined,
+    corpoNumeroProcesso: dest.corpoNumeroProcesso ?? undefined,
+    corpoTotalSessoes: dest.corpoTotalSessoes ?? undefined,
+  });
+}
+
+export async function prepararEmitFocus(nf: NotaFiscal): Promise<NotaFiscal> {
+  const synced = await sincronizarNfComCobranca(nf);
+  if (!documentoValidoParaNf(synced.destinatarioDocumento)) {
+    throw new Error("CPF/CNPJ do destinatário ausente ou inválido — complete o cadastro do paciente");
+  }
+  return synced;
+}
+
+/** Cria/reutiliza NF da cobrança, sincroniza destinatário e envia à Focus. */
+export async function emitFocusDeCobranca(
+  cobrancaId: string,
+  options?: { timeoutMs?: number },
+): Promise<EmitNfAutomaticoResult> {
+  const nfId = await resolverNfIdDeCobranca(cobrancaId);
+  const { data, error } = await supabase
+    .from("notas_fiscais")
+    .select("*, pacientes(nome, cpf, telefone)")
+    .eq("id", nfId)
+    .single();
+  if (error || !data) throw error ?? new Error("NF não encontrada");
+  await prepararEmitFocus(map(data as unknown as Row));
+  return emitNfAutomatico(nfId, options);
+}
+
+export async function fetchNfIdByCobranca(cobrancaId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("notas_fiscais")
+    .select("id")
+    .eq("cobranca_id", cobrancaId)
+    .neq("status", "cancelada")
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
+/** Cria NF da cobrança ou reutiliza pendente/erro existente (retry seguro). */
+export async function resolverNfIdDeCobranca(cobrancaId: string): Promise<string> {
+  const existente = await fetchNfIdByCobranca(cobrancaId);
+  if (existente) return existente;
+
+  try {
+    return await criarNfDeCobranca(cobrancaId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("Já existe NF")) {
+      const retry = await fetchNfIdByCobranca(cobrancaId);
+      if (retry) return retry;
+    }
+    throw e;
+  }
+}
+
 export async function fetchCobrancaIdsComNf(cobrancaIds: string[]): Promise<Set<string>> {
   if (cobrancaIds.length === 0) return new Set();
   const { data, error } = await supabase
@@ -267,7 +357,7 @@ export async function fetchNFsPorPacienteAno(
 ): Promise<NotaFiscal[]> {
   const { data, error } = await supabase
     .from("notas_fiscais")
-    .select("*, pacientes(nome)")
+    .select("*, pacientes(nome, cpf, telefone)")
     .eq("paciente_id", pacienteId)
     .eq("status", "emitida")
     .gte("emissao", `${ano}-01-01`)
