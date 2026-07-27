@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
-import { BRAND, drawCbMoveDocumentFooter, drawCbMoveReportHeader } from "../pdf-brand.ts";
+import { BRAND, drawCbMoveDocumentFooter, drawCbMoveReportHeader } from "../../pdf-brand.ts";
 import type { RelatorioRenderContext } from "../types.ts";
 
 function wrapText(text: string, maxCharsPerLine: number): string[] {
