@@ -99,7 +99,7 @@ export function selectRenderer(
 }
 
 export function relatorioArquivoLabel(formato: FormatoArquivo | null | undefined): string {
-  if (formato === "dual") return "PDF + XLSX";
+  if (formato === "dual") return "PDF ou XLSX";
   if (formato === "xlsx") return "XLSX";
   if (formato === "docx") return "DOCX";
   return "PDF";
@@ -109,7 +109,7 @@ export function relatorioFormatoBadge(
   formato: FormatoArquivo | null | undefined,
   hasXlsx: boolean,
 ): string {
-  if (formato === "dual" || (formato === "pdf" && hasXlsx)) return "PDF + XLSX";
+  if (formato === "dual" || (formato === "pdf" && hasXlsx)) return "PDF ou XLSX";
   return relatorioArquivoLabel(formato);
 }
 

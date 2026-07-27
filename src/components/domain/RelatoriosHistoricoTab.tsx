@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ExternalLink, FileText, History, Search } from "lucide-react";
+import { FileText, History, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -15,8 +15,8 @@ import {
   fetchRelatoriosAtendimentoHistorico,
   type RelatorioAtendimentoHistoricoRow,
 } from "@/lib/queries/relatorios-atendimento";
-import { openRelatorioArquivo } from "@/lib/relatorio-pdf-url";
-import { relatorioArquivoUrlLabel, relatorioFormatoBadge } from "@/lib/domain/relatorio-renderers";
+import { RelatorioArquivoMenu } from "@/components/domain/RelatorioArquivoMenu";
+import { relatorioFormatoBadge } from "@/lib/domain/relatorio-renderers";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 
@@ -249,44 +249,12 @@ export function RelatoriosHistoricoTab() {
                   </TableCell>
                   <TableCell>{statusBadge(r)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      {r.pdf_url && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 gap-1"
-                          onClick={() => {
-                            void openRelatorioArquivo(r.pdf_url).catch((e: Error) =>
-                              toast.error(e.message),
-                            );
-                          }}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          {relatorioArquivoUrlLabel(
-                            r.pdf_url,
-                            r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null,
-                          )}
-                        </Button>
-                      )}
-                      {r.xlsx_url && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 gap-1"
-                          onClick={() => {
-                            void openRelatorioArquivo(r.xlsx_url).catch((e: Error) =>
-                              toast.error(e.message),
-                            );
-                          }}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          XLSX
-                        </Button>
-                      )}
-                      {!r.pdf_url && !r.xlsx_url && (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </div>
+                    <RelatorioArquivoMenu
+                      pdfUrl={r.pdf_url}
+                      xlsxUrl={r.xlsx_url}
+                      formatoArquivo={r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null}
+                      onError={(e) => toast.error(e.message)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
