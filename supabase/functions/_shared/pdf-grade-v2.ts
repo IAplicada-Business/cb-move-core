@@ -7,10 +7,7 @@ import {
 } from "https://esm.sh/pdf-lib@1.17.1";
 import type { RelatorioAtendimentoLinha } from "./relatorio-atendimento-linhas.ts";
 import { formatDataRelatorio, formatMoedaBr } from "./relatorio-atendimento-linhas.ts";
-
-const INK = rgb(0.173, 0.173, 0.173);
-const GRAY = rgb(0.42, 0.42, 0.45);
-const LINE = rgb(0.75, 0.75, 0.75);
+import { BRAND, drawCbMoveDocumentFooter, drawCbMoveReportHeader } from "./pdf-brand.ts";
 
 const COLS = [
   { label: "DATA", width: 58 },
@@ -24,10 +21,10 @@ const COLS = [
 const TABLE_WIDTH = COLS.reduce((s, c) => s + c.width, 0);
 
 const MODELO_TITULO: Record<string, string> = {
-  convencional: "RELATÓRIO DE ATENDIMENTOS",
-  unimed: "RELATÓRIO DE ATENDIMENTOS — UNIMED",
-  sharepoint: "RELATÓRIO DE ATENDIMENTOS — JUDICIAL",
-  puc: "RELATÓRIO DE ATENDIMENTOS — PUC",
+  convencional: "Relatório de Atendimento",
+  unimed: "Relatório de Atendimento — Unimed",
+  sharepoint: "Relatório de Atendimento — Judicial",
+  puc: "Relatório de Atendimento — PUC",
 };
 
 type PdfGradeParams = {
@@ -40,6 +37,7 @@ type PdfGradeParams = {
   valorTotal: number;
   cargaHoraria: string;
   modelo?: string;
+  tipoPaciente?: string;
   camposExtras?: { label: string; valor: string }[];
   valorUnitarioLabel?: string;
   regimeMensalista?: boolean;
@@ -51,6 +49,10 @@ function truncate(text: string, max: number): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
+function formatGeneratedAt(): string {
+  return new Date().toLocaleDateString("pt-BR");
+}
+
 export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -58,13 +60,15 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
 
   const pageWidth = 595.28;
   const pageHeight = 841.89;
-  const margin = 36;
-  const footerHeight = 130;
+  const margin = 50;
+  const footerHeight = 128;
+  const footerZoneTop = margin + footerHeight;
   const titulo = MODELO_TITULO[params.modelo ?? "convencional"] ?? MODELO_TITULO.convencional;
   const valorLabel = params.valorUnitarioLabel ?? (params.regimeMensalista ? "MENSAL" : "SESSÃO");
+  const generatedAt = formatGeneratedAt();
 
   let page = doc.addPage([pageWidth, pageHeight]);
-  let y = pageHeight - margin;
+  let y = drawPageHeader(page, params, titulo, margin, pageWidth, pageHeight, font, fontBold);
 
   const drawText = (
     p: PDFPage,
@@ -73,63 +77,147 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
     yPos: number,
     size: number,
     f: PDFFont,
-    color = INK,
+    color = BRAND.ink,
   ) => {
     p.drawText(text, { x, y: yPos, size, font: f, color });
   };
 
   const newPage = () => {
     page = doc.addPage([pageWidth, pageHeight]);
-    y = pageHeight - margin;
-    drawTableHeader(page, y, fontBold);
+    y = pageHeight - margin - 8;
+    drawTableHeader(page, y, fontBold, margin);
     y -= 28;
   };
 
-  drawText(page, titulo, margin + 60, y, 12, fontBold);
-  drawText(page, "CB MOVE", pageWidth - margin - 70, y, 10, fontBold);
-  drawText(page, "Neuroscience", pageWidth - margin - 70, y - 11, 7, font);
+  drawTableHeader(page, y, fontBold, margin);
   y -= 28;
-  drawText(page, `NOME DO PACIENTE: ${truncate(params.pacienteNome, 55)}`, margin, y, 9, fontBold);
-  y -= 14;
-  drawText(page, `MÊS DE COMPETÊNCIA: ${params.competenciaLabel}`, margin, y, 9, fontBold);
-  y -= 14;
-
-  for (const campo of params.camposExtras ?? []) {
-    if (!campo.valor?.trim()) continue;
-    drawText(
-      page,
-      `${campo.label.toUpperCase()}: ${truncate(campo.valor, 60)}`,
-      margin,
-      y,
-      8,
-      font,
-    );
-    y -= 12;
-  }
-  y -= 10;
-
-  drawTableHeader(page, y, fontBold);
-  y -= 28;
-
-  const minY = margin + footerHeight;
 
   for (const linha of params.linhas) {
-    if (y < minY) newPage();
+    if (y < footerZoneTop + 24) newPage();
     drawTableRow(page, margin, y, linha, font);
     y -= 20;
   }
 
-  while (y > minY + 80) {
+  const minEmptyRows = params.linhas.length === 0 ? 8 : 3;
+  let emptyRows = 0;
+  while (y > footerZoneTop + 24 && emptyRows < minEmptyRows) {
     drawEmptyRow(page, margin, y, font);
     y -= 20;
+    emptyRows++;
   }
 
-  if (y < minY + footerHeight) newPage();
-  y = minY + footerHeight - 10;
+  drawFinancialFooter(
+    page,
+    margin,
+    pageWidth,
+    footerZoneTop,
+    params,
+    valorLabel,
+    font,
+    fontBold,
+    drawText,
+  );
+  drawCbMoveDocumentFooter({
+    page,
+    margin,
+    pageWidth,
+    font,
+    fontBold,
+    generatedAt,
+  });
 
+  return doc.save();
+}
+
+function drawPageHeader(
+  page: PDFPage,
+  params: PdfGradeParams,
+  titulo: string,
+  margin: number,
+  pageWidth: number,
+  pageHeight: number,
+  font: PDFFont,
+  fontBold: PDFFont,
+): number {
+  let y = pageHeight - margin;
+
+  y = drawCbMoveReportHeader({
+    page,
+    pageWidth,
+    pageHeight,
+    margin,
+    y,
+    titulo,
+    subtitulo: "Relatório de Atendimento · CB MOVE Neuroscience",
+    tipoPaciente: params.tipoPaciente ?? "particular",
+    font,
+    fontBold,
+  });
+
+  page.drawText(`Paciente: ${truncate(params.pacienteNome, 58)}`, {
+    x: margin,
+    y,
+    size: 10,
+    font: fontBold,
+    color: BRAND.ink,
+  });
+  y -= 14;
+  page.drawText(`Competência: ${params.competenciaLabel}`, {
+    x: margin,
+    y,
+    size: 9,
+    font,
+    color: BRAND.inkLight,
+  });
+  y -= 12;
+
+  for (const campo of params.camposExtras ?? []) {
+    if (!campo.valor?.trim()) continue;
+    page.drawText(`${campo.label}: ${truncate(campo.valor, 62)}`, {
+      x: margin,
+      y,
+      size: 9,
+      font,
+      color: BRAND.inkLight,
+    });
+    y -= 12;
+  }
+
+  y -= 8;
+  return y;
+}
+
+function drawFinancialFooter(
+  page: PDFPage,
+  margin: number,
+  pageWidth: number,
+  footerZoneTop: number,
+  params: PdfGradeParams,
+  valorLabel: string,
+  font: PDFFont,
+  fontBold: PDFFont,
+  drawText: (
+    p: PDFPage,
+    text: string,
+    x: number,
+    yPos: number,
+    size: number,
+    f: PDFFont,
+    color?: ReturnType<typeof rgb>,
+  ) => void,
+) {
   const leftX = margin;
-  const rightX = pageWidth / 2 + 10;
+  const rightX = pageWidth / 2 + 8;
+  const blockTop = footerZoneTop + 96;
 
+  page.drawLine({
+    start: { x: margin, y: blockTop + 4 },
+    end: { x: pageWidth - margin, y: blockTop + 4 },
+    thickness: 0.6,
+    color: BRAND.line,
+  });
+
+  let y = blockTop - 8;
   drawText(page, "FISIOTERAPIA NEUROFUNCIONAL", leftX, y, 8, fontBold);
   y -= 12;
   drawText(page, `FREQUÊNCIA: ${params.frequenciaTexto}`, leftX, y, 8, font);
@@ -155,12 +243,12 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
     fontBold,
   );
 
-  let yCharlene = minY + footerHeight - 10;
+  let ySig = blockTop - 8;
   page.drawLine({
-    start: { x: rightX, y: yCharlene - 36 },
-    end: { x: pageWidth - margin, y: yCharlene - 36 },
+    start: { x: rightX, y: ySig - 38 },
+    end: { x: pageWidth - margin, y: ySig - 38 },
     thickness: 0.8,
-    color: INK,
+    color: BRAND.ink,
   });
   for (const line of [
     "DRA CHARLENE BRITO DE OLIVEIRA",
@@ -169,37 +257,32 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
     "CB MOVE NEUROSCIENCE",
     "CNPJ 42.082.795/0001-74",
   ]) {
-    yCharlene -= 10;
-    drawText(page, line, rightX, yCharlene, 7, font, GRAY);
+    ySig -= 10;
+    drawText(page, line, rightX, ySig, 7, font, BRAND.inkLight);
   }
-
-  drawText(
-    page,
-    "CB MOVE NEUROSCIENCE LTDA - CNPJ: 42.082.795/0001-74 - CREFITO E-4651-RS",
-    margin,
-    margin - 6,
-    6.5,
-    font,
-    GRAY,
-  );
-
-  return doc.save();
 }
 
-function drawTableHeader(p: PDFPage, topY: number, fontBold: PDFFont) {
-  let x = 36;
+function drawTableHeader(p: PDFPage, topY: number, fontBold: PDFFont, margin: number) {
+  let x = margin;
   p.drawRectangle({
     x,
     y: topY - 18,
     width: TABLE_WIDTH,
     height: 18,
-    borderColor: LINE,
+    color: rgb(0.937, 0.976, 0.98),
+    borderColor: BRAND.line,
     borderWidth: 0.8,
   });
   for (const col of COLS) {
     const lines = col.label.split("\n");
     lines.forEach((line, i) => {
-      p.drawText(line, { x: x + 2, y: topY - 12 - i * 8, size: 6.5, font: fontBold, color: INK });
+      p.drawText(line, {
+        x: x + 2,
+        y: topY - 12 - i * 8,
+        size: 6.5,
+        font: fontBold,
+        color: BRAND.ink,
+      });
     });
     x += col.width;
   }
@@ -218,7 +301,7 @@ function drawTableRow(
     y: topY - 16,
     width: TABLE_WIDTH,
     height: 16,
-    borderColor: LINE,
+    borderColor: BRAND.line,
     borderWidth: 0.5,
   });
   const cells = [
@@ -230,18 +313,18 @@ function drawTableRow(
     "",
   ];
   cells.forEach((cell, i) => {
-    p.drawText(cell, { x: x + 2, y: topY - 12, size: 7, font, color: INK });
+    p.drawText(cell, { x: x + 2, y: topY - 12, size: 7, font, color: BRAND.ink });
     x += COLS[i].width;
   });
 }
 
-function drawEmptyRow(p: PDFPage, startX: number, topY: number, font: PDFFont) {
+function drawEmptyRow(p: PDFPage, startX: number, topY: number, _font: PDFFont) {
   p.drawRectangle({
     x: startX,
     y: topY - 16,
     width: TABLE_WIDTH,
     height: 16,
-    borderColor: LINE,
+    borderColor: BRAND.line,
     borderWidth: 0.5,
   });
 }
