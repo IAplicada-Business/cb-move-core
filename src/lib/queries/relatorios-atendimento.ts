@@ -13,6 +13,8 @@ export type RelatorioAtendimentoHistoricoRow = {
   competencia_ano: number;
   num_sessoes: number | null;
   pdf_url: string | null;
+  xlsx_url: string | null;
+  formato_arquivo: string | null;
   assinado: boolean;
   status: string | null;
   modelo_pdf: string | null;
@@ -35,6 +37,8 @@ type RelatorioRowDb = {
   competencia_ano: number;
   num_sessoes: number | null;
   pdf_url: string | null;
+  xlsx_url: string | null;
+  formato_arquivo: string | null;
   assinado: boolean;
   status: string | null;
   modelo_pdf: string | null;
@@ -55,7 +59,7 @@ export async function fetchRelatoriosAtendimentoHistorico(
   const { data, error } = await supabase
     .from("relatorios_atendimento")
     .select(
-      `id, paciente_id, modelo, competencia_mes, competencia_ano, num_sessoes, pdf_url, assinado, status, modelo_pdf, created_at,
+      `id, paciente_id, modelo, competencia_mes, competencia_ano, num_sessoes, pdf_url, xlsx_url, formato_arquivo, assinado, status, modelo_pdf, created_at,
       pacientes!inner(nome, tipo, convenio_id, convenios(nome))`,
     )
     .eq("competencia_mes", mes)
@@ -80,6 +84,8 @@ export async function fetchRelatoriosAtendimentoHistorico(
       competencia_ano: r.competencia_ano,
       num_sessoes: r.num_sessoes,
       pdf_url: r.pdf_url,
+      xlsx_url: r.xlsx_url,
+      formato_arquivo: r.formato_arquivo ?? "pdf",
       assinado: r.assinado,
       status: r.status,
       modelo_pdf: r.modelo_pdf,

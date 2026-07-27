@@ -1,4 +1,3 @@
-import { PDFDocument, StandardFonts } from "https://esm.sh/pdf-lib@1.17.1";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildRelatorioLinhas,
@@ -8,8 +7,10 @@ import {
   inferirCargaHoraria,
   relatorioStoragePath,
 } from "./relatorio-atendimento-linhas.ts";
-import { gerarPdfGradeV2 } from "./pdf-grade-v2.ts";
-import { BRAND, drawCbMoveDocumentFooter, drawCbMoveReportHeader } from "./pdf-brand.ts";
+import { renderRelatorioWithDual } from "./relatorio/render-relatorio.ts";
+import { isJudicialDualOutput, selectRenderer } from "./relatorio/select-renderer.ts";
+import type { ModeloRelatorio, RelatorioRenderContext } from "./relatorio/types.ts";
+import { validateRelatorioContext } from "./relatorio/validate-template.ts";
 
 const MES_NOME: Record<number, string> = {
   1: "Janeiro",
@@ -26,155 +27,11 @@ const MES_NOME: Record<number, string> = {
   12: "Dezembro",
 };
 
-const MODELO_TITULO: Record<string, string> = {
-  convencional: "Relatório de Atendimento",
-  unimed: "Relatório de Atendimento — Unimed",
-  sharepoint: "Relatório de Atendimento — Processo Judicial",
-  puc: "Relatório de Atendimento — PUC",
-};
-
-function wrapText(text: string, maxCharsPerLine: number): string[] {
-  const lines: string[] = [];
-  for (const paragraph of text.split("\n")) {
-    if (paragraph.trim() === "") {
-      lines.push("");
-      continue;
-    }
-    let current = "";
-    for (const word of paragraph.split(" ")) {
-      const candidate = current ? `${current} ${word}` : word;
-      if (candidate.length > maxCharsPerLine) {
-        if (current) lines.push(current);
-        current = word;
-      } else {
-        current = candidate;
-      }
-    }
-    if (current) lines.push(current);
-  }
-  return lines;
-}
-
-async function gerarPdf(params: {
-  titulo: string;
-  tipoPaciente: string;
-  placeholders: Record<string, string>;
-  camposExtras: { label: string; valor: string }[];
-  evolucaoResumo: string;
-  planoTerapeutico: string;
-}): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
-  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
-
-  const pageWidth = 595.28; // A4
-  const pageHeight = 841.89;
-  const margin = 50;
-  let page = doc.addPage([pageWidth, pageHeight]);
-  let y = pageHeight - margin;
-
-  const dark = BRAND.ink;
-  const gray = BRAND.inkLight;
-
-  function ensureSpace(lineHeight: number) {
-    if (y - lineHeight < margin) {
-      page = doc.addPage([pageWidth, pageHeight]);
-      y = pageHeight - margin;
-    }
-  }
-
-  function drawHeading(text: string, size: number, font = fontBold, color = dark, gap = 6) {
-    ensureSpace(size + gap);
-    page.drawText(text, { x: margin, y, size, font, color });
-    y -= size + gap;
-  }
-
-  function drawParagraph(text: string, size = 10, font = fontRegular, color = dark, maxChars = 95) {
-    const lines = wrapText(text, maxChars);
-    for (const line of lines) {
-      ensureSpace(size + 4);
-      page.drawText(line, { x: margin, y, size, font, color });
-      y -= size + 4;
-    }
-  }
-
-  // Cabeçalho padrão CB MOVE (design system / relatório financeiro).
-  y = drawCbMoveReportHeader({
-    page,
-    pageWidth,
-    pageHeight,
-    margin,
-    y,
-    titulo: params.titulo,
-    subtitulo: "Relatório de Atendimento · CB MOVE Neuroscience",
-    tipoPaciente: params.tipoPaciente,
-    font: fontRegular,
-    fontBold,
-  });
-
-  // Dados do paciente / competência
-  drawHeading(`Paciente: ${params.placeholders.paciente_nome ?? "—"}`, 11, fontBold);
-  if (params.placeholders.paciente_cpf) {
-    drawParagraph(`CPF: ${params.placeholders.paciente_cpf}`, 10, fontRegular, gray);
-  }
-  drawParagraph(`Competência: ${params.placeholders.competencia ?? "—"}`, 10, fontRegular, gray);
-  drawParagraph(
-    `Total de sessões realizadas no período: ${params.placeholders.total_sessoes ?? "0"}`,
-    10,
-    fontRegular,
-    gray,
-  );
-  y -= 8;
-
-  for (const campo of params.camposExtras) {
-    if (!campo.valor) continue;
-    drawParagraph(`${campo.label}: ${campo.valor}`, 10, fontRegular, gray);
-  }
-  y -= 8;
-
-  drawHeading("Resumo da evolução clínica", 11, fontBold);
-  drawParagraph(params.evolucaoResumo || "Sem evoluções registradas no período.", 10);
-  y -= 8;
-
-  if (params.planoTerapeutico) {
-    drawHeading("Plano terapêutico", 11, fontBold);
-    drawParagraph(params.planoTerapeutico, 10);
-    y -= 8;
-  }
-
-  ensureSpace(60);
-  y -= 20;
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: margin + 220, y },
-    thickness: 1,
-    color: dark,
-  });
-  y -= 14;
-  page.drawText("Assinatura do responsável técnico", {
-    x: margin,
-    y,
-    size: 9,
-    font: fontRegular,
-    color: gray,
-  });
-
-  drawCbMoveDocumentFooter({
-    page,
-    margin,
-    pageWidth,
-    font: fontRegular,
-    fontBold,
-    generatedAt: new Date().toLocaleDateString("pt-BR"),
-  });
-
-  return doc.save();
-}
-
 export type GerarRelatorioMensalResult = {
   relatorio_id: string;
   modelo: string;
   modelo_pdf: "grade_v2" | "legado";
+  formato_arquivo: "pdf" | "xlsx" | "dual";
   paciente_nome: string;
   competencia: string;
   total_sessoes: number;
@@ -182,7 +39,39 @@ export type GerarRelatorioMensalResult = {
   valor_sessao: number;
   valor_total: number;
   pdf_url: string;
+  xlsx_url?: string;
 };
+
+function resolveModelo(paciente: {
+  modelo_relatorio_preferido?: string | null;
+  tipo?: string | null;
+}): ModeloRelatorio {
+  if (paciente.modelo_relatorio_preferido) {
+    return paciente.modelo_relatorio_preferido as ModeloRelatorio;
+  }
+  if (paciente.tipo === "judicial") return "sharepoint";
+  if (paciente.tipo === "convenio") return "unimed";
+  if (paciente.tipo === "puc") return "puc";
+  return "convencional";
+}
+
+function buildCamposExtras(
+  modelo: ModeloRelatorio,
+  placeholders: Record<string, string>,
+): { label: string; valor: string }[] {
+  const camposExtras: { label: string; valor: string }[] = [];
+  if (modelo === "unimed") {
+    camposExtras.push({ label: "Convênio", valor: placeholders.convenio_nome });
+    camposExtras.push({ label: "Fisioterapeuta", valor: placeholders.fisio_nome });
+    if (placeholders.cid) camposExtras.push({ label: "CID", valor: placeholders.cid });
+  } else if (modelo === "sharepoint") {
+    camposExtras.push({ label: "Processo", valor: placeholders.processo });
+    camposExtras.push({ label: "Fisioterapeuta", valor: placeholders.fisio_nome });
+  } else if (modelo === "puc") {
+    camposExtras.push({ label: "Convênio/Instituição", valor: placeholders.convenio_nome });
+  }
+  return camposExtras;
+}
 
 export async function executeGerarRelatorioMensal(
   supabase: SupabaseClient,
@@ -195,8 +84,6 @@ export async function executeGerarRelatorioMensal(
 ): Promise<GerarRelatorioMensalResult> {
   const { paciente_id, mes, ano, modelo_pdf: modeloPdfBody } = params;
 
-  const modeloPdf = modeloPdfBody === "legado" ? "legado" : "grade_v2";
-
   const { data: paciente, error: pacErr } = await supabase
     .from("pacientes")
     .select("*, convenios(nome, cnpj), fisioterapeutas!fisioterapeuta_id(nome)")
@@ -204,20 +91,11 @@ export async function executeGerarRelatorioMensal(
     .single();
   if (pacErr || !paciente) throw new Error("Paciente não encontrado");
 
-  let modelo = "convencional";
-  if (paciente.modelo_relatorio_preferido) {
-    modelo = paciente.modelo_relatorio_preferido;
-  } else if (paciente.tipo === "judicial") {
-    modelo = "sharepoint";
-  } else if (paciente.tipo === "convenio") {
-    modelo = "unimed";
-  } else if (paciente.tipo === "puc") {
-    modelo = "puc";
-  }
+  const modelo = resolveModelo(paciente);
 
   const { data: template } = await supabase
     .from("templates_versionados")
-    .select("*")
+    .select("id, codigo, conteudo")
     .eq("tipo", "relatorio_atendimento")
     .eq("modelo", modelo)
     .eq("ativo", true)
@@ -261,6 +139,7 @@ export async function executeGerarRelatorioMensal(
   const linhas = buildRelatorioLinhas(sessoes ?? [], joins, cargaHoraria);
   const frequenciaTexto = formatFrequenciaRodape(paciente.frequencia_atendimento);
   const regimeMensalista = paciente.regime_cobranca === "mensalista";
+  const competenciaLabel = `${MES_NOME[mes]}/${ano}`;
 
   const { data: evolucoes } = await supabase
     .from("prontuario_evolucoes")
@@ -270,7 +149,6 @@ export async function executeGerarRelatorioMensal(
     .lte("data", fimMes)
     .order("data");
 
-  const totalSessoesLegado = totalSessoes;
   const evolucaoResumo = (evolucoes ?? [])
     .map((e: { subjetivo?: string; objetivo?: string; plano?: string }) =>
       [e.subjetivo, e.objetivo, e.plano].filter(Boolean).join("\n"),
@@ -282,8 +160,8 @@ export async function executeGerarRelatorioMensal(
   const placeholders: Record<string, string> = {
     paciente_nome: paciente.nome,
     paciente_cpf: paciente.cpf ?? "",
-    competencia: `${MES_NOME[mes]}/${ano}`,
-    total_sessoes: String(totalSessoesLegado),
+    competencia: competenciaLabel,
+    total_sessoes: String(totalSessoes),
     evolucao_resumo: evolucaoResumo || "Sem evoluções registradas no período.",
     plano_terapeutico: planoTerapeutico,
     fisio_nome: paciente.fisioterapeutas?.nome ?? "",
@@ -291,52 +169,72 @@ export async function executeGerarRelatorioMensal(
     convenio_nome: paciente.convenios?.nome ?? "",
     convenio_cnpj: paciente.convenios?.cnpj ?? "",
     cid,
-    sessoes: String(totalSessoesLegado),
+    sessoes: String(totalSessoes),
   };
 
-  const camposExtras: { label: string; valor: string }[] = [];
-  if (modelo === "unimed") {
-    camposExtras.push({ label: "Convênio", valor: placeholders.convenio_nome });
-    camposExtras.push({ label: "Fisioterapeuta", valor: placeholders.fisio_nome });
-    if (cid) camposExtras.push({ label: "CID", valor: cid });
-  } else if (modelo === "sharepoint") {
-    camposExtras.push({ label: "Processo", valor: placeholders.processo });
-    camposExtras.push({ label: "Fisioterapeuta", valor: placeholders.fisio_nome });
-  } else if (modelo === "puc") {
-    camposExtras.push({ label: "Convênio/Instituição", valor: placeholders.convenio_nome });
+  validateRelatorioContext(
+    isJudicialDualOutput(paciente.tipo, modeloPdfBody) ? "sharepoint" : modelo,
+    placeholders,
+    template?.conteudo,
+  );
+
+  const selection = selectRenderer(modelo, template?.conteudo, modeloPdfBody, paciente.tipo);
+
+  const ctx: RelatorioRenderContext = {
+    modelo,
+    tipoPaciente: paciente.tipo ?? "particular",
+    pacienteNome: paciente.nome,
+    competenciaLabel,
+    competenciaMes: mes,
+    competenciaAno: ano,
+    frequenciaTexto,
+    cargaHoraria,
+    linhas,
+    rodape,
+    regimeMensalista,
+    placeholders,
+    camposExtras: buildCamposExtras(modelo, placeholders),
+    evolucaoResumo: placeholders.evolucao_resumo,
+    planoTerapeutico,
+    template: template
+      ? { id: template.id, codigo: template.codigo, conteudo: template.conteudo }
+      : null,
+  };
+
+  const rendered = await renderRelatorioWithDual(ctx, selection);
+
+  const pdfPath = relatorioStoragePath(paciente_id, ano, mes, "pdf");
+  let pdfUrl: string | null = null;
+  let xlsxUrl: string | null = null;
+
+  if ("xlsxBytes" in rendered) {
+    xlsxUrl = relatorioStoragePath(paciente_id, ano, mes, "xlsx");
+    const { error: xlsxErr } = await supabase.storage
+      .from("relatorios-atendimento")
+      .upload(xlsxUrl, rendered.xlsxBytes, {
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        upsert: true,
+      });
+    if (xlsxErr) throw new Error(`Falha ao salvar XLSX: ${xlsxErr.message}`);
+
+    const { error: pdfErr } = await supabase.storage
+      .from("relatorios-atendimento")
+      .upload(pdfPath, rendered.pdfBytes, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+    if (pdfErr) throw new Error(`Falha ao salvar PDF: ${pdfErr.message}`);
+    pdfUrl = pdfPath;
+  } else {
+    const ext = selection.formato_arquivo === "xlsx" ? "xlsx" : "pdf";
+    const singlePath = relatorioStoragePath(paciente_id, ano, mes, ext);
+    const { error: uploadErr } = await supabase.storage
+      .from("relatorios-atendimento")
+      .upload(singlePath, rendered.bytes, { contentType: selection.contentType, upsert: true });
+    if (uploadErr) throw new Error(`Falha ao salvar arquivo: ${uploadErr.message}`);
+    if (ext === "xlsx") xlsxUrl = singlePath;
+    else pdfUrl = singlePath;
   }
-
-  const pdfBytes =
-    modeloPdf === "grade_v2"
-      ? await gerarPdfGradeV2({
-          pacienteNome: paciente.nome,
-          competenciaLabel: `${MES_NOME[mes]}/${ano}`,
-          frequenciaTexto,
-          linhas,
-          numSessoes: rodape.numSessoes,
-          valorSessao: rodape.valorSessao,
-          valorTotal: rodape.valorTotal,
-          cargaHoraria,
-          modelo,
-          tipoPaciente: paciente.tipo ?? "particular",
-          camposExtras,
-          regimeMensalista,
-          valorUnitarioLabel: regimeMensalista ? "MENSAL" : "SESSÃO",
-        })
-      : await gerarPdf({
-          titulo: MODELO_TITULO[modelo] ?? "Relatório de Atendimento",
-          tipoPaciente: paciente.tipo ?? "particular",
-          placeholders,
-          camposExtras,
-          evolucaoResumo: placeholders.evolucao_resumo,
-          planoTerapeutico,
-        });
-
-  const storagePath = relatorioStoragePath(paciente_id, ano, mes);
-  const { error: uploadErr } = await supabase.storage
-    .from("relatorios-atendimento")
-    .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
-  if (uploadErr) throw new Error(`Falha ao salvar PDF: ${uploadErr.message}`);
 
   const relatorioPayload = {
     paciente_id,
@@ -344,9 +242,11 @@ export async function executeGerarRelatorioMensal(
     competencia_ano: ano,
     modelo,
     status: "gerado",
-    pdf_url: storagePath,
+    pdf_url: pdfUrl,
+    xlsx_url: xlsxUrl,
+    formato_arquivo: selection.formato_arquivo,
     template_versionado_id: template?.id ?? null,
-    modelo_pdf: modeloPdf,
+    modelo_pdf: selection.modelo_pdf,
     num_sessoes: rodape.numSessoes,
     valor_sessao: rodape.valorSessao,
     valor_total: rodape.valorTotal,
@@ -360,12 +260,26 @@ export async function executeGerarRelatorioMensal(
 
   const { data: existing } = await supabase
     .from("relatorios_atendimento")
-    .select("id")
+    .select("id, pdf_url, xlsx_url, formato_arquivo")
     .eq("paciente_id", paciente_id)
     .eq("competencia_mes", mes)
     .eq("competencia_ano", ano)
     .in("modelo_pdf", ["grade_v2", "legado"])
     .maybeSingle();
+
+  const pathsToRemove = new Set<string>();
+  if (existing?.pdf_url && existing.pdf_url !== pdfUrl) {
+    pathsToRemove.add(existing.pdf_url);
+  }
+  if (existing?.xlsx_url && existing.xlsx_url !== xlsxUrl) {
+    pathsToRemove.add(existing.xlsx_url);
+  }
+  if (pdfUrl && existing?.pdf_url?.endsWith(".xlsx") && existing.pdf_url !== pdfUrl) {
+    pathsToRemove.add(existing.pdf_url);
+  }
+  if (pathsToRemove.size > 0) {
+    await supabase.storage.from("relatorios-atendimento").remove([...pathsToRemove]);
+  }
 
   let relatorio: { id: string };
   if (existing?.id) {
@@ -388,7 +302,7 @@ export async function executeGerarRelatorioMensal(
     relatorio = inserted;
   }
 
-  if (modeloPdf === "grade_v2" && linhas.length > 0) {
+  if (selection.modelo_pdf === "grade_v2" && linhas.length > 0) {
     const { error: linhasErr } = await supabase.from("relatorio_atendimento_linhas").insert(
       linhas.map((l) => ({
         relatorio_id: relatorio.id,
@@ -405,13 +319,15 @@ export async function executeGerarRelatorioMensal(
   return {
     relatorio_id: relatorio.id,
     modelo,
-    modelo_pdf: modeloPdf,
+    modelo_pdf: selection.modelo_pdf,
+    formato_arquivo: selection.formato_arquivo,
     paciente_nome: paciente.nome,
-    competencia: `${MES_NOME[mes]}/${ano}`,
-    total_sessoes: totalSessoesLegado,
+    competencia: competenciaLabel,
+    total_sessoes: totalSessoes,
     num_sessoes: rodape.numSessoes,
     valor_sessao: rodape.valorSessao,
     valor_total: rodape.valorTotal,
-    pdf_url: storagePath,
+    pdf_url: pdfUrl ?? xlsxUrl ?? "",
+    ...(xlsxUrl ? { xlsx_url: xlsxUrl } : {}),
   };
 }

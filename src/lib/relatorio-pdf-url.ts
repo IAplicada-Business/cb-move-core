@@ -31,8 +31,13 @@ export async function resolveRelatorioPdfUrl(
   return data.signedUrl;
 }
 
-export async function openRelatorioPdf(pdfRef: string | null | undefined): Promise<void> {
+export async function openRelatorioArquivo(pdfRef: string | null | undefined): Promise<void> {
   const url = await resolveRelatorioPdfUrl(pdfRef);
-  if (!url) throw new Error("PDF indisponível");
+  if (!url) throw new Error("Arquivo indisponível");
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/** @deprecated use openRelatorioArquivo */
+export async function openRelatorioPdf(pdfRef: string | null | undefined): Promise<void> {
+  return openRelatorioArquivo(pdfRef);
 }

@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
-import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
+import { openRelatorioArquivo } from "@/lib/relatorio-pdf-url";
 import { can } from "@/lib/permissions";
 import {
   deleteRelatorioAtendimento,
@@ -175,7 +175,7 @@ export function ProntuarioDocumentosTab({
               variant="ghost"
               size="sm"
               onClick={() => {
-                void openRelatorioPdf(relatorioFisico.pdf_url).catch((e: Error) =>
+                void openRelatorioArquivo(relatorioFisico.pdf_url).catch((e: Error) =>
                   toast.error(e.message),
                 );
               }}
@@ -299,13 +299,13 @@ export function ProntuarioDocumentosTab({
                           {finalizandoId === r.id ? "Enviando…" : "Finalizar / assinar"}
                         </Button>
                       )}
-                      {r.pdf_url ? (
+                      {r.pdf_url && (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-8 gap-1"
                           onClick={() => {
-                            void openRelatorioPdf(r.pdf_url).catch((e: Error) =>
+                            void openRelatorioArquivo(r.pdf_url).catch((e: Error) =>
                               toast.error(e.message),
                             );
                           }}
@@ -313,7 +313,23 @@ export function ProntuarioDocumentosTab({
                           <ExternalLink className="h-3.5 w-3.5" />
                           PDF
                         </Button>
-                      ) : (
+                      )}
+                      {r.xlsx_url && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1"
+                          onClick={() => {
+                            void openRelatorioArquivo(r.xlsx_url).catch((e: Error) =>
+                              toast.error(e.message),
+                            );
+                          }}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          XLSX
+                        </Button>
+                      )}
+                      {!r.pdf_url && !r.xlsx_url && (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                       {renderDeleteButton(r)}
@@ -341,7 +357,7 @@ export function ProntuarioDocumentosTab({
                           size="sm"
                           className="h-8 gap-1"
                           onClick={() => {
-                            void openRelatorioPdf(relatorioFisico.pdf_url).catch((e: Error) =>
+                            void openRelatorioArquivo(relatorioFisico.pdf_url).catch((e: Error) =>
                               toast.error(e.message),
                             );
                           }}

@@ -1335,6 +1335,7 @@ export type Database = {
           competencia_ano: number;
           competencia_mes: number;
           created_at: string;
+          formato_arquivo: string;
           fisioterapeuta_id: string | null;
           frequencia_texto: string | null;
           id: string;
@@ -1343,6 +1344,7 @@ export type Database = {
           num_sessoes: number | null;
           paciente_id: string;
           pdf_url: string | null;
+          xlsx_url: string | null;
           status: string | null;
           template_versionado_id: string | null;
           valor_sessao: number | null;
@@ -1356,6 +1358,7 @@ export type Database = {
           competencia_ano: number;
           competencia_mes: number;
           created_at?: string;
+          formato_arquivo?: string;
           fisioterapeuta_id?: string | null;
           frequencia_texto?: string | null;
           id?: string;
@@ -1364,6 +1367,7 @@ export type Database = {
           num_sessoes?: number | null;
           paciente_id: string;
           pdf_url?: string | null;
+          xlsx_url?: string | null;
           status?: string | null;
           template_versionado_id?: string | null;
           valor_sessao?: number | null;
@@ -1377,6 +1381,7 @@ export type Database = {
           competencia_ano?: number;
           competencia_mes?: number;
           created_at?: string;
+          formato_arquivo?: string;
           fisioterapeuta_id?: string | null;
           frequencia_texto?: string | null;
           id?: string;
@@ -1385,6 +1390,7 @@ export type Database = {
           num_sessoes?: number | null;
           paciente_id?: string;
           pdf_url?: string | null;
+          xlsx_url?: string | null;
           status?: string | null;
           template_versionado_id?: string | null;
           valor_sessao?: number | null;

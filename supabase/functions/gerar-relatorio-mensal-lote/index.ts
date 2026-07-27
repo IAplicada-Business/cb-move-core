@@ -16,6 +16,7 @@ type LoteItemResult = {
   status: "ok" | "erro";
   detalhe: string;
   pdf_url?: string;
+  xlsx_url?: string;
   total_sessoes?: number;
 };
 
@@ -67,6 +68,7 @@ serve(async (req) => {
           status: "ok",
           detalhe: `${data.total_sessoes} sessão(ões) no período`,
           pdf_url: data.pdf_url,
+          ...(data.xlsx_url ? { xlsx_url: data.xlsx_url } : {}),
           total_sessoes: data.total_sessoes,
         });
       } catch (e) {

@@ -49,6 +49,8 @@ export type RelatorioAtendimento = {
   competencia_mes: number;
   competencia_ano: number;
   pdf_url: string | null;
+  xlsx_url: string | null;
+  formato_arquivo: string | null;
   assinado: boolean;
   assinado_em: string | null;
   modelo_pdf: string | null;
@@ -88,6 +90,8 @@ export type GerarRelatorioResult = {
   total_sessoes: number;
   aviso?: string;
   pdf_url?: string;
+  xlsx_url?: string;
+  formato_arquivo?: "pdf" | "xlsx" | "dual";
 };
 
 type PacienteProntuarioRow = {
@@ -241,7 +245,7 @@ export async function fetchRelatoriosPaciente(pacienteId: string): Promise<Relat
   const { data, error } = await supabase
     .from("relatorios_atendimento")
     .select(
-      "id, paciente_id, modelo, competencia_mes, competencia_ano, pdf_url, assinado, assinado_em, modelo_pdf, created_at",
+      "id, paciente_id, modelo, competencia_mes, competencia_ano, pdf_url, xlsx_url, formato_arquivo, assinado, assinado_em, modelo_pdf, created_at",
     )
     .eq("paciente_id", pacienteId)
     .order("competencia_ano", { ascending: false })
@@ -458,6 +462,7 @@ export type GerarRelatorioLoteResult = {
     status: "ok" | "erro";
     detalhe: string;
     pdf_url?: string;
+    xlsx_url?: string;
     total_sessoes?: number;
   }>;
 };
@@ -568,6 +573,10 @@ export async function deleteRelatorioAtendimento(
   const paths: string[] = [];
   if (relatorio.pdf_url) {
     const fromUrl = storagePathFromRelatorioPublicUrl(relatorio.pdf_url);
+    if (fromUrl) paths.push(fromUrl);
+  }
+  if (relatorio.xlsx_url) {
+    const fromUrl = storagePathFromRelatorioPublicUrl(relatorio.xlsx_url);
     if (fromUrl) paths.push(fromUrl);
   }
   if (relatorio.modelo_pdf === "documento_fisico") {

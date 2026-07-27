@@ -20,7 +20,7 @@ import { RelatoriosHistoricoTab } from "@/components/domain/RelatoriosHistoricoT
 import { queryKeys } from "@/lib/queries";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal, gerarRelatorioMensalLote } from "@/lib/queries/prontuario";
-import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
+import { openRelatorioArquivo } from "@/lib/relatorio-pdf-url";
 import {
   filterPacientesRelatorioLote,
   mensagemEscopoRelatorioLote,
@@ -59,7 +59,7 @@ const TIPO_RELATORIO: Record<
   },
   judicial: {
     label: "Judicial",
-    descricao: "Modelo judicial — gere para todos os pacientes judiciais ou um paciente",
+    descricao: "PDF + XLSX SharePoint — gere para todos os pacientes judiciais ou um paciente",
     icon: Gavel,
     accent: "text-cb-magenta bg-[#FDF2F8]",
   },
@@ -84,6 +84,8 @@ type RelatorioGerado = {
   competencia: string;
   total_sessoes: number;
   pdf_url?: string;
+  xlsx_url?: string;
+  formato_arquivo?: "pdf" | "xlsx" | "dual";
 };
 
 type ConvenioOpcao = { id: string; nome: string };
@@ -104,6 +106,7 @@ type LoteResultado = {
   status: "ok" | "erro";
   detalhe: string;
   pdfUrl?: string;
+  xlsxUrl?: string;
 };
 
 function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: () => void }) {
@@ -182,6 +185,7 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
         status: r.status,
         detalhe: r.detalhe,
         pdfUrl: r.pdf_url,
+        xlsxUrl: r.xlsx_url,
       }));
       setLote(resultados);
       void queryClient.invalidateQueries({ queryKey: queryKeys.relatorios.all });
@@ -345,20 +349,39 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
                 <span className="text-muted-foreground">Sessões no período:</span>{" "}
                 {resultado.total_sessoes}
               </p>
-              {resultado.pdf_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 gap-1.5"
-                  onClick={() => {
-                    void openRelatorioPdf(resultado.pdf_url).catch((e: Error) =>
-                      toast.error(e.message),
-                    );
-                  }}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Abrir PDF
-                </Button>
+              {(resultado.pdf_url || resultado.xlsx_url) && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {resultado.pdf_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => {
+                        void openRelatorioArquivo(resultado.pdf_url).catch((e: Error) =>
+                          toast.error(e.message),
+                        );
+                      }}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Abrir PDF
+                    </Button>
+                  )}
+                  {resultado.xlsx_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => {
+                        void openRelatorioArquivo(resultado.xlsx_url).catch((e: Error) =>
+                          toast.error(e.message),
+                        );
+                      }}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Abrir XLSX
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -383,16 +406,35 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
                     <XCircle className="h-4 w-4 shrink-0 text-destructive" />
                   )}
                   <span className="flex-1 truncate">{r.pacienteNome}</span>
-                  {r.pdfUrl ? (
-                    <button
-                      type="button"
-                      className="shrink-0 text-xs text-cb-cyan-700 hover:underline"
-                      onClick={() => {
-                        void openRelatorioPdf(r.pdfUrl).catch((e: Error) => toast.error(e.message));
-                      }}
-                    >
-                      PDF
-                    </button>
+                  {r.pdfUrl || r.xlsxUrl ? (
+                    <span className="flex shrink-0 gap-2">
+                      {r.pdfUrl && (
+                        <button
+                          type="button"
+                          className="text-xs text-cb-cyan-700 hover:underline"
+                          onClick={() => {
+                            void openRelatorioArquivo(r.pdfUrl).catch((e: Error) =>
+                              toast.error(e.message),
+                            );
+                          }}
+                        >
+                          PDF
+                        </button>
+                      )}
+                      {r.xlsxUrl && (
+                        <button
+                          type="button"
+                          className="text-xs text-cb-cyan-700 hover:underline"
+                          onClick={() => {
+                            void openRelatorioArquivo(r.xlsxUrl).catch((e: Error) =>
+                              toast.error(e.message),
+                            );
+                          }}
+                        >
+                          XLSX
+                        </button>
+                      )}
+                    </span>
                   ) : (
                     <span
                       className="shrink-0 truncate text-xs text-muted-foreground"

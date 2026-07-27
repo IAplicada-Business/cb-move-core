@@ -124,8 +124,13 @@ export function formatDataRelatorio(isoDate: string): string {
   return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y.slice(-2)}`;
 }
 
-export function relatorioStoragePath(pacienteId: string, ano: number, mes: number): string {
-  return `relatorio-${pacienteId}-${ano}-${String(mes).padStart(2, "0")}.pdf`;
+export function relatorioStoragePath(
+  pacienteId: string,
+  ano: number,
+  mes: number,
+  ext: "pdf" | "xlsx" = "pdf",
+): string {
+  return `relatorio-${pacienteId}-${ano}-${String(mes).padStart(2, "0")}.${ext}`;
 }
 
 export function resolveStoragePathFromPdfRef(pdfRef: string | null | undefined): string | null {
