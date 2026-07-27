@@ -128,7 +128,7 @@ export function relatorioStoragePath(
   pacienteId: string,
   ano: number,
   mes: number,
-  ext: "pdf" | "xlsx" = "pdf",
+  ext: "pdf" | "xlsx" | "docx" = "pdf",
 ): string {
   return `relatorio-${pacienteId}-${ano}-${String(mes).padStart(2, "0")}.${ext}`;
 }

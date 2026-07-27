@@ -226,7 +226,12 @@ export async function executeGerarRelatorioMensal(
     if (pdfErr) throw new Error(`Falha ao salvar PDF: ${pdfErr.message}`);
     pdfUrl = pdfPath;
   } else {
-    const ext = selection.formato_arquivo === "xlsx" ? "xlsx" : "pdf";
+    const ext =
+      selection.formato_arquivo === "xlsx"
+        ? "xlsx"
+        : selection.formato_arquivo === "docx"
+          ? "docx"
+          : "pdf";
     const singlePath = relatorioStoragePath(paciente_id, ano, mes, ext);
     const { error: uploadErr } = await supabase.storage
       .from("relatorios-atendimento")
@@ -274,7 +279,12 @@ export async function executeGerarRelatorioMensal(
   if (existing?.xlsx_url && existing.xlsx_url !== xlsxUrl) {
     pathsToRemove.add(existing.xlsx_url);
   }
-  if (pdfUrl && existing?.pdf_url?.endsWith(".xlsx") && existing.pdf_url !== pdfUrl) {
+  if (
+    pdfUrl &&
+    existing?.pdf_url &&
+    existing.pdf_url !== pdfUrl &&
+    /\.(xlsx|docx)$/i.test(existing.pdf_url)
+  ) {
     pathsToRemove.add(existing.pdf_url);
   }
   if (pathsToRemove.size > 0) {

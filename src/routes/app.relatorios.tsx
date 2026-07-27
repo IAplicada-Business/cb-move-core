@@ -18,20 +18,23 @@ import { toast } from "sonner";
 import { MonthPicker } from "@/components/domain/MonthPicker";
 import { RelatoriosHistoricoTab } from "@/components/domain/RelatoriosHistoricoTab";
 import { queryKeys } from "@/lib/queries";
-import { fetchPacientes } from "@/lib/queries/pacientes";
-import { gerarRelatorioMensal, gerarRelatorioMensalLote } from "@/lib/queries/prontuario";
-import { openRelatorioArquivo } from "@/lib/relatorio-pdf-url";
+import { relatorioArquivoUrlLabel } from "@/lib/domain/relatorio-renderers";
 import {
   filterPacientesRelatorioLote,
   mensagemEscopoRelatorioLote,
   podeGerarLoteRelatorio,
 } from "@/lib/domain/relatorio-lote";
+import { fetchPacientes } from "@/lib/queries/pacientes";
+import { gerarRelatorioMensal, gerarRelatorioMensalLote } from "@/lib/queries/prontuario";
+import { openRelatorioArquivo } from "@/lib/relatorio-pdf-url";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -85,7 +88,7 @@ type RelatorioGerado = {
   total_sessoes: number;
   pdf_url?: string;
   xlsx_url?: string;
-  formato_arquivo?: "pdf" | "xlsx" | "dual";
+  formato_arquivo?: "pdf" | "xlsx" | "dual" | "docx";
 };
 
 type ConvenioOpcao = { id: string; nome: string };
@@ -119,6 +122,7 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
   const [resultado, setResultado] = useState<RelatorioGerado | null>(null);
   const [lote, setLote] = useState<LoteResultado[] | null>(null);
   const [loteRodando, setLoteRodando] = useState(false);
+  const [modoLegado, setModoLegado] = useState(false);
   const loteAbortRef = useRef(false);
   const queryClient = useQueryClient();
 
@@ -155,7 +159,13 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
   );
 
   const gerarMutation = useMutation({
-    mutationFn: () => gerarRelatorioMensal({ pacienteId, mes, ano }),
+    mutationFn: () =>
+      gerarRelatorioMensal({
+        pacienteId,
+        mes,
+        ano,
+        ...(modoLegado ? { modeloPdf: "legado" as const } : {}),
+      }),
     onSuccess: (data) => {
       setResultado(data as RelatorioGerado);
       void queryClient.invalidateQueries({ queryKey: queryKeys.relatorios.byPaciente(pacienteId) });
@@ -336,6 +346,17 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
             </Select>
           </div>
 
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+            <Checkbox
+              id="modo-legado"
+              checked={modoLegado}
+              onCheckedChange={(v) => setModoLegado(v === true)}
+            />
+            <Label htmlFor="modo-legado" className="text-sm font-normal cursor-pointer">
+              Modo legado (PDF com evolução clínica em texto)
+            </Label>
+          </div>
+
           {resultado && (
             <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
               <p>
@@ -363,7 +384,10 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
                       }}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      Abrir PDF
+                      {relatorioArquivoUrlLabel(
+                        resultado.pdf_url,
+                        resultado.formato_arquivo ?? "pdf",
+                      )}
                     </Button>
                   )}
                   {resultado.xlsx_url && (

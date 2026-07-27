@@ -26,10 +26,16 @@ describe("selectRenderer", () => {
     expect(r.formato_arquivo).toBe("dual");
   });
 
-  it("unimed → pdf-unimed-v1", () => {
+  it("unimed → docx-unimed-v1", () => {
     const r = selectRenderer("unimed", null, undefined, "convenio");
-    expect(r.formato_arquivo).toBe("pdf");
-    expect(r.renderer).toBe("pdf-unimed-v1");
+    expect(r.formato_arquivo).toBe("docx");
+    expect(r.renderer).toBe("docx-unimed-v1");
+  });
+
+  it("puc → xlsx-puc-v1", () => {
+    const r = selectRenderer("puc", null, undefined, "puc");
+    expect(r.formato_arquivo).toBe("xlsx");
+    expect(r.renderer).toBe("xlsx-puc-v1");
   });
 
   it("convencional → pdf-grade-v2", () => {
@@ -41,6 +47,14 @@ describe("selectRenderer", () => {
     const r = selectRenderer("sharepoint", null, "legado", "judicial");
     expect(r.renderer).toBe("pdf-legado");
     expect(r.modelo_pdf).toBe("legado");
+  });
+
+  it("template override renderer", () => {
+    const r = selectRenderer("convencional", {
+      renderer: "pdf-unimed-v1",
+      output_format: "pdf",
+    });
+    expect(r.renderer).toBe("pdf-unimed-v1");
   });
 });
 
@@ -58,5 +72,15 @@ describe("validateRelatorioContext", () => {
         processo: "0001234",
       }),
     ).not.toThrow();
+  });
+
+  it("usa placeholders legados do template", () => {
+    expect(() =>
+      validateRelatorioContext(
+        "unimed",
+        { paciente_nome: "João" },
+        { placeholders: ["paciente_nome", "cid"] },
+      ),
+    ).toThrow(/cid/i);
   });
 });

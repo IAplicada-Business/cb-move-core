@@ -200,3 +200,48 @@ export function extratoToCsvRows(resumo: ExtratoFinanceiroResumo): Record<string
 
   return [...linhas, totalRow];
 }
+
+const EXTRATO_COLUNAS = [
+  "Nome do Paciente",
+  "Avaliação",
+  "Frequência",
+  "Dias da Semana",
+  "Nº Sessões",
+  "Plano",
+  "R$ Sessão/Mês",
+  "R$ Previsto",
+  "R$ Recebido",
+  "SITUAÇÃO",
+] as const;
+
+/** Planilha XLSX alinhada à master financeira (mesmas colunas do CSV). */
+export async function extratoToXlsxBlob(resumo: ExtratoFinanceiroResumo): Promise<Blob> {
+  const XLSX = await import("xlsx");
+  const rows = extratoToCsvRows(resumo);
+  const aoa = [
+    [...EXTRATO_COLUNAS],
+    ...rows.map((row) => EXTRATO_COLUNAS.map((col) => String(row[col] ?? ""))),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [
+    { wch: 28 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 36 },
+  ];
+  const wb = XLSX.utils.book_new();
+  const sheetName = competenciaLabel(resumo.competenciaMes, resumo.competenciaAno)
+    .replace(/[\\/?*[\]]/g, " ")
+    .slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName || "Extrato");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  return new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}

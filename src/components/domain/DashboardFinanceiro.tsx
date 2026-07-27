@@ -8,7 +8,11 @@ import { KpiCard } from "@/components/domain/KpiCard";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { queryKeys } from "@/lib/queries";
 import { downloadCSV } from "@/lib/csv";
-import { competenciaLabel, extratoToCsvRows } from "@/lib/domain/extrato-financeiro";
+import {
+  competenciaLabel,
+  extratoToCsvRows,
+  extratoToXlsxBlob,
+} from "@/lib/domain/extrato-financeiro";
 import { brl } from "@/lib/format";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
 import {
@@ -132,6 +136,19 @@ export function DashboardFinanceiro() {
     const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
     downloadCSV(`extrato-financeiro-${mesNome}-${ano}.csv`, extratoToCsvRows(extrato));
     toast.success("Extrato exportado em CSV");
+  }
+
+  async function exportarXlsx() {
+    if (!extrato || linhas.length === 0) return;
+    const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
+    const blob = await extratoToXlsxBlob(extrato);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `extrato-financeiro-${mesNome}-${ano}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Extrato exportado em XLSX");
   }
 
   function imprimir() {
@@ -259,7 +276,17 @@ export function DashboardFinanceiro() {
             onClick={exportarCsv}
             disabled={!extrato || linhas.length === 0}
           >
-            <Download className="h-4 w-4 mr-1" /> Exportar extrato (CSV)
+            <Download className="h-4 w-4 mr-1" /> Exportar CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void exportarXlsx().catch((e: Error) => toast.error(e.message));
+            }}
+            disabled={!extrato || linhas.length === 0}
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Exportar XLSX
           </Button>
           <Button
             variant="outline"

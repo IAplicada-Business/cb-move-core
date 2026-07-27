@@ -18,6 +18,7 @@ export function requiredPlaceholdersForModelo(
 ): string[] {
   const parsed = parseTemplateConteudo(templateConteudo);
   if (parsed.required_placeholders?.length) return parsed.required_placeholders;
+  if (parsed.placeholders?.length) return parsed.placeholders;
   return DEFAULT_REQUIRED[modelo] ?? ["paciente_nome"];
 }
 

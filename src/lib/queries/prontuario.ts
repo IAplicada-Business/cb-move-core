@@ -91,7 +91,7 @@ export type GerarRelatorioResult = {
   aviso?: string;
   pdf_url?: string;
   xlsx_url?: string;
-  formato_arquivo?: "pdf" | "xlsx" | "dual";
+  formato_arquivo?: "pdf" | "xlsx" | "dual" | "docx";
 };
 
 type PacienteProntuarioRow = {
@@ -436,6 +436,7 @@ export async function gerarRelatorioMensal(input: {
   pacienteId: string;
   mes: number;
   ano: number;
+  modeloPdf?: "legado";
 }): Promise<GerarRelatorioResult> {
   return invokeEdgeFunction<GerarRelatorioResult>(
     "gerar-relatorio-mensal",
@@ -443,6 +444,7 @@ export async function gerarRelatorioMensal(input: {
       paciente_id: input.pacienteId,
       mes: input.mes,
       ano: input.ano,
+      ...(input.modeloPdf ? { modelo_pdf: input.modeloPdf } : {}),
     },
     { timeoutMs: 120_000 },
   );

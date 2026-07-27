@@ -16,7 +16,7 @@ import {
   type RelatorioAtendimentoHistoricoRow,
 } from "@/lib/queries/relatorios-atendimento";
 import { openRelatorioArquivo } from "@/lib/relatorio-pdf-url";
-import { relatorioFormatoBadge } from "@/lib/domain/relatorio-renderers";
+import { relatorioArquivoUrlLabel, relatorioFormatoBadge } from "@/lib/domain/relatorio-renderers";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 
@@ -242,7 +242,7 @@ export function RelatoriosHistoricoTab() {
                   <TableCell>
                     <Badge variant="outline">
                       {relatorioFormatoBadge(
-                        r.formato_arquivo as "pdf" | "xlsx" | "dual" | null,
+                        r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null,
                         !!r.xlsx_url,
                       )}
                     </Badge>
@@ -262,7 +262,10 @@ export function RelatoriosHistoricoTab() {
                           }}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
-                          PDF
+                          {relatorioArquivoUrlLabel(
+                            r.pdf_url,
+                            r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null,
+                          )}
                         </Button>
                       )}
                       {r.xlsx_url && (

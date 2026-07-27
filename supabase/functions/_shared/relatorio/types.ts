@@ -5,15 +5,22 @@ import type {
 
 export type ModeloRelatorio = "convencional" | "unimed" | "sharepoint" | "puc";
 
-export type FormatoArquivo = "pdf" | "xlsx" | "dual";
+export type FormatoArquivo = "pdf" | "xlsx" | "dual" | "docx";
 
 export type RendererKey =
-  "pdf-grade-v2" | "pdf-unimed-v1" | "xlsx-sharepoint-v1" | "pdf-legado" | "dual-judicial-v1";
+  | "pdf-grade-v2"
+  | "pdf-unimed-v1"
+  | "docx-unimed-v1"
+  | "xlsx-sharepoint-v1"
+  | "xlsx-puc-v1"
+  | "pdf-legado"
+  | "dual-judicial-v1";
 
 export type TemplateRelatorioConteudo = {
   renderer?: RendererKey;
   output_format?: FormatoArquivo;
   required_placeholders?: string[];
+  placeholders?: string[];
   codigo_rq?: string;
 };
 

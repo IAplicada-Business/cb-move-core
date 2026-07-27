@@ -21,9 +21,9 @@ const MODEL_DEFAULTS: Record<
     contentType: "application/pdf",
   },
   unimed: {
-    renderer: "pdf-unimed-v1",
-    formato: "pdf",
-    contentType: "application/pdf",
+    renderer: "docx-unimed-v1",
+    formato: "docx",
+    contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   },
   sharepoint: {
     renderer: "dual-judicial-v1",
@@ -31,9 +31,9 @@ const MODEL_DEFAULTS: Record<
     contentType: "application/pdf",
   },
   puc: {
-    renderer: "pdf-grade-v2",
-    formato: "pdf",
-    contentType: "application/pdf",
+    renderer: "xlsx-puc-v1",
+    formato: "xlsx",
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   },
 };
 
@@ -76,7 +76,9 @@ export function selectRenderer(
   const contentType =
     formato === "xlsx"
       ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      : "application/pdf";
+      : formato === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : "application/pdf";
 
   return {
     renderer,

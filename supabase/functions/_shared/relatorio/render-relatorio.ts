@@ -5,8 +5,10 @@ import type {
   RenderRelatorioResult,
 } from "./types.ts";
 import type { RendererSelection } from "./types.ts";
+import { gerarDocxUnimedV1 } from "./renderers/docx-unimed-v1.ts";
 import { gerarPdfLegado } from "./renderers/pdf-legado.ts";
 import { gerarPdfUnimedV1 } from "./renderers/pdf-unimed-v1.ts";
+import { gerarXlsxPucV1 } from "./renderers/xlsx-puc-v1.ts";
 import { gerarXlsxSharepointV1 } from "./renderers/xlsx-sharepoint-v1.ts";
 
 async function renderPdfGradeV2(ctx: RelatorioRenderContext): Promise<Uint8Array> {
@@ -59,6 +61,16 @@ export async function renderRelatorio(
     case "xlsx-sharepoint-v1":
       return {
         bytes: gerarXlsxSharepointV1(ctx),
+        selection,
+      };
+    case "xlsx-puc-v1":
+      return {
+        bytes: gerarXlsxPucV1(ctx),
+        selection,
+      };
+    case "docx-unimed-v1":
+      return {
+        bytes: await gerarDocxUnimedV1(ctx),
         selection,
       };
     case "pdf-unimed-v1":
