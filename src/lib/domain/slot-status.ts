@@ -36,13 +36,19 @@ export function minutesOnDate(day: Date, hhmm: string) {
   return d;
 }
 
+export function isoWallClockMinutes(iso: string): number {
+  const match = iso.match(/T(\d{2}):(\d{2})/);
+  if (match) return Number(match[1]) * 60 + Number(match[2]);
+  const d = new Date(iso);
+  return d.getHours() * 60 + d.getMinutes();
+}
+
 export function agendamentoNoBloco(
   inicioIso: string,
   blocoInicio: string,
   blocoFim: string,
 ): boolean {
-  const d = new Date(inicioIso);
-  const mins = d.getHours() * 60 + d.getMinutes();
+  const mins = isoWallClockMinutes(inicioIso);
   return mins >= timeToMinutes(blocoInicio) && mins < timeToMinutes(blocoFim);
 }
 
