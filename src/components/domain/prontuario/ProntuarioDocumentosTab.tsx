@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
+import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import { can } from "@/lib/permissions";
 import {
   deleteRelatorioAtendimento,
@@ -165,10 +166,16 @@ export function ProntuarioDocumentosTab({
           <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-foreground">Documento importado</span>
-            <Button variant="ghost" size="sm" asChild>
-              <a href={relatorioFisico.pdf_url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="mr-1 h-4 w-4" /> Abrir PDF
-              </a>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void openRelatorioPdf(relatorioFisico.pdf_url).catch((e: Error) =>
+                  toast.error(e.message),
+                );
+              }}
+            >
+              <ExternalLink className="mr-1 h-4 w-4" /> Abrir PDF
             </Button>
             {canRemovePdf && (
               <Button
@@ -286,7 +293,11 @@ export function ProntuarioDocumentosTab({
                           variant="ghost"
                           size="sm"
                           className="h-8 gap-1"
-                          onClick={() => window.open(r.pdf_url!, "_blank")}
+                          onClick={() => {
+                            void openRelatorioPdf(r.pdf_url).catch((e: Error) =>
+                              toast.error(e.message),
+                            );
+                          }}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           PDF
@@ -316,7 +327,11 @@ export function ProntuarioDocumentosTab({
                           variant="ghost"
                           size="sm"
                           className="h-8 gap-1"
-                          onClick={() => window.open(relatorioFisico.pdf_url!, "_blank")}
+                          onClick={() => {
+                            void openRelatorioPdf(relatorioFisico.pdf_url).catch((e: Error) =>
+                              toast.error(e.message),
+                            );
+                          }}
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           PDF

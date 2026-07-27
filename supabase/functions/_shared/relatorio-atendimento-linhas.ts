@@ -22,15 +22,38 @@ export type RelatorioAtendimentoLinha = {
   ordemNoDia: number;
 };
 
+export type RelatorioRodapeFinanceiro = {
+  numSessoes: number;
+  valorSessao: number;
+  valorTotal: number;
+};
+
 const SIGLAS_REALIZADAS = new Set(["P", "RC"]);
 
 export function countSessoesRealizadas(sessoes: SessaoRelatorioInput[]): number {
   return sessoes.filter((s) => s.sigla && SIGLAS_REALIZADAS.has(s.sigla)).length;
 }
 
-export function calcularRodapeFinanceiro(numSessoes: number, valorSessao: number) {
+export function calcularRodapeFinanceiro(numSessoes: number, valorSessao: number): RelatorioRodapeFinanceiro {
   const valorTotal = Math.round(numSessoes * valorSessao * 100) / 100;
   return { numSessoes, valorSessao, valorTotal };
+}
+
+export function calcularRodapeRelatorio(
+  numSessoes: number,
+  regime: string | null | undefined,
+  valorSessao: number | null | undefined,
+  valorMensal: number | null | undefined,
+): RelatorioRodapeFinanceiro {
+  if (regime === "mensalista" && valorMensal != null) {
+    return { numSessoes, valorSessao: Number(valorMensal), valorTotal: Number(valorMensal) };
+  }
+  return calcularRodapeFinanceiro(numSessoes, Number(valorSessao ?? 0));
+}
+
+export function inferirCargaHoraria(frequenciaAtendimento: string | null | undefined): string {
+  if (frequenciaAtendimento && /duplo/i.test(frequenciaAtendimento)) return "2h50";
+  return "1h25";
 }
 
 export function buildRelatorioLinhas(
@@ -80,8 +103,11 @@ export function buildRelatorioLinhas(
 export function formatFrequenciaRodape(frequenciaAtendimento: string | null | undefined): string {
   if (!frequenciaAtendimento?.trim()) return "—";
   const text = frequenciaAtendimento.trim();
-  const match = text.match(/(\d+)/);
-  if (match) return `${match[1]} VEZES POR SEMANA`;
+  const match = text.match(/(\d+)\s*x?\s*(?:por\s*)?semana/i);
+  if (match) {
+    const duplo = /duplo/i.test(text) ? " (DUPLA)" : "";
+    return `${match[1]} VEZES POR SEMANA${duplo}`;
+  }
   return text.toUpperCase();
 }
 
@@ -93,4 +119,18 @@ export function formatDataRelatorio(isoDate: string): string {
   const [y, m, d] = isoDate.split("-");
   if (!y || !m || !d) return isoDate;
   return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y.slice(-2)}`;
+}
+
+export function relatorioStoragePath(pacienteId: string, ano: number, mes: number): string {
+  return `relatorio-${pacienteId}-${ano}-${String(mes).padStart(2, "0")}.pdf`;
+}
+
+export function resolveStoragePathFromPdfRef(pdfRef: string | null | undefined): string | null {
+  if (!pdfRef?.trim()) return null;
+  const trimmed = pdfRef.trim();
+  if (!trimmed.startsWith("http")) return trimmed;
+  const marker = "/relatorios-atendimento/";
+  const idx = trimmed.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(trimmed.slice(idx + marker.length).split("?")[0] ?? "");
 }

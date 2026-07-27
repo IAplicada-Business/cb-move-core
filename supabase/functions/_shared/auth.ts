@@ -143,3 +143,79 @@ export function authErrorResponse(err: unknown, corsHeaders: Record<string, stri
   }
   return null;
 }
+
+const RELATORIO_STAFF_ROLES = new Set(["admin", "gestao", "recepcao", "membro", "fisio"]);
+const FULL_PATIENT_ACCESS_ROLES = new Set(["admin", "gestao", "recepcao"]);
+
+/** Geração/assinatura de relatório: staff com acesso ao paciente. */
+export async function requireRelatorioStaffUser(
+  req: Request,
+  pacienteId: string,
+): Promise<FinanceAuthContext> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnon = resolveAnonKey();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !supabaseAnon || !serviceKey) {
+    throw new AuthError("Configuração Supabase incompleta", 500);
+  }
+
+  const user = await resolveUserFromRequest(req, supabaseUrl, supabaseAnon);
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  const { data: roles, error: rolesErr } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id);
+  if (rolesErr) throw new AuthError("Erro ao verificar permissões", 500);
+
+  const roleList = (roles ?? []).map((r) => r.role as string);
+  const allowedRole = roleList.some((r) => RELATORIO_STAFF_ROLES.has(r));
+  if (!allowedRole) throw new AuthError("Sem permissão para relatórios", 403);
+
+  const hasFullAccess = roleList.some((r) => FULL_PATIENT_ACCESS_ROLES.has(r));
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("fisioterapeuta_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const fisioId = profile?.fisioterapeuta_id ?? null;
+  const isOperationalMembro = roleList.includes("membro") && !fisioId && !hasFullAccess;
+
+  if (hasFullAccess || isOperationalMembro) {
+    return { userId: user.id, admin };
+  }
+
+  const isClinical = roleList.includes("fisio") || (roleList.includes("membro") && !!fisioId);
+  if (!isClinical || !fisioId) {
+    throw new AuthError("Sem permissão para este paciente", 403);
+  }
+
+  const { data: paciente } = await admin
+    .from("pacientes")
+    .select("id, fisioterapeuta_id, consulta_experimental_fisio_id")
+    .eq("id", pacienteId)
+    .maybeSingle();
+  if (!paciente) throw new AuthError("Paciente não encontrado", 404);
+
+  if (paciente.fisioterapeuta_id === fisioId || paciente.consulta_experimental_fisio_id === fisioId) {
+    return { userId: user.id, admin };
+  }
+
+  const { data: sessoesPac } = await admin
+    .from("sessoes")
+    .select("id")
+    .eq("paciente_id", pacienteId);
+  const sessaoIds = (sessoesPac ?? []).map((s) => s.id);
+  if (sessaoIds.length === 0) throw new AuthError("Sem permissão para este paciente", 403);
+
+  const { count } = await admin
+    .from("sessao_fisioterapeutas")
+    .select("*", { count: "exact", head: true })
+    .eq("fisioterapeuta_id", fisioId)
+    .in("sessao_id", sessaoIds);
+
+  if (!count) throw new AuthError("Sem permissão para este paciente", 403);
+
+  return { userId: user.id, admin };
+}

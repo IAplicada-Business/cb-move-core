@@ -2,6 +2,10 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
 import {
+  RELATORIO_PDF_BUCKET,
+  resolveRelatorioStoragePath,
+} from "@/lib/relatorio-pdf-url";
+import {
   buildConsultaExperimentalEvolucao,
   CONSULTA_EXPERIMENTAL_SUBJETIVO,
   shouldSyncConsultaExperimentalProntuario,
@@ -424,11 +428,15 @@ export async function gerarRelatorioMensal(input: {
   mes: number;
   ano: number;
 }): Promise<GerarRelatorioResult> {
-  return invokeEdgeFunction<GerarRelatorioResult>("gerar-relatorio-mensal", {
-    paciente_id: input.pacienteId,
-    mes: input.mes,
-    ano: input.ano,
-  });
+  return invokeEdgeFunction<GerarRelatorioResult>(
+    "gerar-relatorio-mensal",
+    {
+      paciente_id: input.pacienteId,
+      mes: input.mes,
+      ano: input.ano,
+    },
+    { timeoutMs: 120_000 },
+  );
 }
 
 export async function solicitarAssinaturaRelatorio(relatorioId: string): Promise<{
@@ -439,22 +447,19 @@ export async function solicitarAssinaturaRelatorio(relatorioId: string): Promise
   return invokeEdgeFunction("sign-relatorio", { relatorio_id: relatorioId });
 }
 
-const RELATORIO_PDF_BUCKET = "relatorios-atendimento";
+const RELATORIO_PDF_BUCKET_LOCAL = RELATORIO_PDF_BUCKET;
 
 function relatorioDocumentoFisicoStoragePath(pacienteId: string, ano: number, mes: number): string {
   return `relatorio-${pacienteId}-${ano}-${String(mes).padStart(2, "0")}-documento-fisico.pdf`;
 }
 
 function storagePathFromRelatorioPublicUrl(pdfUrl: string): string | null {
-  const marker = "/relatorios-atendimento/";
-  const idx = pdfUrl.indexOf(marker);
-  if (idx === -1) return null;
-  return decodeURIComponent(pdfUrl.slice(idx + marker.length).split("?")[0] ?? "");
+  return resolveRelatorioStoragePath(pdfUrl);
 }
 
 async function removeRelatorioStorageFiles(paths: string[]): Promise<void> {
   if (paths.length === 0) return;
-  const { error } = await supabase.storage.from(RELATORIO_PDF_BUCKET).remove(paths);
+  const { error } = await supabase.storage.from(RELATORIO_PDF_BUCKET_LOCAL).remove(paths);
   if (error && !/not found/i.test(error.message)) throw error;
 }
 
@@ -476,26 +481,25 @@ export async function uploadRelatorioAtendimentoPdf(
   assertPdfFile(file);
 
   const path = relatorioDocumentoFisicoStoragePath(pacienteId, ano, mes);
-  const { error: uploadError } = await supabase.storage.from(RELATORIO_PDF_BUCKET).upload(path, file, {
+  const { error: uploadError } = await supabase.storage.from(RELATORIO_PDF_BUCKET_LOCAL).upload(path, file, {
     upsert: true,
     contentType: "application/pdf",
   });
   if (uploadError) throw uploadError;
 
-  const { data } = supabase.storage.from(RELATORIO_PDF_BUCKET).getPublicUrl(path);
   try {
     const { error } = await supabase.rpc("import_relatorio_atendimento_pdf", {
       p_paciente_id: pacienteId,
       p_competencia_mes: mes,
       p_competencia_ano: ano,
-      p_pdf_url: data.publicUrl,
+      p_pdf_url: path,
     });
     if (error) throw error;
   } catch (err) {
-    await supabase.storage.from(RELATORIO_PDF_BUCKET).remove([path]);
+    await supabase.storage.from(RELATORIO_PDF_BUCKET_LOCAL).remove([path]);
     throw err;
   }
-  return data.publicUrl;
+  return path;
 }
 
 export async function removeRelatorioAtendimentoPdf(

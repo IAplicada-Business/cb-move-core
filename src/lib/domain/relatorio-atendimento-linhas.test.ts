@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildRelatorioLinhas,
   calcularRodapeFinanceiro,
+  calcularRodapeRelatorio,
   countSessoesRealizadas,
   formatFrequenciaRodape,
+  inferirCargaHoraria,
 } from "./relatorio-atendimento-linhas";
 
 describe("relatorio-atendimento-linhas", () => {
@@ -35,6 +37,25 @@ describe("relatorio-atendimento-linhas", () => {
   });
 
   it("formatFrequenciaRodape extrai número", () => {
-    expect(formatFrequenciaRodape("3x semana duplo")).toBe("3 VEZES POR SEMANA");
+    expect(formatFrequenciaRodape("3x semana duplo")).toBe("3 VEZES POR SEMANA (DUPLA)");
+    expect(formatFrequenciaRodape("2x por semana")).toBe("2 VEZES POR SEMANA");
+  });
+
+  it("calcularRodapeRelatorio mensalista usa valor mensal fixo", () => {
+    const rodape = calcularRodapeRelatorio(26, "mensalista", 266, 6916);
+    expect(rodape.valorTotal).toBe(6916);
+    expect(rodape.valorSessao).toBe(6916);
+    expect(rodape.numSessoes).toBe(26);
+  });
+
+  it("calcularRodapeRelatorio por sessão multiplica", () => {
+    const rodape = calcularRodapeRelatorio(26, "por_sessao", 266, 6916);
+    expect(rodape.valorTotal).toBe(6916);
+    expect(rodape.valorSessao).toBe(266);
+  });
+
+  it("inferirCargaHoraria detecta duplo", () => {
+    expect(inferirCargaHoraria("3x semana duplo")).toBe("2h50");
+    expect(inferirCargaHoraria("2x semana")).toBe("1h25");
   });
 });

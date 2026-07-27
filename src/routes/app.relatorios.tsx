@@ -19,6 +19,7 @@ import { MonthPicker } from "@/components/domain/MonthPicker";
 import { queryKeys } from "@/lib/queries";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal } from "@/lib/queries/prontuario";
+import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
@@ -244,7 +245,11 @@ function GerarRelatorioDialog({
                   variant="outline"
                   size="sm"
                   className="mt-2 gap-1.5"
-                  onClick={() => window.open(resultado.pdf_url, "_blank")}
+                  onClick={() => {
+                    void openRelatorioPdf(resultado.pdf_url).catch((e: Error) =>
+                      toast.error(e.message),
+                    );
+                  }}
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Abrir PDF
@@ -291,14 +296,17 @@ function GerarRelatorioDialog({
                   )}
                   <span className="flex-1 truncate">{r.pacienteNome}</span>
                   {r.pdfUrl ? (
-                    <a
-                      href={r.pdfUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
                       className="shrink-0 text-xs text-cb-cyan-700 hover:underline"
+                      onClick={() => {
+                        void openRelatorioPdf(r.pdfUrl).catch((e: Error) =>
+                          toast.error(e.message),
+                        );
+                      }}
                     >
                       PDF
-                    </a>
+                    </button>
                   ) : (
                     <span className="shrink-0 truncate text-xs text-muted-foreground" title={r.detalhe}>
                       {r.detalhe}

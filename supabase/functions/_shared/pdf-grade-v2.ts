@@ -17,6 +17,13 @@ const COLS = [
 
 const TABLE_WIDTH = COLS.reduce((s, c) => s + c.width, 0);
 
+const MODELO_TITULO: Record<string, string> = {
+  convencional: "RELATÓRIO DE ATENDIMENTOS",
+  unimed: "RELATÓRIO DE ATENDIMENTOS — UNIMED",
+  sharepoint: "RELATÓRIO DE ATENDIMENTOS — JUDICIAL",
+  puc: "RELATÓRIO DE ATENDIMENTOS — PUC",
+};
+
 type PdfGradeParams = {
   pacienteNome: string;
   competenciaLabel: string;
@@ -26,6 +33,10 @@ type PdfGradeParams = {
   valorSessao: number;
   valorTotal: number;
   cargaHoraria: string;
+  modelo?: string;
+  camposExtras?: { label: string; valor: string }[];
+  valorUnitarioLabel?: string;
+  regimeMensalista?: boolean;
 };
 
 function truncate(text: string, max: number): string {
@@ -43,6 +54,8 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
   const pageHeight = 841.89;
   const margin = 36;
   const footerHeight = 130;
+  const titulo = MODELO_TITULO[params.modelo ?? "convencional"] ?? MODELO_TITULO.convencional;
+  const valorLabel = params.valorUnitarioLabel ?? (params.regimeMensalista ? "MENSAL" : "SESSÃO");
 
   let page = doc.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
@@ -66,14 +79,21 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
     y -= 28;
   };
 
-  drawText(page, "RELATÓRIO DE ATENDIMENTOS", margin + 120, y, 14, fontBold);
+  drawText(page, titulo, margin + 60, y, 12, fontBold);
   drawText(page, "CB MOVE", pageWidth - margin - 70, y, 10, fontBold);
   drawText(page, "Neuroscience", pageWidth - margin - 70, y - 11, 7, font);
   y -= 28;
   drawText(page, `NOME DO PACIENTE: ${truncate(params.pacienteNome, 55)}`, margin, y, 9, fontBold);
   y -= 14;
   drawText(page, `MÊS DE COMPETÊNCIA: ${params.competenciaLabel}`, margin, y, 9, fontBold);
-  y -= 22;
+  y -= 14;
+
+  for (const campo of params.camposExtras ?? []) {
+    if (!campo.valor?.trim()) continue;
+    drawText(page, `${campo.label.toUpperCase()}: ${truncate(campo.valor, 60)}`, margin, y, 8, font);
+    y -= 12;
+  }
+  y -= 10;
 
   drawTableHeader(page, y, fontBold);
   y -= 28;
@@ -101,7 +121,7 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
   y -= 12;
   drawText(page, `FREQUÊNCIA: ${params.frequenciaTexto}`, leftX, y, 8, font);
   y -= 12;
-  drawText(page, `VALOR DA SESSÃO R$: ${formatMoedaBr(params.valorSessao)}`, leftX, y, 8, font);
+  drawText(page, `VALOR DA ${valorLabel} R$: ${formatMoedaBr(params.valorSessao)}`, leftX, y, 8, font);
   y -= 12;
   drawText(page, `NÚMERO DE SESSÕES: ${params.numSessoes}`, leftX, y, 8, font);
   drawText(page, `SESSÕES DE ${params.cargaHoraria} DE DURAÇÃO CADA.`, leftX, y - 10, 7, font);

@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = (createFileRoute as any)("/portal/")({
@@ -59,7 +60,7 @@ function PortalInicio() {
       db.from("relatorios_atendimento")
         .select("id, created_at, pdf_url")
         .eq("paciente_id", pacienteId)
-        .eq("status", "assinado")
+        .or("assinado.eq.true,status.eq.assinado")
         .order("created_at", { ascending: false })
         .limit(3),
     ]).then(([pacRes, sesRes, agRes, relRes]) => {
@@ -166,14 +167,15 @@ function PortalInicio() {
                   Relatório de {formatMes(doc.created_at)}
                 </span>
                 {doc.pdf_url && (
-                  <a
-                    href={doc.pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
                     className="text-xs font-medium text-cb-cyan-600 hover:underline"
+                    onClick={() => {
+                      void openRelatorioPdf(doc.pdf_url).catch(() => undefined);
+                    }}
                   >
                     Baixar
-                  </a>
+                  </button>
                 )}
               </li>
             ))}

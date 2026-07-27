@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { PDFDocument, StandardFonts, rgb, type PDFPage } from "https://esm.sh/pdf-lib@1.17.1";
+import { authErrorResponse, requireRelatorioStaffUser } from "../_shared/auth.ts";
 import {
   buildRelatorioLinhas,
-  calcularRodapeFinanceiro,
+  calcularRodapeRelatorio,
   countSessoesRealizadas,
   formatFrequenciaRodape,
+  inferirCargaHoraria,
+  relatorioStoragePath,
 } from "../_shared/relatorio-atendimento-linhas.ts";
 import { gerarPdfGradeV2 } from "../_shared/pdf-grade-v2.ts";
 
@@ -235,15 +237,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     const { paciente_id, mes, ano, modelo_pdf: modeloPdfBody } = await req.json();
     if (!paciente_id || !mes || !ano) throw new Error("paciente_id, mes e ano obrigatórios");
+
+    const { admin: supabase } = await requireRelatorioStaffUser(req, paciente_id);
+
     const modeloPdf = modeloPdfBody === "legado" ? "legado" : "grade_v2";
-    const cargaHoraria = "1h25";
 
     const { data: paciente, error: pacErr } = await supabase
       .from("pacientes")
@@ -252,7 +251,6 @@ serve(async (req) => {
       .single();
     if (pacErr || !paciente) throw new Error("Paciente não encontrado");
 
-    // Determina modelo pelo tipo do paciente e convênio (preferência do paciente tem prioridade)
     let modelo = "convencional";
     if (paciente.modelo_relatorio_preferido) {
       modelo = paciente.modelo_relatorio_preferido;
@@ -298,10 +296,16 @@ serve(async (req) => {
     }
 
     const totalSessoes = countSessoesRealizadas(sessoes ?? []);
-    const valorSessao = Number(paciente.valor_sessao ?? 0);
-    const rodape = calcularRodapeFinanceiro(totalSessoes, valorSessao);
+    const rodape = calcularRodapeRelatorio(
+      totalSessoes,
+      paciente.regime_cobranca,
+      paciente.valor_sessao,
+      paciente.valor_mensal,
+    );
+    const cargaHoraria = inferirCargaHoraria(paciente.frequencia_atendimento);
     const linhas = buildRelatorioLinhas(sessoes ?? [], joins, cargaHoraria);
     const frequenciaTexto = formatFrequenciaRodape(paciente.frequencia_atendimento);
+    const regimeMensalista = paciente.regime_cobranca === "mensalista";
 
     const { data: evolucoes } = await supabase
       .from("prontuario_evolucoes")
@@ -319,6 +323,7 @@ serve(async (req) => {
       .join("\n\n");
     const planoTerapeutico = evolucoes?.[evolucoes.length - 1]?.plano ?? "";
 
+    const cid = paciente.cid ?? "";
     const placeholders: Record<string, string> = {
       paciente_nome: paciente.nome,
       paciente_cpf: paciente.cpf ?? "",
@@ -330,7 +335,7 @@ serve(async (req) => {
       processo: paciente.numero_processo ?? "",
       convenio_nome: paciente.convenios?.nome ?? "",
       convenio_cnpj: paciente.convenios?.cnpj ?? "",
-      cid: "",
+      cid,
       sessoes: String(totalSessoesLegado),
     };
 
@@ -338,6 +343,7 @@ serve(async (req) => {
     if (modelo === "unimed") {
       camposExtras.push({ label: "Convênio", valor: placeholders.convenio_nome });
       camposExtras.push({ label: "Fisioterapeuta", valor: placeholders.fisio_nome });
+      if (cid) camposExtras.push({ label: "CID", valor: cid });
     } else if (modelo === "sharepoint") {
       camposExtras.push({ label: "Processo", valor: placeholders.processo });
       camposExtras.push({ label: "Fisioterapeuta", valor: placeholders.fisio_nome });
@@ -356,6 +362,10 @@ serve(async (req) => {
             valorSessao: rodape.valorSessao,
             valorTotal: rodape.valorTotal,
             cargaHoraria,
+            modelo,
+            camposExtras,
+            regimeMensalista,
+            valorUnitarioLabel: regimeMensalista ? "MENSAL" : "SESSÃO",
           })
         : await gerarPdf({
             titulo: MODELO_TITULO[modelo] ?? "Relatório de Atendimento",
@@ -366,37 +376,61 @@ serve(async (req) => {
             planoTerapeutico,
           });
 
-    const fileName = `relatorio-${paciente_id}-${ano}-${String(mes).padStart(2, "0")}-${Date.now()}.pdf`;
+    const storagePath = relatorioStoragePath(paciente_id, ano, mes);
     const { error: uploadErr } = await supabase.storage
       .from("relatorios-atendimento")
-      .upload(fileName, pdfBytes, { contentType: "application/pdf", upsert: true });
+      .upload(storagePath, pdfBytes, { contentType: "application/pdf", upsert: true });
     if (uploadErr) throw new Error(`Falha ao salvar PDF: ${uploadErr.message}`);
 
-    const { data: publicUrlData } = supabase.storage
-      .from("relatorios-atendimento")
-      .getPublicUrl(fileName);
-    const pdfUrl = publicUrlData.publicUrl;
+    const relatorioPayload = {
+      paciente_id,
+      competencia_mes: mes,
+      competencia_ano: ano,
+      modelo,
+      status: "gerado",
+      pdf_url: storagePath,
+      template_versionado_id: template?.id ?? null,
+      modelo_pdf: modeloPdf,
+      num_sessoes: rodape.numSessoes,
+      valor_sessao: rodape.valorSessao,
+      valor_total: rodape.valorTotal,
+      frequencia_texto: frequenciaTexto,
+      carga_horaria: cargaHoraria,
+      assinado: false,
+      assinado_em: null,
+      assinatura_link: null,
+      clicksign_document_key: null,
+    };
 
-    const { data: relatorio, error: relErr } = await supabase
+    const { data: existing } = await supabase
       .from("relatorios_atendimento")
-      .insert({
-        paciente_id,
-        competencia_mes: mes,
-        competencia_ano: ano,
-        modelo,
-        status: "gerado",
-        pdf_url: pdfUrl,
-        template_versionado_id: template?.id ?? null,
-        modelo_pdf: modeloPdf,
-        num_sessoes: rodape.numSessoes,
-        valor_sessao: rodape.valorSessao,
-        valor_total: rodape.valorTotal,
-        frequencia_texto: frequenciaTexto,
-        carga_horaria: cargaHoraria,
-      })
-      .select()
-      .single();
-    if (relErr) throw relErr;
+      .select("id")
+      .eq("paciente_id", paciente_id)
+      .eq("competencia_mes", mes)
+      .eq("competencia_ano", ano)
+      .in("modelo_pdf", ["grade_v2", "legado"])
+      .maybeSingle();
+
+    let relatorio: { id: string };
+    if (existing?.id) {
+      const { data: updated, error: updErr } = await supabase
+        .from("relatorios_atendimento")
+        .update(relatorioPayload)
+        .eq("id", existing.id)
+        .select("id")
+        .single();
+      if (updErr) throw updErr;
+      relatorio = updated;
+      await supabase.from("relatorio_atendimento_linhas").delete().eq("relatorio_id", existing.id);
+    } else {
+      const { data: inserted, error: relErr } = await supabase
+        .from("relatorios_atendimento")
+        .insert(relatorioPayload)
+        .select("id")
+        .single();
+      if (relErr) throw relErr;
+      relatorio = inserted;
+    }
 
     if (modeloPdf === "grade_v2" && linhas.length > 0) {
       const { error: linhasErr } = await supabase.from("relatorio_atendimento_linhas").insert(
@@ -423,14 +457,16 @@ serve(async (req) => {
         num_sessoes: rodape.numSessoes,
         valor_sessao: rodape.valorSessao,
         valor_total: rodape.valorTotal,
-        pdf_url: pdfUrl,
+        pdf_url: storagePath,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
+    const authResp = authErrorResponse(err, corsHeaders);
+    if (authResp) return authResp;
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Erro interno" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

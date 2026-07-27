@@ -927,6 +927,7 @@ export type Database = {
           ativo: boolean
           bairro: string | null
           cep: string | null
+          cid: string | null
           cidade: string | null
           codigo_municipio_ibge: number | null
           complemento: string | null
@@ -975,6 +976,7 @@ export type Database = {
           ativo?: boolean
           bairro?: string | null
           cep?: string | null
+          cid?: string | null
           cidade?: string | null
           codigo_municipio_ibge?: number | null
           complemento?: string | null
@@ -1023,6 +1025,7 @@ export type Database = {
           ativo?: boolean
           bairro?: string | null
           cep?: string | null
+          cid?: string | null
           cidade?: string | null
           codigo_municipio_ibge?: number | null
           complemento?: string | null
@@ -1350,6 +1353,7 @@ export type Database = {
           assinado_em: string | null
           assinatura_link: string | null
           carga_horaria: string | null
+          clicksign_document_key: string | null
           competencia_ano: number
           competencia_mes: number
           created_at: string

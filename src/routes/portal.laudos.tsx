@@ -2,6 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 
@@ -26,7 +27,7 @@ function PortalLaudos() {
       .from("relatorios_atendimento")
       .select("id, created_at, pdf_url")
       .eq("paciente_id", pacienteId)
-      .eq("status", "assinado")
+      .or("assinado.eq.true,status.eq.assinado")
       .order("created_at", { ascending: false })
       .then(({ data }: { data: Relatorio[] | null }) => {
         setDocs(data ?? []);
@@ -67,10 +68,14 @@ function PortalLaudos() {
                   <p className="mt-0.5 text-xs text-muted-foreground">PDF assinado</p>
                 </div>
                 {doc.pdf_url ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={doc.pdf_url} target="_blank" rel="noopener noreferrer">
-                      Baixar
-                    </a>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void openRelatorioPdf(doc.pdf_url).catch(() => undefined);
+                    }}
+                  >
+                    Baixar
                   </Button>
                 ) : (
                   <span className="text-xs text-muted-foreground italic">Indisponível</span>
