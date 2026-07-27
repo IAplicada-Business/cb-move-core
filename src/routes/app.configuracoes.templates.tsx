@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { TemplatePreviewPanel } from "@/components/domain/TemplatePreviewPanel";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
@@ -16,8 +17,8 @@ import {
   MODELO_LABEL,
   TEMPLATES_PAGE_DESCRICAO,
   TIPO_LABEL,
-  type TemplateCategoria,
 } from "@/lib/domain/templates-versionados";
+import { isTemplateConteudoRascunho } from "@/lib/domain/template-preview";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -178,6 +179,11 @@ function TemplatesPage() {
                   >
                     {t.ativo ? "Ativo" : "Inativo"}
                   </span>
+                  {isTemplateConteudoRascunho(t.tipo, t.conteudo) && (
+                    <span className="ml-1 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      Rascunho
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {formatDate(t.created_at)}
@@ -250,13 +256,17 @@ function TemplatesPage() {
       >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Template: {preview?.codigo} v{preview?.versao}
-            </DialogTitle>
+            <DialogTitle>Visualizar template</DialogTitle>
           </DialogHeader>
-          <pre className="text-xs bg-muted rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-all">
-            {JSON.stringify(preview?.conteudo, null, 2)}
-          </pre>
+          {preview && (
+            <TemplatePreviewPanel
+              codigo={preview.codigo}
+              versao={preview.versao}
+              modelo={preview.modelo}
+              tipo={preview.tipo}
+              conteudo={preview.conteudo}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
