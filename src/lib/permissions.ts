@@ -1,5 +1,11 @@
 import type { AppRole } from "./types";
 
+/**
+ * TEMP TEST MODE: fisio vê todos os pacientes (UI + queries filtradas).
+ * Reverter para false junto com migration 20260727150100_revert_fisio_full_access_test_mode.sql
+ */
+export const FISIO_FULL_ACCESS_TEST_MODE = true;
+
 /** Papéis legados ainda presentes no banco — tratados como membro na UI. */
 export const LEGACY_MEMBRO_ROLES = ["gestao", "recepcao", "fisio"] as const;
 
@@ -55,6 +61,7 @@ export function isCliente(roles: AppRole[]): boolean {
 
 /** Fisio clínico — visão filtrada por paciente (papel fisio ou membro vinculado ao cadastro). */
 export function isFisioScopedUser(roles: AppRole[], fisioterapeutaId?: string | null): boolean {
+  if (FISIO_FULL_ACCESS_TEST_MODE) return false;
   if (roles.includes("admin") || roles.includes("gestao") || roles.includes("recepcao")) {
     return false;
   }

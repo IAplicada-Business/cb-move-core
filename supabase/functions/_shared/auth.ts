@@ -149,6 +149,8 @@ export function authErrorResponse(err: unknown, corsHeaders: Record<string, stri
 
 const RELATORIO_STAFF_ROLES = new Set(["admin", "gestao", "recepcao", "membro", "fisio"]);
 const FULL_PATIENT_ACCESS_ROLES = new Set(["admin", "gestao", "recepcao"]);
+/** TEMP TEST MODE — reverter junto com migration 20260727150100_revert_fisio_full_access_test_mode.sql */
+const FISIO_FULL_ACCESS_TEST_MODE = true;
 
 /** Geração/assinatura de relatório: staff com acesso ao paciente. */
 export async function requireRelatorioStaffUser(
@@ -192,6 +194,10 @@ export async function requireRelatorioStaffUser(
   const isClinical = roleList.includes("fisio") || (roleList.includes("membro") && !!fisioId);
   if (!isClinical || !fisioId) {
     throw new AuthError("Sem permissão para este paciente", 403);
+  }
+
+  if (FISIO_FULL_ACCESS_TEST_MODE) {
+    return { userId: user.id, admin };
   }
 
   const { data: paciente } = await admin

@@ -160,6 +160,7 @@ export const COLABORADORES_REFERENCIA: ColaboradorReferencia[] = [
     email: "vicenzavitoria@gmail.com",
     perfil: "membro",
     status: "aguardando_primeiro_acesso",
+    observacao: "Secretaria — acesso operacional (não fisio)",
   },
   {
     nome: "William Vinícius Monteiro Pacheco",
