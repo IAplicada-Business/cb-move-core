@@ -40,6 +40,8 @@ export const queryKeys = {
   relatorios: {
     all: ["relatorios_atendimento"] as const,
     byPaciente: (pacienteId: string) => ["relatorios_atendimento", pacienteId] as const,
+    historico: (filters: Record<string, unknown>) =>
+      ["relatorios_atendimento", "historico", filters] as const,
   },
   prontuario: {
     search: (q: string) => ["prontuario", "search", q] as const,

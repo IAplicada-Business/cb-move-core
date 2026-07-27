@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 
 import { MonthPicker } from "@/components/domain/MonthPicker";
+import { RelatoriosHistoricoTab } from "@/components/domain/RelatoriosHistoricoTab";
 import { queryKeys } from "@/lib/queries";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal, gerarRelatorioMensalLote } from "@/lib/queries/prontuario";
@@ -38,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios · CB MOVE" }] }),
@@ -154,6 +156,7 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
     onSuccess: (data) => {
       setResultado(data as RelatorioGerado);
       void queryClient.invalidateQueries({ queryKey: queryKeys.relatorios.byPaciente(pacienteId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.relatorios.all });
       toast.success("Relatório gerado com sucesso");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -181,6 +184,7 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
         pdfUrl: r.pdf_url,
       }));
       setLote(resultados);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.relatorios.all });
       void queryClient.invalidateQueries({ queryKey: ["prontuario", "relatorios"] });
       if (data.ok === data.total) toast.success(`${data.ok} relatório(s) gerado(s) com sucesso`);
       else if (data.ok > 0) {
@@ -416,16 +420,15 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
 
 function RelatoriosPage() {
   const [tipoSelecionado, setTipoSelecionado] = useState<PacienteTipo | null>(null);
+  const [aba, setAba] = useState<"gerar" | "historico">("gerar");
 
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Relatórios por tipo de atendimento</h1>
+          <h1 className="text-2xl font-bold text-foreground">Relatórios de atendimento</h1>
           <p className="text-sm text-muted-foreground">
-            Geração em lote por tipo de atendimento: convênio (todos de um convênio), judicial, PUC
-            ou particular (todos os pacientes ativos daquele tipo). Também é possível gerar apenas
-            um paciente.
+            Gere relatórios mensais por tipo de atendimento ou consulte o histórico da competência.
           </p>
         </div>
         <Button variant="outline" asChild className="gap-2">
@@ -435,27 +438,45 @@ function RelatoriosPage() {
         </Button>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {(Object.keys(TIPO_RELATORIO) as PacienteTipo[]).map((tipo) => {
-          const cfg = TIPO_RELATORIO[tipo];
-          return (
-            <button
-              key={tipo}
-              type="button"
-              onClick={() => setTipoSelecionado(tipo)}
-              className="rounded-xl border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <div
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${cfg.accent}`}
-              >
-                <cfg.icon className="h-5 w-5" />
-              </div>
-              <h3 className="mt-3 font-semibold">{cfg.label}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">{cfg.descricao}</p>
-            </button>
-          );
-        })}
-      </div>
+      <Tabs value={aba} onValueChange={(v) => setAba(v as "gerar" | "historico")}>
+        <TabsList>
+          <TabsTrigger value="gerar">Gerar</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="gerar" className="mt-6 space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Geração em lote por tipo: convênio (todos de um convênio), judicial, PUC ou particular.
+            Também é possível gerar apenas um paciente.
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {(Object.keys(TIPO_RELATORIO) as PacienteTipo[]).map((tipo) => {
+              const cfg = TIPO_RELATORIO[tipo];
+              return (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setTipoSelecionado(tipo)}
+                  className="rounded-xl border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <div
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${cfg.accent}`}
+                  >
+                    <cfg.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-3 font-semibold">{cfg.label}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">{cfg.descricao}</p>
+                </button>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="historico" className="mt-6">
+          <RelatoriosHistoricoTab />
+        </TabsContent>
+      </Tabs>
 
       {tipoSelecionado && (
         <GerarRelatorioDialog tipo={tipoSelecionado} onClose={() => setTipoSelecionado(null)} />
