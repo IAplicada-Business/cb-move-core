@@ -15,6 +15,10 @@ export type AdminAuthContext = {
 };
 
 const FINANCE_ROLES = new Set(["admin", "gestao", "recepcao", "membro"]);
+const RELATORIO_STAFF_ROLES = new Set(["admin", "gestao", "recepcao", "membro", "fisio"]);
+const FULL_PATIENT_ACCESS_ROLES = new Set(["admin", "gestao", "recepcao"]);
+/** TEMP TEST MODE — reverter junto com migration 20260727150100_revert_fisio_full_access_test_mode.sql */
+const FISIO_FULL_ACCESS_TEST_MODE = true;
 
 export function resolveAnonKey(): string | undefined {
   const direct = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
@@ -137,6 +141,49 @@ export async function requireFinanceUserOrInternal(req: Request): Promise<Financ
   return requireFinanceUser(req);
 }
 
+/** Lote em /app/relatorios — mesma regra que viewFinance no front (sem fisio clínico). */
+export async function requireRelatorioLoteUser(req: Request): Promise<FinanceAuthContext> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnon = resolveAnonKey();
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !supabaseAnon || !serviceKey) {
+    throw new AuthError("Configuração Supabase incompleta", 500);
+  }
+
+  const user = await resolveUserFromRequest(req, supabaseUrl, supabaseAnon);
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  const { data: roles, error: rolesErr } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id);
+  if (rolesErr) throw new AuthError("Erro ao verificar permissões", 500);
+
+  const roleList = (roles ?? []).map((r) => r.role as string);
+  const hasFullAccess = roleList.some((r) => FULL_PATIENT_ACCESS_ROLES.has(r));
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("fisioterapeuta_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const fisioId = profile?.fisioterapeuta_id ?? null;
+  const isOperationalMembro = roleList.includes("membro") && !fisioId && !hasFullAccess;
+  const isClinicalFisio =
+    !FISIO_FULL_ACCESS_TEST_MODE &&
+    (roleList.includes("fisio") || (roleList.includes("membro") && !!fisioId));
+
+  if (isClinicalFisio) {
+    throw new AuthError("Sem permissão para lote de relatórios", 403);
+  }
+
+  if (hasFullAccess || isOperationalMembro || roleList.includes("admin")) {
+    return { userId: user.id, admin };
+  }
+
+  throw new AuthError("Sem permissão para lote de relatórios", 403);
+}
+
 export function authErrorResponse(err: unknown, corsHeaders: Record<string, string>) {
   if (err instanceof AuthError) {
     return new Response(JSON.stringify({ error: err.message }), {
@@ -146,11 +193,6 @@ export function authErrorResponse(err: unknown, corsHeaders: Record<string, stri
   }
   return null;
 }
-
-const RELATORIO_STAFF_ROLES = new Set(["admin", "gestao", "recepcao", "membro", "fisio"]);
-const FULL_PATIENT_ACCESS_ROLES = new Set(["admin", "gestao", "recepcao"]);
-/** TEMP TEST MODE — reverter junto com migration 20260727150100_revert_fisio_full_access_test_mode.sql */
-const FISIO_FULL_ACCESS_TEST_MODE = true;
 
 /** Geração/assinatura de relatório: staff com acesso ao paciente. */
 export async function requireRelatorioStaffUser(

@@ -45,6 +45,9 @@ verify_jwt = true
 [functions.gerar-relatorio-mensal]
 verify_jwt = true
 
+[functions.gerar-relatorio-mensal-lote]
+verify_jwt = true
+
 [functions.sign-relatorio]
 verify_jwt = true
 

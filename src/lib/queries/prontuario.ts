@@ -444,6 +444,42 @@ export async function gerarRelatorioMensal(input: {
   );
 }
 
+export type GerarRelatorioLoteResult = {
+  tipo: string;
+  convenio_id: string | null;
+  mes: number;
+  ano: number;
+  total: number;
+  ok: number;
+  erros: number;
+  resultados: Array<{
+    paciente_id: string;
+    paciente_nome: string;
+    status: "ok" | "erro";
+    detalhe: string;
+    pdf_url?: string;
+    total_sessoes?: number;
+  }>;
+};
+
+export async function gerarRelatorioMensalLote(input: {
+  tipo: string;
+  convenioId?: string;
+  mes: number;
+  ano: number;
+}): Promise<GerarRelatorioLoteResult> {
+  return invokeEdgeFunction<GerarRelatorioLoteResult>(
+    "gerar-relatorio-mensal-lote",
+    {
+      tipo: input.tipo,
+      convenio_id: input.convenioId ?? null,
+      mes: input.mes,
+      ano: input.ano,
+    },
+    { timeoutMs: 600_000 },
+  );
+}
+
 export async function solicitarAssinaturaRelatorio(relatorioId: string): Promise<{
   aviso?: string;
   status?: string;

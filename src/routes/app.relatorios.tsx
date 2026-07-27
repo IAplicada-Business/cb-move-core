@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { MonthPicker } from "@/components/domain/MonthPicker";
 import { queryKeys } from "@/lib/queries";
 import { fetchPacientes } from "@/lib/queries/pacientes";
-import { gerarRelatorioMensal } from "@/lib/queries/prontuario";
+import { gerarRelatorioMensal, gerarRelatorioMensalLote } from "@/lib/queries/prontuario";
 import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import {
   filterPacientesRelatorioLote,
@@ -165,41 +165,35 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
     setLoteRodando(true);
     setLote([]);
     setResultado(null);
-    const resultados: LoteResultado[] = [];
-    for (const p of pacientesFiltrados) {
-      if (loteAbortRef.current) break;
-      try {
-        const data = (await gerarRelatorioMensal({
-          pacienteId: p.id,
-          mes,
-          ano,
-        })) as RelatorioGerado;
-        if (loteAbortRef.current) break;
-        resultados.push({
-          pacienteId: p.id,
-          pacienteNome: p.nome,
-          status: "ok",
-          detalhe: `${data.total_sessoes} sessão(ões) no período`,
-          pdfUrl: data.pdf_url,
-        });
-      } catch (e) {
-        if (loteAbortRef.current) break;
-        resultados.push({
-          pacienteId: p.id,
-          pacienteNome: p.nome,
-          status: "erro",
-          detalhe: e instanceof Error ? e.message : "Erro ao gerar relatório",
-        });
+    try {
+      const data = await gerarRelatorioMensalLote({
+        tipo,
+        convenioId: convenioId || undefined,
+        mes,
+        ano,
+      });
+      if (loteAbortRef.current) return;
+      const resultados: LoteResultado[] = data.resultados.map((r) => ({
+        pacienteId: r.paciente_id,
+        pacienteNome: r.paciente_nome,
+        status: r.status,
+        detalhe: r.detalhe,
+        pdfUrl: r.pdf_url,
+      }));
+      setLote(resultados);
+      void queryClient.invalidateQueries({ queryKey: ["prontuario", "relatorios"] });
+      if (data.ok === data.total) toast.success(`${data.ok} relatório(s) gerado(s) com sucesso`);
+      else if (data.ok > 0) {
+        toast.warning(`${data.ok}/${data.total} relatório(s) gerado(s) — verifique os erros`);
+      } else {
+        toast.error("Nenhum relatório foi gerado — verifique os erros");
       }
-      if (!loteAbortRef.current) setLote([...resultados]);
-    }
-    if (loteAbortRef.current) return;
-    setLoteRodando(false);
-    void queryClient.invalidateQueries({ queryKey: ["prontuario", "relatorios"] });
-    const ok = resultados.filter((r) => r.status === "ok").length;
-    if (ok === resultados.length) toast.success(`${ok} relatório(s) gerado(s) com sucesso`);
-    else if (resultados.length > 0) {
-      toast.warning(`${ok}/${resultados.length} relatório(s) gerado(s) — verifique os erros`);
+    } catch (e) {
+      if (!loteAbortRef.current) {
+        toast.error(e instanceof Error ? e.message : "Erro ao gerar lote");
+      }
+    } finally {
+      if (!loteAbortRef.current) setLoteRodando(false);
     }
   }
 
@@ -286,7 +280,8 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
 
           {loteRodando && (
             <p className="text-xs text-amber-700">
-              Geração em andamento — mantenha esta janela aberta até concluir.
+              Gerando {pacientesFiltrados.length} relatório(s) no servidor — pode levar alguns
+              minutos. Mantenha esta janela aberta.
             </p>
           )}
 
@@ -297,9 +292,7 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
               ) : (
                 <FileText className="h-4 w-4 mr-1.5" />
               )}
-              {loteRodando
-                ? `Gerando… (${lote?.length ?? 0}/${pacientesFiltrados.length})`
-                : loteLabel}
+              {loteRodando ? "Gerando no servidor…" : loteLabel}
             </Button>
           )}
 

@@ -13,6 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 FUNCTIONS = [
     "gerar-relatorio-mensal",
+    "gerar-relatorio-mensal-lote",
     "sign-relatorio",
     "clicksign-webhook",
 ]
