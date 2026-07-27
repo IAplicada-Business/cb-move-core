@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { resolverDiasSemanaExtrato, resolverFrequenciaExtrato } from "@/lib/domain/atendimento-cadastro";
+import {
+  resolverDiasSemanaExtrato,
+  resolverFrequenciaExtrato,
+} from "@/lib/domain/atendimento-cadastro";
 import {
   montarResumoPlanoSessoesMensal,
   type ResumoPlanoSessoesMensal,
@@ -7,10 +10,7 @@ import {
 
 function monthRange(mes: number, ano: number) {
   const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const fim =
-    mes === 12
-      ? `${ano + 1}-01-01`
-      : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+  const fim = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
   return { inicio, fim };
 }
 
@@ -92,10 +92,7 @@ export async function fetchPlanoSessoesMensalPaciente(
     null,
   );
 
-  const diasSemanaLabel = resolverDiasSemanaExtrato(
-    cobranca?.dias_semana,
-    paciente?.dias_semana,
-  );
+  const diasSemanaLabel = resolverDiasSemanaExtrato(cobranca?.dias_semana, paciente?.dias_semana);
 
   return montarResumoPlanoSessoesMensal({
     mes,

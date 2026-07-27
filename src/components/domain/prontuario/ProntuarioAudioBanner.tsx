@@ -1,6 +1,9 @@
 import { Mic } from "lucide-react";
 
-import { EvolucaoAudioRecorder, type TranscricaoResult } from "@/components/domain/EvolucaoAudioRecorder";
+import {
+  EvolucaoAudioRecorder,
+  type TranscricaoResult,
+} from "@/components/domain/EvolucaoAudioRecorder";
 
 type Props = {
   pacienteId: string;
@@ -20,7 +23,8 @@ export function ProntuarioAudioBanner({ pacienteId, canEdit, onTranscricao }: Pr
         <div className="space-y-0.5 min-w-0">
           <p className="text-sm font-semibold text-foreground">Documentação por áudio</p>
           <p className="text-sm text-muted-foreground">
-            Grave a evolução da sessão. A IA estrutura em Subjetivo · Objetivo · Plano e você revisa antes de salvar.
+            Grave a evolução da sessão. A IA estrutura em Subjetivo · Objetivo · Plano e você revisa
+            antes de salvar.
           </p>
         </div>
       </div>

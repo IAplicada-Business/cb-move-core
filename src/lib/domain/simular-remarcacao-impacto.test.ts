@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  filtrarAfetadosRemarcacao,
-  simularRemarcacaoImpacto,
-} from "./simular-remarcacao-impacto";
+import { filtrarAfetadosRemarcacao, simularRemarcacaoImpacto } from "./simular-remarcacao-impacto";
 
 const AIRTON_DIAS = [2, 6, 9, 13, 16, 20, 23, 27] as const;
 const TRIPLO_HORAS = ["08:00", "08:50", "09:40"] as const;

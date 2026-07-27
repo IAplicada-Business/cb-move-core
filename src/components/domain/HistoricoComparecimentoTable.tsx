@@ -1,10 +1,12 @@
-import {
-  formatarResumoComparecimento,
-  formatarTaxaComparecimento,
-} from "@/lib/domain/frequencia";
+import { formatarResumoComparecimento, formatarTaxaComparecimento } from "@/lib/domain/frequencia";
 import type { HistoricoComparecimentoMes } from "@/lib/queries/sessoes";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -40,8 +42,7 @@ export function HistoricoComparecimentoTable({
         </TableHeader>
         <TableBody>
           {historico.map((item) => {
-            const selected =
-              mesSelecionado === item.mes && anoSelecionado === item.ano;
+            const selected = mesSelecionado === item.mes && anoSelecionado === item.ano;
 
             return (
               <TableRow
@@ -52,23 +53,23 @@ export function HistoricoComparecimentoTable({
                 )}
                 onClick={() => onSelectMes?.(item.mes, item.ano)}
               >
-              <TableCell className="font-medium capitalize">{item.label}</TableCell>
-              <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
-                {item.metrica.frequenciaLabel ?? "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{item.metrica.realizadas}</TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {item.metrica.esperadas ?? "—"}
-              </TableCell>
-              <TableCell className={cn("text-right tabular-nums", taxaClass(item.metrica.taxa))}>
-                {formatarResumoComparecimento(item.metrica)}
-                {item.metrica.taxa != null && (
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ({formatarTaxaComparecimento(item.metrica.taxa)})
-                  </span>
-                )}
-              </TableCell>
-            </TableRow>
+                <TableCell className="font-medium capitalize">{item.label}</TableCell>
+                <TableCell className="max-w-[220px] truncate text-sm text-muted-foreground">
+                  {item.metrica.frequenciaLabel ?? "—"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{item.metrica.realizadas}</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {item.metrica.esperadas ?? "—"}
+                </TableCell>
+                <TableCell className={cn("text-right tabular-nums", taxaClass(item.metrica.taxa))}>
+                  {formatarResumoComparecimento(item.metrica)}
+                  {item.metrica.taxa != null && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      ({formatarTaxaComparecimento(item.metrica.taxa)})
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
             );
           })}
         </TableBody>

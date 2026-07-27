@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  agregarCobrancasPorPaciente,
-  calcularKpisDeCobrancas,
-} from "./cobrancas-por-paciente";
+import { agregarCobrancasPorPaciente, calcularKpisDeCobrancas } from "./cobrancas-por-paciente";
 import type { Cobranca } from "../queries/cobrancas";
 
-function cob(partial: Partial<Cobranca> & Pick<Cobranca, "id" | "pacienteId" | "status" | "valor">): Cobranca {
+function cob(
+  partial: Partial<Cobranca> & Pick<Cobranca, "id" | "pacienteId" | "status" | "valor">,
+): Cobranca {
   return {
     pacienteNome: "Wagner",
     descricao: null,

@@ -65,10 +65,7 @@ export async function queueNfEmail(
     };
   }
 
-  const destinatarios = [
-    ...(payload.to_email ? [payload.to_email] : []),
-    ...payload.cc_emails,
-  ];
+  const destinatarios = [...(payload.to_email ? [payload.to_email] : []), ...payload.cc_emails];
 
   const { error: logErr } = await admin.from("notas_fiscais_envios").insert({
     nota_fiscal_id: nfId,

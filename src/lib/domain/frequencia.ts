@@ -112,8 +112,7 @@ export function calcularMetricaComparecimento(
 ): MetricaComparecimento {
   const realizadas = contarRealizadas(sessoes);
   const esperadas = resolverSessoesEsperadas(opts);
-  const taxa =
-    esperadas != null && esperadas > 0 ? Math.min(realizadas / esperadas, 1) : null;
+  const taxa = esperadas != null && esperadas > 0 ? Math.min(realizadas / esperadas, 1) : null;
 
   return {
     realizadas,

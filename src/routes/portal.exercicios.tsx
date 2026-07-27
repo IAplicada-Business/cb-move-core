@@ -13,7 +13,7 @@ import {
 } from "@/lib/queries/exercicios";
 import { Dumbbell } from "lucide-react";
 
-export const Route = (createFileRoute as any)("/portal/exercicios")({
+export const Route = createFileRoute("/portal/exercicios")({
   component: PortalExercicios,
 });
 
@@ -82,9 +82,7 @@ function PortalExercicios() {
     <div className="space-y-5">
       <div>
         <h1 className="text-xl font-bold text-foreground">Seus exercícios para fazer em casa</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Prescritos pela sua fisioterapeuta
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Prescritos pela sua fisioterapeuta</p>
       </div>
 
       {exercicios.length === 0 && (
@@ -116,16 +114,16 @@ function PortalExercicios() {
 
               {/* Nome e descrição */}
               <p className="text-base font-bold text-foreground">{ex.nome}</p>
-              {ex.descricao && (
-                <p className="mt-1 text-sm text-muted-foreground">{ex.descricao}</p>
-              )}
+              {ex.descricao && <p className="mt-1 text-sm text-muted-foreground">{ex.descricao}</p>}
 
               {/* Séries / repetições */}
               {(ex.series != null || ex.repeticoes != null) && (
                 <p className="mt-2 text-sm text-cb-cyan-700 font-medium">
                   {[
                     ex.series != null ? `${ex.series} série${ex.series !== 1 ? "s" : ""}` : null,
-                    ex.repeticoes != null ? `${ex.repeticoes} repetição${ex.repeticoes !== 1 ? "ões" : ""}` : null,
+                    ex.repeticoes != null
+                      ? `${ex.repeticoes} repetição${ex.repeticoes !== 1 ? "ões" : ""}`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" de ")}
@@ -143,7 +141,9 @@ function PortalExercicios() {
                 variant={feitoHoje ? "outline" : "default"}
                 disabled={feitoHoje || marcarMutation.isPending}
                 onClick={() => marcarMutation.mutate(ex.id)}
-                style={feitoHoje ? undefined : { backgroundColor: "#16a34a", borderColor: "#16a34a" }}
+                style={
+                  feitoHoje ? undefined : { backgroundColor: "#16a34a", borderColor: "#16a34a" }
+                }
               >
                 {feitoHoje ? "Feito hoje ✓" : "✓ Fiz hoje"}
               </Button>

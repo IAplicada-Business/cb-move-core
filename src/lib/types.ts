@@ -1,7 +1,8 @@
 export type AppRole = "admin" | "membro" | "cliente" | "gestao" | "recepcao" | "fisio" | "paciente";
 export type PacienteTipo = "particular" | "judicial" | "convenio" | "puc";
 export type RegimeCobranca = "mensalista" | "por_sessao";
-export type FormaPagamento = "boleto" | "deposito" | "transferencia" | "alvara_judicial" | "convenio_direto";
+export type FormaPagamento =
+  "boleto" | "deposito" | "transferencia" | "alvara_judicial" | "convenio_direto";
 export type CobrancaStatus =
   | "pendente"
   | "pago"
@@ -11,7 +12,8 @@ export type CobrancaStatus =
   | "aguardando_convenio"
   | "aguardando_alvara"
   | "regularizar_retroativa";
-export type NfStatus = "pendente" | "processando" | "emitida" | "cancelada" | "erro" | "regularizada_retroativa";
+export type NfStatus =
+  "pendente" | "processando" | "emitida" | "cancelada" | "erro" | "regularizada_retroativa";
 export type StatusAgendamento =
   | "agendado"
   | "confirmado"

@@ -11,7 +11,8 @@ import { syncPagamentosCoraPendentes } from "../_shared/cora-payment-sync.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 serve(async (req) => {
@@ -30,8 +31,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
 
     const authorized =
-      (cronSecret && headerSecret === cronSecret) ||
-      authHeader === `Bearer ${serviceKey}`;
+      (cronSecret && headerSecret === cronSecret) || authHeader === `Bearer ${serviceKey}`;
 
     if (!authorized) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -42,10 +42,9 @@ serve(async (req) => {
 
     const resumo = await syncPagamentosCoraPendentes(admin, "polling");
 
-    return new Response(
-      JSON.stringify({ ok: true, ...resumo }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ ok: true, ...resumo }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Erro interno" }),

@@ -6,33 +6,33 @@
 
 /* =============== CB MOVE TOKENS (hex puro) =============== */
 :root {
-  --cb-cyan-900: #0F4B50;
-  --cb-cyan-800: #1B6E76;
-  --cb-cyan-700: #2D8388;
-  --cb-cyan-600: #3FB5BC;
-  --cb-cyan-500: #5BC6CC;
-  --cb-cyan-400: #84D5DA;
-  --cb-cyan-300: #B0E3E6;
-  --cb-cyan-200: #CDEDEF;
-  --cb-cyan-100: #DBF2F4;
-  --cb-cyan-050: #EFF9FA;
+  --cb-cyan-900: #0f4b50;
+  --cb-cyan-800: #1b6e76;
+  --cb-cyan-700: #2d8388;
+  --cb-cyan-600: #3fb5bc;
+  --cb-cyan-500: #5bc6cc;
+  --cb-cyan-400: #84d5da;
+  --cb-cyan-300: #b0e3e6;
+  --cb-cyan-200: #cdedef;
+  --cb-cyan-100: #dbf2f4;
+  --cb-cyan-050: #eff9fa;
 
-  --cb-magenta: #D946A0;
-  --cb-orange:  #F58A1F;
-  --cb-lime:    #C5D932;
-  --cb-purple:  #7B4FB5;
+  --cb-magenta: #d946a0;
+  --cb-orange: #f58a1f;
+  --cb-lime: #c5d932;
+  --cb-purple: #7b4fb5;
 
-  --cb-ink:    #2C2C2C;
-  --cb-paper:  #FFFFFF;
-  --cb-bg:     #FAFBFC;
-  --cb-muted:  #6B7280;
-  --cb-line:   #E5E7EB;
+  --cb-ink: #2c2c2c;
+  --cb-paper: #ffffff;
+  --cb-bg: #fafbfc;
+  --cb-muted: #6b7280;
+  --cb-line: #e5e7eb;
 
   /* Tipo de paciente */
   --t-particular: var(--cb-cyan-700);
-  --t-judicial:   var(--cb-magenta);
-  --t-convenio:   var(--cb-purple);
-  --t-puc:        var(--cb-orange);
+  --t-judicial: var(--cb-magenta);
+  --t-convenio: var(--cb-purple);
+  --t-puc: var(--cb-orange);
 
   /* shadcn tokens mapeados para CB MOVE */
   --radius: 0.625rem;
@@ -46,11 +46,11 @@
   --primary-foreground: #ffffff;
   --secondary: var(--cb-cyan-050);
   --secondary-foreground: var(--cb-cyan-900);
-  --muted: #F3F4F6;
+  --muted: #f3f4f6;
   --muted-foreground: var(--cb-muted);
   --accent: var(--cb-cyan-100);
   --accent-foreground: var(--cb-cyan-900);
-  --destructive: #E11D48;
+  --destructive: #e11d48;
   --destructive-foreground: #ffffff;
   --border: var(--cb-line);
   --input: var(--cb-line);
@@ -127,12 +127,14 @@
 }
 
 @utility cb-rainbow-strip {
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     var(--cb-magenta) 0%,
     var(--cb-orange) 25%,
     var(--cb-lime) 50%,
     var(--cb-cyan-600) 75%,
-    var(--cb-purple) 100%);
+    var(--cb-purple) 100%
+  );
 }
 
 @utility cb-pin-halo {
@@ -147,7 +149,9 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

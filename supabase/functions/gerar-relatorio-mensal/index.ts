@@ -17,8 +17,18 @@ const corsHeaders = {
 };
 
 const MES_NOME: Record<number, string> = {
-  1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio", 6: "Junho",
-  7: "Julho", 8: "Agosto", 9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro",
+  1: "Janeiro",
+  2: "Fevereiro",
+  3: "Março",
+  4: "Abril",
+  5: "Maio",
+  6: "Junho",
+  7: "Julho",
+  8: "Agosto",
+  9: "Setembro",
+  10: "Outubro",
+  11: "Novembro",
+  12: "Dezembro",
 };
 
 const MODELO_TITULO: Record<string, string> = {
@@ -31,15 +41,15 @@ const MODELO_TITULO: Record<string, string> = {
 // Paleta oficial CB MOVE (mesma usada no design system do sistema).
 const BRAND = {
   ink: rgb(0.173, 0.173, 0.173),
-  inkLight: rgb(0.420, 0.420, 0.450),
+  inkLight: rgb(0.42, 0.42, 0.45),
   paper: rgb(1, 1, 1),
-  line: rgb(0.886, 0.898, 0.910),
+  line: rgb(0.886, 0.898, 0.91),
   cyan700: rgb(0.176, 0.514, 0.533),
-  cyan600: rgb(0.247, 0.710, 0.737),
+  cyan600: rgb(0.247, 0.71, 0.737),
   magenta: rgb(0.851, 0.275, 0.627),
   orange: rgb(0.961, 0.541, 0.122),
   lime: rgb(0.773, 0.851, 0.196),
-  purple: rgb(0.482, 0.310, 0.710),
+  purple: rgb(0.482, 0.31, 0.71),
 };
 
 const TIPO_ACCENT: Record<string, { label: string; color: ReturnType<typeof rgb> }> = {
@@ -165,12 +175,30 @@ async function gerarPdf(params: {
   drawBrandRing(page, ringCx, ringCy, ringR, 2.2);
   page.drawEllipse({ x: ringCx, y: ringCy, xScale: 5, yScale: 5, color: BRAND.paper });
 
-  page.drawText("CB MOVE", { x: margin + ringR * 2 + 8, y: y - 4, size: 13, font: fontBold, color: dark });
-  page.drawText("NEUROSCIENCE", { x: margin + ringR * 2 + 8, y: y - 15, size: 6.5, font: fontRegular, color: gray });
+  page.drawText("CB MOVE", {
+    x: margin + ringR * 2 + 8,
+    y: y - 4,
+    size: 13,
+    font: fontBold,
+    color: dark,
+  });
+  page.drawText("NEUROSCIENCE", {
+    x: margin + ringR * 2 + 8,
+    y: y - 15,
+    size: 6.5,
+    font: fontRegular,
+    color: gray,
+  });
 
   const tituloSize = 11;
   const tituloWidth = fontBold.widthOfTextAtSize(params.titulo, tituloSize);
-  page.drawText(params.titulo, { x: pageWidth - margin - tituloWidth, y: y - 4, size: tituloSize, font: fontBold, color: dark });
+  page.drawText(params.titulo, {
+    x: pageWidth - margin - tituloWidth,
+    y: y - 4,
+    size: tituloSize,
+    font: fontBold,
+    color: dark,
+  });
 
   const tipoLabel = tipoInfo.label.toUpperCase();
   const tipoLabelSize = 8;
@@ -184,7 +212,13 @@ async function gerarPdf(params: {
   });
 
   y -= ringR * 2 + 10;
-  page.drawRectangle({ x: margin, y, width: pageWidth - margin * 2, height: 3, color: tipoInfo.color });
+  page.drawRectangle({
+    x: margin,
+    y,
+    width: pageWidth - margin * 2,
+    height: 3,
+    color: tipoInfo.color,
+  });
   y -= 22;
 
   // Dados do paciente / competência
@@ -193,7 +227,12 @@ async function gerarPdf(params: {
     drawParagraph(`CPF: ${params.placeholders.paciente_cpf}`, 10, fontRegular, gray);
   }
   drawParagraph(`Competência: ${params.placeholders.competencia ?? "—"}`, 10, fontRegular, gray);
-  drawParagraph(`Total de sessões realizadas no período: ${params.placeholders.total_sessoes ?? "0"}`, 10, fontRegular, gray);
+  drawParagraph(
+    `Total de sessões realizadas no período: ${params.placeholders.total_sessoes ?? "0"}`,
+    10,
+    fontRegular,
+    gray,
+  );
   y -= 8;
 
   for (const campo of params.camposExtras) {
@@ -221,7 +260,13 @@ async function gerarPdf(params: {
     color: dark,
   });
   y -= 14;
-  page.drawText("Assinatura do responsável técnico", { x: margin, y, size: 9, font: fontRegular, color: gray });
+  page.drawText("Assinatura do responsável técnico", {
+    x: margin,
+    y,
+    size: 9,
+    font: fontRegular,
+    color: gray,
+  });
 
   // Rodapé com a faixa arco-íris da marca CB MOVE.
   drawRainbowStrip(page, margin, margin - 4, pageWidth - margin * 2, 3);
@@ -276,7 +321,9 @@ serve(async (req) => {
     const fimMes = new Date(ano, mes, 0).toISOString().split("T")[0];
     const { data: sessoes } = await supabase
       .from("sessoes")
-      .select("id, data, sigla, fisioterapeuta_id, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
+      .select(
+        "id, data, sigla, fisioterapeuta_id, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)",
+      )
       .eq("paciente_id", paciente_id)
       .gte("data", inicioMes)
       .lte("data", fimMes);
@@ -318,7 +365,7 @@ serve(async (req) => {
     const totalSessoesLegado = totalSessoes;
     const evolucaoResumo = (evolucoes ?? [])
       .map((e: { subjetivo?: string; objetivo?: string; plano?: string }) =>
-        [e.subjetivo, e.objetivo, e.plano].filter(Boolean).join("\n")
+        [e.subjetivo, e.objetivo, e.plano].filter(Boolean).join("\n"),
       )
       .join("\n\n");
     const planoTerapeutico = evolucoes?.[evolucoes.length - 1]?.plano ?? "";

@@ -2,20 +2,20 @@
 
 ## 1. Stack completo
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Framework | TanStack Start (SSR) |
-| Roteamento | TanStack Router (file-based) |
-| UI | React 19 |
-| Build | Vite |
-| CSS | Tailwind CSS 4 |
-| Componentes | shadcn/ui |
-| Backend | Supabase (Postgres + Auth + Storage + Edge Functions) |
-| Cliente | @supabase/supabase-js |
-| Estado server | TanStack Query (React Query 5) |
-| Formulários | react-hook-form + zod |
-| Toasts | sonner |
-| Ícones | lucide-react |
+| Camada        | Tecnologia                                            |
+| ------------- | ----------------------------------------------------- |
+| Framework     | TanStack Start (SSR)                                  |
+| Roteamento    | TanStack Router (file-based)                          |
+| UI            | React 19                                              |
+| Build         | Vite                                                  |
+| CSS           | Tailwind CSS 4                                        |
+| Componentes   | shadcn/ui                                             |
+| Backend       | Supabase (Postgres + Auth + Storage + Edge Functions) |
+| Cliente       | @supabase/supabase-js                                 |
+| Estado server | TanStack Query (React Query 5)                        |
+| Formulários   | react-hook-form + zod                                 |
+| Toasts        | sonner                                                |
+| Ícones        | lucide-react                                          |
 
 ## 2. Deploy
 
@@ -54,6 +54,7 @@ NFSE_API_KEY=...                    (emissão de notas fiscais, se integrado)
    - **Supabase CLI:** `supabase db push` (requer link do projeto)
 
 **Convenções importantes:**
+
 - Use `CREATE TABLE IF NOT EXISTS` e `CREATE INDEX IF NOT EXISTS`
 - Para policies RLS: use o padrão `DO $$ BEGIN ... EXCEPTION WHEN duplicate_object THEN NULL; END $$;`
 - Sempre habilite RLS: `ALTER TABLE public.TABELA ENABLE ROW LEVEL SECURITY;`
@@ -65,19 +66,21 @@ NFSE_API_KEY=...                    (emissão de notas fiscais, se integrado)
    - Para rotas do portal (paciente): `portal.NOME.tsx`
 
 2. Estrutura mínima do arquivo:
+
    ```tsx
    import { createFileRoute } from "@tanstack/react-router";
-   
+
    export const Route = createFileRoute("/app/nome")({
      component: NomePage,
    });
-   
+
    function NomePage() {
      return <div>Conteúdo</div>;
    }
    ```
 
 3. Adicione o link no Sidebar em `src/components/layout/Sidebar.tsx`:
+
    ```tsx
    { to: "/app/nome", label: "Minha Tela", icon: IconeDoLucide }
    ```
@@ -120,6 +123,7 @@ Os campos disponíveis no JSON `conteudo` variam por modelo — consulte os temp
 **Check Supabase Preview no PR:** deve apontar para `grlkbtnwvxorlfglyzid`. Se falhar com outro `project_id` (ex. `zuxjjkewcckgzrjtcbcs`), corrija em [Supabase Dashboard → Integrations → GitHub](https://supabase.com/dashboard/project/grlkbtnwvxorlfglyzid/settings/integrations) e religue o repositório `cb-move-core`. O merge pode seguir mesmo com esse check falho se migrations já foram aplicadas manualmente.
 
 **Branches especiais do Claude Code:**
+
 - Branches `claude/NOME` são criadas automaticamente pelo Claude Code em worktrees isolados.
 - Após revisão, faça push direto para `main`: `git push origin claude/NOME:main`
 

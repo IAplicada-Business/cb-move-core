@@ -4,15 +4,15 @@ Contexto para retomar amanhã. Migrations e edge functions **já aplicadas/deplo
 
 ## O que foi entregue (código)
 
-| Funcionalidade | Onde | Observação |
-|----------------|------|------------|
-| NF automática no pagamento | `cora-payment-sync`, `auto-nf-apos-pagamento`, `marcarComoPago` | Manual + Cora; respeita `modo_emissao_nf = data_especifica` |
-| NF em data específica | Migration phase3 + `nf-emissao-data-especifica` cron 08:00 BRT | UI Pacientes; **0 pacientes** configurados em prod |
-| Boleto em data específica | `20260723180000_*` + `boleto-emissao-data-especifica` cron 08:15 BRT | UI Pacientes; **1 paciente** (Teste, dia 23) |
-| Emissão Focus (fiscal) | `emit-nf`, `focus-nfe-webhook`, RPCs | 10 NFs `emitida` via Focus em prod |
-| Lote NF | `app.notas-fiscais.tsx` | Seções "A emitir" + "Aguardando Focus" |
-| Sync destinatário NF | `20260723160000_fix_resolver_destinatario_nf_v_conv.sql` | Fix join convênio |
-| Cobranças sem NF + CPF/tel | `20260723170000_cobrancas_sem_nf_paciente_contato.sql` | RPC enriquecida para UI |
+| Funcionalidade             | Onde                                                                 | Observação                                                  |
+| -------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| NF automática no pagamento | `cora-payment-sync`, `auto-nf-apos-pagamento`, `marcarComoPago`      | Manual + Cora; respeita `modo_emissao_nf = data_especifica` |
+| NF em data específica      | Migration phase3 + `nf-emissao-data-especifica` cron 08:00 BRT       | UI Pacientes; **0 pacientes** configurados em prod          |
+| Boleto em data específica  | `20260723180000_*` + `boleto-emissao-data-especifica` cron 08:15 BRT | UI Pacientes; **1 paciente** (Teste, dia 23)                |
+| Emissão Focus (fiscal)     | `emit-nf`, `focus-nfe-webhook`, RPCs                                 | 10 NFs `emitida` via Focus em prod                          |
+| Lote NF                    | `app.notas-fiscais.tsx`                                              | Seções "A emitir" + "Aguardando Focus"                      |
+| Sync destinatário NF       | `20260723160000_fix_resolver_destinatario_nf_v_conv.sql`             | Fix join convênio                                           |
+| Cobranças sem NF + CPF/tel | `20260723170000_cobrancas_sem_nf_paciente_contato.sql`               | RPC enriquecida para UI                                     |
 
 ## Integrações (prod) — verificado 23/07
 
@@ -33,7 +33,7 @@ Contexto para retomar amanhã. Migrations e edge functions **já aplicadas/deplo
 ## Pendências operacionais (não código)
 
 1. **Cadastro em massa:** CPF/CNPJ + telefone nos pacientes de Jun/2026 "A emitir" (8 sem doc).
-2. **Modo data específica:** definir dia NF/boleto nos pacientes reais (hoje só Teste no boleto).
+2. **Modo data específica:** ~~definir dia NF/boleto nos pacientes reais~~ **27/07:** 6 pacientes reais + Teste com boleto data específica (ver CSV `scripts/out/emissao-data-especifica-boleto-*.csv`). NF permanece `automatico_pagamento` para esses pacientes.
 3. **Cutover Focus produção** — alinhar com Diego (`docs/perguntas_diego_fiscal.md`).
 4. **E-mail NF:** dispara após webhook Focus **autorizado** (não no pagamento). Conferir n8n end-to-end.
 5. **Pagamento real Cora** vs manual — ambos disparam NF; validar webhook com boleto pago de verdade.

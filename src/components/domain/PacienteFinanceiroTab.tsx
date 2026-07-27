@@ -10,7 +10,14 @@ import { fetchNFs } from "@/lib/queries/notas-fiscais";
 import { brl, formatDate } from "@/lib/format";
 import { competenciaLabel } from "@/lib/domain/extrato-financeiro";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export function PacienteFinanceiroTab({ pacienteId }: { pacienteId: string }) {
   const cobrancasQuery = useQuery({
@@ -61,13 +68,26 @@ export function PacienteFinanceiroTab({ pacienteId }: { pacienteId: string }) {
                         ? competenciaLabel(c.competenciaMes, c.competenciaAno)
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{c.servico ?? c.descricao ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{brl(c.valor)}</TableCell>
-                    <TableCell className="text-sm">{c.vencimento ? formatDate(c.vencimento) : "—"}</TableCell>
-                    <TableCell><StatusBadge value={c.status} /></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {c.servico ?? c.descricao ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {brl(c.valor)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.vencimento ? formatDate(c.vencimento) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge value={c.status} />
+                    </TableCell>
                     <TableCell>
                       {c.boletoUrl ? (
-                        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-xs"
+                          asChild
+                        >
                           <a href={c.boletoUrl} target="_blank" rel="noreferrer">
                             <ExternalLink className="h-3 w-3" /> Boleto
                           </a>
@@ -120,9 +140,15 @@ export function PacienteFinanceiroTab({ pacienteId }: { pacienteId: string }) {
                         ? competenciaLabel(nf.competenciaMes, nf.competenciaAno)
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{brl(nf.valor)}</TableCell>
-                    <TableCell className="text-sm">{nf.emissao ? formatDate(nf.emissao) : "—"}</TableCell>
-                    <TableCell><StatusBadge kind="nf" value={nf.status} /></TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {brl(nf.valor)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {nf.emissao ? formatDate(nf.emissao) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge kind="nf" value={nf.status} />
+                    </TableCell>
                     <TableCell>
                       {nf.pdfUrl ? (
                         <Button variant="ghost" size="icon" className="h-7 w-7" asChild>

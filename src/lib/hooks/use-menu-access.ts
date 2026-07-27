@@ -17,9 +17,21 @@ import { fetchMenuPermissions } from "@/lib/queries/usuarios";
 import { queryKeys } from "@/lib/queries";
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutDashboard, Users, FileText, Calendar,
-  Receipt, FileSpreadsheet, BarChart3, Stethoscope, UserCog, Settings, Building2,
-  Wrench, FilePlus2, Plug, HelpCircle,
+  LayoutDashboard,
+  Users,
+  FileText,
+  Calendar,
+  Receipt,
+  FileSpreadsheet,
+  BarChart3,
+  Stethoscope,
+  UserCog,
+  Settings,
+  Building2,
+  Wrench,
+  FilePlus2,
+  Plug,
+  HelpCircle,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -73,16 +85,12 @@ export function useMenuAccess() {
   const groups = useMemo<SidebarGroup[]>(() => {
     return MENU_GROUPS.map((group) => ({
       ...group,
-      label: isFisioScoped
-        ? (FISIO_MENU_GROUP_LABELS[group.id] ?? group.label)
-        : group.label,
+      label: isFisioScoped ? (FISIO_MENU_GROUP_LABELS[group.id] ?? group.label) : group.label,
       items: group.items
         .filter((item) => allowedKeys.has(item.key))
         .map((item) => ({
           ...item,
-          label: isFisioScoped
-            ? (FISIO_MENU_LABELS[item.key] ?? item.label)
-            : item.label,
+          label: isFisioScoped ? (FISIO_MENU_LABELS[item.key] ?? item.label) : item.label,
           icon: ICONS[item.to] ?? HelpCircle,
         })),
     })).filter((group) => group.items.length > 0);

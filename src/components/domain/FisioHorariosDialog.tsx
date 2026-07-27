@@ -192,8 +192,8 @@ export function FisioHorariosDialog({ open, onOpenChange, fisios }: Props) {
             <div>
               <h3 className="font-semibold">Disponibilidade semanal</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Faixas recorrentes Seg–Sex. Sessão = 50 min; a grade usa os blocos do mockup
-                (com 3 intervalos fixos) e a duração do agendamento permanece 50 min.
+                Faixas recorrentes Seg–Sex. Sessão = 50 min; a grade usa os blocos do mockup (com 3
+                intervalos fixos) e a duração do agendamento permanece 50 min.
               </p>
             </div>
 
@@ -292,13 +292,13 @@ export function FisioHorariosDialog({ open, onOpenChange, fisios }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(MOTIVO_INDISP_LABEL) as Array<FisioIndisponibilidade["motivo"]>).map(
-                      (m) => (
-                        <SelectItem key={m} value={m}>
-                          {MOTIVO_INDISP_LABEL[m]}
-                        </SelectItem>
-                      ),
-                    )}
+                    {(
+                      Object.keys(MOTIVO_INDISP_LABEL) as Array<FisioIndisponibilidade["motivo"]>
+                    ).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {MOTIVO_INDISP_LABEL[m]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -332,9 +332,7 @@ export function FisioHorariosDialog({ open, onOpenChange, fisios }: Props) {
                       <p className="text-xs text-muted-foreground">
                         {formatDateTimeDDMMYY(item.inicio)} → {formatDateTimeDDMMYY(item.fim)}
                       </p>
-                      {item.observacoes && (
-                        <p className="text-xs mt-0.5">{item.observacoes}</p>
-                      )}
+                      {item.observacoes && <p className="text-xs mt-0.5">{item.observacoes}</p>}
                     </div>
                     <Button
                       type="button"

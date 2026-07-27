@@ -1,4 +1,10 @@
-import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "https://esm.sh/pdf-lib@1.17.1";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+  type PDFPage,
+  type PDFFont,
+} from "https://esm.sh/pdf-lib@1.17.1";
 import type { RelatorioAtendimentoLinha } from "./relatorio-atendimento-linhas.ts";
 import { formatDataRelatorio, formatMoedaBr } from "./relatorio-atendimento-linhas.ts";
 
@@ -90,7 +96,14 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
 
   for (const campo of params.camposExtras ?? []) {
     if (!campo.valor?.trim()) continue;
-    drawText(page, `${campo.label.toUpperCase()}: ${truncate(campo.valor, 60)}`, margin, y, 8, font);
+    drawText(
+      page,
+      `${campo.label.toUpperCase()}: ${truncate(campo.valor, 60)}`,
+      margin,
+      y,
+      8,
+      font,
+    );
     y -= 12;
   }
   y -= 10;
@@ -121,12 +134,26 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
   y -= 12;
   drawText(page, `FREQUÊNCIA: ${params.frequenciaTexto}`, leftX, y, 8, font);
   y -= 12;
-  drawText(page, `VALOR DA ${valorLabel} R$: ${formatMoedaBr(params.valorSessao)}`, leftX, y, 8, font);
+  drawText(
+    page,
+    `VALOR DA ${valorLabel} R$: ${formatMoedaBr(params.valorSessao)}`,
+    leftX,
+    y,
+    8,
+    font,
+  );
   y -= 12;
   drawText(page, `NÚMERO DE SESSÕES: ${params.numSessoes}`, leftX, y, 8, font);
   drawText(page, `SESSÕES DE ${params.cargaHoraria} DE DURAÇÃO CADA.`, leftX, y - 10, 7, font);
   y -= 22;
-  drawText(page, `VALOR TOTAL MENSAL R$: ${formatMoedaBr(params.valorTotal)}`, leftX, y, 9, fontBold);
+  drawText(
+    page,
+    `VALOR TOTAL MENSAL R$: ${formatMoedaBr(params.valorTotal)}`,
+    leftX,
+    y,
+    9,
+    fontBold,
+  );
 
   let yCharlene = minY + footerHeight - 10;
   page.drawLine({
@@ -161,7 +188,14 @@ export async function gerarPdfGradeV2(params: PdfGradeParams): Promise<Uint8Arra
 
 function drawTableHeader(p: PDFPage, topY: number, fontBold: PDFFont) {
   let x = 36;
-  p.drawRectangle({ x, y: topY - 18, width: TABLE_WIDTH, height: 18, borderColor: LINE, borderWidth: 0.8 });
+  p.drawRectangle({
+    x,
+    y: topY - 18,
+    width: TABLE_WIDTH,
+    height: 18,
+    borderColor: LINE,
+    borderWidth: 0.8,
+  });
   for (const col of COLS) {
     const lines = col.label.split("\n");
     lines.forEach((line, i) => {
@@ -179,8 +213,22 @@ function drawTableRow(
   font: PDFFont,
 ) {
   let x = startX;
-  p.drawRectangle({ x, y: topY - 16, width: TABLE_WIDTH, height: 16, borderColor: LINE, borderWidth: 0.5 });
-  const cells = [formatDataRelatorio(linha.data), linha.cargaHoraria, truncate(linha.fisioterapeutaNome, 22), "", "", ""];
+  p.drawRectangle({
+    x,
+    y: topY - 16,
+    width: TABLE_WIDTH,
+    height: 16,
+    borderColor: LINE,
+    borderWidth: 0.5,
+  });
+  const cells = [
+    formatDataRelatorio(linha.data),
+    linha.cargaHoraria,
+    truncate(linha.fisioterapeutaNome, 22),
+    "",
+    "",
+    "",
+  ];
   cells.forEach((cell, i) => {
     p.drawText(cell, { x: x + 2, y: topY - 12, size: 7, font, color: INK });
     x += COLS[i].width;
@@ -188,5 +236,12 @@ function drawTableRow(
 }
 
 function drawEmptyRow(p: PDFPage, startX: number, topY: number, font: PDFFont) {
-  p.drawRectangle({ x: startX, y: topY - 16, width: TABLE_WIDTH, height: 16, borderColor: LINE, borderWidth: 0.5 });
+  p.drawRectangle({
+    x: startX,
+    y: topY - 16,
+    width: TABLE_WIDTH,
+    height: 16,
+    borderColor: LINE,
+    borderWidth: 0.5,
+  });
 }

@@ -139,10 +139,7 @@ export async function queueBoletoCobranca(
     };
   }
 
-  const destinatarios = [
-    pac.email.trim(),
-    ...(temTelefone && pac.telefone ? [pac.telefone] : []),
-  ];
+  const destinatarios = [pac.email.trim(), ...(temTelefone && pac.telefone ? [pac.telefone] : [])];
 
   const { error: logErr } = await admin.from("cobrancas_envios").insert({
     cobranca_id: row.id,

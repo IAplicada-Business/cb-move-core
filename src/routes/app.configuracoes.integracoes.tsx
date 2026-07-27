@@ -12,7 +12,8 @@ const INTEGRACOES = [
     id: "cora",
     nome: "Cora",
     categoria: "Financeiro",
-    descricao: "Geração de boleto e PIX (Integração Direta mTLS). Envio ao paciente é feito pelo n8n.",
+    descricao:
+      "Geração de boleto e PIX (Integração Direta mTLS). Envio ao paciente é feito pelo n8n.",
     status: "Configurar credenciais mTLS",
     secrets: "CORA_CLIENT_ID, CORA_CERTIFICATE, CORA_PRIVATE_KEY, CORA_API_BASE",
   },
@@ -20,7 +21,8 @@ const INTEGRACOES = [
     id: "focus-nfe",
     nome: "Focus NFe",
     categoria: "Fiscal",
-    descricao: "NFS-e Nacional POA — empresa cadastrada (ID 230418). Certificado A1 carregado; ambiente em homologação (pendente virar produção).",
+    descricao:
+      "NFS-e Nacional POA — empresa cadastrada (ID 230418). Certificado A1 carregado; ambiente em homologação (pendente virar produção).",
     status: "Homologação",
     secrets: "FOCUSNFE_TOKEN, FOCUSNFE_CNPJ_PRESTADOR, FOCUSNFE_AMBIENTE",
   },
@@ -54,7 +56,10 @@ function IntegracoesPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {INTEGRACOES.map((integ) => (
-          <div key={integ.id} className="rounded-xl border bg-card p-5 shadow-sm flex flex-col gap-3">
+          <div
+            key={integ.id}
+            className="rounded-xl border bg-card p-5 shadow-sm flex flex-col gap-3"
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="font-semibold text-foreground">{integ.nome}</h2>
@@ -73,21 +78,24 @@ function IntegracoesPage() {
             )}
             {integ.id === "cora" && (
               <p className="text-xs text-muted-foreground">
-                Gerar boleto na UI chama emit-boleto-cora (mTLS). Enviar boleto dispara n8n após geração.
+                Gerar boleto na UI chama emit-boleto-cora (mTLS). Enviar boleto dispara n8n após
+                geração.
               </p>
             )}
             {integ.id === "focus-nfe" && (
               <p className="text-xs text-muted-foreground">Ver docs/SETUP_FOCUS_NFE.md</p>
             )}
-            <Button variant="outline" size="sm" disabled className="w-full">Configurar</Button>
+            <Button variant="outline" size="sm" disabled className="w-full">
+              Configurar
+            </Button>
           </div>
         ))}
       </div>
 
       <div className="rounded-xl border border-dashed bg-card p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          Credenciais configuradas via variáveis de ambiente do servidor.
-          Workflow n8n: <code className="text-xs">docs/n8n/workflow_nf_email.json</code>
+          Credenciais configuradas via variáveis de ambiente do servidor. Workflow n8n:{" "}
+          <code className="text-xs">docs/n8n/workflow_nf_email.json</code>
         </p>
       </div>
     </div>

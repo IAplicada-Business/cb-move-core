@@ -25,10 +25,7 @@ export type FisioMetrics = {
 };
 
 export async function fetchFisios(): Promise<Fisio[]> {
-  const { data, error } = await supabase
-    .from("fisioterapeutas")
-    .select("*")
-    .order("nome");
+  const { data, error } = await supabase.from("fisioterapeutas").select("*").order("nome");
   if (error) throw error;
   return (data ?? []) as Fisio[];
 }
@@ -55,10 +52,18 @@ export async function toggleFisioAtivo(id: string, ativo: boolean): Promise<void
   if (error) throw error;
 }
 
-export async function checkFisioDependencias(id: string): Promise<{ sessoes: number; agendamentos: number }> {
+export async function checkFisioDependencias(
+  id: string,
+): Promise<{ sessoes: number; agendamentos: number }> {
   const [sessoes, agendamentos] = await Promise.all([
-    supabase.from("sessoes").select("id", { count: "exact", head: true }).eq("fisioterapeuta_id", id),
-    supabase.from("agendamentos").select("id", { count: "exact", head: true }).eq("fisioterapeuta_id", id),
+    supabase
+      .from("sessoes")
+      .select("id", { count: "exact", head: true })
+      .eq("fisioterapeuta_id", id),
+    supabase
+      .from("agendamentos")
+      .select("id", { count: "exact", head: true })
+      .eq("fisioterapeuta_id", id),
   ]);
   if (sessoes.error) throw sessoes.error;
   if (agendamentos.error) throw agendamentos.error;

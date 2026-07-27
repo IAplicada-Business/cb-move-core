@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 export type ConsultaExperimentalDraft = {
@@ -45,7 +49,10 @@ type Props = {
   /** Dentro do dialog de cadastro — estilo compacto */
   embedded?: boolean;
   onSaved?: (
-    patch: Pick<Paciente, "consultaExperimentalEm" | "consultaExperimentalFisioId" | "consultaExperimentalObservacoes">,
+    patch: Pick<
+      Paciente,
+      "consultaExperimentalEm" | "consultaExperimentalFisioId" | "consultaExperimentalObservacoes"
+    >,
   ) => void;
 };
 
@@ -105,10 +112,16 @@ export function PacienteConsultaExperimentalSection({
                 : "text-lg font-semibold text-foreground flex items-center gap-2"
             }
           >
-            <Stethoscope className={embedded ? "h-4 w-4 text-cb-cyan-600" : "h-5 w-5 text-cb-cyan-600"} />
+            <Stethoscope
+              className={embedded ? "h-4 w-4 text-cb-cyan-600" : "h-5 w-5 text-cb-cyan-600"}
+            />
             Primeira Consulta Experimental
           </h2>
-          <p className={embedded ? "text-xs text-muted-foreground mt-1" : "text-sm text-muted-foreground mt-1"}>
+          <p
+            className={
+              embedded ? "text-xs text-muted-foreground mt-1" : "text-sm text-muted-foreground mt-1"
+            }
+          >
             Avaliação inicial avulsa antes de iniciar a periodização regular do tratamento.
             {!pacienteId && " Será salva junto com o cadastro do paciente."}
           </p>
@@ -137,12 +150,18 @@ export function PacienteConsultaExperimentalSection({
             value={fisioId || "__none__"}
             onValueChange={(v) => onChange({ ...value, fisioId: v === "__none__" ? "" : v })}
           >
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecionar" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">—</SelectItem>
-              {fisios.filter((f) => f.ativo).map((f) => (
-                <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-              ))}
+              {fisios
+                .filter((f) => f.ativo)
+                .map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>

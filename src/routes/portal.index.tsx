@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import { LoadingState } from "@/components/domain/LoadingState";
 
-export const Route = (createFileRoute as any)("/portal/")({
+export const Route = createFileRoute("/portal/")({
   component: PortalInicio,
 });
 
@@ -37,27 +37,29 @@ function PortalInicio() {
 
   React.useEffect(() => {
     if (!user || !pacienteId) return;
-    const db = supabase as any;
     const hoje = new Date();
     const mesInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split("T")[0];
     const mesFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split("T")[0];
 
     Promise.all([
-      db.from("pacientes").select("id, nome, tipo").eq("user_id", user.id).single(),
-      db.from("sessoes")
+      supabase.from("pacientes").select("id, nome, tipo").eq("user_id", user.id).single(),
+      supabase
+        .from("sessoes")
         .select("id")
         .eq("paciente_id", pacienteId)
         .in("sigla", ["P", "RC"])
         .gte("data", mesInicio)
         .lte("data", mesFim),
-      db.from("agendamentos")
+      supabase
+        .from("agendamentos")
         .select("id, data_hora, fisioterapeutas(nome)")
         .eq("paciente_id", pacienteId)
         .gte("data_hora", hoje.toISOString())
         .in("status", ["agendado", "confirmado"])
         .order("data_hora", { ascending: true })
         .limit(3),
-      db.from("relatorios_atendimento")
+      supabase
+        .from("relatorios_atendimento")
         .select("id, created_at, pdf_url")
         .eq("paciente_id", pacienteId)
         .or("assinado.eq.true,status.eq.assinado")
@@ -78,11 +80,15 @@ function PortalInicio() {
 
   function formatDataHora(iso: string) {
     const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    }) + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return (
+      d.toLocaleDateString("pt-BR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }) +
+      " às " +
+      d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    );
   }
 
   function formatMes(iso: string) {
@@ -109,8 +115,12 @@ function PortalInicio() {
             <svg viewBox="0 0 36 36" className="h-20 w-20 -rotate-90">
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" strokeWidth="3" />
               <circle
-                cx="18" cy="18" r="15.9" fill="none"
-                stroke="#0e7490" strokeWidth="3"
+                cx="18"
+                cy="18"
+                r="15.9"
+                fill="none"
+                stroke="#0e7490"
+                strokeWidth="3"
                 strokeDasharray={`${Math.min(sessoesCount * 4, 100)} 100`}
                 strokeLinecap="round"
               />

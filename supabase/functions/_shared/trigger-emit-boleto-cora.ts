@@ -18,7 +18,8 @@ export async function triggerEmitBoletoCora(
     });
     const body = await res.json().catch(() => ({}) as Record<string, unknown>);
     if (!res.ok) {
-      const detail = typeof body?.error === "string" ? body.error : JSON.stringify(body).slice(0, 300);
+      const detail =
+        typeof body?.error === "string" ? body.error : JSON.stringify(body).slice(0, 300);
       return { ok: false, erro: `emit-boleto-cora retornou ${res.status}: ${detail}` };
     }
     return {

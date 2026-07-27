@@ -12,19 +12,37 @@ import { formatDate } from "@/lib/format";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
 export const Route = createFileRoute("/app/configuracoes/templates")({
@@ -104,7 +122,9 @@ function TemplatesPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-foreground">Templates NF</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Templates versionados para emissão de notas fiscais</p>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Templates versionados para emissão de notas fiscais
+        </p>
       </header>
 
       {isLoading ? (
@@ -141,15 +161,19 @@ function TemplatesPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
-                      t.ativo
-                        ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
-                        : "bg-muted text-muted-foreground border-border"
-                    }`}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+                        t.ativo
+                          ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
+                          : "bg-muted text-muted-foreground border-border"
+                      }`}
+                    >
                       {t.ativo ? "Ativo" : "Inativo"}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{formatDate(t.created_at)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDate(t.created_at)}
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -158,7 +182,9 @@ function TemplatesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setPreview(t)}>Visualizar</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setPreview(t)}>
+                          Visualizar
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEdit(t)}>Editar</DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
@@ -176,10 +202,17 @@ function TemplatesPage() {
         </div>
       )}
 
-      <Dialog open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>
+      <Dialog
+        open={!!preview}
+        onOpenChange={(o) => {
+          if (!o) setPreview(null);
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Template: {preview?.codigo} v{preview?.versao}</DialogTitle>
+            <DialogTitle>
+              Template: {preview?.codigo} v{preview?.versao}
+            </DialogTitle>
           </DialogHeader>
           <pre className="text-xs bg-muted rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-all">
             {JSON.stringify(preview?.conteudo, null, 2)}
@@ -187,7 +220,12 @@ function TemplatesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
+      <Dialog
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Editar template</DialogTitle>
@@ -197,7 +235,9 @@ function TemplatesPage() {
             <Label htmlFor="template-ativo">Ativo</Label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancelar
+            </Button>
             <Button disabled={updateMutation.isPending} onClick={() => updateMutation.mutate()}>
               {updateMutation.isPending ? "Salvando…" : "Salvar"}
             </Button>
@@ -205,13 +245,18 @@ function TemplatesPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir template</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o template <strong>{deleting?.codigo}</strong> v{deleting?.versao}?
-              Relatórios que dependem deste código podem deixar de funcionar.
+              Tem certeza que deseja excluir o template <strong>{deleting?.codigo}</strong> v
+              {deleting?.versao}? Relatórios que dependem deste código podem deixar de funcionar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

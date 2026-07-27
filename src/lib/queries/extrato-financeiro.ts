@@ -11,7 +11,8 @@ export async function fetchExtratoFinanceiro(
 ): Promise<ExtratoFinanceiroResumo> {
   const { data, error } = await supabase
     .from("cobrancas")
-    .select(`
+    .select(
+      `
       id,
       paciente_id,
       valor,
@@ -32,7 +33,8 @@ export async function fetchExtratoFinanceiro(
         frequencia_atendimento,
         dias_semana
       )
-    `)
+    `,
+    )
     .eq("competencia_mes", mes)
     .eq("competencia_ano", ano)
     .neq("status", "cancelado")
@@ -40,9 +42,5 @@ export async function fetchExtratoFinanceiro(
 
   if (error) throw error;
 
-  return buildExtratoFinanceiro(
-    (data ?? []) as unknown as ExtratoFinanceiroRawRow[],
-    mes,
-    ano,
-  );
+  return buildExtratoFinanceiro((data ?? []) as unknown as ExtratoFinanceiroRawRow[], mes, ano);
 }

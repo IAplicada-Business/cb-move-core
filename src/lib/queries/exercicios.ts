@@ -37,7 +37,10 @@ export async function fetchExercicios(pacienteId: string): Promise<Exercicio[]> 
   return data ?? [];
 }
 
-export async function fetchExerciciosRealizados(pacienteId: string, desde: string): Promise<ExercicioRealizado[]> {
+export async function fetchExerciciosRealizados(
+  pacienteId: string,
+  desde: string,
+): Promise<ExercicioRealizado[]> {
   const { data, error } = await db
     .from("exercicios_realizados")
     .select("*")

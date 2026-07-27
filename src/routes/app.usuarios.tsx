@@ -22,12 +22,7 @@ import {
   saveMenuPermissions,
   type UserRow,
 } from "@/lib/queries/usuarios";
-import {
-  normalizeRole,
-  PRIMARY_ROLES,
-  ROLE_LABELS,
-  type PrimaryRole,
-} from "@/lib/permissions";
+import { normalizeRole, PRIMARY_ROLES, ROLE_LABELS, type PrimaryRole } from "@/lib/permissions";
 import type { AppRole } from "@/lib/types";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
@@ -45,15 +40,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,7 +81,12 @@ function RoleBadge({ role }: { role: AppRole | null }) {
   const primary = normalizeRole(role);
   if (!primary) return <span className="text-xs text-muted-foreground">—</span>;
   return (
-    <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium", ROLE_BADGE[primary])}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
+        ROLE_BADGE[primary],
+      )}
+    >
       {ROLE_LABELS[primary]}
     </span>
   );
@@ -94,9 +107,7 @@ type UsuarioTableRow = {
 };
 
 function buildUsuarioRows(users: UserRow[]): UsuarioTableRow[] {
-  const referenceEmails = new Set(
-    COLABORADORES_REFERENCIA.map((c) => c.email.toLowerCase()),
-  );
+  const referenceEmails = new Set(COLABORADORES_REFERENCIA.map((c) => c.email.toLowerCase()));
 
   const rows: UsuarioTableRow[] = COLABORADORES_REFERENCIA.map((c) => ({
     key: c.email,
@@ -109,9 +120,7 @@ function buildUsuarioRows(users: UserRow[]): UsuarioTableRow[] {
 
   const extras = users
     .filter((u) => u.email && !referenceEmails.has(u.email.toLowerCase()))
-    .sort((a, b) =>
-      (a.nome ?? a.email ?? "").localeCompare(b.nome ?? b.email ?? "", "pt-BR"),
-    );
+    .sort((a, b) => (a.nome ?? a.email ?? "").localeCompare(b.nome ?? b.email ?? "", "pt-BR"));
 
   for (const u of extras) {
     rows.push({
@@ -196,7 +205,14 @@ function UsuariosPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userToDelete, setUserToDelete] = useState<UsuarioTableRow | null>(null);
 
-  const { data: users = [], isLoading, isError, error, refetch, isFetching } = useQuery({
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: queryKeys.usuarios.all,
     queryFn: fetchUsers,
     enabled: isAdmin,
@@ -222,7 +238,12 @@ function UsuariosPage() {
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pacientes", "invite-search", pacienteQuery],
     queryFn: async () => {
-      let q = supabase.from("pacientes").select("id, nome, email, user_id").is("user_id", null).order("nome").limit(20);
+      let q = supabase
+        .from("pacientes")
+        .select("id, nome, email, user_id")
+        .is("user_id", null)
+        .order("nome")
+        .limit(20);
       if (pacienteQuery.trim()) q = q.ilike("nome", `%${pacienteQuery.trim()}%`);
       const { data, error } = await q;
       if (error) throw error;
@@ -260,10 +281,7 @@ function UsuariosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const enabledCount = useMemo(
-    () => ALL_MENU_KEYS.filter((k) => menuDraft[k]).length,
-    [menuDraft],
-  );
+  const enabledCount = useMemo(() => ALL_MENU_KEYS.filter((k) => menuDraft[k]).length, [menuDraft]);
 
   const cadastradosCount = useMemo(
     () => COLABORADORES_REFERENCIA.filter((c) => findUserByEmail(users, c.email)).length,
@@ -276,8 +294,7 @@ function UsuariosPage() {
     const term = searchQuery.trim().toLowerCase();
     if (!term) return usuarioRows;
     return usuarioRows.filter(
-      (row) =>
-        row.nome.toLowerCase().includes(term) || row.email.toLowerCase().includes(term),
+      (row) => row.nome.toLowerCase().includes(term) || row.email.toLowerCase().includes(term),
     );
   }, [usuarioRows, searchQuery]);
 
@@ -313,8 +330,8 @@ function UsuariosPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Usuários do sistema</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cadastre a equipe com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>.
-            Para perfil Membro, defina os acessos ao menu no mesmo fluxo de cadastro.
+            Cadastre a equipe com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. Para
+            perfil Membro, defina os acessos ao menu no mesmo fluxo de cadastro.
           </p>
         </div>
         <Button onClick={() => openCadastro()}>
@@ -326,11 +343,9 @@ function UsuariosPage() {
       <div className="space-y-4">
         <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           <Users className="mr-2 inline h-4 w-4" />
-          Lista extraída de <em>Informações Colaboradores.docx</em>, mais usuários cadastrados no sistema.
-          {" "}
-          <strong>{users.length}</strong> cadastrados
-          {" "}
-          (<strong>{cadastradosCount}</strong> da equipe de referência).
+          Lista extraída de <em>Informações Colaboradores.docx</em>, mais usuários cadastrados no
+          sistema. <strong>{users.length}</strong> cadastrados (<strong>{cadastradosCount}</strong>{" "}
+          da equipe de referência).
         </div>
 
         <div className="relative max-w-sm">
@@ -393,11 +408,13 @@ function UsuariosPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openCadastro({
-                              nome: row.nome,
-                              email: row.email,
-                              role: normalizeRole(row.registered?.role) ?? row.perfil,
-                            })}
+                            onClick={() =>
+                              openCadastro({
+                                nome: row.nome,
+                                email: row.email,
+                                role: normalizeRole(row.registered?.role) ?? row.perfil,
+                              })
+                            }
                           >
                             {row.registered ? "Editar" : "Cadastrar"}
                           </Button>
@@ -407,7 +424,11 @@ function UsuariosPage() {
                               variant="outline"
                               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                               disabled={isSelf}
-                              title={isSelf ? "Você não pode excluir seu próprio usuário" : "Excluir usuário"}
+                              title={
+                                isSelf
+                                  ? "Você não pode excluir seu próprio usuário"
+                                  : "Excluir usuário"
+                              }
                               onClick={() => setUserToDelete(row)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -433,7 +454,9 @@ function UsuariosPage() {
         >
           <DialogHeader>
             <DialogTitle>
-              {findUserByEmail(users, cadastroForm.email) ? "Atualizar cadastro" : "Cadastrar usuário"}
+              {findUserByEmail(users, cadastroForm.email)
+                ? "Atualizar cadastro"
+                : "Cadastrar usuário"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -458,12 +481,18 @@ function UsuariosPage() {
               <Label>Perfil</Label>
               <Select
                 value={cadastroForm.role}
-                onValueChange={(v) => setCadastroForm((f) => ({ ...f, role: v as PrimaryRole, paciente_id: "" }))}
+                onValueChange={(v) =>
+                  setCadastroForm((f) => ({ ...f, role: v as PrimaryRole, paciente_id: "" }))
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {PRIMARY_ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                    <SelectItem key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -500,10 +529,14 @@ function UsuariosPage() {
                   value={cadastroForm.paciente_id}
                   onValueChange={(v) => setCadastroForm((f) => ({ ...f, paciente_id: v }))}
                 >
-                  <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o paciente" />
+                  </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -511,19 +544,24 @@ function UsuariosPage() {
             )}
 
             <p className="text-xs text-muted-foreground">
-              Senha inicial padrão: <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. No primeiro login, a pessoa será redirecionada para definir a senha pessoal.
+              Senha inicial padrão: <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. No primeiro login,
+              a pessoa será redirecionada para definir a senha pessoal.
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCadastroOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setCadastroOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               disabled={cadastroMutation.isPending}
-              onClick={() => cadastroMutation.mutate({
-                nome: cadastroForm.nome.trim(),
-                email: cadastroForm.email.trim(),
-                role: cadastroForm.role,
-                paciente_id: cadastroForm.role === "cliente" ? cadastroForm.paciente_id : null,
-              })}
+              onClick={() =>
+                cadastroMutation.mutate({
+                  nome: cadastroForm.nome.trim(),
+                  email: cadastroForm.email.trim(),
+                  role: cadastroForm.role,
+                  paciente_id: cadastroForm.role === "cliente" ? cadastroForm.paciente_id : null,
+                })
+              }
             >
               {cadastroMutation.isPending
                 ? "Salvando…"
@@ -540,8 +578,8 @@ function UsuariosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{userToDelete?.nome}</strong> ({userToDelete?.email})?
-              Essa ação remove o acesso ao sistema e não pode ser desfeita.
+              Tem certeza que deseja excluir <strong>{userToDelete?.nome}</strong> (
+              {userToDelete?.email})? Essa ação remove o acesso ao sistema e não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -42,9 +42,7 @@ import {
   fetchFisioDisponibilidade,
   fetchFisioIndisponibilidade,
 } from "@/lib/queries/fisio-horarios";
-import {
-  fetchPlanoSessoesMensalPaciente,
-} from "@/lib/queries/plano-sessoes";
+import { fetchPlanoSessoesMensalPaciente } from "@/lib/queries/plano-sessoes";
 import type { ItemSessaoMensal } from "@/lib/domain/plano-sessoes-mensal";
 import type { SlotRemarcacaoSelecionado } from "@/lib/domain/remarcacao-disponibilidade";
 import type { SlotPlanoMensal } from "@/lib/domain/padrao-agenda-mensal";
@@ -61,7 +59,11 @@ import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -73,19 +75,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { formatDateDDMMYY, formatDateTimeDDMMYY, isoToDDMMYY, parseDDMMYYToISO } from "@/lib/format";
+import {
+  formatDateDDMMYY,
+  formatDateTimeDDMMYY,
+  isoToDDMMYY,
+  parseDDMMYYToISO,
+} from "@/lib/format";
 
 export const Route = createFileRoute("/app/agenda")({
   head: () => ({ meta: [{ title: "Agenda · CB MOVE" }] }),
@@ -99,8 +115,18 @@ const DIAS_SEMANA_LABEL = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
 const DIAS_SEMANA = [1, 2, 3, 4, 5];
 const FILTRO_TODOS = "todos";
 const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 type VisaoAgenda = "semana" | "dia" | "frequencia" | "mes";
@@ -447,7 +473,7 @@ function AgendaPage() {
   const { user, roles, fisioterapeutaId } = useAuth();
   const podeGerir = can.manageAgenda(roles, fisioterapeutaId);
   const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
-  const fisioScopeId = isFisioScoped ? fisioterapeutaId ?? null : null;
+  const fisioScopeId = isFisioScoped ? (fisioterapeutaId ?? null) : null;
   const today = new Date();
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(today));
   const [diaSemanaIdx, setDiaSemanaIdx] = useState(() => indexDiaNaSemana(startOfWeek(today)));
@@ -455,8 +481,7 @@ function AgendaPage() {
   const [visao, setVisao] = useState<VisaoAgenda>("semana");
   const [filterFisio, setFilterFisio] = useState(FILTRO_TODOS);
   const [filterTipo, setFilterTipo] = useState(FILTRO_TODOS);
-  const fisioFilterAtivo =
-    fisioScopeId ?? (filterFisio !== FILTRO_TODOS ? filterFisio : undefined);
+  const fisioFilterAtivo = fisioScopeId ?? (filterFisio !== FILTRO_TODOS ? filterFisio : undefined);
   const [buscaGrade, setBuscaGrade] = useState("");
   const [selectedAgend, setSelectedAgend] = useState<Agendamento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -582,7 +607,8 @@ function AgendaPage() {
     const slots = gerarSlotsFaltantesPlano({
       mes: planoNovoAg.mes,
       ano: planoNovoAg.ano,
-      quantidadeMensal: planoNovoAg.quantidadeMensal ?? planoNovoAg.agendadasNoPlano + planoNovoAg.faltantes,
+      quantidadeMensal:
+        planoNovoAg.quantidadeMensal ?? planoNovoAg.agendadasNoPlano + planoNovoAg.faltantes,
       diasSemana: planoNovoAg.diasSemanaLabel,
       frequenciaAtendimento: planoNovoAg.frequenciaLabel,
       agendamentosExistentes: planoNovoAg.agendamentosInicioMes.map((inicio) => ({ inicio })),
@@ -702,8 +728,15 @@ function AgendaPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status, anterior }: { id: string; status: StatusAgendamento; anterior: StatusAgendamento }) =>
-      updateStatus(id, status, user?.id ?? null, anterior),
+    mutationFn: ({
+      id,
+      status,
+      anterior,
+    }: {
+      id: string;
+      status: StatusAgendamento;
+      anterior: StatusAgendamento;
+    }) => updateStatus(id, status, user?.id ?? null, anterior),
     onSuccess: (_data, vars) => {
       invalidateAgenda();
       qc.invalidateQueries({ queryKey: ["agendamento-historico"] });
@@ -725,7 +758,9 @@ function AgendaPage() {
         return;
       }
       toast.success("Status atualizado");
-      setSelectedAgend((prev) => (prev && prev.id === vars.id ? { ...prev, status: vars.status } : prev));
+      setSelectedAgend((prev) =>
+        prev && prev.id === vars.id ? { ...prev, status: vars.status } : prev,
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -781,17 +816,17 @@ function AgendaPage() {
       agendamentos
         .filter((a) => a.status !== "remarcacao" && a.status !== "cancelado")
         .filter((a) => {
-        if (fisioScopeId && a.fisioterapeuta_id !== fisioScopeId) return false;
-        if (filterFisio !== FILTRO_TODOS && a.fisioterapeuta_id !== filterFisio) return false;
-        if (filterTipo !== FILTRO_TODOS && a.pacientes?.tipo !== filterTipo) return false;
-        const q = buscaGrade.trim().toLowerCase();
-        if (q) {
-          const nomeP = a.pacientes?.nome?.toLowerCase() ?? "";
-          const nomeF = a.fisioterapeutas?.nome?.toLowerCase() ?? "";
-          if (!nomeP.includes(q) && !nomeF.includes(q)) return false;
-        }
-        return true;
-      }),
+          if (fisioScopeId && a.fisioterapeuta_id !== fisioScopeId) return false;
+          if (filterFisio !== FILTRO_TODOS && a.fisioterapeuta_id !== filterFisio) return false;
+          if (filterTipo !== FILTRO_TODOS && a.pacientes?.tipo !== filterTipo) return false;
+          const q = buscaGrade.trim().toLowerCase();
+          if (q) {
+            const nomeP = a.pacientes?.nome?.toLowerCase() ?? "";
+            const nomeF = a.fisioterapeutas?.nome?.toLowerCase() ?? "";
+            if (!nomeP.includes(q) && !nomeF.includes(q)) return false;
+          }
+          return true;
+        }),
     [agendamentos, filterFisio, filterTipo, buscaGrade, fisioScopeId],
   );
 
@@ -868,10 +903,7 @@ function AgendaPage() {
 
   const fisiosNomes = useMemo(() => fisiosVisiveis.map((f) => f.nome), [fisiosVisiveis]);
 
-  const monthWeeks = useMemo(
-    () => weeksInMonth(mesRef.getFullYear(), mesRef.getMonth()),
-    [mesRef],
-  );
+  const monthWeeks = useMemo(() => weeksInMonth(mesRef.getFullYear(), mesRef.getMonth()), [mesRef]);
 
   function agendamentosNoDia(day: Date) {
     const dayStr = toDateStr(day);
@@ -999,17 +1031,32 @@ function AgendaPage() {
           </div>
         )}
         {!isFisioScoped && (
-          <FilterChip prefix="Fisio" value={filterFisio} options={fisioOptions} onChange={setFilterFisio} />
+          <FilterChip
+            prefix="Fisio"
+            value={filterFisio}
+            options={fisioOptions}
+            onChange={setFilterFisio}
+          />
         )}
-        <FilterChip prefix="Tipo" value={filterTipo} options={tipoOptions} onChange={setFilterTipo} />
+        <FilterChip
+          prefix="Tipo"
+          value={filterTipo}
+          options={tipoOptions}
+          onChange={setFilterTipo}
+        />
         {visao === "semana" && (
           <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
-            {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""} · {BLOCOS_COUNT} blocos ·{" "}
-            {INTERVALOS_COUNT} intervalos
+            {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""} · {BLOCOS_COUNT}{" "}
+            blocos · {INTERVALOS_COUNT} intervalos
           </p>
         )}
         <div className={visao === "semana" ? "" : "ml-auto"}>
-          <FilterChip prefix="Visão" value={visao} options={visaoOptions} onChange={(v) => setVisao(v as VisaoAgenda)} />
+          <FilterChip
+            prefix="Visão"
+            value={visao}
+            options={visaoOptions}
+            onChange={(v) => setVisao(v as VisaoAgenda)}
+          />
         </div>
       </div>
 
@@ -1097,7 +1144,8 @@ function AgendaPage() {
                     Avisos do dia
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {DIAS_SEMANA_LABEL[diaSemanaIdx]} {formatDateDDMMYY(diaSelecionado)} — um aviso por linha
+                    {DIAS_SEMANA_LABEL[diaSemanaIdx]} {formatDateDDMMYY(diaSelecionado)} — um aviso
+                    por linha
                   </p>
                 </div>
                 <Textarea
@@ -1172,11 +1220,7 @@ function AgendaPage() {
                         }}
                       >
                         {items.map((a) => (
-                          <AgendaSlot
-                            key={a.id}
-                            ag={a}
-                            onClick={() => setSelectedAgend(a)}
-                          />
+                          <AgendaSlot key={a.id} ag={a} onClick={() => setSelectedAgend(a)} />
                         ))}
                       </div>
                     );
@@ -1204,7 +1248,9 @@ function AgendaPage() {
             if (!weekHasItems) return null;
             return (
               <section key={week.label} className="space-y-3">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{week.label}</h2>
+                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                  {week.label}
+                </h2>
                 {week.days.map((day) => {
                   const items = agendamentosNoDia(day);
                   if (items.length === 0) return null;
@@ -1212,7 +1258,11 @@ function AgendaPage() {
                     <div key={toDateStr(day)} className="rounded-xl border bg-card overflow-hidden">
                       <header className="border-b bg-muted/30 px-4 py-2.5">
                         <h3 className="text-sm font-semibold text-foreground">
-                          {day.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" })}
+                          {day.toLocaleDateString("pt-BR", {
+                            weekday: "long",
+                            day: "2-digit",
+                            month: "short",
+                          })}
                         </h3>
                       </header>
                       <ul className="divide-y">
@@ -1241,9 +1291,11 @@ function AgendaPage() {
         </div>
       )}
 
-      {!isLoading && visao !== "semana" && visao !== "dia" && visao !== "frequencia" && filtered.length > 0 && (
-        <TipoLegend />
-      )}
+      {!isLoading &&
+        visao !== "semana" &&
+        visao !== "dia" &&
+        visao !== "frequencia" &&
+        filtered.length > 0 && <TipoLegend />}
 
       <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
         <AlertDialogContent>
@@ -1252,8 +1304,8 @@ function AgendaPage() {
             <AlertDialogDescription>
               {selectedAgend?.pacientes?.nome
                 ? `O horário de ${selectedAgend.pacientes.nome} será liberado na grade.`
-                : "O horário será liberado na grade (slot volta a ficar vago)."}
-              {" "}Essa ação fica registrada no histórico.
+                : "O horário será liberado na grade (slot volta a ficar vago)."}{" "}
+              Essa ação fica registrada no histórico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1272,13 +1324,14 @@ function AgendaPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <FisioHorariosDialog
-        open={horariosOpen}
-        onOpenChange={setHorariosOpen}
-        fisios={fisios}
-      />
+      <FisioHorariosDialog open={horariosOpen} onOpenChange={setHorariosOpen} fisios={fisios} />
 
-      <Sheet open={!!selectedAgend} onOpenChange={(o) => { if (!o) setSelectedAgend(null); }}>
+      <Sheet
+        open={!!selectedAgend}
+        onOpenChange={(o) => {
+          if (!o) setSelectedAgend(null);
+        }}
+      >
         <SheetContent className="flex h-full w-full flex-col overflow-hidden sm:max-w-md">
           {selectedAgend && (
             <>
@@ -1286,209 +1339,216 @@ function AgendaPage() {
                 <SheetTitle>Agendamento</SheetTitle>
               </SheetHeader>
               <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="mt-4 space-y-3 pb-4 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Paciente</p>
-                  <p className="font-medium">{selectedAgend.pacientes?.nome ?? "—"}</p>
-                  {selectedAgend.pacientes?.tipo && (
-                    <div className="mt-1"><TipoBadge value={selectedAgend.pacientes.tipo} /></div>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Fisioterapeuta</p>
-                  <p className="font-medium">{selectedAgend.fisioterapeutas?.nome ?? "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Horário</p>
-                  <p className="font-medium">
-                    {formatDateTimeDDMMYY(selectedAgend.inicio)}
-                    {" · "}
-                    {selectedAgend.duracao_min}min
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <StatusBadge kind="agenda" value={selectedAgend.status} />
-                </div>
-                {selectedAgend.servico && (
+                <div className="mt-4 space-y-3 pb-4 text-sm">
                   <div>
-                    <p className="text-xs text-muted-foreground">Serviço</p>
-                    <p>{selectedAgend.servico}</p>
-                  </div>
-                )}
-
-                {selectedAgend.paciente_id &&
-                  (selectedAgend.status === "realizado" || selectedAgend.status === "faltou") && (
-                  <SessaoMultiFisioEditor
-                    pacienteId={selectedAgend.paciente_id}
-                    dataIso={selectedAgend.inicio.slice(0, 10)}
-                    fisioPrincipalId={selectedAgend.fisioterapeuta_id}
-                  />
-                )}
-
-                {podeGerir && selectedAgend.paciente_id && ["agendado", "confirmado"].includes(selectedAgend.status) && (
-                  <div className="space-y-2 border-t pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Registro de sessão
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        size="sm"
-                        disabled={statusMutation.isPending}
-                        onClick={() =>
-                          statusMutation.mutate({
-                            id: selectedAgend.id,
-                            status: "realizado",
-                            anterior: selectedAgend.status,
-                          })
-                        }
-                      >
-                        Compareceu
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive border-destructive/30 hover:bg-destructive/5"
-                        disabled={statusMutation.isPending}
-                        onClick={() =>
-                          statusMutation.mutate({
-                            id: selectedAgend.id,
-                            status: "faltou",
-                            anterior: selectedAgend.status,
-                          })
-                        }
-                      >
-                        Não compareceu
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
-                  <div className="pt-4 space-y-2 border-t">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Fluxo de status
-                    </p>
-                    {selectedAgend.status === "agendado" && (
-                      <Button
-                        size="sm"
-                        className="w-full"
-                        onClick={() =>
-                          statusMutation.mutate({
-                            id: selectedAgend.id,
-                            status: "confirmado",
-                            anterior: selectedAgend.status,
-                          })
-                        }
-                      >
-                        Confirmar
-                      </Button>
+                    <p className="text-xs text-muted-foreground">Paciente</p>
+                    <p className="font-medium">{selectedAgend.pacientes?.nome ?? "—"}</p>
+                    {selectedAgend.pacientes?.tipo && (
+                      <div className="mt-1">
+                        <TipoBadge value={selectedAgend.pacientes.tipo} />
+                      </div>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full text-destructive border-destructive/30 hover:bg-destructive/5"
-                      onClick={pedirCancelamento}
-                    >
-                      Cancelar
-                    </Button>
-                    <RemarcarAgendamentoSection
-                      target={selectedAgend}
-                      onAbrirRemarcar={(prefill) => abrirRemarcar(selectedAgend, prefill)}
-                    />
                   </div>
-                )}
-
-                {selectedAgend.paciente_id && planoSessoesMensal && (
-                  <PacientePlanoSessoesCard
-                    resumo={planoSessoesMensal}
-                    agendamentoAtualId={selectedAgend.id}
-                    onSessaoClick={abrirSessaoDoPlano}
-                    onFaltanteClick={abrirFaltanteDoPlano}
-                  />
-                )}
-
-                {podeGerir && STATUS_EDITAVEIS.includes(selectedAgend.status) && (
-                  <div className="pt-4 space-y-2 border-t">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Status do slot
+                  <div>
+                    <p className="text-xs text-muted-foreground">Fisioterapeuta</p>
+                    <p className="font-medium">{selectedAgend.fisioterapeutas?.nome ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Horário</p>
+                    <p className="font-medium">
+                      {formatDateTimeDDMMYY(selectedAgend.inicio)}
+                      {" · "}
+                      {selectedAgend.duracao_min}min
                     </p>
-                    <Select
-                      value={
-                        STATUS_SLOT.includes(selectedAgend.status)
-                          ? selectedAgend.status
-                          : undefined
-                      }
-                      onValueChange={(v) => {
-                        statusMutation.mutate({
-                          id: selectedAgend.id,
-                          status: v as StatusAgendamento,
-                          anterior: selectedAgend.status,
-                        });
-                      }}
-                      disabled={statusMutation.isPending}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecionar status do slot…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_SLOT.map((st) => (
-                          <SelectItem key={st} value={st}>
-                            {STATUS_LABEL[st]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {STATUS_SLOT.includes(selectedAgend.status) && (
-                      <div className="grid grid-cols-2 gap-2">
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <StatusBadge kind="agenda" value={selectedAgend.status} />
+                  </div>
+                  {selectedAgend.servico && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Serviço</p>
+                      <p>{selectedAgend.servico}</p>
+                    </div>
+                  )}
+
+                  {selectedAgend.paciente_id &&
+                    (selectedAgend.status === "realizado" || selectedAgend.status === "faltou") && (
+                      <SessaoMultiFisioEditor
+                        pacienteId={selectedAgend.paciente_id}
+                        dataIso={selectedAgend.inicio.slice(0, 10)}
+                        fisioPrincipalId={selectedAgend.fisioterapeuta_id}
+                      />
+                    )}
+
+                  {podeGerir &&
+                    selectedAgend.paciente_id &&
+                    ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                      <div className="space-y-2 border-t pt-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Registro de sessão
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            disabled={statusMutation.isPending}
+                            onClick={() =>
+                              statusMutation.mutate({
+                                id: selectedAgend.id,
+                                status: "realizado",
+                                anterior: selectedAgend.status,
+                              })
+                            }
+                          >
+                            Compareceu
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                            disabled={statusMutation.isPending}
+                            onClick={() =>
+                              statusMutation.mutate({
+                                id: selectedAgend.id,
+                                status: "faltou",
+                                anterior: selectedAgend.status,
+                              })
+                            }
+                          >
+                            Não compareceu
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                  {podeGerir && ["agendado", "confirmado"].includes(selectedAgend.status) && (
+                    <div className="pt-4 space-y-2 border-t">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Fluxo de status
+                      </p>
+                      {selectedAgend.status === "agendado" && (
                         <Button
                           size="sm"
-                          variant="outline"
-                          disabled={statusMutation.isPending}
+                          className="w-full"
                           onClick={() =>
                             statusMutation.mutate({
                               id: selectedAgend.id,
-                              status: "agendado",
+                              status: "confirmado",
                               anterior: selectedAgend.status,
                             })
                           }
                         >
-                          Voltar p/ agendado
+                          Confirmar
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-destructive border-destructive/30 hover:bg-destructive/5"
-                          disabled={statusMutation.isPending}
-                          onClick={pedirCancelamento}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-destructive border-destructive/30 hover:bg-destructive/5"
+                        onClick={pedirCancelamento}
+                      >
+                        Cancelar
+                      </Button>
+                      <RemarcarAgendamentoSection
+                        target={selectedAgend}
+                        onAbrirRemarcar={(prefill) => abrirRemarcar(selectedAgend, prefill)}
+                      />
+                    </div>
+                  )}
+
+                  {selectedAgend.paciente_id && planoSessoesMensal && (
+                    <PacientePlanoSessoesCard
+                      resumo={planoSessoesMensal}
+                      agendamentoAtualId={selectedAgend.id}
+                      onSessaoClick={abrirSessaoDoPlano}
+                      onFaltanteClick={abrirFaltanteDoPlano}
+                    />
+                  )}
+
+                  {podeGerir && STATUS_EDITAVEIS.includes(selectedAgend.status) && (
+                    <div className="pt-4 space-y-2 border-t">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Status do slot
+                      </p>
+                      <Select
+                        value={
+                          STATUS_SLOT.includes(selectedAgend.status)
+                            ? selectedAgend.status
+                            : undefined
+                        }
+                        onValueChange={(v) => {
+                          statusMutation.mutate({
+                            id: selectedAgend.id,
+                            status: v as StatusAgendamento,
+                            anterior: selectedAgend.status,
+                          });
+                        }}
+                        disabled={statusMutation.isPending}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar status do slot…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_SLOT.map((st) => (
+                            <SelectItem key={st} value={st}>
+                              {STATUS_LABEL[st]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {STATUS_SLOT.includes(selectedAgend.status) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={statusMutation.isPending}
+                            onClick={() =>
+                              statusMutation.mutate({
+                                id: selectedAgend.id,
+                                status: "agendado",
+                                anterior: selectedAgend.status,
+                              })
+                            }
+                          >
+                            Voltar p/ agendado
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                            disabled={statusMutation.isPending}
+                            onClick={pedirCancelamento}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2 border-t pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Histórico
+                    </p>
+                    {historico.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum evento registrado.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {historico.map((h) => (
+                          <li
+                            key={h.id}
+                            className="rounded-md border bg-muted/20 px-3 py-2 text-xs"
+                          >
+                            <p className="font-medium text-foreground">{labelHistorico(h)}</p>
+                            <p className="text-muted-foreground">
+                              {formatDateTimeDDMMYY(h.created_at)}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
-                )}
-
-                <div className="space-y-2 border-t pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Histórico
-                  </p>
-                  {historico.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum evento registrado.</p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {historico.map((h) => (
-                        <li key={h.id} className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
-                          <p className="font-medium text-foreground">{labelHistorico(h)}</p>
-                          <p className="text-muted-foreground">
-                            {formatDateTimeDDMMYY(h.created_at)}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
-              </div>
               </div>
             </>
           )}
@@ -1504,7 +1564,9 @@ function AgendaPage() {
             setRemarcarPrefill(null);
           }
         }}
-        target={remarcarTarget ? { ...remarcarTarget, serie_id: remarcarTarget.serie_id ?? null } : null}
+        target={
+          remarcarTarget ? { ...remarcarTarget, serie_id: remarcarTarget.serie_id ?? null } : null
+        }
         fisios={fisios}
         usuarioId={user?.id ?? null}
         prefillSlot={remarcarPrefill}
@@ -1527,7 +1589,10 @@ function AgendaPage() {
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((v) => createMutation.mutate(v))} className="space-y-4">
+            <form
+              onSubmit={form.handleSubmit((v) => createMutation.mutate(v))}
+              className="space-y-4"
+            >
               <FormField
                 control={form.control}
                 name="statusSlot"
@@ -1555,43 +1620,53 @@ function AgendaPage() {
               />
 
               {!isMarcacaoSlot && (
-                <FormField control={form.control} name="pacienteId" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Paciente *</FormLabel>
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={(v) => {
-                        field.onChange(v);
-                        form.setValue("agendarSerieMesmoDia", false);
-                      }}
-                    >
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
-                      <SelectContent className="max-h-60">
-                        {pacientes.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {planoNovoAg && field.value && (
-                      <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-1">
-                        <p className="font-medium text-foreground">
-                          Plano do mês: {planoNovoAg.quantidadeExibicao}
-                          {planoNovoAg.frequenciaLabel ? ` · ${planoNovoAg.frequenciaLabel}` : ""}
-                        </p>
-                        {planoNovoAg.diasSemanaLabel && (
-                          <p className="text-muted-foreground">{planoNovoAg.diasSemanaLabel}</p>
-                        )}
-                        <p className="text-muted-foreground">
-                          {planoNovoAg.agendadasNoPlano} no plano
-                          {planoNovoAg.faltantes > 0
-                            ? ` · ${planoNovoAg.faltantes} faltante${planoNovoAg.faltantes === 1 ? "" : "s"}`
-                            : " · plano completo"}
-                        </p>
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="pacienteId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Paciente *</FormLabel>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={(v) => {
+                          field.onChange(v);
+                          form.setValue("agendarSerieMesmoDia", false);
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione…" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-60">
+                          {pacientes.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {planoNovoAg && field.value && (
+                        <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs space-y-1">
+                          <p className="font-medium text-foreground">
+                            Plano do mês: {planoNovoAg.quantidadeExibicao}
+                            {planoNovoAg.frequenciaLabel ? ` · ${planoNovoAg.frequenciaLabel}` : ""}
+                          </p>
+                          {planoNovoAg.diasSemanaLabel && (
+                            <p className="text-muted-foreground">{planoNovoAg.diasSemanaLabel}</p>
+                          )}
+                          <p className="text-muted-foreground">
+                            {planoNovoAg.agendadasNoPlano} no plano
+                            {planoNovoAg.faltantes > 0
+                              ? ` · ${planoNovoAg.faltantes} faltante${planoNovoAg.faltantes === 1 ? "" : "s"}`
+                              : " · plano completo"}
+                          </p>
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
 
               {!isMarcacaoSlot && podeAgendarSerie && (
@@ -1609,7 +1684,8 @@ function AgendaPage() {
                         </FormControl>
                         <div className="space-y-1 leading-none">
                           <FormLabel className="font-medium cursor-pointer">
-                            Agendar {propostasSeriePlano.length} sessões faltantes do plano neste mês
+                            Agendar {propostasSeriePlano.length} sessões faltantes do plano neste
+                            mês
                           </FormLabel>
                           <p className="text-xs text-muted-foreground">
                             {planoNovoAg?.diasSemanaLabel
@@ -1617,14 +1693,18 @@ function AgendaPage() {
                               : "Padrão: mesmo dia da semana da data escolhida"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {propostasSeriePlano.slice(0, 4).map((p) => `${formatDateDDMMYY(p.dataIso)} ${p.horaInicio}`).join(" · ")}
+                            {propostasSeriePlano
+                              .slice(0, 4)
+                              .map((p) => `${formatDateDDMMYY(p.dataIso)} ${p.horaInicio}`)
+                              .join(" · ")}
                             {propostasSeriePlano.length > 4
                               ? ` · +${propostasSeriePlano.length - 4} horários`
                               : ""}
                           </p>
                           {!planoNovoAg?.diasSemanaLabel && (
                             <p className="text-xs text-cb-orange font-medium">
-                              Cadastre os dias da semana no paciente para montar o plano completo (ex.: 2ª e 5ª triplos).
+                              Cadastre os dias da semana no paciente para montar o plano completo
+                              (ex.: 2ª e 5ª triplos).
                             </p>
                           )}
                         </div>
@@ -1634,71 +1714,112 @@ function AgendaPage() {
                 />
               )}
 
-              <FormField control={form.control} name="fisioId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Fisioterapeuta *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {fisios.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="fisioId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fisioterapeuta *</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {fisios.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="data" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data *</FormLabel>
-                    <FormControl>
-                      <DateInputDDMMYY {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="horaInicio" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hora início *</FormLabel>
-                    <FormControl>
-                      <TimeInputHHMM {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="data"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data *</FormLabel>
+                      <FormControl>
+                        <DateInputDDMMYY {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="horaInicio"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora início *</FormLabel>
+                      <FormControl>
+                        <TimeInputHHMM {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField control={form.control} name="duracao" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duração (min)</FormLabel>
-                  <Select value={String(field.value)} onValueChange={(v) => field.onChange(Number(v))}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {[30, 45, 50, 60, 90].map((d) => (
-                        <SelectItem key={d} value={String(d)}>{d} min</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {!isMarcacaoSlot && (
-                <FormField control={form.control} name="servico" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="duracao"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de sessão</FormLabel>
-                    <FormControl>
-                      <Input {...field} value={field.value ?? ""} placeholder="Ex: Fisioterapia neurológica" />
-                    </FormControl>
+                    <FormLabel>Duração (min)</FormLabel>
+                    <Select
+                      value={String(field.value)}
+                      onValueChange={(v) => field.onChange(Number(v))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {[30, 45, 50, 60, 90].map((d) => (
+                          <SelectItem key={d} value={String(d)}>
+                            {d} min
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
+
+              {!isMarcacaoSlot && (
+                <FormField
+                  control={form.control}
+                  name="servico"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de sessão</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="Ex: Fisioterapia neurológica"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+                  Cancelar
+                </Button>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending
                     ? "Salvando…"

@@ -42,7 +42,9 @@ function RedefinirSenhaPage() {
         await bootstrapSessionFromHash();
         const { data } = await supabase.auth.getSession();
         if (!data.session) {
-          toast.error("Faça login com a senha informada pela administração para definir sua senha.");
+          toast.error(
+            "Faça login com a senha informada pela administração para definir sua senha.",
+          );
           navigate({ to: "/login" });
           return;
         }

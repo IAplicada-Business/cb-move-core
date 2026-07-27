@@ -14,26 +14,56 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { FisioDetalhesSheet } from "@/components/domain/FisioDetalhesSheet";
 import { queryKeys } from "@/lib/queries";
 import {
-  fetchFisios, upsertFisio, toggleFisioAtivo, deleteFisio, type Fisio, type FisioFormValues,
+  fetchFisios,
+  upsertFisio,
+  toggleFisioAtivo,
+  deleteFisio,
+  type Fisio,
+  type FisioFormValues,
 } from "@/lib/queries/fisioterapeutas";
 import { initials } from "@/lib/format";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
@@ -156,11 +186,7 @@ function FisiosPage() {
             </TableHeader>
             <TableBody>
               {fisios.map((f) => (
-                <TableRow
-                  key={f.id}
-                  className="cursor-pointer"
-                  onClick={() => setViewing(f)}
-                >
+                <TableRow key={f.id} className="cursor-pointer" onClick={() => setViewing(f)}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2.5">
                       <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">
@@ -180,7 +206,12 @@ function FisiosPage() {
                         onCheckedChange={(v) => toggleMutation.mutate({ id: f.id, ativo: v })}
                         aria-label="Ativo/Inativo"
                       />
-                      <span className={cn("text-xs", f.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          f.ativo ? "text-[#047857]" : "text-muted-foreground",
+                        )}
+                      >
                         {f.ativo ? "Ativo" : "Inativo"}
                       </span>
                     </div>
@@ -193,7 +224,9 @@ function FisiosPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setViewing(f)}>Ver detalhes</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setViewing(f)}>
+                          Ver detalhes
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEdit(f)}>Editar</DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
@@ -219,48 +252,77 @@ function FisiosPage() {
       />
 
       {/* Modal */}
-      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(o) => {
+          if (!o) closeModal();
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar fisioterapeuta" : "Novo fisioterapeuta"}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-              <FormField control={form.control} name="nome" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome *</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome *</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="registro_profissional" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CREFITO</FormLabel>
-                  <FormControl><Input {...field} value={field.value ?? ""} placeholder="CREFITO-3/XXXXX-F" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="registro_profissional"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CREFITO</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} placeholder="CREFITO-3/XXXXX-F" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl><Input type="email" {...field} value={field.value ?? ""} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="ativo" render={({ field }) => (
-                <FormItem className="flex items-center gap-3">
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                  <FormLabel className="!mt-0">Ativo</FormLabel>
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="ativo"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-3">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="!mt-0">Ativo</FormLabel>
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancelar
+                </Button>
                 <Button type="submit" disabled={mutation.isPending}>
                   {mutation.isPending ? "Salvando…" : "Salvar"}
                 </Button>
@@ -270,14 +332,19 @@ function FisiosPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir fisioterapeuta</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
-              fisioterapeutas sem sessões ou agendamentos vinculados. Caso já tenha histórico, use o
-              botão Ativo/Inativo.
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível
+              excluir fisioterapeutas sem sessões ou agendamentos vinculados. Caso já tenha
+              histórico, use o botão Ativo/Inativo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

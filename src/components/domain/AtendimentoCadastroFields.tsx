@@ -26,12 +26,7 @@ function CampoComSugestoes<T extends FieldValues>({
       <FormLabel>{label}</FormLabel>
       <FormControl>
         <>
-          <Input
-            {...field}
-            value={field.value ?? ""}
-            list={listId}
-            placeholder={placeholder}
-          />
+          <Input {...field} value={field.value ?? ""} list={listId} placeholder={placeholder} />
           <datalist id={listId}>
             {exemplos.map((ex) => (
               <option key={ex} value={ex} />

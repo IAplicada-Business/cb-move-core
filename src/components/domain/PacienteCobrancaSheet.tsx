@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
-  CheckCircle2, Copy, ExternalLink, FileText, Loader2, QrCode, Send, SplitSquareHorizontal, X,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  FileText,
+  Loader2,
+  QrCode,
+  Send,
+  SplitSquareHorizontal,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -9,10 +17,17 @@ import { StatusBadge } from "@/components/domain/StatusBadge";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { brl, formatDate } from "@/lib/format";
 import {
@@ -27,15 +42,26 @@ import {
   gerarBoletoCora,
   validarEmitBoletoCoraLocal,
 } from "@/lib/queries/boleto-cora";
-import {
-  fetchCobrancas, updateCobranca, type Cobranca,
-} from "@/lib/queries/cobrancas";
+import { fetchCobrancas, updateCobranca, type Cobranca } from "@/lib/queries/cobrancas";
 import { fetchCobrancaIdsComNf } from "@/lib/queries/notas-fiscais";
 import { queryKeys } from "@/lib/queries";
 import type { CobrancaStatus, FormaPagamento } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_ABREV = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 function mesAbrev(mes: number | null, ano: number | null) {
   if (!mes || !ano) return "—";
@@ -84,7 +110,11 @@ function podeEnviarBoletoPaciente(c: Cobranca) {
 
 const FORMAS_PARCELAVEIS: FormaPagamento[] = ["deposito", "transferencia", "alvara_judicial"];
 
-const FORMAS_NF_ANTES_PAGAMENTO: FormaPagamento[] = ["deposito", "transferencia", "alvara_judicial"];
+const FORMAS_NF_ANTES_PAGAMENTO: FormaPagamento[] = [
+  "deposito",
+  "transferencia",
+  "alvara_judicial",
+];
 
 function precisaNfAntesPagamento(c: Cobranca): boolean {
   if (c.status === "pago") return false;
@@ -92,7 +122,11 @@ function precisaNfAntesPagamento(c: Cobranca): boolean {
 }
 
 function podeParcelar(c: Cobranca) {
-  return cobrancaAtiva(c) && !c.parcelamentoGrupoId && FORMAS_PARCELAVEIS.includes(c.formaPagamento as FormaPagamento);
+  return (
+    cobrancaAtiva(c) &&
+    !c.parcelamentoGrupoId &&
+    FORMAS_PARCELAVEIS.includes(c.formaPagamento as FormaPagamento)
+  );
 }
 
 type Props = {
@@ -197,11 +231,17 @@ export function PacienteCobrancaSheet({
 
   const nome = resumo?.pacienteNome ?? pacienteNome ?? "Paciente";
   const pacienteCpf = resumo?.cobrancas[0]?.pacienteCpf ?? histQuery.data?.[0]?.pacienteCpf ?? null;
-  const pacienteEmail = resumo?.cobrancas[0]?.pacienteEmail ?? histQuery.data?.[0]?.pacienteEmail ?? null;
+  const pacienteEmail =
+    resumo?.cobrancas[0]?.pacienteEmail ?? histQuery.data?.[0]?.pacienteEmail ?? null;
   const faltaCadastroPaciente = !pacienteCpf?.replace(/\D/g, "") || !pacienteEmail?.trim();
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader className="text-left">
           <SheetTitle>{nome}</SheetTitle>
@@ -209,7 +249,9 @@ export function PacienteCobrancaSheet({
         </SheetHeader>
 
         {histQuery.isLoading ? (
-          <div className="mt-6"><LoadingState /></div>
+          <div className="mt-6">
+            <LoadingState />
+          </div>
         ) : histQuery.isError ? (
           <p className="mt-6 text-sm text-destructive">
             {(histQuery.error as Error)?.message ?? "Erro ao carregar cobranças"}
@@ -247,8 +289,8 @@ export function PacienteCobrancaSheet({
                 Para gerar boleto Cora, cadastre{" "}
                 {!pacienteCpf?.replace(/\D/g, "") ? "CPF/CNPJ" : null}
                 {!pacienteCpf?.replace(/\D/g, "") && !pacienteEmail?.trim() ? " e " : null}
-                {!pacienteEmail?.trim() ? "e-mail" : null}{" "}
-                do paciente em <strong>Pacientes</strong>.
+                {!pacienteEmail?.trim() ? "e-mail" : null} do paciente em <strong>Pacientes</strong>
+                .
               </div>
             )}
 
@@ -297,7 +339,9 @@ export function PacienteCobrancaSheet({
                         )}
                         <div className="grid grid-cols-2 gap-2 text-muted-foreground">
                           <span>Vencimento</span>
-                          <span className="text-right text-foreground">{formatDate(c.vencimento)}</span>
+                          <span className="text-right text-foreground">
+                            {formatDate(c.vencimento)}
+                          </span>
                           <span>Pago em</span>
                           <span className="text-right text-foreground">{formatDate(c.pagoEm)}</span>
                           <span>Serviço</span>
@@ -309,12 +353,18 @@ export function PacienteCobrancaSheet({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => window.open(c.boletoUrl!, "_blank", "noopener,noreferrer")}
+                              onClick={() =>
+                                window.open(c.boletoUrl!, "_blank", "noopener,noreferrer")
+                              }
                             >
                               <ExternalLink className="h-3.5 w-3.5 mr-1" />
                               Abrir boleto
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => copiarTexto(c.boletoUrl!, "Link do boleto copiado")}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copiarTexto(c.boletoUrl!, "Link do boleto copiado")}
+                            >
                               <Copy className="h-3.5 w-3.5 mr-1" />
                               Copiar link
                             </Button>
@@ -342,19 +392,20 @@ export function PacienteCobrancaSheet({
                           </div>
                         )}
 
-                        {podeGerarBoleto(c) && (() => {
-                          const bloqueio = validarEmitBoletoCoraLocal({
-                            pacienteCpf: c.pacienteCpf ?? pacienteCpf,
-                            pacienteEmail: c.pacienteEmail ?? pacienteEmail,
-                            vencimento: c.vencimento,
-                            valor: c.valor,
-                          });
-                          return bloqueio ? (
-                            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
-                              {bloqueio}
-                            </p>
-                          ) : null;
-                        })()}
+                        {podeGerarBoleto(c) &&
+                          (() => {
+                            const bloqueio = validarEmitBoletoCoraLocal({
+                              pacienteCpf: c.pacienteCpf ?? pacienteCpf,
+                              pacienteEmail: c.pacienteEmail ?? pacienteEmail,
+                              vencimento: c.vencimento,
+                              valor: c.valor,
+                            });
+                            return bloqueio ? (
+                              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                                {bloqueio}
+                              </p>
+                            ) : null;
+                          })()}
 
                         <div className="flex flex-wrap gap-2 pt-1">
                           {podeGerarBoleto(c) && (

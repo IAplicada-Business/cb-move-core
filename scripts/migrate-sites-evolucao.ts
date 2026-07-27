@@ -19,7 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || "",
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
 );
 
 type EvolucaoParsed = {
@@ -52,7 +52,10 @@ function parseGoogleSitesHTML(html: string, pacienteFiltro?: string): EvolucaoPa
       const dataStr = entrada[1].replace(/<[^>]+>/g, "").trim();
       const data = parseDataPT(dataStr);
       if (!data) continue;
-      const texto = entrada[2].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+      const texto = entrada[2]
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .trim();
       if (!texto) continue;
       evolucoes.push({ pacienteNome: paciente, data, texto, fonte: "sites_import" });
     }
@@ -69,7 +72,7 @@ async function main() {
 
   if (fileIdx === -1 || !args[fileIdx + 1]) {
     console.error(
-      "❌ Uso: npx tsx scripts/migrate-sites-evolucao.ts --file export.html [--paciente Nome] [--apply]"
+      "❌ Uso: npx tsx scripts/migrate-sites-evolucao.ts --file export.html [--paciente Nome] [--apply]",
     );
     console.error("⚠️  PENDENTE: Charlene exportar o HTML do Google Sites");
     process.exit(0); // sai graciosamente — arquivo ainda não disponível
@@ -96,7 +99,7 @@ async function main() {
 
   for (const ev of evolucoes) {
     const match = pacs?.find((p: { id: string; nome: string }) =>
-      p.nome.toLowerCase().includes(ev.pacienteNome.toLowerCase())
+      p.nome.toLowerCase().includes(ev.pacienteNome.toLowerCase()),
     );
     if (!match) {
       erros.push(`Paciente não encontrado: ${ev.pacienteNome}`);

@@ -25,7 +25,7 @@ export const MOTIVO_INDISP_LABEL: Record<FisioIndisponibilidade["motivo"], strin
 };
 
 function db() {
-  return supabase as any;
+  return supabase;
 }
 
 export async function fetchFisioDisponibilidade(
@@ -96,13 +96,15 @@ export async function createFisioIndisponibilidade(input: {
   motivo: FisioIndisponibilidade["motivo"];
   observacoes?: string | null;
 }): Promise<void> {
-  const { error } = await db().from("fisio_indisponibilidade").insert({
-    fisioterapeuta_id: input.fisioterapeuta_id,
-    inicio: input.inicio,
-    fim: input.fim,
-    motivo: input.motivo,
-    observacoes: input.observacoes ?? null,
-  });
+  const { error } = await db()
+    .from("fisio_indisponibilidade")
+    .insert({
+      fisioterapeuta_id: input.fisioterapeuta_id,
+      inicio: input.inicio,
+      fim: input.fim,
+      motivo: input.motivo,
+      observacoes: input.observacoes ?? null,
+    });
   if (error) throw error;
 }
 

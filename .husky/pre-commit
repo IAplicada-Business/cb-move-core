@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+if ! command -v node >/dev/null 2>&1; then
+  export PATH="/c/Program Files/nodejs:$PATH"
+fi
+
+node ./node_modules/lint-staged/bin/lint-staged.js

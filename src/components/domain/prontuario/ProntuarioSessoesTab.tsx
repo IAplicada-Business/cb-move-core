@@ -35,7 +35,8 @@ export function ProntuarioSessoesTab({ sessoes, loading }: Props) {
       <div>
         <h2 className="text-base font-semibold">Histórico de sessões</h2>
         <p className="text-xs text-muted-foreground">
-          Siglas: P presente · F falta · FJ justificada · NJ a recuperar · RC recuperada · NR não realizada
+          Siglas: P presente · F falta · FJ justificada · NJ a recuperar · RC recuperada · NR não
+          realizada
         </p>
       </div>
       <div className="rounded-xl border bg-card overflow-hidden">

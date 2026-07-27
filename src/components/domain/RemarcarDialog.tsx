@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";import { toast } from "sonner";
+import { ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { RemarcarSemanaDestinoGrid } from "@/components/domain/RemarcarSemanaDestinoGrid";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,7 +52,10 @@ import {
   fetchFisioIndisponibilidade,
 } from "@/lib/queries/fisio-horarios";
 import { queryKeys } from "@/lib/queries";
-import { fetchAgendamentosAtivosPacienteMes, fetchPlanoSessoesMensalPaciente } from "@/lib/queries/plano-sessoes";
+import {
+  fetchAgendamentosAtivosPacienteMes,
+  fetchPlanoSessoesMensalPaciente,
+} from "@/lib/queries/plano-sessoes";
 import { fetchSessaoSiglaDia } from "@/lib/queries/sessoes";
 import { cn } from "@/lib/utils";
 
@@ -118,18 +118,11 @@ export function RemarcarDialog({
 
   const dataIso = useMemo(() => parseDDMMYYToISO(dataWatch) ?? "", [dataWatch]);
 
-  const semanaDestino = useMemo(
-    () => (dataIso ? calcularSemanaDestino(dataIso) : null),
-    [dataIso],
-  );
+  const semanaDestino = useMemo(() => (dataIso ? calcularSemanaDestino(dataIso) : null), [dataIso]);
 
   const { data: agendamentosSemana = [] } = useQuery({
-    queryKey: queryKeys.agendamentos.periodo(
-      semanaDestino?.inicio ?? "",
-      semanaDestino?.fim ?? "",
-    ),
-    queryFn: () =>
-      fetchAgendamentosPeriodo(semanaDestino!.inicio, semanaDestino!.fim),
+    queryKey: queryKeys.agendamentos.periodo(semanaDestino?.inicio ?? "", semanaDestino?.fim ?? ""),
+    queryFn: () => fetchAgendamentosPeriodo(semanaDestino!.inicio, semanaDestino!.fim),
     enabled: open && !!semanaDestino,
   });
 
@@ -167,11 +160,7 @@ export function RemarcarDialog({
       competencia?.ano ?? 0,
     ),
     queryFn: () =>
-      fetchPlanoSessoesMensalPaciente(
-        target!.paciente_id!,
-        competencia!.mes,
-        competencia!.ano,
-      ),
+      fetchPlanoSessoesMensalPaciente(target!.paciente_id!, competencia!.mes, competencia!.ano),
     enabled: open && !!target?.paciente_id && !!competencia,
   });
 
@@ -183,11 +172,7 @@ export function RemarcarDialog({
       competencia?.ano,
     ],
     queryFn: () =>
-      fetchAgendamentosAtivosPacienteMes(
-        target!.paciente_id!,
-        competencia!.mes,
-        competencia!.ano,
-      ),
+      fetchAgendamentosAtivosPacienteMes(target!.paciente_id!, competencia!.mes, competencia!.ano),
     enabled: open && !!target?.paciente_id && !!competencia,
   });
 
@@ -361,8 +346,7 @@ export function RemarcarDialog({
   });
 
   const podeConfirmar = !!preview && (avaliacao?.ok ?? false) && !mutation.isPending;
-  const temImpactoPlano =
-    !!impactoRemarcar?.usaSlots && (impactoRemarcar.avisos.length ?? 0) > 0;
+  const temImpactoPlano = !!impactoRemarcar?.usaSlots && (impactoRemarcar.avisos.length ?? 0) > 0;
   const [impactoOpen, setImpactoOpen] = useState(false);
 
   useEffect(() => {
@@ -417,10 +401,7 @@ export function RemarcarDialog({
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
               <div className="space-y-1.5">
                 <Label>Fisioterapeuta</Label>
-                <Select
-                  value={fisioWatch}
-                  onValueChange={(v) => form.setValue("fisioId", v)}
-                >
+                <Select value={fisioWatch} onValueChange={(v) => form.setValue("fisioId", v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione…" />
                   </SelectTrigger>
@@ -446,9 +427,7 @@ export function RemarcarDialog({
                     <Controller
                       control={form.control}
                       name="data"
-                      render={({ field }) => (
-                        <DateInputDDMMYY id="remarcar-data" {...field} />
-                      )}
+                      render={({ field }) => <DateInputDDMMYY id="remarcar-data" {...field} />}
                     />
                   </div>
                 </div>
@@ -463,9 +442,7 @@ export function RemarcarDialog({
                     <Controller
                       control={form.control}
                       name="horaInicio"
-                      render={({ field }) => (
-                        <TimeInputHHMM id="remarcar-hora" {...field} />
-                      )}
+                      render={({ field }) => <TimeInputHHMM id="remarcar-hora" {...field} />}
                     />
                   </div>
                 </div>
@@ -567,14 +544,18 @@ export function RemarcarDialog({
 
             <div className="shrink-0 space-y-3 border-t bg-background px-6 py-4">
               <div className="space-y-2">
-                <Label>Escopo do remanejamento</Label>                <RadioGroup
+                <Label>Escopo do remanejamento</Label>{" "}
+                <RadioGroup
                   value={escopoWatch}
                   onValueChange={(v) => form.setValue("escopo", v as EscopoRemanejamento)}
                   className="grid gap-2 md:grid-cols-3"
                 >
                   <div className="flex items-start gap-2 rounded-md border px-3 py-2">
                     <RadioGroupItem value="pontual" id="escopo-pontual" className="mt-0.5" />
-                    <Label htmlFor="escopo-pontual" className="cursor-pointer font-normal leading-snug">
+                    <Label
+                      htmlFor="escopo-pontual"
+                      className="cursor-pointer font-normal leading-snug"
+                    >
                       Só este horário
                       {contagensEscopo && (
                         <span className="ml-1 text-muted-foreground">
@@ -585,7 +566,10 @@ export function RemarcarDialog({
                   </div>
                   <div className="flex items-start gap-2 rounded-md border px-3 py-2">
                     <RadioGroupItem value="semana" id="escopo-semana" className="mt-0.5" />
-                    <Label htmlFor="escopo-semana" className="cursor-pointer font-normal leading-snug">
+                    <Label
+                      htmlFor="escopo-semana"
+                      className="cursor-pointer font-normal leading-snug"
+                    >
                       Demais futuros na mesma semana
                       {contagensEscopo && (
                         <span className="ml-1 text-muted-foreground">
@@ -608,9 +592,7 @@ export function RemarcarDialog({
                 </RadioGroup>
                 {preview && escopoWatch !== "pontual" && contagensEscopo && (
                   <p className="text-xs text-muted-foreground">
-                    {escopoWatch === "semana"
-                      ? contagensEscopo.semana
-                      : contagensEscopo.serie_mes}{" "}
+                    {escopoWatch === "semana" ? contagensEscopo.semana : contagensEscopo.serie_mes}{" "}
                     horário(s) serão deslocados pelo mesmo intervalo.
                   </p>
                 )}

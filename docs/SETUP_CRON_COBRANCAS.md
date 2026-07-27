@@ -31,11 +31,11 @@ Alternativa sem secret: usar `Authorization: Bearer <SERVICE_ROLE_KEY>` (menos r
 
 Workflow com **Schedule Trigger** (diário) + **HTTP Request**:
 
-| Campo | Valor |
-|-------|-------|
-| URL | `https://grlkbtnwvxorlfglyzid.supabase.co/functions/v1/atualizar-cobrancas-vencidas` |
-| Method | POST |
-| Header | `x-cron-secret: <CRON_SECRET>` |
+| Campo  | Valor                                                                                |
+| ------ | ------------------------------------------------------------------------------------ |
+| URL    | `https://grlkbtnwvxorlfglyzid.supabase.co/functions/v1/atualizar-cobrancas-vencidas` |
+| Method | POST                                                                                 |
+| Header | `x-cron-secret: <CRON_SECRET>`                                                       |
 
 ## 4. Teste manual
 

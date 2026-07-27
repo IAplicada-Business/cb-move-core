@@ -91,9 +91,7 @@ function basicAuthHeader(token: string): string {
   return `Basic ${btoa(`${token}:`)}`;
 }
 
-export async function loadFocusNfeConfig(
-  admin: SupabaseClient,
-): Promise<FocusNfeConfig | null> {
+export async function loadFocusNfeConfig(admin: SupabaseClient): Promise<FocusNfeConfig | null> {
   const token = await getIntegracaoConfigValue(admin, "FOCUSNFE_TOKEN");
   const cnpj = await getIntegracaoConfigValue(admin, "FOCUSNFE_CNPJ_PRESTADOR");
   if (!token || !cnpj) return null;
@@ -110,14 +108,8 @@ export async function loadFocusNfeConfig(
     (await getIntegracaoConfigValue(admin, "FOCUSNFE_INSCRICAO_MUNICIPAL")) ?? undefined;
   const simplesRaw = await getIntegracaoConfigValue(admin, "FOCUSNFE_SIMPLES_NACIONAL");
   const codigoOpcaoSimplesNacional = simplesRaw ? Number(simplesRaw) : 3;
-  const regimeSnRaw = await getIntegracaoConfigValue(
-    admin,
-    "FOCUSNFE_REGIME_TRIBUTARIO_SN",
-  );
-  const percentualSnRaw = await getIntegracaoConfigValue(
-    admin,
-    "FOCUSNFE_PERCENTUAL_TRIBUTOS_SN",
-  );
+  const regimeSnRaw = await getIntegracaoConfigValue(admin, "FOCUSNFE_REGIME_TRIBUTARIO_SN");
+  const percentualSnRaw = await getIntegracaoConfigValue(admin, "FOCUSNFE_PERCENTUAL_TRIBUTOS_SN");
 
   return {
     token,
@@ -130,13 +122,10 @@ export async function loadFocusNfeConfig(
     codigoOpcaoSimplesNacional: Number.isFinite(codigoOpcaoSimplesNacional)
       ? codigoOpcaoSimplesNacional
       : 3,
-    regimeTributarioSimplesNacional: regimeSnRaw && Number.isFinite(Number(regimeSnRaw))
-      ? Number(regimeSnRaw)
-      : 1,
+    regimeTributarioSimplesNacional:
+      regimeSnRaw && Number.isFinite(Number(regimeSnRaw)) ? Number(regimeSnRaw) : 1,
     percentualTotalTributosSimples:
-      percentualSnRaw && Number.isFinite(Number(percentualSnRaw))
-        ? Number(percentualSnRaw)
-        : 6,
+      percentualSnRaw && Number.isFinite(Number(percentualSnRaw)) ? Number(percentualSnRaw) : 6,
   };
 }
 
@@ -184,7 +173,10 @@ function formatCrefito(raw: string): string {
   if (digits.length >= 6) {
     return `CREFITO: ${digits.slice(0, -3)} ${digits.slice(-3)}-${letter}`;
   }
-  const cleaned = raw.replace(/^CREFITO[:\s]*/i, "").trim().toUpperCase();
+  const cleaned = raw
+    .replace(/^CREFITO[:\s]*/i, "")
+    .trim()
+    .toUpperCase();
   return cleaned.startsWith("CREFITO") ? cleaned : `CREFITO: ${cleaned}`;
 }
 
@@ -246,13 +238,15 @@ export function buildDescricaoServico(nf: NfForFocus): string {
   const fisio = (nf.fisio_nome ?? "DRA. CHARLENE BRITO").trim().toUpperCase();
   const crefitoLabel = formatCrefito(nf.fisio_crefito ?? "122334-F");
   const excecoes = (nf.observacao_excecoes ?? "").trim();
-  const valorSessao = nf.valor_sessao != null && Number(nf.valor_sessao) > 0
-    ? `VALOR DA SESSÃO R$ ${formatMoneyBr(Number(nf.valor_sessao))}.`
-    : null;
+  const valorSessao =
+    nf.valor_sessao != null && Number(nf.valor_sessao) > 0
+      ? `VALOR DA SESSÃO R$ ${formatMoneyBr(Number(nf.valor_sessao))}.`
+      : null;
 
-  const blocoTotal = total != null && total > 0
-    ? `TOTALIZANDO ${formatSessoesCount(total)} SESSÕES ${rotuloTipoSessao(nf.tipo_sessao)}DE ${duracao} DE DURAÇÃO.`
-    : null;
+  const blocoTotal =
+    total != null && total > 0
+      ? `TOTALIZANDO ${formatSessoesCount(total)} SESSÕES ${rotuloTipoSessao(nf.tipo_sessao)}DE ${duracao} DE DURAÇÃO.`
+      : null;
 
   const rodape = [
     valorSessao,
@@ -272,9 +266,11 @@ export function buildDescricaoServico(nf: NfForFocus): string {
       mesNome && ano && dias
         ? `REALIZADAS NO MÊS DE ${mesNome} DE ${ano}, NOS SEGUINTES DIAS: ${dias}.`
         : mesNome && ano
-        ? `REALIZADAS NO MÊS DE ${mesNome} DE ${ano}.`
-        : null,
-    ].filter(Boolean).join(", ");
+          ? `REALIZADAS NO MÊS DE ${mesNome} DE ${ano}.`
+          : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     return [
       cabeca.endsWith(".") ? cabeca : `${cabeca}.`,
@@ -282,7 +278,9 @@ export function buildDescricaoServico(nf: NfForFocus): string {
       blocoTotal,
       processo ? `NÚMERO DO PROCESSO: ${processo}.` : null,
       ...rodape,
-    ].filter(Boolean).join(" ");
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
 
   // Particular / convênio — padrão Amanda / Luciana / Kayhan
@@ -292,14 +290,17 @@ export function buildDescricaoServico(nf: NfForFocus): string {
       excecoes || null,
       blocoTotal,
       ...rodape,
-    ].filter(Boolean).join(" ");
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
 
   // Fallback mínimo (dados incompletos)
   const paciente = nf.corpo_paciente_nome ?? nf.destinatario_nome ?? "Paciente";
-  const comp = nf.competencia_mes && nf.competencia_ano
-    ? `${String(nf.competencia_mes).padStart(2, "0")}/${nf.competencia_ano}`
-    : "";
+  const comp =
+    nf.competencia_mes && nf.competencia_ano
+      ? `${String(nf.competencia_mes).padStart(2, "0")}/${nf.competencia_ano}`
+      : "";
   return [
     "REFERENTE ÀS SESSÕES DE FISIOTERAPIA NEUROFUNCIONAL ESPECIALIZADA",
     `PACIENTE: ${paciente}.`,
@@ -307,7 +308,9 @@ export function buildDescricaoServico(nf: NfForFocus): string {
     dias ? `DIAS: ${dias}.` : null,
     comp ? `COMPETÊNCIA: ${comp}.` : null,
     ...rodape,
-  ].filter(Boolean).join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function appendTomadorFields(
@@ -355,7 +358,10 @@ function brasiliaNowIso(): string {
     hourCycle: "h23",
   });
   const parts = Object.fromEntries(
-    fmt.formatToParts(new Date()).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]),
+    fmt
+      .formatToParts(new Date())
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value]),
   );
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}-03:00`;
 }
@@ -387,23 +393,15 @@ export function buildFocusNfsenPayload(
 
   // ME/EPP (e MEI): CNC exige regime de apuração + pTotTribSN (E0166 / schema totTrib).
   if (config.codigoOpcaoSimplesNacional === 2 || config.codigoOpcaoSimplesNacional === 3) {
-    payload.regime_tributario_simples_nacional =
-      config.regimeTributarioSimplesNacional ?? 1;
-    payload.percentual_total_tributos_simples_nacional =
-      config.percentualTotalTributosSimples ?? 6;
+    payload.regime_tributario_simples_nacional = config.regimeTributarioSimplesNacional ?? 1;
+    payload.percentual_total_tributos_simples_nacional = config.percentualTotalTributosSimples ?? 6;
   }
 
   if (config.inscricaoMunicipal) {
     payload.inscricao_municipal_prestador = config.inscricaoMunicipal;
   }
 
-  appendTomadorFields(
-    payload,
-    doc,
-    nf.destinatario_nome,
-    nf.tomador,
-    config.codigoMunicipio,
-  );
+  appendTomadorFields(payload, doc, nf.destinatario_nome, nf.tomador, config.codigoMunicipio);
 
   return payload;
 }
@@ -467,12 +465,7 @@ export async function verifyFocusWebhookSecret(
 }
 
 function extractNumero(data: Record<string, unknown>): string | null {
-  const candidates = [
-    data.numero,
-    data.numero_nfse,
-    data.numero_rps,
-    data.numero_nfsen,
-  ];
+  const candidates = [data.numero, data.numero_nfse, data.numero_rps, data.numero_nfsen];
   for (const c of candidates) {
     if (c != null && String(c).trim()) return String(c);
   }
@@ -514,9 +507,7 @@ function formatFocusError(data: Record<string, unknown>): string {
     const first = erros[0] as Record<string, unknown>;
     return String(first.mensagem ?? first.codigo ?? "Erro na autorização NFS-e");
   }
-  return String(
-    data.mensagem_sefaz ?? data.mensagem ?? data.erro ?? "Erro na autorização NFS-e",
-  );
+  return String(data.mensagem_sefaz ?? data.mensagem ?? data.erro ?? "Erro na autorização NFS-e");
 }
 
 export async function submitFocusNfsen(
@@ -541,10 +532,7 @@ export async function submitFocusNfsen(
   };
 }
 
-export async function getFocusNfsen(
-  config: FocusNfeConfig,
-  ref: string,
-): Promise<FocusEmitResult> {
+export async function getFocusNfsen(config: FocusNfeConfig, ref: string): Promise<FocusEmitResult> {
   const data = await focusRequest(config, "GET", `/v2/nfsen/${encodeURIComponent(ref)}`);
   return {
     ref,
@@ -571,7 +559,11 @@ export async function applyFocusNfsenWebhook(
   const ref = String(data.ref ?? "");
   const nfId = nfIdFromFocusRef(ref);
   if (!nfId) {
-    return { nf_id: null, focus_status: String(data.status ?? "desconhecido"), skipped: "ref_invalida" };
+    return {
+      nf_id: null,
+      focus_status: String(data.status ?? "desconhecido"),
+      skipped: "ref_invalida",
+    };
   }
 
   const status = String(data.status ?? "processando_autorizacao");

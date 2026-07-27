@@ -229,11 +229,7 @@ export function avaliarDestinoRemarcacao(opts: {
   const temDispNoDia = opts.disponibilidade.some(
     (f) => f.fisioterapeuta_id === opts.fisioId && f.dia_semana === diaSemana && f.ativo,
   );
-  if (
-    opts.datasPlano?.has(opts.dataIso) &&
-    opts.disponibilidade.length > 0 &&
-    !temDispNoDia
-  ) {
+  if (opts.datasPlano?.has(opts.dataIso) && opts.disponibilidade.length > 0 && !temDispNoDia) {
     return {
       ok: true,
       alerta: "Este fisioterapeuta não tem disponibilidade cadastrada no dia do plano.",
@@ -260,7 +256,12 @@ export function sugerirDatasPlano(resumo: ResumoPlanoSessoesMensal): string[] {
 export function idsExcluirRemarcacao(
   agendamentoId: string,
   escopo: "pontual" | "semana" | "serie_mes",
-  agendamentos: Array<{ id: string; inicio: string; paciente_id: string | null; serie_id?: string | null }>,
+  agendamentos: Array<{
+    id: string;
+    inicio: string;
+    paciente_id: string | null;
+    serie_id?: string | null;
+  }>,
   origem: { id: string; inicio: string; paciente_id: string | null; serie_id?: string | null },
 ): Set<string> {
   if (escopo === "pontual") return new Set([agendamentoId]);
@@ -275,7 +276,8 @@ export function idsExcluirRemarcacao(
     if (new Date(ag.inicio) < origemDate) continue;
 
     if (escopo === "semana") {
-      if (startOfIsoWeek(new Date(ag.inicio)).getTime() !== startOfIsoWeek(origemDate).getTime()) continue;
+      if (startOfIsoWeek(new Date(ag.inicio)).getTime() !== startOfIsoWeek(origemDate).getTime())
+        continue;
     } else if (escopo === "serie_mes") {
       if (new Date(ag.inicio) > fimMes) continue;
     }

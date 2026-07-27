@@ -121,11 +121,19 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
                     <TipoBadge value={row.tipo as PacienteTipo} />
                   </TableCell>
                   <TableCell>{row.fisioPrincipal ?? "—"}</TableCell>
-                  <TableCell>{row.ultimaEvolucaoData ? formatDate(row.ultimaEvolucaoData) : "—"}</TableCell>
-                  <TableCell>{row.totalEvolucoes}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{row.ultimoRelatorioStatus ?? "—"}</TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => onOpenPaciente(row.pacienteId)}>
+                    {row.ultimaEvolucaoData ? formatDate(row.ultimaEvolucaoData) : "—"}
+                  </TableCell>
+                  <TableCell>{row.totalEvolucoes}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {row.ultimoRelatorioStatus ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onOpenPaciente(row.pacienteId)}
+                    >
                       <FileText className="mr-1 h-3.5 w-3.5" /> Abrir
                     </Button>
                   </TableCell>

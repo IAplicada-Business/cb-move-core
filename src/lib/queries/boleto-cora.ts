@@ -1,7 +1,4 @@
-import {
-  formatCoraApiErrorBody,
-  validarCobrancaParaBoletoCora,
-} from "@/lib/domain/cora-boleto";
+import { formatCoraApiErrorBody, validarCobrancaParaBoletoCora } from "@/lib/domain/cora-boleto";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
 import { supabase } from "@/integrations/supabase/client";
 

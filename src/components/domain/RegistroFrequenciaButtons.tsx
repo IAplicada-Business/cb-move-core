@@ -13,7 +13,12 @@ type Props = {
   onSelect: (sigla: FrequenciaSigla) => void;
 };
 
-export function RegistroFrequenciaButtons({ disabled, currentSigla, pendingSigla, onSelect }: Props) {
+export function RegistroFrequenciaButtons({
+  disabled,
+  currentSigla,
+  pendingSigla,
+  onSelect,
+}: Props) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {SIGLAS.map((sigla) => (
@@ -26,7 +31,9 @@ export function RegistroFrequenciaButtons({ disabled, currentSigla, pendingSigla
           className={cn(
             "font-mono text-xs font-bold",
             SIGLA_COLORS[sigla],
-            currentSigla === sigla && pendingSigla !== sigla && "ring-2 ring-foreground/40 ring-offset-1",
+            currentSigla === sigla &&
+              pendingSigla !== sigla &&
+              "ring-2 ring-foreground/40 ring-offset-1",
             pendingSigla === sigla && "ring-2 ring-cb-cyan-600 ring-offset-1",
           )}
           title={SIGLA_HINT[sigla]}

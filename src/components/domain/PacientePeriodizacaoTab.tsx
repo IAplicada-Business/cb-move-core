@@ -28,13 +28,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
 const STATUS_LABEL: Record<PeriodizacaoStatus, string> = {
@@ -163,8 +176,8 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
         <Alert>
           <AlertTitle>Primeira Consulta Experimental pendente</AlertTitle>
           <AlertDescription>
-            Recomendamos registrar a Primeira Consulta Experimental no cadastro do paciente antes de montar a periodização.
-            Você ainda pode cadastrar o plano normalmente.
+            Recomendamos registrar a Primeira Consulta Experimental no cadastro do paciente antes de
+            montar a periodização. Você ainda pode cadastrar o plano normalmente.
           </AlertDescription>
         </Alert>
       )}
@@ -173,7 +186,8 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
         <div>
           <h3 className="text-sm font-semibold text-foreground">Periodização em PDF</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Importe o plano de periodização do paciente. Um arquivo por paciente — ao importar novamente, o anterior é substituído.
+            Importe o plano de periodização do paciente. Um arquivo por paciente — ao importar
+            novamente, o anterior é substituído.
           </p>
         </div>
         {periodizacaoPdfUrl ? (
@@ -261,9 +275,13 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
               {itens.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.numeroSessao}</TableCell>
-                  <TableCell className="max-w-[140px] truncate">{item.fisioterapeutaNome ?? "—"}</TableCell>
+                  <TableCell className="max-w-[140px] truncate">
+                    {item.fisioterapeutaNome ?? "—"}
+                  </TableCell>
                   <TableCell className="max-w-[200px] truncate">{item.objetivo ?? "—"}</TableCell>
-                  <TableCell className="max-w-[240px] truncate">{item.atividadesPrevistas ?? "—"}</TableCell>
+                  <TableCell className="max-w-[240px] truncate">
+                    {item.atividadesPrevistas ?? "—"}
+                  </TableCell>
                   <TableCell>{STATUS_LABEL[item.status]}</TableCell>
                   {!readOnly && (
                     <TableCell>
@@ -296,17 +314,31 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
           <div className="space-y-3">
             <div>
               <Label>Nº da sessão</Label>
-              <Input type="number" min={1} value={numero} onChange={(e) => setNumero(Number(e.target.value))} />
+              <Input
+                type="number"
+                min={1}
+                value={numero}
+                onChange={(e) => setNumero(Number(e.target.value))}
+              />
             </div>
             <div>
               <Label>Fisioterapeuta</Label>
-              <Select value={fisioId || "__none__"} onValueChange={(v) => setFisioId(v === "__none__" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
+              <Select
+                value={fisioId || "__none__"}
+                onValueChange={(v) => setFisioId(v === "__none__" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecionar" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">—</SelectItem>
-                  {fisios.filter((f) => f.ativo).map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                  ))}
+                  {fisios
+                    .filter((f) => f.ativo)
+                    .map((f) => (
+                      <SelectItem key={f.id} value={f.id}>
+                        {f.nome}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -316,22 +348,32 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
             </div>
             <div>
               <Label>Atividades previstas</Label>
-              <Textarea rows={3} value={atividades} onChange={(e) => setAtividades(e.target.value)} />
+              <Textarea
+                rows={3}
+                value={atividades}
+                onChange={(e) => setAtividades(e.target.value)}
+              />
             </div>
             <div>
               <Label>Status</Label>
               <Select value={status} onValueChange={(v) => setStatus(v as PeriodizacaoStatus)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {(Object.keys(STATUS_LABEL) as PeriodizacaoStatus[]).map((s) => (
-                    <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                    <SelectItem key={s} value={s}>
+                      {STATUS_LABEL[s]}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? "Salvando…" : "Salvar"}
             </Button>

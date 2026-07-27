@@ -61,7 +61,7 @@ serve(async (req) => {
           objetivo: "",
           plano: "",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -99,39 +99,41 @@ serve(async (req) => {
             subjetivo: "",
             objetivo: "",
             plano: "",
-            aviso: anthropicRes.status === 429
-              ? "IA sem créditos/limite atingido — transcrição salva, preencha S/O/P manualmente."
-              : "IA indisponível no momento — transcrição salva, preencha S/O/P manualmente.",
+            aviso:
+              anthropicRes.status === 429
+                ? "IA sem créditos/limite atingido — transcrição salva, preencha S/O/P manualmente."
+                : "IA indisponível no momento — transcrição salva, preencha S/O/P manualmente.",
           }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
       const anthropicData = await anthropicRes.json();
       const rawContent = anthropicData.content?.[0]?.text ?? "{}";
 
-      let soap = parseSoapJson(rawContent);
+      const soap = parseSoapJson(rawContent);
 
       // Registra uso (custo Haiku: $0.25/MTok input, $1.25/MTok output)
       try {
         const supabase = createClient(
           Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         );
         await supabase.from("creditos_ia_uso").insert({
           tipo: "estruturacao_soap",
           tokens_entrada: anthropicData.usage?.input_tokens ?? 0,
           tokens_saida: anthropicData.usage?.output_tokens ?? 0,
           custo_estimado_usd:
-            ((anthropicData.usage?.input_tokens ?? 0) * 0.00000025) +
-            ((anthropicData.usage?.output_tokens ?? 0) * 0.00000125),
+            (anthropicData.usage?.input_tokens ?? 0) * 0.00000025 +
+            (anthropicData.usage?.output_tokens ?? 0) * 0.00000125,
         });
-      } catch { /* silencia */ }
+      } catch {
+        /* silencia */
+      }
 
-      return new Response(
-        JSON.stringify({ transcricao_raw, ...soap }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ transcricao_raw, ...soap }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     } catch (aiErr) {
       console.error("Falha ao estruturar via IA:", aiErr);
       return new Response(
@@ -142,13 +144,13 @@ serve(async (req) => {
           plano: "",
           aviso: "IA indisponível no momento — transcrição salva, preencha S/O/P manualmente.",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Erro interno" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

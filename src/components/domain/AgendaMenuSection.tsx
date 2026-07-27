@@ -1,9 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -38,9 +34,7 @@ export function AgendaMenuSection({
           className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/30"
         >
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-foreground">
-              {title}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground">{title}</p>
             {subtitle && (
               <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{subtitle}</p>
             )}

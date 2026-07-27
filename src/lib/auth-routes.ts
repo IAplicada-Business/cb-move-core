@@ -28,7 +28,7 @@ export async function resolvePostAuthPath(userId: string): Promise<"/app" | "/po
     return "/app";
   }
 
-  const { data: pac, error: pacError } = await (supabase as any)
+  const { data: pac, error: pacError } = await supabase
     .from("pacientes")
     .select("id")
     .eq("user_id", userId)

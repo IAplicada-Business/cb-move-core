@@ -141,7 +141,9 @@ export async function syncCobrancaPagamentoCora(
   return result;
 }
 
-async function buildSyncContext(admin: SupabaseClient): Promise<{ coraConfig: CoraConfig; token: string; ctx: SyncContext }> {
+async function buildSyncContext(
+  admin: SupabaseClient,
+): Promise<{ coraConfig: CoraConfig; token: string; ctx: SyncContext }> {
   const coraConfig = await resolveCoraConfig(admin);
   if (!coraConfig) {
     throw new Error("Integração Cora não configurada (CORA_CLIENT_ID/CERTIFICATE/PRIVATE_KEY)");
@@ -281,5 +283,12 @@ export async function syncCobrancaPorInvoiceId(
   if (!cobranca) return null;
 
   const { coraConfig, token, ctx } = await buildSyncContext(admin);
-  return syncCobrancaPagamentoCora(admin, coraConfig, token, cobranca as CobrancaPendenteCora, origin, ctx);
+  return syncCobrancaPagamentoCora(
+    admin,
+    coraConfig,
+    token,
+    cobranca as CobrancaPendenteCora,
+    origin,
+    ctx,
+  );
 }

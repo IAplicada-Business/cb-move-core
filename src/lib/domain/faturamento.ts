@@ -19,11 +19,16 @@ export function agregarPorMes(cobrancas: Cobranca[], meses = 6): MesFaturamento[
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     buckets.push({
       mes: d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
-      particular: 0, judicial: 0, convenio: 0, puc: 0, total: 0,
+      particular: 0,
+      judicial: 0,
+      convenio: 0,
+      puc: 0,
+      total: 0,
     });
   }
   for (const c of cobrancas) {
-    if (!["pago", "pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status)) continue;
+    if (!["pago", "pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status))
+      continue;
     if (!c.competenciaMes || !c.competenciaAno) continue;
     const idx = buckets.findIndex((_, i) => {
       const ref = new Date(now.getFullYear(), now.getMonth() - (meses - 1 - i), 1);
@@ -40,9 +45,7 @@ export function calcularKpis(cobrancas: Cobranca[]) {
   const now = new Date();
   const mes = now.getMonth() + 1;
   const ano = now.getFullYear();
-  const monthly = cobrancas.filter(
-    (c) => c.competenciaMes === mes && c.competenciaAno === ano,
-  );
+  const monthly = cobrancas.filter((c) => c.competenciaMes === mes && c.competenciaAno === ano);
   const receita = monthly.filter((c) => c.status === "pago").reduce((a, c) => a + c.valor, 0);
   const aReceber = monthly
     .filter((c) => ["pendente", "aguardando_convenio", "aguardando_alvara"].includes(c.status))

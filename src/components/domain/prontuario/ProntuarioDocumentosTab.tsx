@@ -77,7 +77,9 @@ export function ProntuarioDocumentosTab({
     (r) => r.competencia_mes === competenciaMes && r.competencia_ano === competenciaAno,
   );
   const relatorioFisico = relatoriosCompetencia.find((r) => r.modelo_pdf === "documento_fisico");
-  const relatoriosDigitais = relatoriosCompetencia.filter((r) => r.modelo_pdf !== "documento_fisico");
+  const relatoriosDigitais = relatoriosCompetencia.filter(
+    (r) => r.modelo_pdf !== "documento_fisico",
+  );
 
   const uploadPdfMutation = useMutation({
     mutationFn: () => {
@@ -111,7 +113,8 @@ export function ProntuarioDocumentosTab({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (relatorio: RelatorioAtendimento) => deleteRelatorioAtendimento(relatorio, pacienteId),
+    mutationFn: (relatorio: RelatorioAtendimento) =>
+      deleteRelatorioAtendimento(relatorio, pacienteId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.prontuario.relatorios(pacienteId) });
       setDeleting(null);
@@ -155,11 +158,13 @@ export function ProntuarioDocumentosTab({
 
       <div className="rounded-xl border bg-card p-5 space-y-3">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Relatório de Atendimento (documento físico)</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            Relatório de Atendimento (documento físico)
+          </h3>
           <p className="text-sm text-muted-foreground mt-1">
             Importe o scan assinado em papel do relatório mensal de{" "}
-            {monthPickerLabel(competenciaMes, competenciaAno).toLowerCase()}. Um arquivo por competência — ao importar
-            novamente, o anterior é substituído.
+            {monthPickerLabel(competenciaMes, competenciaAno).toLowerCase()}. Um arquivo por
+            competência — ao importar novamente, o anterior é substituído.
           </p>
         </div>
         {relatorioFisico?.pdf_url ? (
@@ -217,7 +222,9 @@ export function ProntuarioDocumentosTab({
             )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Nenhum relatório físico importado nesta competência.</p>
+          <p className="text-sm text-muted-foreground">
+            Nenhum relatório físico importado nesta competência.
+          </p>
         )}
         {canEdit && (
           <div className="flex flex-wrap items-end gap-2">
@@ -269,11 +276,15 @@ export function ProntuarioDocumentosTab({
             <TableBody>
               {relatoriosDigitais.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell className="font-medium">{mesLabel(r.competencia_mes, r.competencia_ano)}</TableCell>
+                  <TableCell className="font-medium">
+                    {mesLabel(r.competencia_mes, r.competencia_ano)}
+                  </TableCell>
                   <TableCell>
                     <span className="capitalize">{r.modelo}</span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(r.created_at)}
+                  </TableCell>
                   <TableCell>{r.assinado ? "Sim" : "Não"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -318,7 +329,9 @@ export function ProntuarioDocumentosTab({
                   <TableCell>
                     <span className="text-sm">Documento físico</span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(relatorioFisico.created_at)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(relatorioFisico.created_at)}
+                  </TableCell>
                   <TableCell>{relatorioFisico.assinado ? "Assinado (papel)" : "Não"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -349,14 +362,21 @@ export function ProntuarioDocumentosTab({
         </div>
       )}
 
-      <AlertDialog open={!!deleting} onOpenChange={(open) => { if (!open) setDeleting(null); }}>
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir relatório</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o relatório de{" "}
-              <strong>{deleting ? mesLabel(deleting.competencia_mes, deleting.competencia_ano) : ""}</strong>? O PDF
-              associado também será removido. Esta ação não pode ser desfeita.
+              <strong>
+                {deleting ? mesLabel(deleting.competencia_mes, deleting.competencia_ano) : ""}
+              </strong>
+              ? O PDF associado também será removido. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

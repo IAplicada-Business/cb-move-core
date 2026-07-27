@@ -13,30 +13,55 @@
  *   R5: Competências retroativas → valor mensal cheio por mês (sem dividir previsto)
  */
 
-import XLSX from 'xlsx';
-import { createClient } from '@supabase/supabase-js';
-import * as path from 'path';
-import * as fs from 'fs';
-import { calcValorMesAtual, calcValorRetroativo, parseValorBr } from '../src/lib/domain/retroativos-valor';
+import XLSX from "xlsx";
+import { createClient } from "@supabase/supabase-js";
+import * as path from "path";
+import * as fs from "fs";
+import {
+  calcValorMesAtual,
+  calcValorRetroativo,
+  parseValorBr,
+} from "../src/lib/domain/retroativos-valor";
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const SUPABASE_KEY =
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ABA_MES: Record<string, number> = {
-  JANEIRO: 1, FEVEREIRO: 2, MARÇO: 3, ABRIL: 4, MAIO: 5, JUNHO: 6,
-  JULHO: 7, AGOSTO: 8, SETEMBRO: 9, OUTUBRO: 10, NOVEMBRO: 11, DEZEMBRO: 12,
+  JANEIRO: 1,
+  FEVEREIRO: 2,
+  MARÇO: 3,
+  ABRIL: 4,
+  MAIO: 5,
+  JUNHO: 6,
+  JULHO: 7,
+  AGOSTO: 8,
+  SETEMBRO: 9,
+  OUTUBRO: 10,
+  NOVEMBRO: 11,
+  DEZEMBRO: 12,
 };
 
 const MES_NOME: Record<number, string> = {
-  1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
-  7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez',
+  1: "Jan",
+  2: "Fev",
+  3: "Mar",
+  4: "Abr",
+  5: "Mai",
+  6: "Jun",
+  7: "Jul",
+  8: "Ago",
+  9: "Set",
+  10: "Out",
+  11: "Nov",
+  12: "Dez",
 };
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 function normNome(n: string) {
-  return n.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return n.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function parseValor(v: unknown): number | null {
@@ -54,14 +79,11 @@ function parseDatasRetroativas(
   const dedup = (mes: number, ano: number) => {
     if (ano > anoAtual || (ano === anoAtual && mes >= mesAtual)) return;
     if (ano < 2020 || ano > 2030) return;
-    if (!found.some(f => f.mes === mes && f.ano === ano)) found.push({ mes, ano });
+    if (!found.some((f) => f.mes === mes && f.ano === ano)) found.push({ mes, ano });
   };
 
   // padrão numérico: "022026", "02/2026", "02/26"
-  const patsNum = [
-    /\b(0?[1-9]|1[0-2])\/?(\d{4})\b/g,
-    /\b(0?[1-9]|1[0-2])\/(\d{2})\b/g,
-  ];
+  const patsNum = [/\b(0?[1-9]|1[0-2])\/?(\d{4})\b/g, /\b(0?[1-9]|1[0-2])\/(\d{2})\b/g];
   for (const pat of patsNum) {
     let m: RegExpExecArray | null;
     while ((m = pat.exec(sit)) !== null) {
@@ -72,14 +94,25 @@ function parseDatasRetroativas(
 
   // padrão por extenso PT-BR: "dezembro 2025", "referente a novembro 2025"
   const MESES_PT: Record<string, number> = {
-    janeiro:1, fevereiro:2, marco:3, abril:4, maio:5, junho:6,
-    julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12,
+    janeiro: 1,
+    fevereiro: 2,
+    marco: 3,
+    abril: 4,
+    maio: 5,
+    junho: 6,
+    julho: 7,
+    agosto: 8,
+    setembro: 9,
+    outubro: 10,
+    novembro: 11,
+    dezembro: 12,
   };
-  const patExtenso = /\b(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(\d{4})\b/gi;
+  const patExtenso =
+    /\b(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(\d{4})\b/gi;
   let mx: RegExpExecArray | null;
   while ((mx = patExtenso.exec(sit)) !== null) {
-    const key = mx[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ ]/g, '');
-    const mesNum = MESES_PT[key === 'marco' ? 'marco' : key];
+    const key = mx[1].toLowerCase().normalize("NFD").replace(/[̀-ͯ ]/g, "");
+    const mesNum = MESES_PT[key === "marco" ? "marco" : key];
     if (mesNum) dedup(mesNum, parseInt(mx[2]));
   }
 
@@ -89,37 +122,37 @@ function parseDatasRetroativas(
 // REGRA 3: SHAREPOINT → modelo_relatorio, não forma_pagamento
 function inferModelo(sit: string): string {
   const s = sit.toLowerCase();
-  if (/sharepoint/.test(s)) return 'sharepoint';
-  if (/unimed/.test(s)) return 'unimed';
-  return 'convencional';
+  if (/sharepoint/.test(s)) return "sharepoint";
+  if (/unimed/.test(s)) return "unimed";
+  return "convencional";
 }
 
 function inferTipo(sit: string): string {
   const s = sit.toLowerCase();
-  if (/judicial|alvará|alvara|processo/.test(s)) return 'judicial';
-  if (/sharepoint|unimed|ccg|bradesco\s+segu|convênio|convenio/.test(s)) return 'convenio';
-  return 'particular';
+  if (/judicial|alvará|alvara|processo/.test(s)) return "judicial";
+  if (/sharepoint|unimed|ccg|bradesco\s+segu|convênio|convenio/.test(s)) return "convenio";
+  return "particular";
 }
 
 function inferFormaPgto(sit: string): string {
   const s = sit.toLowerCase();
   // SHAREPOINT não é forma_pagamento (R3) — removido daqui
-  if (/\bboleto\b/.test(s)) return 'boleto';
-  if (/\bpix\b/.test(s)) return 'transferencia';
-  if (/\bdeposit/.test(s)) return 'deposito';
-  if (/judicial|alvará|alvara/.test(s)) return 'alvara_judicial';
-  if (/convenio_direto|convênio direto/.test(s)) return 'convenio_direto';
-  return 'deposito';
+  if (/\bboleto\b/.test(s)) return "boleto";
+  if (/\bpix\b/.test(s)) return "transferencia";
+  if (/\bdeposit/.test(s)) return "deposito";
+  if (/judicial|alvará|alvara/.test(s)) return "alvara_judicial";
+  if (/convenio_direto|convênio direto/.test(s)) return "convenio_direto";
+  return "deposito";
 }
 
 function inferStatus(sit: string, temRetroativas: boolean): string {
   const s = sit.toLowerCase();
-  if (/\bpago\b/.test(s)) return 'pago';
-  if (/atrasad/.test(s) || temRetroativas) return 'atrasado';
-  if (/vai faltar|falta pagar/.test(s)) return 'pendente';
-  if (/sharepoint/.test(s)) return 'aguardando_convenio';
-  if (/judicial|alvará|alvara/.test(s)) return 'aguardando_alvara';
-  return 'pendente';
+  if (/\bpago\b/.test(s)) return "pago";
+  if (/atrasad/.test(s) || temRetroativas) return "atrasado";
+  if (/vai faltar|falta pagar/.test(s)) return "pendente";
+  if (/sharepoint/.test(s)) return "aguardando_convenio";
+  if (/judicial|alvará|alvara/.test(s)) return "aguardando_alvara";
+  return "pendente";
 }
 
 function inferVencimento(sit: string, mes: number, ano: number): string {
@@ -127,44 +160,50 @@ function inferVencimento(sit: string, mes: number, ano: number): string {
   const dia = m ? Math.min(parseInt(m[1]), 28) : 15;
   const lastDay = new Date(ano, mes, 0).getDate();
   const d = Math.min(dia, lastDay);
-  return `${ano}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 function inferRegime(plano: string): string {
   const p = plano.trim().toLowerCase();
-  return p.includes('sessão') || p.includes('sessao') ? 'por_sessao' : 'mensalista';
+  return p.includes("sessão") || p.includes("sessao") ? "por_sessao" : "mensalista";
 }
 
 // REGRA 4: servico descreve o plano para diferenciar múltiplas cobranças do mesmo paciente
 function inferServico(frequencia: string, plano: string, mes: number, ano: number): string {
   const f = frequencia.toLowerCase();
   const suffix = `${MES_NOME[mes]}/${ano}`;
-  if (f.includes('triplo')) return `Plano triplo ${suffix}`;
-  if (f.includes('duplo')) return `Plano duplo ${suffix}`;
+  if (f.includes("triplo")) return `Plano triplo ${suffix}`;
+  if (f.includes("duplo")) return `Plano duplo ${suffix}`;
   return `Fisioterapia Neurológica ${suffix}`;
 }
 
 function deveIgnorar(row: unknown[]): boolean {
-  const nome = String(row[0] ?? '').trim();
-  const plano = String(row[5] ?? '').trim();
-  const sit = String(row[9] ?? '').toLowerCase().trim();
+  const nome = String(row[0] ?? "").trim();
+  const plano = String(row[5] ?? "").trim();
+  const sit = String(row[9] ?? "")
+    .toLowerCase()
+    .trim();
   if (!nome || nome.length < 3) return true;
-  if (nome === 'Nome do Paciente') return true;
-  if (plano === '*****') return true;
-  if (sit.includes('sem cobran')) return true;
+  if (nome === "Nome do Paciente") return true;
+  if (plano === "*****") return true;
+  if (sit.includes("sem cobran")) return true;
   return false;
 }
 
 function levenshteinSim(a: string, b: string): number {
   if (a === b) return 1;
-  const la = a.length, lb = b.length;
+  const la = a.length,
+    lb = b.length;
   if (!la || !lb) return 0;
   const dp: number[][] = Array.from({ length: la + 1 }, (_, i) =>
-    i === 0 ? Array.from({ length: lb + 1 }, (_, j) => j) : [i, ...Array(lb).fill(0)]
+    i === 0 ? Array.from({ length: lb + 1 }, (_, j) => j) : [i, ...Array(lb).fill(0)],
   );
   for (let i = 1; i <= la; i++)
     for (let j = 1; j <= lb; j++)
-      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
   return 1 - dp[la][lb] / Math.max(la, lb);
 }
 
@@ -204,40 +243,51 @@ type ValorVazioRow = {
 
 async function main() {
   const args = process.argv.slice(2);
-  const fileIdx = args.indexOf('--file');
-  const isDryRun = !args.includes('--apply');
-  const abaIdx = args.indexOf('--aba');
-  const abaFiltro = abaIdx !== -1 ? (args[abaIdx + 1] ?? '').toUpperCase() || null : null;
+  const fileIdx = args.indexOf("--file");
+  const isDryRun = !args.includes("--apply");
+  const abaIdx = args.indexOf("--aba");
+  const abaFiltro = abaIdx !== -1 ? (args[abaIdx + 1] ?? "").toUpperCase() || null : null;
 
   if (fileIdx === -1 || !args[fileIdx + 1]) {
-    console.error('❌ Uso: npx tsx scripts/import-relatorio-financeiro.ts --file caminho.xlsx [--apply] [--aba JUNHO]');
+    console.error(
+      "❌ Uso: npx tsx scripts/import-relatorio-financeiro.ts --file caminho.xlsx [--apply] [--aba JUNHO]",
+    );
     process.exit(1);
   }
 
   const filePath = path.resolve(args[fileIdx + 1]);
   console.log(`\n📂 Arquivo: ${filePath}`);
-  console.log(`🔍 Modo: ${isDryRun ? 'DRY-RUN' : '⚠️  APPLY — inserindo no Supabase'}`);
-  console.log(`📋 Abas: ${abaFiltro ?? 'todas'}\n`);
+  console.log(`🔍 Modo: ${isDryRun ? "DRY-RUN" : "⚠️  APPLY — inserindo no Supabase"}`);
+  console.log(`📋 Abas: ${abaFiltro ?? "todas"}\n`);
 
   const wb = XLSX.readFile(filePath);
-  const abas = abaFiltro ? [abaFiltro] : wb.SheetNames.filter(n => ABA_MES[n.toUpperCase()]);
+  const abas = abaFiltro ? [abaFiltro] : wb.SheetNames.filter((n) => ABA_MES[n.toUpperCase()]);
 
-  const { data: pacs } = await supabase.from('pacientes').select('id, nome, tipo, valor_mensal');
-  const pacientesDb = (pacs ?? []) as Array<{ id: string; nome: string; tipo: string; valor_mensal: number | null }>;
+  const { data: pacs } = await supabase.from("pacientes").select("id, nome, tipo, valor_mensal");
+  const pacientesDb = (pacs ?? []) as Array<{
+    id: string;
+    nome: string;
+    tipo: string;
+    valor_mensal: number | null;
+  }>;
 
   const todasCobrancas: CobrancaRow[] = [];
   const valoresVazios: ValorVazioRow[] = [];
   // Track novos pacientes para não duplicar no dry-run
   const novosNomes = new Set<string>();
 
-  let totalLinhasLidas = 0, totalIgnoradas = 0;
+  let totalLinhasLidas = 0,
+    totalIgnoradas = 0;
 
   for (const nomAba of abas) {
     const ws = wb.Sheets[nomAba];
-    if (!ws) { console.warn(`⚠️  Aba "${nomAba}" não encontrada`); continue; }
+    if (!ws) {
+      console.warn(`⚠️  Aba "${nomAba}" não encontrada`);
+      continue;
+    }
 
-    const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    const nonEmpty = rows.filter(r => r.some(c => c !== ''));
+    const rows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    const nonEmpty = rows.filter((r) => r.some((c) => c !== ""));
     const dados = nonEmpty.slice(2);
     const mes = ABA_MES[nomAba.toUpperCase()] ?? 1;
     const ano = 2026;
@@ -245,16 +295,19 @@ async function main() {
     console.log(`=== ABA ${nomAba} (${mes}/${ano}) — ${dados.length} linhas brutas ===`);
 
     for (const row of dados) {
-      if (deveIgnorar(row)) { totalIgnoradas++; continue; }
+      if (deveIgnorar(row)) {
+        totalIgnoradas++;
+        continue;
+      }
       totalLinhasLidas++;
 
-      const nome       = String(row[0]).trim();
-      const frequencia = String(row[2] ?? '').trim();
-      const diasSemana = String(row[3] ?? '').trim();
-      const plano      = String(row[5] ?? '').trim();
-      const valorRaw   = row[7];
-      const sit        = String(row[9] ?? '').trim();
-      const qtdRaw     = row[4];
+      const nome = String(row[0]).trim();
+      const frequencia = String(row[2] ?? "").trim();
+      const diasSemana = String(row[3] ?? "").trim();
+      const plano = String(row[5] ?? "").trim();
+      const valorRaw = row[7];
+      const sit = String(row[9] ?? "").trim();
+      const qtdRaw = row[4];
 
       const valor = parseValor(valorRaw);
 
@@ -266,13 +319,17 @@ async function main() {
 
       // match fuzzy com pacientes existentes
       const nomNorm = normNome(nome);
-      const match = pacientesDb.find(p => {
+      const match = pacientesDb.find((p) => {
         const pn = normNome(p.nome);
-        return pn === nomNorm || pn.includes(nomNorm) || nomNorm.includes(pn)
-          || levenshteinSim(nomNorm, pn) >= 0.82;
+        return (
+          pn === nomNorm ||
+          pn.includes(nomNorm) ||
+          nomNorm.includes(pn) ||
+          levenshteinSim(nomNorm, pn) >= 0.82
+        );
       });
 
-      const tipo   = inferTipo(sit);
+      const tipo = inferTipo(sit);
       const modelo = inferModelo(sit);
 
       // REGRA 5: detecta competências retroativas
@@ -283,12 +340,12 @@ async function main() {
       const valorMes = calcValorMesAtual(valor);
 
       const alertas: string[] = [];
-      if (!match && !novosNomes.has(normNome(nome))) alertas.push('novo paciente');
+      if (!match && !novosNomes.has(normNome(nome))) alertas.push("novo paciente");
       if (valor > 50000) alertas.push(`VALOR ALTO: R$ ${valor}`);
       if (temRetro) alertas.push(`${retroativas.length} retroativa(s) detectada(s)`);
 
       const qtd = qtdRaw ? parseInt(String(qtdRaw)) : null;
-      const baseObs = `migrado_logjur | ${sit}`.trim().replace(/\s+/g, ' ');
+      const baseObs = `migrado_logjur | ${sit}`.trim().replace(/\s+/g, " ");
 
       // Cobranças retroativas (REGRA 5)
       retroativas.forEach((ret) => {
@@ -304,7 +361,7 @@ async function main() {
           competenciaAno: ret.ano,
           vencimento: inferVencimento(sit, ret.mes, ret.ano),
           valor: valorRetro,
-          status: 'regularizar_retroativa',
+          status: "regularizar_retroativa",
           formaPgto: inferFormaPgto(sit),
           qtdSessoes: null,
           frequencia: frequencia || null,
@@ -345,30 +402,36 @@ async function main() {
 
   // ─── REGRA 2: salva CSV de revisão ──────────────────────────────────────
   if (valoresVazios.length > 0) {
-    const csvDir = path.join(process.cwd(), 'data');
+    const csvDir = path.join(process.cwd(), "data");
     if (!fs.existsSync(csvDir)) fs.mkdirSync(csvDir, { recursive: true });
-    const csvPath = path.join(csvDir, '_revisar_valores_vazios.csv');
-    const header = 'paciente,aba,mes,ano,situacao\n';
+    const csvPath = path.join(csvDir, "_revisar_valores_vazios.csv");
+    const header = "paciente,aba,mes,ano,situacao\n";
     const body = valoresVazios
-      .map(r => `"${r.paciente}","${r.aba}",${r.mes},${r.ano},"${r.situacao.replace(/"/g, '""')}"`)
-      .join('\n');
-    fs.writeFileSync(csvPath, header + body, 'utf8');
+      .map(
+        (r) => `"${r.paciente}","${r.aba}",${r.mes},${r.ano},"${r.situacao.replace(/"/g, '""')}"`,
+      )
+      .join("\n");
+    fs.writeFileSync(csvPath, header + body, "utf8");
     console.log(`\n📄 ${valoresVazios.length} linhas com valor vazio → ${csvPath}`);
   }
 
   // ─── RELATÓRIO ───────────────────────────────────────────────────────────
-  const novosTotal = new Set(todasCobrancas.filter(c => c.novoP).map(c => normNome(c.pacienteNome))).size;
-  const retroTotal = todasCobrancas.filter(c => c.isRetroativa).length;
+  const novosTotal = new Set(
+    todasCobrancas.filter((c) => c.novoP).map((c) => normNome(c.pacienteNome)),
+  ).size;
+  const retroTotal = todasCobrancas.filter((c) => c.isRetroativa).length;
   const distTipo = todasCobrancas.reduce<Record<string, number>>((acc, c) => {
-    acc[c.tipo] = (acc[c.tipo] ?? 0) + 1; return acc;
+    acc[c.tipo] = (acc[c.tipo] ?? 0) + 1;
+    return acc;
   }, {});
   const distModelo = todasCobrancas.reduce<Record<string, number>>((acc, c) => {
-    acc[c.modelo] = (acc[c.modelo] ?? 0) + 1; return acc;
+    acc[c.modelo] = (acc[c.modelo] ?? 0) + 1;
+    return acc;
   }, {});
 
-  console.log('\n' + '═'.repeat(65));
-  console.log('📊 RESUMO DO DRY-RUN');
-  console.log('═'.repeat(65));
+  console.log("\n" + "═".repeat(65));
+  console.log("📊 RESUMO DO DRY-RUN");
+  console.log("═".repeat(65));
   console.log(`Total linhas lidas:              ${totalLinhasLidas}`);
   console.log(`Linhas ignoradas (separadores):  ${totalIgnoradas}`);
   console.log(`Linhas com valor vazio (→ CSV):  ${valoresVazios.length}`);
@@ -376,47 +439,72 @@ async function main() {
   console.log(`Cobranças a inserir (total):     ${todasCobrancas.length}`);
   console.log(`  → retroativas geradas (R5):    ${retroTotal}`);
   console.log(`  → mês corrente:                ${todasCobrancas.length - retroTotal}`);
-  console.log(`Distribuição por tipo:           ${Object.entries(distTipo).map(([k,v])=>`${k}=${v}`).join(', ')}`);
-  console.log(`Distribuição por modelo:         ${Object.entries(distModelo).map(([k,v])=>`${k}=${v}`).join(', ')}`);
+  console.log(
+    `Distribuição por tipo:           ${Object.entries(distTipo)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(", ")}`,
+  );
+  console.log(
+    `Distribuição por modelo:         ${Object.entries(distModelo)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(", ")}`,
+  );
 
   // Amostra 20 cobranças
-  console.log('\n' + '─'.repeat(65));
-  console.log('📋 AMOSTRA — primeiras 20 cobranças');
-  console.log('─'.repeat(65));
+  console.log("\n" + "─".repeat(65));
+  console.log("📋 AMOSTRA — primeiras 20 cobranças");
+  console.log("─".repeat(65));
   const pad = (s: string, n: number) => String(s).slice(0, n).padEnd(n);
   console.log(
-    pad('Paciente', 30) + pad('Tipo', 10) + pad('Comp.', 8) +
-    pad('Vencim.', 12) + pad('Valor', 11) + pad('Status', 23) + pad('Modelo', 13) + 'FormaPgto'
+    pad("Paciente", 30) +
+      pad("Tipo", 10) +
+      pad("Comp.", 8) +
+      pad("Vencim.", 12) +
+      pad("Valor", 11) +
+      pad("Status", 23) +
+      pad("Modelo", 13) +
+      "FormaPgto",
   );
-  console.log('-'.repeat(130));
-  todasCobrancas.slice(0, 20).forEach(c => {
-    const retTag = c.isRetroativa ? '🔁' : '  ';
-    const comp   = `${c.competenciaMes}/${c.competenciaAno}`;
-    const val    = `R$ ${c.valor.toFixed(2)}`;
+  console.log("-".repeat(130));
+  todasCobrancas.slice(0, 20).forEach((c) => {
+    const retTag = c.isRetroativa ? "🔁" : "  ";
+    const comp = `${c.competenciaMes}/${c.competenciaAno}`;
+    const val = `R$ ${c.valor.toFixed(2)}`;
     console.log(
-      retTag + pad(c.pacienteNome, 28) + pad(c.tipo, 10) + pad(comp, 8) +
-      pad(c.vencimento, 12) + pad(val, 11) + pad(c.status, 23) + pad(c.modelo, 13) + c.formaPgto
+      retTag +
+        pad(c.pacienteNome, 28) +
+        pad(c.tipo, 10) +
+        pad(comp, 8) +
+        pad(c.vencimento, 12) +
+        pad(val, 11) +
+        pad(c.status, 23) +
+        pad(c.modelo, 13) +
+        c.formaPgto,
     );
   });
 
   // Alertas
-  const comAlerta = todasCobrancas.filter(c => c.alertas.length > 0);
+  const comAlerta = todasCobrancas.filter((c) => c.alertas.length > 0);
   if (comAlerta.length > 0) {
-    console.log('\n' + '─'.repeat(65));
-    console.log('⚠️  ALERTAS (primeiros 20)');
-    console.log('─'.repeat(65));
-    comAlerta.slice(0, 20).forEach(c => {
-      console.log(`  ${c.pacienteNome} [${c.competenciaMes}/${c.competenciaAno}]: ${c.alertas.join(' | ')}`);
+    console.log("\n" + "─".repeat(65));
+    console.log("⚠️  ALERTAS (primeiros 20)");
+    console.log("─".repeat(65));
+    comAlerta.slice(0, 20).forEach((c) => {
+      console.log(
+        `  ${c.pacienteNome} [${c.competenciaMes}/${c.competenciaAno}]: ${c.alertas.join(" | ")}`,
+      );
     });
   }
 
   if (isDryRun) {
-    console.log('\n⚠️  DRY-RUN concluído. Valide a amostra com Mariana e Diego antes de --apply.\n');
+    console.log(
+      "\n⚠️  DRY-RUN concluído. Valide a amostra com Mariana e Diego antes de --apply.\n",
+    );
     return;
   }
 
   // ─── APPLY ───────────────────────────────────────────────────────────────
-  console.log('\n🚀 APPLY — inserindo no Supabase...\n');
+  console.log("\n🚀 APPLY — inserindo no Supabase...\n");
   // Cache de pacientes criados nesta sessão para não duplicar
   const criadosCache = new Map<string, string>(); // normNome → id
   let ok = 0;
@@ -428,7 +516,7 @@ async function main() {
 
     if (!pacId) {
       const { data: np, error: ne } = await supabase
-        .from('pacientes')
+        .from("pacientes")
         .insert({
           nome: c.pacienteNome,
           tipo: c.tipo,
@@ -436,37 +524,43 @@ async function main() {
           frequencia_atendimento: c.frequencia,
           dias_semana: c.diasSemana,
         })
-        .select('id')
+        .select("id")
         .single();
-      if (ne || !np) { erros.push(`CRIARPAC ${c.pacienteNome}: ${ne?.message}`); continue; }
+      if (ne || !np) {
+        erros.push(`CRIARPAC ${c.pacienteNome}: ${ne?.message}`);
+        continue;
+      }
       pacId = np.id;
       criadosCache.set(normN, pacId);
       console.log(`  ✅ Novo paciente: ${c.pacienteNome}`);
     }
 
-    const { error } = await supabase.from('cobrancas').insert({
-      paciente_id:     pacId,
+    const { error } = await supabase.from("cobrancas").insert({
+      paciente_id: pacId,
       competencia_mes: c.competenciaMes,
       competencia_ano: c.competenciaAno,
-      tipo:            c.tipo,
-      regime:          c.regime,
-      servico:         c.servico,
-      valor:           c.valor,
+      tipo: c.tipo,
+      regime: c.regime,
+      servico: c.servico,
+      valor: c.valor,
       forma_pagamento: c.formaPgto,
-      vencimento:      c.vencimento,
-      status:          c.status,
-      qtd_sessoes:     c.qtdSessoes,
+      vencimento: c.vencimento,
+      status: c.status,
+      qtd_sessoes: c.qtdSessoes,
       frequencia_atendimento: c.frequencia,
-      dias_semana:     c.diasSemana,
-      observacoes:     c.obs,
+      dias_semana: c.diasSemana,
+      observacoes: c.obs,
     });
 
-    if (error) erros.push(`COBRANÇA ${c.pacienteNome} ${c.competenciaMes}/${c.competenciaAno}: ${error.message}`);
+    if (error)
+      erros.push(
+        `COBRANÇA ${c.pacienteNome} ${c.competenciaMes}/${c.competenciaAno}: ${error.message}`,
+      );
     else ok++;
   }
 
   console.log(`\n✅ Inseridas: ${ok} | ❌ Erros: ${erros.length}`);
-  if (erros.length) erros.slice(0, 20).forEach(e => console.log('  ❌', e));
+  if (erros.length) erros.slice(0, 20).forEach((e) => console.log("  ❌", e));
 }
 
 main().catch(console.error);

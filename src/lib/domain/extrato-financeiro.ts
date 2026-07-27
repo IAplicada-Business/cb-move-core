@@ -1,9 +1,6 @@
 import type { CobrancaStatus, RegimeCobranca } from "../types";
 import { formatDate } from "../format";
-import {
-  resolverDiasSemanaExtrato,
-  resolverFrequenciaExtrato,
-} from "./atendimento-cadastro";
+import { resolverDiasSemanaExtrato, resolverFrequenciaExtrato } from "./atendimento-cadastro";
 
 export type ExtratoFinanceiroLinha = {
   cobrancaId: string;
@@ -53,8 +50,18 @@ export type ExtratoFinanceiroRawRow = {
 };
 
 const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 export function competenciaLabel(mes: number, ano: number) {
@@ -102,8 +109,10 @@ function valorUnitario(
   paciente: ExtratoFinanceiroRawRow["pacientes"],
 ): number | null {
   if (!paciente) return null;
-  if (regime === "mensalista" && paciente.valor_mensal != null) return Number(paciente.valor_mensal);
-  if (regime === "por_sessao" && paciente.valor_sessao != null) return Number(paciente.valor_sessao);
+  if (regime === "mensalista" && paciente.valor_mensal != null)
+    return Number(paciente.valor_mensal);
+  if (regime === "por_sessao" && paciente.valor_sessao != null)
+    return Number(paciente.valor_sessao);
   if (paciente.valor_mensal != null) return Number(paciente.valor_mensal);
   if (paciente.valor_sessao != null) return Number(paciente.valor_sessao);
   return null;
@@ -124,10 +133,7 @@ export function mapExtratoFinanceiroLinha(row: ExtratoFinanceiroRawRow): Extrato
       row.pacientes?.frequencia_atendimento,
       row.servico,
     ),
-    diasSemana: resolverDiasSemanaExtrato(
-      row.dias_semana,
-      row.pacientes?.dias_semana,
-    ),
+    diasSemana: resolverDiasSemanaExtrato(row.dias_semana, row.pacientes?.dias_semana),
     numSessoes: row.qtd_sessoes,
     plano: formatPlano(regime),
     valorUnitario: valorUnitario(regime, row.pacientes),

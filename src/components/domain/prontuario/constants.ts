@@ -1,8 +1,18 @@
 import type { FrequenciaSigla, ModeloRelatorio } from "@/lib/types";
 
 export const MESES_ABREV = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
 ] as const;
 
 export const SIGLA_COLORS: Record<FrequenciaSigla, string> = {

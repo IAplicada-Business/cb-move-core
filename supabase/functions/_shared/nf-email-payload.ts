@@ -72,8 +72,19 @@ export type NfEmailPayload = {
 function competenciaLabel(mes: number | null, ano: number | null): string | null {
   if (!mes || !ano) return null;
   const names = [
-    "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+    "",
+    "Jan",
+    "Fev",
+    "Mar",
+    "Abr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Set",
+    "Out",
+    "Nov",
+    "Dez",
   ];
   return `${names[mes]}/${ano}`;
 }
@@ -120,7 +131,8 @@ function buildAssunto(nf: NfRow): string {
 export async function loadNfForEmail(admin: SupabaseClient, nfId: string): Promise<NfRow> {
   const { data, error } = await admin
     .from("notas_fiscais")
-    .select(`
+    .select(
+      `
       id, numero, valor, tipo, status, emissao, pdf_url,
       competencia_mes, competencia_ano,
       destinatario_nome, destinatario_documento,
@@ -131,7 +143,8 @@ export async function loadNfForEmail(admin: SupabaseClient, nfId: string): Promi
         nome, email, cpf, numero_processo, advogado_email, convenio_id,
         convenios ( nome, email_nf, email_envio, razao_social )
       )
-    `)
+    `,
+    )
     .eq("id", nfId)
     .single();
 
@@ -139,11 +152,7 @@ export async function loadNfForEmail(admin: SupabaseClient, nfId: string): Promi
   return data as NfRow;
 }
 
-export function buildNfEmailPayload(
-  nf: NfRow,
-  eventId: string,
-  reenvio = false,
-): NfEmailPayload {
+export function buildNfEmailPayload(nf: NfRow, eventId: string, reenvio = false): NfEmailPayload {
   const tipo = nf.tipo ?? "particular";
   const emails = resolveEmails(nf);
 

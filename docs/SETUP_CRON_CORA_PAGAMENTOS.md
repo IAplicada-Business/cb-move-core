@@ -64,8 +64,8 @@ garantia, o webhook é só uma otimização de latência.
 - [x] Teste E2E completo (`scripts/test_cora_nf_automatica_e2e.py`): boleto criado → pago (API de teste Stage) → cobrança marcada `pago` → NF criada → `emit-nf` disparado (erro esperado por paciente de teste sem CEP — ver nota abaixo)
 - [x] Testes complementares (`scripts/test_cora_nf_automatica_extra.py`) — ver resultado detalhado abaixo
 - [x] Schedule ativa via `pg_cron`/`pg_net` (`*/15 * * * *`) — job `cora-verificar-pagamentos`,
-  criado via migration `20260716170000_cron_cora_verificar_pagamentos.sql` (visível também em
-  Database → Cron Jobs no Dashboard)
+      criado via migration `20260716170000_cron_cora_verificar_pagamentos.sql` (visível também em
+      Database → Cron Jobs no Dashboard)
 
 ### Nota sobre o teste E2E
 
@@ -87,7 +87,7 @@ Fecham as lacunas que o E2E inicial não cobriu. Todos com dados sintéticos des
 2. **Kill switch `CORA_AUTO_NF_ENABLED=false`** — PASSOU. Com a flag desligada, a cobrança é marcada
    `pago` normalmente mas nenhuma NF é criada. Religada em seguida.
 3. **Webhook isolado** — PASSOU. Chamando `cora-webhook` diretamente (headers `webhook-event-id`,
-   `webhook-event-type: invoice.paid`, `webhook-resource-id`) *sem* nenhuma chamada de polling
+   `webhook-event-type: invoice.paid`, `webhook-resource-id`) _sem_ nenhuma chamada de polling
    envolvida, a cobrança é marcada `pago` e a NF é criada — confirma que o caminho do webhook
    funciona de ponta a ponta por si só, não só como complemento do polling.
 4. **Caminho feliz — NF realmente aceita pela Focus (homologação)** — **PASSOU, após corrigir um bug
@@ -95,7 +95,7 @@ Fecham as lacunas que o E2E inicial não cobriu. Todos com dados sintéticos des
    na mesma sessão a pedido do usuário). Achado + correção:
 
    - **Causa raiz confirmada**: consultei as NFs reais já emitidas via Focus (`fiscal_provider =
-     'focus_nfe'`) e são *todas* da mesma paciente (Amanda Pavan) — cujo CPF é a única entrada
+'focus_nfe'`) e são _todas_ da mesma paciente (Amanda Pavan) — cujo CPF é a única entrada
      hardcoded em `TOMADOR_CATALOG_BY_CPF` com endereço completo. Todas as demais NFs reais no banco
      (convênios e outros particulares) são `fiscal_provider = 'drive_import'` (importadas de emissão
      manual anterior) — ou seja, **nenhuma NF de convênio jamais tinha sido emitida com sucesso pela

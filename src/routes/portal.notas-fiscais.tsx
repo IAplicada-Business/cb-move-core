@@ -6,7 +6,7 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-export const Route = (createFileRoute as any)("/portal/notas-fiscais")({
+export const Route = createFileRoute("/portal/notas-fiscais")({
   component: PortalNotasFiscais,
 });
 

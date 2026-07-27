@@ -90,8 +90,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "CB MOVE Neuroscience" },
       { property: "og:description", content: "Sistema clínico CB MOVE Neuroscience" },
       { name: "twitter:description", content: "Sistema clínico CB MOVE Neuroscience" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9bde3dcd-61c4-45ef-9996-da860b458bf5/id-preview-f2674bda--916469f2-fdc0-4e65-b9af-69fba0dfe23f.lovable.app-1782220552636.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9bde3dcd-61c4-45ef-9996-da860b458bf5/id-preview-f2674bda--916469f2-fdc0-4e65-b9af-69fba0dfe23f.lovable.app-1782220552636.png" },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9bde3dcd-61c4-45ef-9996-da860b458bf5/id-preview-f2674bda--916469f2-fdc0-4e65-b9af-69fba0dfe23f.lovable.app-1782220552636.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9bde3dcd-61c4-45ef-9996-da860b458bf5/id-preview-f2674bda--916469f2-fdc0-4e65-b9af-69fba0dfe23f.lovable.app-1782220552636.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],

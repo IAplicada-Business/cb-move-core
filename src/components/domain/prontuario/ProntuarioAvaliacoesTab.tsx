@@ -8,12 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -196,7 +191,9 @@ export function ProntuarioAvaliacoesTab({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold">Avaliações clínicas</h2>
-          <p className="text-xs text-muted-foreground">Instrumentos padronizados aplicados ao paciente</p>
+          <p className="text-xs text-muted-foreground">
+            Instrumentos padronizados aplicados ao paciente
+          </p>
         </div>
         {canEdit && (
           <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-1.5">

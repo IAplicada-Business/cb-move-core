@@ -1,7 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authErrorResponse, requireFinanceUserOrInternal } from "../_shared/auth.ts";
-import { buildCoraInvoicePayload, assertCoraIdempotencyKey, parseCoraInvoiceResponse } from "../_shared/cora-invoice.ts";
-import { coraConfigHint, createCoraInvoice, getCoraAccessToken, resolveCoraConfig } from "../_shared/cora.ts";
+import {
+  buildCoraInvoicePayload,
+  assertCoraIdempotencyKey,
+  parseCoraInvoiceResponse,
+} from "../_shared/cora-invoice.ts";
+import {
+  coraConfigHint,
+  createCoraInvoice,
+  getCoraAccessToken,
+  resolveCoraConfig,
+} from "../_shared/cora.ts";
 
 function formatCoraHttpError(status: number, detail: string): string {
   const trimmed = detail.trim();
@@ -72,10 +81,9 @@ serve(async (req) => {
         .eq("id", cobranca_id);
       if (updErr) throw updErr;
 
-      return new Response(
-        JSON.stringify({ ok: true, cobranca_id, boleto_url, modo: "manual" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ ok: true, cobranca_id, boleto_url, modo: "manual" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const coraConfig = await resolveCoraConfig(admin);

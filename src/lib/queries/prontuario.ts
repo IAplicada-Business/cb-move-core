@@ -1,10 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { invokeEdgeFunction } from "@/lib/edge-functions";
-import {
-  RELATORIO_PDF_BUCKET,
-  resolveRelatorioStoragePath,
-} from "@/lib/relatorio-pdf-url";
+import { RELATORIO_PDF_BUCKET, resolveRelatorioStoragePath } from "@/lib/relatorio-pdf-url";
 import {
   buildConsultaExperimentalEvolucao,
   CONSULTA_EXPERIMENTAL_SUBJETIVO,
@@ -195,7 +192,9 @@ export async function searchPacientesProntuario(q: string): Promise<PacienteOpti
 export async function fetchPacienteProntuario(id: string): Promise<ProntuarioPaciente | null> {
   const { data, error } = await supabase
     .from("pacientes")
-    .select("*, convenios(nome), fisioterapeutas!fisioterapeuta_id(nome), consulta_experimental_fisio:fisioterapeutas!consulta_experimental_fisio_id(nome)")
+    .select(
+      "*, convenios(nome), fisioterapeutas!fisioterapeuta_id(nome), consulta_experimental_fisio:fisioterapeutas!consulta_experimental_fisio_id(nome)",
+    )
     .eq("id", id)
     .single();
   if (error) throw error;
@@ -213,7 +212,9 @@ export async function savePacienteObservacoes(id: string, observacoes: string): 
 export async function fetchSessoesProntuario(pacienteId: string): Promise<SessaoProntuario[]> {
   const { data, error } = await supabase
     .from("sessoes")
-    .select("id, data, hora, sigla, observacoes, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
+    .select(
+      "id, data, hora, sigla, observacoes, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)",
+    )
     .eq("paciente_id", pacienteId)
     .order("data", { ascending: false });
   if (error) throw error;
@@ -226,7 +227,9 @@ export async function fetchSessoesDoDia(
 ): Promise<SessaoProntuario[]> {
   const { data: rows, error } = await supabase
     .from("sessoes")
-    .select("id, data, hora, sigla, observacoes, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
+    .select(
+      "id, data, hora, sigla, observacoes, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)",
+    )
     .eq("paciente_id", pacienteId)
     .eq("data", data)
     .order("hora", { ascending: true });
@@ -237,7 +240,9 @@ export async function fetchSessoesDoDia(
 export async function fetchRelatoriosPaciente(pacienteId: string): Promise<RelatorioAtendimento[]> {
   const { data, error } = await supabase
     .from("relatorios_atendimento")
-    .select("id, paciente_id, modelo, competencia_mes, competencia_ano, pdf_url, assinado, assinado_em, modelo_pdf, created_at")
+    .select(
+      "id, paciente_id, modelo, competencia_mes, competencia_ano, pdf_url, assinado, assinado_em, modelo_pdf, created_at",
+    )
     .eq("paciente_id", pacienteId)
     .order("competencia_ano", { ascending: false })
     .order("competencia_mes", { ascending: false });
@@ -256,7 +261,9 @@ export async function fetchInstrumentosAtivos(): Promise<InstrumentoClinico[]> {
   return (data ?? []) as unknown as InstrumentoClinico[];
 }
 
-export async function fetchInstrumentosAplicados(pacienteId: string): Promise<InstrumentoAplicado[]> {
+export async function fetchInstrumentosAplicados(
+  pacienteId: string,
+): Promise<InstrumentoAplicado[]> {
   const { data, error } = await supabase
     .from("instrumentos_aplicados")
     .select("id, instrumento_id, aplicado_em, resultados, instrumentos_clinicos(nome, codigo)")
@@ -320,7 +327,9 @@ export type EvolucaoComRelacoes = Evolucao & {
 export async function fetchEvolucoes(pacienteId: string): Promise<EvolucaoComRelacoes[]> {
   const { data, error } = await supabase
     .from("prontuario_evolucoes")
-    .select("*, fisioterapeutas!prontuario_evolucoes_fisioterapeuta_id_fkey(nome), sessoes(sigla, hora)")
+    .select(
+      "*, fisioterapeutas!prontuario_evolucoes_fisioterapeuta_id_fkey(nome), sessoes(sigla, hora)",
+    )
     .eq("paciente_id", pacienteId)
     .order("data", { ascending: false })
     .order("created_at", { ascending: false });
@@ -331,11 +340,7 @@ export async function fetchEvolucoes(pacienteId: string): Promise<EvolucaoComRel
 export type EvolucaoInsert = Database["public"]["Tables"]["prontuario_evolucoes"]["Insert"];
 
 export async function createEvolucao(ev: EvolucaoInsert): Promise<Evolucao> {
-  const { data, error } = await supabase
-    .from("prontuario_evolucoes")
-    .insert(ev)
-    .select()
-    .single();
+  const { data, error } = await supabase.from("prontuario_evolucoes").insert(ev).select().single();
   if (error) throw error;
   return data as Evolucao;
 }
@@ -481,10 +486,12 @@ export async function uploadRelatorioAtendimentoPdf(
   assertPdfFile(file);
 
   const path = relatorioDocumentoFisicoStoragePath(pacienteId, ano, mes);
-  const { error: uploadError } = await supabase.storage.from(RELATORIO_PDF_BUCKET_LOCAL).upload(path, file, {
-    upsert: true,
-    contentType: "application/pdf",
-  });
+  const { error: uploadError } = await supabase.storage
+    .from(RELATORIO_PDF_BUCKET_LOCAL)
+    .upload(path, file, {
+      upsert: true,
+      contentType: "application/pdf",
+    });
   if (uploadError) throw uploadError;
 
   try {
@@ -529,7 +536,11 @@ export async function deleteRelatorioAtendimento(
   }
   if (relatorio.modelo_pdf === "documento_fisico") {
     paths.push(
-      relatorioDocumentoFisicoStoragePath(pacienteId, relatorio.competencia_ano, relatorio.competencia_mes),
+      relatorioDocumentoFisicoStoragePath(
+        pacienteId,
+        relatorio.competencia_ano,
+        relatorio.competencia_mes,
+      ),
     );
   }
   await removeRelatorioStorageFiles([...new Set(paths)]);

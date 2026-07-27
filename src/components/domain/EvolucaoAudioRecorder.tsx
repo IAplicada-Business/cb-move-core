@@ -42,9 +42,15 @@ type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
 
 const SpeechRecognitionClass: SpeechRecognitionCtor | null =
   typeof window !== "undefined"
-    ? ((window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition ??
-       (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition ??
-       null)
+    ? ((
+        window as unknown as {
+          SpeechRecognition?: SpeechRecognitionCtor;
+          webkitSpeechRecognition?: SpeechRecognitionCtor;
+        }
+      ).SpeechRecognition ??
+      (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionCtor })
+        .webkitSpeechRecognition ??
+      null)
     : null;
 
 function speechErrorMessage(code: string): string {
@@ -151,7 +157,11 @@ export function EvolucaoAudioRecorder({
     rec.onerror = (e) => {
       if (e.error === "no-speech" || e.error === "aborted") return;
 
-      if (e.error === "network" && networkRetriesRef.current < 2 && recognitionRef.current === rec) {
+      if (
+        e.error === "network" &&
+        networkRetriesRef.current < 2 &&
+        recognitionRef.current === rec
+      ) {
         networkRetriesRef.current += 1;
         retryingRef.current = true;
         try {
@@ -219,7 +229,9 @@ export function EvolucaoAudioRecorder({
       if (result.aviso) {
         toast.info(result.aviso);
       } else if (!result.subjetivo && !result.objetivo && !result.plano) {
-        toast.info("Transcrição salva. Configure ANTHROPIC_API_KEY para estruturação automática S/O/P.");
+        toast.info(
+          "Transcrição salva. Configure ANTHROPIC_API_KEY para estruturação automática S/O/P.",
+        );
       } else {
         toast.success("Evolução estruturada pela IA");
       }
@@ -268,9 +280,7 @@ export function EvolucaoAudioRecorder({
             Parar e estruturar
           </Button>
         )}
-        {recording && (
-          <span className="text-xs text-red-500 font-medium">● Gravando...</span>
-        )}
+        {recording && <span className="text-xs text-red-500 font-medium">● Gravando...</span>}
       </div>
 
       {(recording || liveText) && (
@@ -279,9 +289,7 @@ export function EvolucaoAudioRecorder({
         </div>
       )}
 
-      {micHint && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">{micHint}</p>
-      )}
+      {micHint && <p className="text-xs text-amber-700 dark:text-amber-400">{micHint}</p>}
 
       {!recording && (
         <div className="flex w-full flex-col gap-2 sm:items-end">

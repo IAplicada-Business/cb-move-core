@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = (createFileRoute as any)("/app/ajuda")({
+export const Route = createFileRoute("/app/ajuda")({
   head: () => ({ meta: [{ title: "Ajuda · CB MOVE" }] }),
   component: AjudaPage,
 });

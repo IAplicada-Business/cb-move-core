@@ -161,7 +161,10 @@ export async function fetchDivergenciasProntuario(limit = 20): Promise<Divergenc
   return data.divergencias.slice(0, limit);
 }
 
-export async function fetchReceitaMensal(anoInicio: number, anoFim: number): Promise<ReceitaMensalItem[]> {
+export async function fetchReceitaMensal(
+  anoInicio: number,
+  anoFim: number,
+): Promise<ReceitaMensalItem[]> {
   const { data, error } = await supabase
     .from("cobrancas")
     .select("valor, tipo, competencia_mes, competencia_ano, status")
@@ -193,7 +196,10 @@ export async function fetchReceitaMensal(anoInicio: number, anoFim: number): Pro
     const bucket = buckets.get(key);
     if (!bucket) continue;
     const val = Number(c.valor) || 0;
-    const tipo = c.tipo as keyof Pick<ReceitaMensalItem, "particular" | "judicial" | "convenio" | "puc">;
+    const tipo = c.tipo as keyof Pick<
+      ReceitaMensalItem,
+      "particular" | "judicial" | "convenio" | "puc"
+    >;
     if (tipo in bucket) bucket[tipo] += val;
     bucket.total += val;
   }

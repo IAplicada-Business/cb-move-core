@@ -46,8 +46,7 @@ function buildInitialForm(
   const plano = evolucao?.plano ?? "";
   const transcricao_raw = evolucao?.transcricao_raw ?? "";
   const soapVazio = !subjetivo.trim() && !objetivo.trim() && !plano.trim();
-  const subjetivoFinal =
-    soapVazio && transcricao_raw.trim() ? transcricao_raw.trim() : subjetivo;
+  const subjetivoFinal = soapVazio && transcricao_raw.trim() ? transcricao_raw.trim() : subjetivo;
 
   return {
     data: evolucao?.data ?? new Date().toISOString().split("T")[0],
@@ -229,8 +228,8 @@ export function EvolucaoEditor({
             {campo === "subjetivo"
               ? "S — Subjetivo"
               : campo === "objetivo"
-              ? "O — Objetivo"
-              : "P — Plano"}
+                ? "O — Objetivo"
+                : "P — Plano"}
           </Label>
           <Textarea
             value={form[campo]}
@@ -240,8 +239,8 @@ export function EvolucaoEditor({
               campo === "subjetivo"
                 ? "Queixa principal, relato do paciente..."
                 : campo === "objetivo"
-                ? "Dados clínicos, escalas, medidas..."
-                : "Condutas, exercícios, objetivos da próxima sessão..."
+                  ? "Dados clínicos, escalas, medidas..."
+                  : "Condutas, exercícios, objetivos da próxima sessão..."
             }
           />
         </div>

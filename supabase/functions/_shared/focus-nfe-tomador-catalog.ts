@@ -5,7 +5,6 @@ export type TomadorCatalogEntry = TomadorForFocus & {
   razao_social: string;
 };
 
-
 /** Cadastro fiscal de tomadores pessoa fisica (NF particular) — fallback ate pacientes.endereco*. */
 export const TOMADOR_CATALOG_BY_CPF: Record<string, TomadorCatalogEntry> = {
   "03555110020": {
@@ -115,11 +114,12 @@ export function mergeTomador(
   fromPaciente?: TomadorForFocus,
 ): TomadorForFocus | undefined {
   const doc = onlyDigits(documento);
-  const catalog = doc.length === 14
-    ? TOMADOR_CATALOG_BY_CNPJ[doc]
-    : doc.length === 11
-    ? TOMADOR_CATALOG_BY_CPF[doc]
-    : undefined;
+  const catalog =
+    doc.length === 14
+      ? TOMADOR_CATALOG_BY_CNPJ[doc]
+      : doc.length === 11
+        ? TOMADOR_CATALOG_BY_CPF[doc]
+        : undefined;
 
   if (!catalog && !fromDb && !fromPaciente) return undefined;
 

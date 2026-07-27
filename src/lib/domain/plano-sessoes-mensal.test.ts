@@ -66,9 +66,7 @@ describe("montarResumoPlanoSessoesMensal", () => {
       ano: 2026,
       frequenciaLabel: null,
       qtdSessoesCobranca: 3,
-      agendamentos: [
-        { id: "1", inicio: "2026-07-14T08:00:00-03:00", status: "agendado" },
-      ],
+      agendamentos: [{ id: "1", inicio: "2026-07-14T08:00:00-03:00", status: "agendado" }],
     });
 
     expect(resumo.faltantes).toBe(2);
@@ -156,9 +154,6 @@ describe("gerarDatasMesmoDiaSemanaNoMes", () => {
   });
 
   it("limita pela quantidade pedida", () => {
-    expect(gerarDatasMesmoDiaSemanaNoMes("2026-07-07", 2)).toEqual([
-      "2026-07-07",
-      "2026-07-14",
-    ]);
+    expect(gerarDatasMesmoDiaSemanaNoMes("2026-07-07", 2)).toEqual(["2026-07-07", "2026-07-14"]);
   });
 });

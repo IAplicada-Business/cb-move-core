@@ -15,7 +15,9 @@ export function resolveRelatorioStoragePath(pdfRef: string | null | undefined): 
 }
 
 /** Resolve URL abrível: signed URL para paths privados; mantém URLs http legadas. */
-export async function resolveRelatorioPdfUrl(pdfRef: string | null | undefined): Promise<string | null> {
+export async function resolveRelatorioPdfUrl(
+  pdfRef: string | null | undefined,
+): Promise<string | null> {
   if (!pdfRef?.trim()) return null;
   if (pdfRef.startsWith("http")) return pdfRef;
 

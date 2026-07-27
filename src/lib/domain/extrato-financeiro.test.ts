@@ -66,10 +66,7 @@ describe("extrato-financeiro", () => {
 
   it("agrega totais do extrato", () => {
     const resumo = buildExtratoFinanceiro(
-      [
-        baseRow,
-        { ...baseRow, id: "c2", valor: 500, status: "pago" },
-      ],
+      [baseRow, { ...baseRow, id: "c2", valor: 500, status: "pago" }],
       7,
       2026,
     );

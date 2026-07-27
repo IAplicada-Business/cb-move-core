@@ -7,9 +7,7 @@ export const DEFAULT_EDGE_TIMEOUT_MS = 8_000;
 export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), ms),
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
   ]);
 }
 
@@ -48,7 +46,10 @@ export async function invokeEdgeFunction<T>(
   body: Record<string, unknown>,
   options?: { timeoutMs?: number },
 ): Promise<T> {
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
   if (sessionError) throw new Error(sessionError.message);
   if (!session?.access_token) {
     throw new Error("Sessão expirada. Faça login novamente.");
@@ -67,9 +68,7 @@ export async function invokeEdgeFunction<T>(
   const message = await extractEdgeErrorMessage(error, data);
   if (message) throw new Error(message);
   if (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Erro ao chamar edge function",
-    );
+    throw new Error(error instanceof Error ? error.message : "Erro ao chamar edge function");
   }
   return data as T;
 }

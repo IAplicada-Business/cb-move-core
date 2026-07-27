@@ -1,4 +1,3 @@
-
 # CB MOVE Neuroscience — Esqueleto do sistema
 
 Confirmação antes de gerar código. Abaixo: passos, package.json proposto e pontos que precisam de decisão sua.
@@ -48,8 +47,8 @@ Confirmação antes de gerar código. Abaixo: passos, package.json proposto e po
     "@radix-ui/react-label": "*",
     "@radix-ui/react-select": "*",
     "@radix-ui/react-slot": "*",
-    "class-variance-authority": "^0.7"
-  }
+    "class-variance-authority": "^0.7",
+  },
 }
 ```
 

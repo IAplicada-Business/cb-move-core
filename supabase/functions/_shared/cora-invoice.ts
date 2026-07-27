@@ -4,8 +4,7 @@
  */
 
 const MIN_AMOUNT_CENTS = 500;
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type CoraDocumentType = "CPF" | "CNPJ";
 
@@ -54,7 +53,9 @@ function assertDueDateNotPast(dueDate: string): void {
 export function buildCoraInvoicePayload(input: CoraInvoiceBuildInput): Record<string, unknown> {
   const identity = input.customerDocument?.replace(/\D/g, "") ?? "";
   if (!identity || (identity.length !== 11 && identity.length !== 14)) {
-    throw new Error("CPF/CNPJ do paciente é obrigatório e deve ter 11 ou 14 dígitos para emitir boleto Cora");
+    throw new Error(
+      "CPF/CNPJ do paciente é obrigatório e deve ter 11 ou 14 dígitos para emitir boleto Cora",
+    );
   }
 
   const email = input.customerEmail?.trim() ?? "";

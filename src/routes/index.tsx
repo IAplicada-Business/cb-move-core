@@ -42,7 +42,8 @@ function Splash() {
         <div
           className="grid h-14 w-14 place-items-center rounded-full"
           style={{
-            background: "conic-gradient(from 130deg, #D946A0, #F58A1F, #C5D932, #3FB5BC, #7B4FB5, #D946A0)",
+            background:
+              "conic-gradient(from 130deg, #D946A0, #F58A1F, #C5D932, #3FB5BC, #7B4FB5, #D946A0)",
             padding: "2px",
           }}
         >

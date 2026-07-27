@@ -13,7 +13,12 @@ import { can, isFisioScopedUser } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
 export const Route = createFileRoute("/app/")({
@@ -102,11 +107,16 @@ function Dashboard() {
 
       {(kpis?.divergenciaProntuario ?? 0) > 0 && (
         <div className="rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
-          <strong>{kpis?.divergenciaProntuario}</strong> sessão(ões) marcada(s) como realizada(s) neste mês
-          ainda não têm evolução registrada no prontuário. Confira a lista abaixo ou{" "}
-          <Link to="/app/prontuario" search={{ tab: "visao-geral" }} className="font-medium underline">
+          <strong>{kpis?.divergenciaProntuario}</strong> sessão(ões) marcada(s) como realizada(s)
+          neste mês ainda não têm evolução registrada no prontuário. Confira a lista abaixo ou{" "}
+          <Link
+            to="/app/prontuario"
+            search={{ tab: "visao-geral" }}
+            className="font-medium underline"
+          >
             abrir prontuários
-          </Link>.
+          </Link>
+          .
         </div>
       )}
 
@@ -118,7 +128,9 @@ function Dashboard() {
           </p>
         </header>
         {isLoading ? (
-          <div className="p-5"><LoadingState /></div>
+          <div className="p-5">
+            <LoadingState />
+          </div>
         ) : proximas.length === 0 ? (
           <div className="p-5">
             <EmptyState
@@ -156,20 +168,26 @@ function Dashboard() {
         )}
         <footer className="border-t px-5 py-3">
           <Button variant="link" size="sm" className="h-auto p-0" asChild>
-            <Link to="/app/agenda">{isFisioScoped ? "Ver minha agenda" : "Ver agenda completa"}</Link>
+            <Link to="/app/agenda">
+              {isFisioScoped ? "Ver minha agenda" : "Ver agenda completa"}
+            </Link>
           </Button>
         </footer>
       </section>
 
       <section className="rounded-xl border bg-card shadow-sm">
         <header className="border-b px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">Divergências prontuário × agenda</h2>
+          <h2 className="text-sm font-semibold text-foreground">
+            Divergências prontuário × agenda
+          </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Sessões realizadas neste mês sem evolução registrada no mesmo dia
           </p>
         </header>
         {isLoading ? (
-          <div className="p-5"><LoadingState /></div>
+          <div className="p-5">
+            <LoadingState />
+          </div>
         ) : divergencias.length === 0 ? (
           <div className="p-5">
             <EmptyState

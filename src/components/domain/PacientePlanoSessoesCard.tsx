@@ -12,8 +12,18 @@ import { formatDateDDMMYY } from "@/lib/format";
 import type { SlotStatus } from "@/lib/domain/slot-status";
 
 const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 const SITUACAO_SLOT: Record<SituacaoSessaoMensal, SlotStatus> = {
@@ -88,10 +98,7 @@ export function PacientePlanoSessoesCard({
           ? `Sessão ${slot.indicePlano} · ${formatDateDDMMYY(slot.dataIso)}`
           : `Sessão ${slot.indicePlano}`,
         status: "vago",
-        onClick:
-          onFaltanteClick && slot.dataIso
-            ? () => onFaltanteClick(slot)
-            : undefined,
+        onClick: onFaltanteClick && slot.dataIso ? () => onFaltanteClick(slot) : undefined,
       });
     }
 

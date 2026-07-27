@@ -17,7 +17,10 @@ import { ProntuarioPatientHero } from "@/components/domain/prontuario/Prontuario
 import { ProntuarioVisaoGeralTab } from "@/components/domain/prontuario/ProntuarioVisaoGeralTab";
 import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { ProntuarioToolbar } from "@/components/domain/prontuario/ProntuarioToolbar";
-import { countSessoesRealizadas, filterSessoesPorCompetencia } from "@/components/domain/prontuario/utils";
+import {
+  countSessoesRealizadas,
+  filterSessoesPorCompetencia,
+} from "@/components/domain/prontuario/utils";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { queryKeys } from "@/lib/queries";
@@ -115,7 +118,12 @@ function ProntuarioPage() {
     queryFn: () => fetchPacientes({ ativo: true }),
   });
 
-  const { data: paciente, isLoading: loadPaciente, isError: pacienteError, error: pacienteErr } = useQuery({
+  const {
+    data: paciente,
+    isLoading: loadPaciente,
+    isError: pacienteError,
+    error: pacienteErr,
+  } = useQuery({
     queryKey: queryKeys.prontuario.paciente(selectedId ?? ""),
     queryFn: () => fetchPacienteProntuario(selectedId!),
     enabled: !!selectedId && activeTab !== "visao-geral",
@@ -303,8 +311,7 @@ function ProntuarioPage() {
     }
   }
 
-  const evolucaoLoading =
-    createEvolucaoMutation.isPending || updateEvolucaoMutation.isPending;
+  const evolucaoLoading = createEvolucaoMutation.isPending || updateEvolucaoMutation.isPending;
 
   const sessoesRealizadas = countSessoesRealizadas(sessoes);
   const sessoesFiltradas = filterSessoesPorCompetencia(sessoes, competenciaMes, competenciaAno);
@@ -353,7 +360,9 @@ function ProntuarioPage() {
         icon={<FileText className="h-8 w-8" />}
         title="Não foi possível abrir o prontuário"
         description={
-          pacienteErr instanceof Error ? pacienteErr.message : "Paciente não encontrado ou sem permissão de acesso."
+          pacienteErr instanceof Error
+            ? pacienteErr.message
+            : "Paciente não encontrado ou sem permissão de acesso."
         }
       />
     );
@@ -378,7 +387,8 @@ function ProntuarioPage() {
           </Breadcrumb>
           <h1 className="text-2xl font-bold text-foreground">Prontuário</h1>
           <p className="text-sm text-muted-foreground">
-            Visão consolidada de todos os prontuários — KPIs e acesso rápido ao prontuário individual.
+            Visão consolidada de todos os prontuários — KPIs e acesso rápido ao prontuário
+            individual.
           </p>
         </header>
       )}
@@ -524,14 +534,20 @@ function ProntuarioPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={evolucaoDialogOpen} onOpenChange={(v) => { if (!v) closeEvolucaoDialog(); }}>
+      <Dialog
+        open={evolucaoDialogOpen}
+        onOpenChange={(v) => {
+          if (!v) closeEvolucaoDialog();
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingEvolucao ? "Editar evolução" : "Nova evolução clínica"}
             </DialogTitle>
             <DialogDescription>
-              Registre a evolução SOAP do dia. Use o microfone para transcrever e estruturar com IA, ou preencha manualmente.
+              Registre a evolução SOAP do dia. Use o microfone para transcrever e estruturar com IA,
+              ou preencha manualmente.
             </DialogDescription>
           </DialogHeader>
           {selectedId && paciente && canEdit && (

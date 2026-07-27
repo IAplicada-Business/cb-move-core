@@ -8,10 +8,7 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { SIGLA_COLORS } from "@/components/domain/prontuario/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  calcularMetricaComparecimento,
-  formatarTaxaComparecimento,
-} from "@/lib/domain/frequencia";
+import { calcularMetricaComparecimento, formatarTaxaComparecimento } from "@/lib/domain/frequencia";
 import { queryKeys } from "@/lib/queries";
 import { fetchSessoesGradeMensal } from "@/lib/queries/sessoes";
 import type { FrequenciaSigla, PacienteTipo } from "@/lib/types";
@@ -58,13 +55,7 @@ function toDateStr(ano: number, mes: number, day: number) {
 }
 
 /** Planilha somente leitura — consolidado da tabela sessoes (alinhado ao Prontuário). */
-export function FrequenciaMensalGrid({
-  mes,
-  ano,
-  filterFisio,
-  filterTipo,
-  filtroTodos,
-}: Props) {
+export function FrequenciaMensalGrid({ mes, ano, filterFisio, filterTipo, filtroTodos }: Props) {
   const [busca, setBusca] = useState("");
   const days = daysInMonth(mes, ano);
 
@@ -193,10 +184,17 @@ export function FrequenciaMensalGrid({
           className="max-w-xs h-9"
         />
         <p className="text-xs text-muted-foreground">
-          Consolidado da tabela <strong>sessões</strong> — registre P/F/FJ/NJ/RC/NR no painel do agendamento (visão Semana).
+          Consolidado da tabela <strong>sessões</strong> — registre P/F/FJ/NJ/RC/NR no painel do
+          agendamento (visão Semana).
           {isFetching ? " · atualizando…" : ""}
         </p>
-        <Button type="button" variant="outline" size="sm" className="ml-auto gap-1.5" onClick={exportCsv}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="ml-auto gap-1.5"
+          onClick={exportCsv}
+        >
           <Download className="h-3.5 w-3.5" /> Export CSV
         </Button>
       </div>
@@ -308,7 +306,9 @@ export function FrequenciaMensalGrid({
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-xl border bg-card px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-1 text-2xl font-extrabold tabular-nums">{value}</p>
       {hint ? <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p> : null}
     </div>

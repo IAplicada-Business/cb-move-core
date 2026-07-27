@@ -16,14 +16,20 @@ export const ROLE_LABELS: Record<PrimaryRole, string> = {
 export function normalizeRole(role: AppRole | null | undefined): PrimaryRole | null {
   if (!role) return null;
   if (role === "admin" || role === "cliente") return role;
-  if (role === "membro" || LEGACY_MEMBRO_ROLES.includes(role as (typeof LEGACY_MEMBRO_ROLES)[number])) {
+  if (
+    role === "membro" ||
+    LEGACY_MEMBRO_ROLES.includes(role as (typeof LEGACY_MEMBRO_ROLES)[number])
+  ) {
     return "membro";
   }
   if (role === "paciente") return "cliente";
   return null;
 }
 
-export function hasRole(roles: AppRole[], required: AppRole | AppRole[] | PrimaryRole | PrimaryRole[]): boolean {
+export function hasRole(
+  roles: AppRole[],
+  required: AppRole | AppRole[] | PrimaryRole | PrimaryRole[],
+): boolean {
   const list = Array.isArray(required) ? required : [required];
   return list.some((r) => {
     if (r === "membro") {
@@ -37,8 +43,10 @@ export function hasRole(roles: AppRole[], required: AppRole | AppRole[] | Primar
 }
 
 export function isStaff(roles: AppRole[]): boolean {
-  return hasRole(roles, ["admin", "membro"]) ||
-    roles.some((r) => LEGACY_MEMBRO_ROLES.includes(r as (typeof LEGACY_MEMBRO_ROLES)[number]));
+  return (
+    hasRole(roles, ["admin", "membro"]) ||
+    roles.some((r) => LEGACY_MEMBRO_ROLES.includes(r as (typeof LEGACY_MEMBRO_ROLES)[number]))
+  );
 }
 
 export function isCliente(roles: AppRole[]): boolean {
@@ -46,10 +54,7 @@ export function isCliente(roles: AppRole[]): boolean {
 }
 
 /** Fisio clínico — visão filtrada por paciente (papel fisio ou membro vinculado ao cadastro). */
-export function isFisioScopedUser(
-  roles: AppRole[],
-  fisioterapeutaId?: string | null,
-): boolean {
+export function isFisioScopedUser(roles: AppRole[], fisioterapeutaId?: string | null): boolean {
   if (roles.includes("admin") || roles.includes("gestao") || roles.includes("recepcao")) {
     return false;
   }
@@ -58,10 +63,7 @@ export function isFisioScopedUser(
 }
 
 /** Membro operacional (recepção/gestão legada) sem vínculo de fisio clínico. */
-export function isOperationalMembro(
-  roles: AppRole[],
-  fisioterapeutaId?: string | null,
-): boolean {
+export function isOperationalMembro(roles: AppRole[], fisioterapeutaId?: string | null): boolean {
   return roles.includes("membro") && !fisioterapeutaId && !roles.includes("admin");
 }
 
@@ -80,8 +82,7 @@ export const can = {
   removeRelatorioAtendimentoPdf: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
   deleteRelatorioAtendimento: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
   manageAgenda: (roles: AppRole[], fisioterapeutaId?: string | null) =>
-    hasRole(roles, ["admin", "gestao", "recepcao"]) ||
-    isOperationalMembro(roles, fisioterapeutaId),
+    hasRole(roles, ["admin", "gestao", "recepcao"]) || isOperationalMembro(roles, fisioterapeutaId),
   /** Cadastro administrativo — recepção/admin; fisio clínico não cadastra pacientes. */
   managePacientes: (roles: AppRole[], fisioterapeutaId?: string | null) =>
     hasRole(roles, "admin") ||
@@ -89,7 +90,11 @@ export const can = {
     isOperationalMembro(roles, fisioterapeutaId),
   manageFisios: (roles: AppRole[], fisioterapeutaId?: string | null) => {
     if (isFisioScopedUser(roles, fisioterapeutaId)) return false;
-    return hasRole(roles, "admin") || hasRole(roles, ["gestao", "recepcao"]) || isOperationalMembro(roles, fisioterapeutaId);
+    return (
+      hasRole(roles, "admin") ||
+      hasRole(roles, ["gestao", "recepcao"]) ||
+      isOperationalMembro(roles, fisioterapeutaId)
+    );
   },
   accessApp: (roles: AppRole[]) => isStaff(roles),
 };

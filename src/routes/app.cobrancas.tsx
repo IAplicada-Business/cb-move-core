@@ -5,8 +5,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  DollarSign, Clock, AlertTriangle, CheckCircle2, Plus, Search,
-  Upload, X, CheckCheck, ChevronRight,
+  DollarSign,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  Plus,
+  Search,
+  Upload,
+  X,
+  CheckCheck,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,13 +22,19 @@ import { KpiCard } from "@/components/domain/KpiCard";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
-import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
+import {
+  CampoDiasSemana,
+  CampoFrequenciaAtendimento,
+} from "@/components/domain/AtendimentoCadastroFields";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { PacienteCobrancaSheet } from "@/components/domain/PacienteCobrancaSheet";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
-  fetchCobrancas, createCobranca, marcarComoPago, parcelarCobranca,
+  fetchCobrancas,
+  createCobranca,
+  marcarComoPago,
+  parcelarCobranca,
   type Cobranca,
 } from "@/lib/queries/cobrancas";
 import { fetchFinanceiroKpis } from "@/lib/queries/financeiro";
@@ -33,7 +47,9 @@ import {
 } from "@/lib/domain/cobrancas-por-paciente";
 import type { CobrancaStatus, FormaPagamento, PacienteTipo, RegimeCobranca } from "@/lib/types";
 import {
-  parseCSVBradesco, parseOFX, matchTransacoesComCobrancas,
+  parseCSVBradesco,
+  parseOFX,
+  matchTransacoesComCobrancas,
   type MatchCobranca,
 } from "@/lib/extrato-parser";
 import { cn } from "@/lib/utils";
@@ -43,15 +59,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -67,11 +103,34 @@ export const Route = createFileRoute("/app/cobrancas")({
 const FILTRO_TODOS = "todos";
 
 const MESES_FULL = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
-const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_ABREV = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 function competenciaOpcoes() {
   const now = new Date();
@@ -97,11 +156,23 @@ const novaCobrancaSchema = z.object({
   regime: z.enum(["mensalista", "por_sessao"] as const),
   servico: z.string().min(1, "Informe o serviço"),
   valor: z.coerce.number().positive("Valor deve ser positivo"),
-  formaPagamento: z.enum(["boleto", "deposito", "transferencia", "alvara_judicial", "convenio_direto"] as const),
+  formaPagamento: z.enum([
+    "boleto",
+    "deposito",
+    "transferencia",
+    "alvara_judicial",
+    "convenio_direto",
+  ] as const),
   vencimento: z.string().min(1, "Informe o vencimento"),
   status: z.enum([
-    "pendente", "pago", "atrasado", "cancelado", "vencido",
-    "aguardando_convenio", "aguardando_alvara", "regularizar_retroativa",
+    "pendente",
+    "pago",
+    "atrasado",
+    "cancelado",
+    "vencido",
+    "aguardando_convenio",
+    "aguardando_alvara",
+    "regularizar_retroativa",
   ] as const),
   frequenciaAtendimento: z.string().optional(),
   diasSemana: z.string().optional(),
@@ -206,13 +277,18 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
   });
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova cobrança</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
             {/* Paciente */}
             <FormField
               control={form.control}
@@ -228,10 +304,14 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                     </FormControl>
                     <SelectContent>
                       {pacientes.isLoading && (
-                        <SelectItem value="__loading" disabled>Carregando…</SelectItem>
+                        <SelectItem value="__loading" disabled>
+                          Carregando…
+                        </SelectItem>
                       )}
-                      {(pacientes.data ?? []).map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      {(pacientes.data ?? []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nome}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -248,11 +328,20 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Mês competência</FormLabel>
-                    <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <Select
+                      onValueChange={(v) => field.onChange(Number(v))}
+                      value={String(field.value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         {MESES_FULL.map((m, i) => (
-                          <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                          <SelectItem key={i + 1} value={String(i + 1)}>
+                            {m}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -284,7 +373,11 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                   <FormItem>
                     <FormLabel>Tipo</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="particular">Particular</SelectItem>
                         <SelectItem value="convenio">Convênio</SelectItem>
@@ -303,7 +396,11 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                   <FormItem>
                     <FormLabel>Regime</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="mensalista">Mensalista</SelectItem>
                         <SelectItem value="por_sessao">Por sessão</SelectItem>
@@ -322,7 +419,9 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Serviço</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -356,7 +455,9 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                         min={1}
                         {...field}
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.value)}
+                        onChange={(e) =>
+                          field.onChange(e.target.value === "" ? undefined : e.target.value)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -373,7 +474,9 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor (R$)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -385,7 +488,11 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                   <FormItem>
                     <FormLabel>Forma de pagamento</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="boleto">Boleto</SelectItem>
                         <SelectItem value="deposito">Depósito</SelectItem>
@@ -408,7 +515,9 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vencimento</FormLabel>
-                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -420,7 +529,11 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                   <FormItem>
                     <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="pendente">Pendente</SelectItem>
                         <SelectItem value="pago">Pago</SelectItem>
@@ -428,7 +541,9 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                         <SelectItem value="atrasado">Atrasado</SelectItem>
                         <SelectItem value="aguardando_convenio">Aguard. convênio</SelectItem>
                         <SelectItem value="aguardando_alvara">Aguard. alvará</SelectItem>
-                        <SelectItem value="regularizar_retroativa">Regularizar retroativa</SelectItem>
+                        <SelectItem value="regularizar_retroativa">
+                          Regularizar retroativa
+                        </SelectItem>
                         <SelectItem value="cancelado">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -445,14 +560,18 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Observações</FormLabel>
-                  <FormControl><Textarea rows={2} {...field} /></FormControl>
+                  <FormControl>
+                    <Textarea rows={2} {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? "Salvando…" : "Criar cobrança"}
               </Button>
@@ -501,7 +620,12 @@ function ModalMarcarPago({
   });
 
   return (
-    <Dialog open={!!cobranca} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog
+      open={!!cobranca}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Marcar como pago</DialogTitle>
@@ -509,24 +633,29 @@ function ModalMarcarPago({
         {cobranca && (
           <div className="text-sm text-muted-foreground mb-2">
             <span className="font-medium text-foreground">{cobranca.pacienteNome}</span>
-            {" — "}{brl(cobranca.valor)}
+            {" — "}
+            {brl(cobranca.valor)}
           </div>
         )}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
             <FormField
               control={form.control}
               name="pagoEm"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Data do pagamento</FormLabel>
-                  <FormControl><Input type="date" {...field} /></FormControl>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? "Salvando…" : "Confirmar pagamento"}
               </Button>
@@ -554,7 +683,10 @@ function ModalParcelarCobranca({
 }) {
   const qc = useQueryClient();
   const inicial = cobranca
-    ? proximoMes(cobranca.competenciaMes ?? new Date().getMonth() + 1, cobranca.competenciaAno ?? new Date().getFullYear())
+    ? proximoMes(
+        cobranca.competenciaMes ?? new Date().getMonth() + 1,
+        cobranca.competenciaAno ?? new Date().getFullYear(),
+      )
     : { mes: new Date().getMonth() + 1, ano: new Date().getFullYear() };
 
   const form = useForm<ParcelarForm>({
@@ -595,7 +727,12 @@ function ModalParcelarCobranca({
   });
 
   return (
-    <Dialog open={!!cobranca} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog
+      open={!!cobranca}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Parcelar cobrança</DialogTitle>
@@ -604,78 +741,125 @@ function ModalParcelarCobranca({
           <p className="text-sm text-muted-foreground -mt-2">
             <span className="font-medium text-foreground">{cobranca.pacienteNome}</span>
             {" — recebido via "}
-            {cobranca.formaPagamento === "deposito" ? "depósito" : cobranca.formaPagamento === "alvara_judicial" ? "alvará judicial" : "transferência"}.
-            Divida em N cobranças mensais futuras a partir da competência escolhida.
+            {cobranca.formaPagamento === "deposito"
+              ? "depósito"
+              : cobranca.formaPagamento === "alvara_judicial"
+                ? "alvará judicial"
+                : "transferência"}
+            . Divida em N cobranças mensais futuras a partir da competência escolhida.
           </p>
         )}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(d => mutation.mutate(d))} className="space-y-4">
+          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="valorTotal" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor total (R$)</FormLabel>
-                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="numeroParcelas" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nº de parcelas</FormLabel>
-                  <FormControl><Input type="number" min={2} max={60} {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="valorTotal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor total (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="numeroParcelas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nº de parcelas</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={2} max={60} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="competenciaInicialMes" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>1ª competência</FormLabel>
-                  <Select onValueChange={v => field.onChange(Number(v))} value={String(field.value)}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {MESES_FULL.map((m, i) => (
-                        <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="competenciaInicialAno" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ano</FormLabel>
-                  <FormControl><Input type="number" {...field} min={2020} max={2100} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="competenciaInicialMes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>1ª competência</FormLabel>
+                    <Select
+                      onValueChange={(v) => field.onChange(Number(v))}
+                      value={String(field.value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {MESES_FULL.map((m, i) => (
+                          <SelectItem key={i + 1} value={String(i + 1)}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="competenciaInicialAno"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ano</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} min={2020} max={2100} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {valorTotal > 0 && numeroParcelas >= 2 && (
               <div className="rounded-lg border bg-muted/20 p-3 text-sm">
-                {numeroParcelas}x de <span className="font-medium tabular-nums">{brl(valorParcela)}</span>
-                {" "}começando em {MESES_ABREV[(form.watch("competenciaInicialMes") - 1 + 12) % 12]}/{form.watch("competenciaInicialAno")}
+                {numeroParcelas}x de{" "}
+                <span className="font-medium tabular-nums">{brl(valorParcela)}</span> começando em{" "}
+                {MESES_ABREV[(form.watch("competenciaInicialMes") - 1 + 12) % 12]}/
+                {form.watch("competenciaInicialAno")}
               </div>
             )}
 
-            <FormField control={form.control} name="cancelarOriginal" render={({ field }) => (
-              <FormItem className="flex items-start gap-2 space-y-0">
-                <FormControl>
-                  <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
-                </FormControl>
-                <div>
-                  <FormLabel className="font-normal">
-                    Cancelar a cobrança original ao criar as parcelas
-                  </FormLabel>
-                  <p className="text-xs text-muted-foreground">
-                    Evita contar o valor duas vezes nos relatórios financeiros.
-                  </p>
-                </div>
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="cancelarOriginal"
+              render={({ field }) => (
+                <FormItem className="flex items-start gap-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      className="mt-0.5"
+                    />
+                  </FormControl>
+                  <div>
+                    <FormLabel className="font-normal">
+                      Cancelar a cobrança original ao criar as parcelas
+                    </FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Evita contar o valor duas vezes nos relatórios financeiros.
+                    </p>
+                  </div>
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? "Gerando…" : "Criar parcelas"}
               </Button>
@@ -721,13 +905,13 @@ function ModalExtrato({
     if (!file) return;
     setProcessando(true);
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = (ev) => {
       const content = ev.target?.result as string;
       const transacoes = file.name.toLowerCase().endsWith(".ofx")
         ? parseOFX(content)
         : parseCSVBradesco(content);
 
-      const cobSimples = cobrancas.map(c => ({
+      const cobSimples = cobrancas.map((c) => ({
         id: c.id,
         pacienteNome: c.pacienteNome ?? "",
         valor: c.valor,
@@ -737,7 +921,9 @@ function ModalExtrato({
 
       const result = matchTransacoesComCobrancas(transacoes, cobSimples);
       setMatches(result);
-      setSelecionados(new Set(result.filter(m => m.confianca === "alta").map(m => m.cobrancaId)));
+      setSelecionados(
+        new Set(result.filter((m) => m.confianca === "alta").map((m) => m.cobrancaId)),
+      );
       setProcessando(false);
       if (fileRef.current) fileRef.current.value = "";
     };
@@ -746,8 +932,8 @@ function ModalExtrato({
 
   const confirmarMutation = useMutation({
     mutationFn: async () => {
-      const sel = matches.filter(m => selecionados.has(m.cobrancaId));
-      await Promise.all(sel.map(m => marcarComoPago(m.cobrancaId, m.transacao.data)));
+      const sel = matches.filter((m) => selecionados.has(m.cobrancaId));
+      await Promise.all(sel.map((m) => marcarComoPago(m.cobrancaId, m.transacao.data)));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
@@ -760,15 +946,27 @@ function ModalExtrato({
   });
 
   function toggleSel(id: string) {
-    setSelecionados(prev => {
+    setSelecionados((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) { resetExtrato(); onClose(); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          resetExtrato();
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Conciliação — Extrato Bradesco</DialogTitle>
@@ -788,9 +986,17 @@ function ModalExtrato({
                 <Upload className="h-4 w-4 mr-1" />
                 {processando ? "Processando…" : "Selecionar arquivo"}
               </Button>
-              <input ref={fileRef} type="file" accept=".csv,.ofx" className="hidden" onChange={handleFile} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.ofx"
+                className="hidden"
+                onChange={handleFile}
+              />
               {matches.length > 0 && (
-                <span className="text-xs text-muted-foreground">{matches.length} match(es) encontrado(s)</span>
+                <span className="text-xs text-muted-foreground">
+                  {matches.length} match(es) encontrado(s)
+                </span>
               )}
             </div>
           </div>
@@ -816,7 +1022,7 @@ function ModalExtrato({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {matches.map(m => (
+                {matches.map((m) => (
                   <TableRow
                     key={m.cobrancaId}
                     className="cursor-pointer"
@@ -828,7 +1034,7 @@ function ModalExtrato({
                         checked={selecionados.has(m.cobrancaId)}
                         onChange={() => toggleSel(m.cobrancaId)}
                         className="rounded"
-                        onClick={e => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{m.pacienteNome}</TableCell>
@@ -849,7 +1055,14 @@ function ModalExtrato({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => { resetExtrato(); onClose(); }}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              resetExtrato();
+              onClose();
+            }}
+          >
             Fechar
           </Button>
           {matches.length > 0 && (
@@ -895,15 +1108,18 @@ function PacienteCobrancaRow({
   onOpen: () => void;
 }) {
   return (
-    <TableRow
-      className="cursor-pointer hover:bg-muted/50"
-      onClick={onOpen}
-    >
+    <TableRow className="cursor-pointer hover:bg-muted/50" onClick={onOpen}>
       <TableCell className="font-medium">{resumo.pacienteNome}</TableCell>
-      <TableCell><TipoBadge value={resumo.tipo} /></TableCell>
+      <TableCell>
+        <TipoBadge value={resumo.tipo} />
+      </TableCell>
       <TableCell className="text-sm tabular-nums">{resumo.progressoLabel}</TableCell>
-      <TableCell><StatusResumoBadge value={resumo.statusResumo} /></TableCell>
-      <TableCell className="text-right font-medium tabular-nums">{brl(resumo.totalValor)}</TableCell>
+      <TableCell>
+        <StatusResumoBadge value={resumo.statusResumo} />
+      </TableCell>
+      <TableCell className="text-right font-medium tabular-nums">
+        {brl(resumo.totalValor)}
+      </TableCell>
       <TableCell className="w-10 text-muted-foreground">
         <ChevronRight className="h-4 w-4" />
       </TableCell>
@@ -965,16 +1181,9 @@ function CobrancasPage() {
     return kpisQuery.data ?? { total: 0, pago: 0, pendente: 0, vencido: 0 };
   }, [todosMeses, cobrancas, kpisQuery.data]);
 
-  const kpiHint = todosMeses
-    ? "Todos os meses"
-    : `${MESES_ABREV[kpisMes - 1]}/${kpisAno}`;
+  const kpiHint = todosMeses ? "Todos os meses" : `${MESES_ABREV[kpisMes - 1]}/${kpisAno}`;
 
-  const temFiltro = !!(
-    search ||
-    filtroStatus ||
-    filtroFormaPgto ||
-    filtroComp !== compDefault
-  );
+  const temFiltro = !!(search || filtroStatus || filtroFormaPgto || filtroComp !== compDefault);
 
   const pacienteSheet = pacientes.find((p) => p.pacienteId === pacienteSheetId);
 
@@ -1007,9 +1216,9 @@ function CobrancasPage() {
 
       {(query.isError || (!todosMeses && kpisQuery.isError)) && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {(query.error as Error)?.message
-            ?? (kpisQuery.error as Error)?.message
-            ?? "Erro ao carregar dados financeiros."}
+          {(query.error as Error)?.message ??
+            (kpisQuery.error as Error)?.message ??
+            "Erro ao carregar dados financeiros."}
         </div>
       )}
 
@@ -1050,21 +1259,21 @@ function CobrancasPage() {
           <Input
             placeholder="Buscar por paciente…"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-8"
           />
         </div>
 
         <Select
           value={filtroComp || FILTRO_TODOS}
-          onValueChange={v => setFiltroComp(v === FILTRO_TODOS ? "" : v)}
+          onValueChange={(v) => setFiltroComp(v === FILTRO_TODOS ? "" : v)}
         >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Competência" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={FILTRO_TODOS}>Todos os meses</SelectItem>
-            {compOpts.map(o => (
+            {compOpts.map((o) => (
               <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
                 {o.label}
               </SelectItem>
@@ -1074,7 +1283,7 @@ function CobrancasPage() {
 
         <Select
           value={filtroStatus || FILTRO_TODOS}
-          onValueChange={v => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as CobrancaStatus))}
+          onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as CobrancaStatus))}
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Status" />
@@ -1094,7 +1303,7 @@ function CobrancasPage() {
 
         <Select
           value={filtroFormaPgto || FILTRO_TODOS}
-          onValueChange={v => setFiltroFormaPgto(v === FILTRO_TODOS ? "" : (v as FormaPagamento))}
+          onValueChange={(v) => setFiltroFormaPgto(v === FILTRO_TODOS ? "" : (v as FormaPagamento))}
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Forma pgto" />
@@ -1159,7 +1368,7 @@ function CobrancasPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pacientes.map(p => (
+              {pacientes.map((p) => (
                 <PacienteCobrancaRow
                   key={p.pacienteId}
                   resumo={p}
@@ -1195,4 +1404,3 @@ function CobrancasPage() {
     </div>
   );
 }
-

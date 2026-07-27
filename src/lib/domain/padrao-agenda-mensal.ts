@@ -4,11 +4,7 @@ import { extrairMultiplicadorPlano } from "./frequencia";
 export function parseDiasSemanaPt(texto: string | null | undefined): number[] {
   if (!texto?.trim()) return [];
 
-  const normalizado = texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/ª/g, "");
+  const normalizado = texto.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/ª/g, "");
 
   const range = normalizado.match(/(\d)\s*a\s*(\d)/);
   if (range) {
@@ -19,9 +15,7 @@ export function parseDiasSemanaPt(texto: string | null | undefined): number[] {
     }
   }
 
-  const dias = [...normalizado.matchAll(/\b([2-6])\b/g)]
-    .map((m) => Number(m[1]))
-    .map((d) => d - 1);
+  const dias = [...normalizado.matchAll(/\b([2-6])\b/g)].map((m) => Number(m[1])).map((d) => d - 1);
 
   return [...new Set(dias)].sort((a, b) => a - b);
 }
@@ -165,7 +159,9 @@ export function montarPropostasAgendamento(opts: {
   });
 }
 
-export function resolverVezesPorSemana(frequenciaAtendimento: string | null | undefined): number | null {
+export function resolverVezesPorSemana(
+  frequenciaAtendimento: string | null | undefined,
+): number | null {
   const match = frequenciaAtendimento?.match(/(\d+)\s*x\s*semana/i);
   if (!match) return null;
   const n = Number(match[1]);

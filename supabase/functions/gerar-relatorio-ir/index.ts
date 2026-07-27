@@ -12,7 +12,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { paciente_id, ano } = await req.json();
@@ -41,14 +41,14 @@ serve(async (req) => {
         ano,
         notas: nfs,
         total,
-        rodape: `Documento gerado pela CB MOVE Neuroscience em ${new Date().toLocaleDateString('pt-BR')} — para fins de declaração anual de IR`,
+        rodape: `Documento gerado pela CB MOVE Neuroscience em ${new Date().toLocaleDateString("pt-BR")} — para fins de declaração anual de IR`,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Erro interno" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

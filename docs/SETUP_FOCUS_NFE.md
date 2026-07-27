@@ -15,15 +15,16 @@ Provedor fiscal alvo do CB MOVE (substitui Safe Notas / Nuvem Fiscal).
 
 ## 2. Token da API (não é email/senha)
 
-| Tipo | Uso |
-|------|-----|
-| **Token revenda** (conta) | Cadastrar empresas via `POST /v2/empresas` |
+| Tipo                                | Uso                                                    |
+| ----------------------------------- | ------------------------------------------------------ |
+| **Token revenda** (conta)           | Cadastrar empresas via `POST /v2/empresas`             |
 | **Token homologação** (por empresa) | Emitir NFS-e de teste em `homologacao.focusnfe.com.br` |
-| **Token produção** (por empresa) | Emitir NFS-e válidas em `api.focusnfe.com.br` |
+| **Token produção** (por empresa)    | Emitir NFS-e válidas em `api.focusnfe.com.br`          |
 
 O `emit-nf` usa **token da empresa** (`FOCUSNFE_TOKEN`), não o token revenda.
 
 Após criar a empresa no painel ou via API, copie em **Empresas → Tokens**:
+
 - Homologação → `FOCUSNFE_AMBIENTE=homologacao`
 - Produção → `FOCUSNFE_AMBIENTE=producao`
 
@@ -33,12 +34,12 @@ curl -u 'SEU_TOKEN:' https://homologacao.focusnfe.com.br/v2/nfsen/{ref}
 
 ### CB MOVE (cadastrada 08/07/2026)
 
-| Campo | Valor |
-|-------|-------|
-| Empresa Focus ID | `230418` |
-| CNPJ | `42.082.795/0001-74` |
-| NFS-e Nacional | homologação + produção habilitadas |
-| Certificado A1 | Configurado no painel Focus (válido até 10/06/2027) |
+| Campo            | Valor                                               |
+| ---------------- | --------------------------------------------------- |
+| Empresa Focus ID | `230418`                                            |
+| CNPJ             | `42.082.795/0001-74`                                |
+| NFS-e Nacional   | homologação + produção habilitadas                  |
+| Certificado A1   | Configurado no painel Focus (válido até 10/06/2027) |
 
 ## 3. Configurar no Supabase
 
@@ -87,14 +88,14 @@ Consulta manual (opcional): `GET /v2/nfsen/{ref}` ou `POST /v2/nfsen/{ref}/hook`
 
 ## 6. Parâmetros fiscais (POA / fisioterapia)
 
-| Chave | Default | Descrição |
-|-------|---------|-----------|
-| `FOCUSNFE_CODIGO_TRIBUTACAO` | `040802` | LC 116 — Fisioterapia |
-| `FOCUSNFE_CODIGO_NBS` | `123019200` | NBS 1.2301.92.00 |
-| Município | `4314902` | Porto Alegre (fixo no código) |
-| `FOCUSNFE_SIMPLES_NACIONAL` | `3` | `1` não optante · `2` MEI · `3` ME/EPP (CB MOVE) |
-| `FOCUSNFE_REGIME_TRIBUTARIO_SN` | `1` | Regime de apuração SN (obrigatório ME/EPP — E0166) |
-| `FOCUSNFE_PERCENTUAL_TRIBUTOS_SN` | `6` | `pTotTribSN` (%) — confirmar alíquota real com Diego |
+| Chave                             | Default     | Descrição                                            |
+| --------------------------------- | ----------- | ---------------------------------------------------- |
+| `FOCUSNFE_CODIGO_TRIBUTACAO`      | `040802`    | LC 116 — Fisioterapia                                |
+| `FOCUSNFE_CODIGO_NBS`             | `123019200` | NBS 1.2301.92.00                                     |
+| Município                         | `4314902`   | Porto Alegre (fixo no código)                        |
+| `FOCUSNFE_SIMPLES_NACIONAL`       | `3`         | `1` não optante · `2` MEI · `3` ME/EPP (CB MOVE)     |
+| `FOCUSNFE_REGIME_TRIBUTARIO_SN`   | `1`         | Regime de apuração SN (obrigatório ME/EPP — E0166)   |
+| `FOCUSNFE_PERCENTUAL_TRIBUTOS_SN` | `6`         | `pTotTribSN` (%) — confirmar alíquota real com Diego |
 
 ⚠️ **POA / CNC NFS-e:** não enviar `inscricao_municipal_prestador`. O ambiente nacional retorna **E0120** se a IM for informada. Não configure `FOCUSNFE_INSCRICAO_MUNICIPAL` para a CB MOVE.
 

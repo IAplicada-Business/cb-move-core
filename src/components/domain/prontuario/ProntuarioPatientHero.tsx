@@ -3,7 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { Download, Mic } from "lucide-react";
 import { toast } from "sonner";
 
-import { tipoPacienteLabel, pacienteCodigoCurto, plazoSessoesLabel, PLANO_TOTAL_PADRAO } from "@/components/domain/prontuario/utils";
+import {
+  tipoPacienteLabel,
+  pacienteCodigoCurto,
+  plazoSessoesLabel,
+  PLANO_TOTAL_PADRAO,
+} from "@/components/domain/prontuario/utils";
 import type { ProntuarioPaciente } from "@/lib/queries/prontuario";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +31,9 @@ type Props = {
 function InfoCell({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5 min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
       <div className="text-sm font-medium text-foreground">{children}</div>
     </div>
   );
@@ -73,7 +80,9 @@ export function ProntuarioPatientHero({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-baseline gap-3 flex-wrap">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{paciente.nome}</h1>
-          <span className="text-sm font-mono text-muted-foreground">{pacienteCodigoCurto(paciente.id)}</span>
+          <span className="text-sm font-mono text-muted-foreground">
+            {pacienteCodigoCurto(paciente.id)}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -86,7 +95,11 @@ export function ProntuarioPatientHero({
             Exportar prontuário
           </Button>
           {canEdit && (
-            <Button size="sm" className="gap-1.5 bg-cb-cyan-600 hover:bg-cb-cyan-700 text-white" onClick={onGravarEvolucao}>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-cb-cyan-600 hover:bg-cb-cyan-700 text-white"
+              onClick={onGravarEvolucao}
+            >
               <Mic className="h-4 w-4" />
               Gravar evolução
             </Button>
@@ -109,12 +122,8 @@ export function ProntuarioPatientHero({
             {tipoLabel}
           </span>
         </InfoCell>
-        <InfoCell label="Processo">
-          {paciente.numeroProcesso ?? "—"}
-        </InfoCell>
-        <InfoCell label="Fisio responsável">
-          {paciente.fisioterapeutaNome ?? "—"}
-        </InfoCell>
+        <InfoCell label="Processo">{paciente.numeroProcesso ?? "—"}</InfoCell>
+        <InfoCell label="Fisio responsável">{paciente.fisioterapeutaNome ?? "—"}</InfoCell>
         <InfoCell label="Plano">
           {plazoSessoesLabel(sessoesRealizadas, paciente.planoTotalSessoes ?? PLANO_TOTAL_PADRAO)}
         </InfoCell>

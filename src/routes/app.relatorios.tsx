@@ -25,11 +25,13 @@ import type { PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/app/relatorios")({
@@ -80,7 +82,11 @@ type RelatorioGerado = {
 type ConvenioOpcao = { id: string; nome: string };
 
 async function fetchConveniosAtivos(): Promise<ConvenioOpcao[]> {
-  const { data, error } = await supabase.from("convenios").select("id, nome").eq("ativo", true).order("nome");
+  const { data, error } = await supabase
+    .from("convenios")
+    .select("id, nome")
+    .eq("ativo", true)
+    .order("nome");
   if (error) throw error;
   return (data ?? []) as ConvenioOpcao[];
 }
@@ -93,13 +99,7 @@ type LoteResultado = {
   pdfUrl?: string;
 };
 
-function GerarRelatorioDialog({
-  tipo,
-  onClose,
-}: {
-  tipo: PacienteTipo;
-  onClose: () => void;
-}) {
+function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: () => void }) {
   const cfg = TIPO_RELATORIO[tipo];
   const now = new Date();
   const [convenioId, setConvenioId] = useState("");
@@ -143,7 +143,11 @@ function GerarRelatorioDialog({
     const resultados: LoteResultado[] = [];
     for (const p of pacientesFiltrados) {
       try {
-        const data = (await gerarRelatorioMensal({ pacienteId: p.id, mes, ano })) as RelatorioGerado;
+        const data = (await gerarRelatorioMensal({
+          pacienteId: p.id,
+          mes,
+          ano,
+        })) as RelatorioGerado;
         resultados.push({
           pacienteId: p.id,
           pacienteNome: p.nome,
@@ -189,7 +193,12 @@ function GerarRelatorioDialog({
             <MonthPicker
               mes={mes}
               ano={ano}
-              onChange={(m, a) => { setMes(m); setAno(a); setResultado(null); setLote(null); }}
+              onChange={(m, a) => {
+                setMes(m);
+                setAno(a);
+                setResultado(null);
+                setLote(null);
+              }}
               className="w-full"
             />
           </div>
@@ -199,14 +208,21 @@ function GerarRelatorioDialog({
               <label className="text-sm font-medium">Convênio</label>
               <Select
                 value={convenioId}
-                onValueChange={(v) => { setConvenioId(v); setPacienteId(""); setResultado(null); setLote(null); }}
+                onValueChange={(v) => {
+                  setConvenioId(v);
+                  setPacienteId("");
+                  setResultado(null);
+                  setLote(null);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o convênio…" />
                 </SelectTrigger>
                 <SelectContent>
                   {(conveniosQuery.data ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -217,19 +233,31 @@ function GerarRelatorioDialog({
             <label className="text-sm font-medium">
               {tipo === "convenio" ? "Paciente (opcional para gerar 1 de cada vez)" : "Paciente"}
             </label>
-            <Select value={pacienteId} onValueChange={(v) => { setPacienteId(v); setResultado(null); }}>
+            <Select
+              value={pacienteId}
+              onValueChange={(v) => {
+                setPacienteId(v);
+                setResultado(null);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o paciente…" />
               </SelectTrigger>
               <SelectContent>
                 {pacientesQuery.isLoading && (
-                  <SelectItem value="__loading" disabled>Carregando…</SelectItem>
+                  <SelectItem value="__loading" disabled>
+                    Carregando…
+                  </SelectItem>
                 )}
                 {pacientesFiltrados.length === 0 && (
-                  <SelectItem value="__empty" disabled>Nenhum paciente encontrado</SelectItem>
+                  <SelectItem value="__empty" disabled>
+                    Nenhum paciente encontrado
+                  </SelectItem>
                 )}
                 {pacientesFiltrados.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.nome}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -237,9 +265,17 @@ function GerarRelatorioDialog({
 
           {resultado && (
             <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
-              <p><span className="text-muted-foreground">Paciente:</span> <span className="font-medium">{resultado.paciente_nome}</span></p>
-              <p><span className="text-muted-foreground">Competência:</span> {resultado.competencia}</p>
-              <p><span className="text-muted-foreground">Sessões no período:</span> {resultado.total_sessoes}</p>
+              <p>
+                <span className="text-muted-foreground">Paciente:</span>{" "}
+                <span className="font-medium">{resultado.paciente_nome}</span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">Competência:</span> {resultado.competencia}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Sessões no período:</span>{" "}
+                {resultado.total_sessoes}
+              </p>
               {resultado.pdf_url && (
                 <Button
                   variant="outline"
@@ -300,15 +336,16 @@ function GerarRelatorioDialog({
                       type="button"
                       className="shrink-0 text-xs text-cb-cyan-700 hover:underline"
                       onClick={() => {
-                        void openRelatorioPdf(r.pdfUrl).catch((e: Error) =>
-                          toast.error(e.message),
-                        );
+                        void openRelatorioPdf(r.pdfUrl).catch((e: Error) => toast.error(e.message));
                       }}
                     >
                       PDF
                     </button>
                   ) : (
-                    <span className="shrink-0 truncate text-xs text-muted-foreground" title={r.detalhe}>
+                    <span
+                      className="shrink-0 truncate text-xs text-muted-foreground"
+                      title={r.detalhe}
+                    >
                       {r.detalhe}
                     </span>
                   )}
@@ -319,7 +356,8 @@ function GerarRelatorioDialog({
 
           {paciente && !paciente.email && (
             <p className="text-xs text-muted-foreground">
-              Dica: cadastre um e-mail para este paciente para poder enviar o relatório automaticamente.
+              Dica: cadastre um e-mail para este paciente para poder enviar o relatório
+              automaticamente.
             </p>
           )}
         </div>
@@ -337,8 +375,9 @@ function RelatoriosPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Relatórios por tipo de atendimento</h1>
           <p className="text-sm text-muted-foreground">
-            Escolha o tipo de paciente para gerar o relatório de atendimento no modelo correspondente. Para
-            convênios, é possível gerar de uma vez para todos os pacientes vinculados.
+            Escolha o tipo de paciente para gerar o relatório de atendimento no modelo
+            correspondente. Para convênios, é possível gerar de uma vez para todos os pacientes
+            vinculados.
           </p>
         </div>
         <Button variant="outline" asChild className="gap-2">
@@ -358,7 +397,9 @@ function RelatoriosPage() {
               onClick={() => setTipoSelecionado(tipo)}
               className="rounded-xl border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${cfg.accent}`}>
+              <div
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${cfg.accent}`}
+              >
                 <cfg.icon className="h-5 w-5" />
               </div>
               <h3 className="mt-3 font-semibold">{cfg.label}</h3>

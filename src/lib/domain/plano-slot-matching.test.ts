@@ -72,10 +72,14 @@ describe("mapearAgendamentosAosSlots", () => {
   it("remarcação série mês: 12 slots vazios, 12 extras", () => {
     const ags = agendamentosAirtonLimpos().map((ag) => {
       const d = ag.inicio.slice(0, 10);
-      if (d === "2026-07-16") return { ...ag, inicio: ag.inicio.replace("2026-07-16", "2026-07-17") };
-      if (d === "2026-07-20") return { ...ag, inicio: ag.inicio.replace("2026-07-20", "2026-07-21") };
-      if (d === "2026-07-23") return { ...ag, inicio: ag.inicio.replace("2026-07-23", "2026-07-24") };
-      if (d === "2026-07-27") return { ...ag, inicio: ag.inicio.replace("2026-07-27", "2026-07-28") };
+      if (d === "2026-07-16")
+        return { ...ag, inicio: ag.inicio.replace("2026-07-16", "2026-07-17") };
+      if (d === "2026-07-20")
+        return { ...ag, inicio: ag.inicio.replace("2026-07-20", "2026-07-21") };
+      if (d === "2026-07-23")
+        return { ...ag, inicio: ag.inicio.replace("2026-07-23", "2026-07-24") };
+      if (d === "2026-07-27")
+        return { ...ag, inicio: ag.inicio.replace("2026-07-27", "2026-07-28") };
       return ag;
     });
     const r = mapearAgendamentosAosSlots(slotsAirton(), ags);

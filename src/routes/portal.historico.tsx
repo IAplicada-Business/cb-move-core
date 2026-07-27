@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/domain/LoadingState";
 
-export const Route = (createFileRoute as any)("/portal/historico")({
+export const Route = createFileRoute("/portal/historico")({
   component: PortalHistorico,
 });
 
@@ -30,7 +30,7 @@ function PortalHistorico() {
 
   React.useEffect(() => {
     if (!pacienteId) return;
-    (supabase as any)
+    supabase
       .from("sessoes")
       .select("id, data, sigla, fisioterapeutas!sessoes_fisioterapeuta_id_fkey(nome)")
       .eq("paciente_id", pacienteId)

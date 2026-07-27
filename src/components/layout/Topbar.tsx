@@ -9,11 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/format";
@@ -31,10 +39,11 @@ export function Topbar() {
   const [nome, setNome] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
-  const userName = (user?.user_metadata?.nome as string | undefined)
-    ?? (user?.user_metadata?.full_name as string | undefined)
-    ?? user?.email
-    ?? "Usuário";
+  const userName =
+    (user?.user_metadata?.nome as string | undefined) ??
+    (user?.user_metadata?.full_name as string | undefined) ??
+    user?.email ??
+    "Usuário";
   const userRole = ROLE_LABELS[primary] ?? "Sem perfil";
 
   function openEdit() {
@@ -111,8 +120,12 @@ export function Topbar() {
             <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-            <Button onClick={saveNome} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveNome} disabled={saving}>
+              {saving ? "Salvando…" : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

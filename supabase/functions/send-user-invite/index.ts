@@ -73,13 +73,16 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({
-      ok: true,
-      message: `Convite enviado para ${email}. A pessoa definirá a senha no primeiro acesso.`,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        message: `Convite enviado para ${email}. A pessoa definirá a senha no primeiro acesso.`,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     const authResp = authErrorResponse(err, corsHeaders);
     if (authResp) return authResp;

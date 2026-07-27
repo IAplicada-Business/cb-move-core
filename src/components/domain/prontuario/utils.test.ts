@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  evolucaoStatus,
-  resolveSessaoId,
-  sessaoOptionLabel,
-} from "./utils";
+import { evolucaoStatus, resolveSessaoId, sessaoOptionLabel } from "./utils";
 import type { SessaoProntuario } from "../../../lib/queries/prontuario";
 
 function sessao(

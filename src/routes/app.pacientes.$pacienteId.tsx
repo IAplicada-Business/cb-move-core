@@ -126,7 +126,9 @@ function PacienteDetalhe() {
                 <p className="mt-1 text-foreground">{paciente.email ?? "—"}</p>
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Convênio / processo</p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Convênio / processo
+                </p>
                 <p className="mt-1 text-foreground">
                   {paciente.convenioNome ?? paciente.numeroProcesso ?? "—"}
                 </p>
@@ -136,11 +138,15 @@ function PacienteDetalhe() {
                 <p className="mt-1 text-foreground">{paciente.frequenciaAtendimento ?? "—"}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Dias da semana</p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Dias da semana
+                </p>
                 <p className="mt-1 text-foreground">{paciente.diasSemana ?? "—"}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Motivo do acompanhamento</p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Motivo do acompanhamento
+                </p>
                 <p className="mt-1 whitespace-pre-wrap text-foreground">
                   {paciente.motivoAcompanhamento ?? "—"}
                 </p>
@@ -157,11 +163,7 @@ function PacienteDetalhe() {
                 Selecione o mês para ver frequência prevista × realizadas
               </p>
             </div>
-            <MonthPicker
-              mes={mesSelecionado}
-              ano={anoSelecionado}
-              onChange={selecionarMes}
-            />
+            <MonthPicker mes={mesSelecionado} ano={anoSelecionado} onChange={selecionarMes} />
           </div>
 
           {loadComparecimento ? (

@@ -34,7 +34,10 @@ export function countSessoesRealizadas(sessoes: SessaoRelatorioInput[]): number 
   return sessoes.filter((s) => s.sigla && SIGLAS_REALIZADAS.has(s.sigla)).length;
 }
 
-export function calcularRodapeFinanceiro(numSessoes: number, valorSessao: number): RelatorioRodapeFinanceiro {
+export function calcularRodapeFinanceiro(
+  numSessoes: number,
+  valorSessao: number,
+): RelatorioRodapeFinanceiro {
   const valorTotal = Math.round(numSessoes * valorSessao * 100) / 100;
   return { numSessoes, valorSessao, valorTotal };
 }

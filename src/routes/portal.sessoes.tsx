@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/domain/LoadingState";
 
-export const Route = (createFileRoute as any)("/portal/sessoes")({
+export const Route = createFileRoute("/portal/sessoes")({
   component: PortalSessoes,
 });
 
@@ -15,12 +15,12 @@ type SessaoRow = {
 };
 
 const SIGLAS: Record<string, { label: string; color: string }> = {
-  P:  { label: "Compareci",           color: "bg-green-100 text-green-700" },
-  F:  { label: "Não compareci",       color: "bg-red-100 text-red-700" },
-  FJ: { label: "Cancelei com aviso",  color: "bg-orange-100 text-orange-700" },
-  NJ: { label: "A recuperar",         color: "bg-orange-200 text-orange-900" },
-  RC: { label: "Sessão recuperada",   color: "bg-blue-100 text-blue-700" },
-  NR: { label: "Sem atendimento",     color: "bg-gray-100 text-gray-600" },
+  P: { label: "Compareci", color: "bg-green-100 text-green-700" },
+  F: { label: "Não compareci", color: "bg-red-100 text-red-700" },
+  FJ: { label: "Cancelei com aviso", color: "bg-orange-100 text-orange-700" },
+  NJ: { label: "A recuperar", color: "bg-orange-200 text-orange-900" },
+  RC: { label: "Sessão recuperada", color: "bg-blue-100 text-blue-700" },
+  NR: { label: "Sem atendimento", color: "bg-gray-100 text-gray-600" },
 };
 
 function mesLabel(ano: number, mes: number) {
@@ -40,7 +40,7 @@ function PortalSessoes() {
     setLoading(true);
     const inicio = new Date(ano, mes, 1).toISOString().split("T")[0];
     const fim = new Date(ano, mes + 1, 0).toISOString().split("T")[0];
-    (supabase as any)
+    supabase
       .from("sessoes")
       .select("id, data, sigla")
       .eq("paciente_id", pacienteId)
@@ -56,8 +56,14 @@ function PortalSessoes() {
   function navMes(delta: number) {
     let m = mes + delta;
     let a = ano;
-    if (m < 0) { m = 11; a--; }
-    if (m > 11) { m = 0; a++; }
+    if (m < 0) {
+      m = 11;
+      a--;
+    }
+    if (m > 11) {
+      m = 0;
+      a++;
+    }
     setMes(m);
     setAno(a);
   }
@@ -90,7 +96,9 @@ function PortalSessoes() {
 
       {/* Totais */}
       <div className="rounded-xl border bg-cb-cyan-050 px-4 py-3 text-sm">
-        <span className="font-semibold text-cb-cyan-800">{realizados} de {total}</span>
+        <span className="font-semibold text-cb-cyan-800">
+          {realizados} de {total}
+        </span>
         <span className="text-cb-cyan-700"> encontros realizados neste mês</span>
       </div>
 
@@ -98,9 +106,7 @@ function PortalSessoes() {
 
       {/* Lista */}
       {!loading && sessoes.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground py-8">
-          Nenhum registro neste mês.
-        </p>
+        <p className="text-center text-sm text-muted-foreground py-8">Nenhum registro neste mês.</p>
       )}
 
       {!loading && sessoes.length > 0 && (
@@ -113,7 +119,10 @@ function PortalSessoes() {
               month: "short",
             });
             return (
-              <li key={s.id} className="flex items-center justify-between rounded-xl border bg-white px-4 py-3 shadow-sm">
+              <li
+                key={s.id}
+                className="flex items-center justify-between rounded-xl border bg-white px-4 py-3 shadow-sm"
+              >
                 <span className="text-sm font-medium capitalize text-foreground">{data}</span>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${info.color}`}>
                   {info.label}

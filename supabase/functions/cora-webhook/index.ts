@@ -1,7 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getIntegracaoConfigValue } from "../_shared/integracao-config.ts";
-import { syncCobrancaPorInvoiceId, syncPagamentosCoraPendentes } from "../_shared/cora-payment-sync.ts";
+import {
+  syncCobrancaPorInvoiceId,
+  syncPagamentosCoraPendentes,
+} from "../_shared/cora-payment-sync.ts";
 
 /**
  * Webhook da Cora (`resource: invoice`, `trigger: paid`). O corpo da notificação vem

@@ -181,19 +181,22 @@ export async function createCobranca(input: {
   return map(data as unknown as Row);
 }
 
-export async function updateCobranca(id: string, input: Partial<{
-  status: CobrancaStatus;
-  pagoEm: string;
-  boletoUrl: string;
-  coraInvoiceId: string;
-  pixEmv: string;
-  formaPagamento: FormaPagamento;
-  vencimento: string;
-  observacoes: string;
-  frequenciaAtendimento: string | null;
-  diasSemana: string | null;
-  qtdSessoes: number | null;
-}>): Promise<void> {
+export async function updateCobranca(
+  id: string,
+  input: Partial<{
+    status: CobrancaStatus;
+    pagoEm: string;
+    boletoUrl: string;
+    coraInvoiceId: string;
+    pixEmv: string;
+    formaPagamento: FormaPagamento;
+    vencimento: string;
+    observacoes: string;
+    frequenciaAtendimento: string | null;
+    diasSemana: string | null;
+    qtdSessoes: number | null;
+  }>,
+): Promise<void> {
   const patch: {
     status?: CobrancaStatus;
     pago_em?: string;
@@ -215,7 +218,8 @@ export async function updateCobranca(id: string, input: Partial<{
   if (input.formaPagamento !== undefined) patch.forma_pagamento = input.formaPagamento;
   if (input.vencimento !== undefined) patch.vencimento = input.vencimento;
   if (input.observacoes !== undefined) patch.observacoes = input.observacoes;
-  if (input.frequenciaAtendimento !== undefined) patch.frequencia_atendimento = input.frequenciaAtendimento;
+  if (input.frequenciaAtendimento !== undefined)
+    patch.frequencia_atendimento = input.frequenciaAtendimento;
   if (input.diasSemana !== undefined) patch.dias_semana = input.diasSemana;
   if (input.qtdSessoes !== undefined) patch.qtd_sessoes = input.qtdSessoes;
 

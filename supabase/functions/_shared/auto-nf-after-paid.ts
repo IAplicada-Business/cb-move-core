@@ -55,7 +55,9 @@ async function criarOuObterNfEmitivel(
   admin: SupabaseClient,
   cobrancaId: string,
 ): Promise<{ nfId: string | null; criada: boolean; erro: string | null }> {
-  const { data, error: nfErr } = await admin.rpc("criar_nf_de_cobranca", { p_cobranca_id: cobrancaId });
+  const { data, error: nfErr } = await admin.rpc("criar_nf_de_cobranca", {
+    p_cobranca_id: cobrancaId,
+  });
   if (!nfErr) {
     const nfId = typeof data === "string" ? data : null;
     return { nfId, criada: Boolean(nfId), erro: null };
@@ -63,7 +65,11 @@ async function criarOuObterNfEmitivel(
 
   if ((nfErr.message ?? "").toLowerCase().includes("já existe nf")) {
     const nfId = await findNfEmitivel(admin, cobrancaId);
-    return { nfId, criada: false, erro: nfId ? null : "NF existente já emitida ou em processamento" };
+    return {
+      nfId,
+      criada: false,
+      erro: nfId ? null : "NF existente já emitida ou em processamento",
+    };
   }
 
   return { nfId: null, criada: false, erro: nfErr.message ?? String(nfErr) };
@@ -88,7 +94,7 @@ export async function processAutoNfAfterPaid(
   cobrancaId: string,
   ctx?: AutoNfContext,
 ): Promise<AutoNfResult> {
-  const resolvedCtx = ctx ?? await buildAutoNfContext(admin);
+  const resolvedCtx = ctx ?? (await buildAutoNfContext(admin));
   const result: AutoNfResult = {
     nf_criada: false,
     nf_id: null,
@@ -97,7 +103,8 @@ export async function processAutoNfAfterPaid(
   };
 
   if (!resolvedCtx.autoNfEnabled) {
-    result.erro = "CORA_AUTO_NF_ENABLED=false — pagamento confirmado, NF não disparada (kill switch)";
+    result.erro =
+      "CORA_AUTO_NF_ENABLED=false — pagamento confirmado, NF não disparada (kill switch)";
     return result;
   }
 
@@ -126,14 +133,14 @@ export async function processAutoNfAfterPaid(
   result.nf_id = nfId;
   const emitResult = resolvedCtx.emitAuthHeader
     ? await triggerEmitNf(resolvedCtx.supabaseUrl, nfId, {
-      mode: "user",
-      authorization: resolvedCtx.emitAuthHeader,
-    })
+        mode: "user",
+        authorization: resolvedCtx.emitAuthHeader,
+      })
     : await triggerEmitNf(resolvedCtx.supabaseUrl, nfId, {
-      mode: "internal",
-      serviceKey: resolvedCtx.serviceKey,
-      origin: "auto-nf-after-paid",
-    });
+        mode: "internal",
+        serviceKey: resolvedCtx.serviceKey,
+        origin: "auto-nf-after-paid",
+      });
   result.emit_nf_disparado = emitResult.ok;
   if (!emitResult.ok) result.erro = emitResult.erro;
   return result;

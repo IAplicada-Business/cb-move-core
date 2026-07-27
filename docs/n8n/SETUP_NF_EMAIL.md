@@ -2,21 +2,21 @@
 
 Workflow criado no n8n Cloud (iaplicada).
 
-| Campo | Valor |
-|-------|-------|
-| Nome | CB MOVE - NF Email |
-| ID | `CYwb8MLR3TUmLyLo` |
-| Editor | https://iaplicada.app.n8n.cloud/workflow/CYwb8MLR3TUmLyLo |
-| Webhook produção | `https://iaplicada.app.n8n.cloud/webhook/cbmove-nf-email` |
-| Webhook teste | `https://iaplicada.app.n8n.cloud/webhook-test/cbmove-nf-email` |
-| Status | **Publicado e ativo** (07/07/2026) |
+| Campo            | Valor                                                          |
+| ---------------- | -------------------------------------------------------------- |
+| Nome             | CB MOVE - NF Email                                             |
+| ID               | `CYwb8MLR3TUmLyLo`                                             |
+| Editor           | https://iaplicada.app.n8n.cloud/workflow/CYwb8MLR3TUmLyLo      |
+| Webhook produção | `https://iaplicada.app.n8n.cloud/webhook/cbmove-nf-email`      |
+| Webhook teste    | `https://iaplicada.app.n8n.cloud/webhook-test/cbmove-nf-email` |
+| Status           | **Publicado e ativo** (07/07/2026)                             |
 
 ## 1. Credenciais no n8n (criadas)
 
-| Credencial | ID | Tipo | Nós |
-|------------|-----|------|-----|
-| CB MOVE Supabase | `ivOTcYwW1oFZD21x` | `supabaseApi` | Buscar NF, Buscar template, Log |
-| CB MOVE NF Webhook Secret | `fqaqSa6FSxk7sY26` | `httpHeaderAuth` | Webhook NF Email |
+| Credencial                | ID                 | Tipo             | Nós                             |
+| ------------------------- | ------------------ | ---------------- | ------------------------------- |
+| CB MOVE Supabase          | `ivOTcYwW1oFZD21x` | `supabaseApi`    | Buscar NF, Buscar template, Log |
+| CB MOVE NF Webhook Secret | `fqaqSa6FSxk7sY26` | `httpHeaderAuth` | Webhook NF Email                |
 
 > O valor do webhook secret está em n8n → Credentials → **CB MOVE NF Webhook Secret** (header `X-Webhook-Secret`).
 
@@ -25,6 +25,7 @@ Workflow criado no n8n Cloud (iaplicada).
 Sem API key Resend disponível, o nó **Enviar Resend** foi trocado por **Enviar Gmail** (credencial `Gmail OAuth2 API` já existente). Quando tiver `re_...`, recriar credencial Resend e restaurar o nó HTTP.
 
 ### CB MOVE Resend (`httpBearerAuth`) — pendente
+
 - Token: `re_...` (Resend Dashboard)
 
 Usar no nó: Enviar Resend.

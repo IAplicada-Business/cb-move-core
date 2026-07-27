@@ -104,12 +104,7 @@ describe("resolverSessoesEsperadas", () => {
 describe("calcularMetricaComparecimento", () => {
   it("conta P e RC como realizadas", () => {
     const metrica = calcularMetricaComparecimento(
-      [
-        { sigla: "P" },
-        { sigla: "RC" },
-        { sigla: "F" },
-        { sigla: "NJ" },
-      ],
+      [{ sigla: "P" }, { sigla: "RC" }, { sigla: "F" }, { sigla: "NJ" }],
       { qtdSessoesCobranca: 20, frequenciaAtendimento: "2x semana triplo" },
     );
 

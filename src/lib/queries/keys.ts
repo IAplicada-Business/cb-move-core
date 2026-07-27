@@ -14,7 +14,8 @@ export const queryKeys = {
   notasFiscais: {
     all: ["notas_fiscais"] as const,
     list: (filters?: Record<string, unknown>) => ["notas_fiscais", "list", filters ?? {}] as const,
-    monthCount: (year: number, month: number) => ["notas_fiscais", "monthCount", year, month] as const,
+    monthCount: (year: number, month: number) =>
+      ["notas_fiscais", "monthCount", year, month] as const,
   },
   agendamentos: {
     all: ["agendamentos"] as const,
@@ -24,7 +25,8 @@ export const queryKeys = {
   },
   sessoes: {
     all: ["sessoes"] as const,
-    mensal: (pacienteId: string, mes: number, ano: number) => ["sessoes", "mensal", pacienteId, mes, ano] as const,
+    mensal: (pacienteId: string, mes: number, ano: number) =>
+      ["sessoes", "mensal", pacienteId, mes, ano] as const,
     gradeMes: (mes: number, ano: number) => ["sessoes", "grade", mes, ano] as const,
     comparecimentoMes: (pacienteId: string, mes: number, ano: number) =>
       ["sessoes", "comparecimento", pacienteId, mes, ano] as const,
@@ -78,9 +80,12 @@ export const queryKeys = {
   },
   financeiro: {
     kpis: (year: number, month: number) => ["financeiro", "kpis", year, month] as const,
-    kpisPorTipo: (year: number, month: number) => ["financeiro", "kpisPorTipo", year, month] as const,
-    receitaConvenio: (year: number, month: number) => ["financeiro", "receitaConvenio", year, month] as const,
-    cobrancasSemNf: (year: number, month: number) => ["financeiro", "cobrancasSemNf", year, month] as const,
+    kpisPorTipo: (year: number, month: number) =>
+      ["financeiro", "kpisPorTipo", year, month] as const,
+    receitaConvenio: (year: number, month: number) =>
+      ["financeiro", "receitaConvenio", year, month] as const,
+    cobrancasSemNf: (year: number, month: number) =>
+      ["financeiro", "cobrancasSemNf", year, month] as const,
     extrato: (year: number, month: number) => ["financeiro", "extrato", year, month] as const,
   },
   periodizacao: {
@@ -94,10 +99,13 @@ export const queryKeys = {
   },
   dashboard: {
     home: (year: number, month: number) => ["dashboard", "home", year, month] as const,
-    operacional: (year: number, month: number) => ["dashboard", "operacional", year, month] as const,
+    operacional: (year: number, month: number) =>
+      ["dashboard", "operacional", year, month] as const,
     proximasAgendas: () => ["dashboard", "proximasAgendas"] as const,
-    divergencias: (year: number, month: number) => ["dashboard", "divergencias", year, month] as const,
-    receitaMensal: (anoInicio: number, anoFim: number) => ["dashboard", "receitaMensal", anoInicio, anoFim] as const,
+    divergencias: (year: number, month: number) =>
+      ["dashboard", "divergencias", year, month] as const,
+    receitaMensal: (anoInicio: number, anoFim: number) =>
+      ["dashboard", "receitaMensal", anoInicio, anoFim] as const,
   },
   userRoles: {
     byUser: (id: string) => ["user_roles", id] as const,

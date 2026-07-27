@@ -30,7 +30,9 @@ export function ProntuarioHistoricoStatusTab({
       <div className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Histórico de status</h2>
-          <p className="text-xs text-muted-foreground">Alterações de cadastro e situação do paciente</p>
+          <p className="text-xs text-muted-foreground">
+            Alterações de cadastro e situação do paciente
+          </p>
         </div>
 
         {loadingHistorico ? (
@@ -57,8 +59,12 @@ export function ProntuarioHistoricoStatusTab({
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {formatDate(h.alterado_em)}
                     </TableCell>
-                    <TableCell className="font-medium capitalize">{h.campo.replace(/_/g, " ")}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{h.valor_anterior ?? "—"}</TableCell>
+                    <TableCell className="font-medium capitalize">
+                      {h.campo.replace(/_/g, " ")}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {h.valor_anterior ?? "—"}
+                    </TableCell>
                     <TableCell className="text-sm">{h.valor_novo ?? "—"}</TableCell>
                   </TableRow>
                 ))}

@@ -8,8 +8,18 @@ const FONTE_LABEL: Record<string, string> = {
 };
 
 const MESES_PT = [
-  "jan", "fev", "mar", "abr", "mai", "jun",
-  "jul", "ago", "set", "out", "nov", "dez",
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
 ];
 
 function formatDataPT(dateStr: string): string {
@@ -32,9 +42,7 @@ export function EvolucaoCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="font-semibold text-foreground">{dataFmt}</span>
-          {evolucao.fisioterapeutas?.nome && (
-            <span>· {evolucao.fisioterapeutas.nome}</span>
-          )}
+          {evolucao.fisioterapeutas?.nome && <span>· {evolucao.fisioterapeutas.nome}</span>}
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
             {FONTE_LABEL[evolucao.fonte] ?? evolucao.fonte}
           </span>
@@ -47,19 +55,25 @@ export function EvolucaoCard({
       </div>
       {evolucao.subjetivo && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">S — Subjetivo</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            S — Subjetivo
+          </p>
           <p className="text-sm whitespace-pre-wrap">{evolucao.subjetivo}</p>
         </div>
       )}
       {evolucao.objetivo && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">O — Objetivo</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            O — Objetivo
+          </p>
           <p className="text-sm whitespace-pre-wrap">{evolucao.objetivo}</p>
         </div>
       )}
       {evolucao.plano && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">P — Plano</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            P — Plano
+          </p>
           <p className="text-sm whitespace-pre-wrap">{evolucao.plano}</p>
         </div>
       )}

@@ -5,13 +5,21 @@ import { useAuth } from "@/lib/auth";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { EmptyState } from "@/components/domain/EmptyState";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
 function fmtDate(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(iso));
 }
 
@@ -65,7 +73,10 @@ function CreditosIAPage() {
         <header>
           <h1 className="text-2xl font-bold">Créditos IA</h1>
         </header>
-        <EmptyState title="Acesso restrito" description="Apenas administradores podem ver o uso de IA." />
+        <EmptyState
+          title="Acesso restrito"
+          description="Apenas administradores podem ver o uso de IA."
+        />
       </div>
     );
   }
@@ -84,17 +95,27 @@ function CreditosIAPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Chamadas totais</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Chamadas totais
+          </p>
           <p className="text-2xl font-bold text-foreground">{(data ?? []).length}</p>
         </div>
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Tokens totais</p>
-          <p className="text-2xl font-bold text-foreground">{totalTokens.toLocaleString("pt-BR")}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Tokens totais
+          </p>
+          <p className="text-2xl font-bold text-foreground">
+            {totalTokens.toLocaleString("pt-BR")}
+          </p>
         </div>
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Custo estimado</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Custo estimado
+          </p>
           <p className="text-2xl font-bold text-foreground">US$ {totalUsd.toFixed(4)}</p>
-          <p className="text-xs text-muted-foreground mt-1">Haiku: $0,25/MTok in · $1,25/MTok out</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Haiku: $0,25/MTok in · $1,25/MTok out
+          </p>
         </div>
       </div>
 
@@ -104,7 +125,9 @@ function CreditosIAPage() {
         </header>
 
         {isLoading ? (
-          <div className="p-5"><LoadingState /></div>
+          <div className="p-5">
+            <LoadingState />
+          </div>
         ) : (data ?? []).length === 0 ? (
           <div className="p-5">
             <EmptyState
@@ -126,12 +149,8 @@ function CreditosIAPage() {
             <TableBody>
               {(data ?? []).map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="text-sm">
-                    {fmtDate(c.created_at)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {TIPO_LABEL[c.tipo] ?? c.tipo}
-                  </TableCell>
+                  <TableCell className="text-sm">{fmtDate(c.created_at)}</TableCell>
+                  <TableCell className="text-sm">{TIPO_LABEL[c.tipo] ?? c.tipo}</TableCell>
                   <TableCell className="text-right text-sm font-mono">
                     {c.tokens_entrada.toLocaleString("pt-BR")}
                   </TableCell>

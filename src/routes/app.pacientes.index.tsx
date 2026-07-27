@@ -11,7 +11,10 @@ import { KpiCard } from "@/components/domain/KpiCard";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { TipoBadge } from "@/components/domain/TipoBadge";
-import { CampoDiasSemana, CampoFrequenciaAtendimento } from "@/components/domain/AtendimentoCadastroFields";
+import {
+  CampoDiasSemana,
+  CampoFrequenciaAtendimento,
+} from "@/components/domain/AtendimentoCadastroFields";
 import {
   PacienteConsultaExperimentalSection,
   consultaDraftFromPaciente,
@@ -36,23 +39,52 @@ import type { PacienteTipo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -70,31 +102,48 @@ const schema = z.object({
   email: z.string().email("E-mail inválido").nullable().optional().or(z.literal("")),
   tipo: z.enum(["particular", "judicial", "convenio", "puc"] as const),
   regimeCobranca: z.enum(["mensalista", "por_sessao"] as const),
-  valorMensal: z.string().nullable().optional().refine(
-    (v) => !v || /^\d+([.,]\d{1,2})?$/.test(v),
-    "Valor inválido",
-  ),
-  valorSessao: z.string().nullable().optional().refine(
-    (v) => !v || /^\d+([.,]\d{1,2})?$/.test(v),
-    "Valor inválido",
-  ),
-  modeloRelatorio: z.enum(["convencional", "unimed", "sharepoint", "puc"] as const).nullable().optional(),
+  valorMensal: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || /^\d+([.,]\d{1,2})?$/.test(v), "Valor inválido"),
+  valorSessao: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || /^\d+([.,]\d{1,2})?$/.test(v), "Valor inválido"),
+  modeloRelatorio: z
+    .enum(["convencional", "unimed", "sharepoint", "puc"] as const)
+    .nullable()
+    .optional(),
   convenioId: z.string().nullable().optional(),
   numeroProcesso: z.string().nullable().optional(),
   frequenciaAtendimento: z.string().nullable().optional(),
   diasSemana: z.string().nullable().optional(),
   observacoes: z.string().nullable().optional(),
   motivoAcompanhamento: z.string().nullable().optional(),
-  modoEmissaoNf: z.enum(["automatico_pagamento", "data_especifica"] as const).default("automatico_pagamento"),
-  diaEmissaoNf: z.string().nullable().optional().refine(
-    (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
-    "Dia entre 1 e 28",
-  ),
-  modoEmissaoBoleto: z.enum(["automatico_pagamento", "data_especifica"] as const).default("automatico_pagamento"),
-  diaEmissaoBoleto: z.string().nullable().optional().refine(
-    (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
-    "Dia entre 1 e 28",
-  ),
+  modoEmissaoNf: z
+    .enum(["automatico_pagamento", "data_especifica"] as const)
+    .default("automatico_pagamento"),
+  diaEmissaoNf: z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
+      "Dia entre 1 e 28",
+    ),
+  modoEmissaoBoleto: z
+    .enum(["automatico_pagamento", "data_especifica"] as const)
+    .default("automatico_pagamento"),
+  diaEmissaoBoleto: z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 28),
+      "Dia entre 1 e 28",
+    ),
   ativo: z.boolean(),
   endereco: z.string().nullable().optional(),
   numeroEndereco: z.string().nullable().optional(),
@@ -103,10 +152,11 @@ const schema = z.object({
   cep: z.string().nullable().optional(),
   cidade: z.string().nullable().optional(),
   uf: z.string().max(2, "UF com 2 letras").nullable().optional(),
-  codigoMunicipioIbge: z.string().nullable().optional().refine(
-    (v) => !v || /^\d{7}$/.test(v),
-    "Código IBGE com 7 dígitos",
-  ),
+  codigoMunicipioIbge: z
+    .string()
+    .nullable()
+    .optional()
+    .refine((v) => !v || /^\d{7}$/.test(v), "Código IBGE com 7 dígitos"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -131,7 +181,11 @@ function maskCPF(cpf: string | null | undefined) {
 }
 
 async function fetchConvenios() {
-  const { data, error } = await supabase.from("convenios").select("id, nome").eq("ativo", true).order("nome");
+  const { data, error } = await supabase
+    .from("convenios")
+    .select("id, nome")
+    .eq("ativo", true)
+    .order("nome");
   if (error) throw error;
   return data ?? [];
 }
@@ -150,7 +204,10 @@ function PacientesPage() {
   );
 
   const { data: pacientes = [], isLoading } = useQuery({
-    queryKey: queryKeys.pacientes.list({ search, tipo: filterTipo === "todos" ? undefined : filterTipo }),
+    queryKey: queryKeys.pacientes.list({
+      search,
+      tipo: filterTipo === "todos" ? undefined : filterTipo,
+    }),
     queryFn: () =>
       fetchPacientes({
         search: search || undefined,
@@ -217,9 +274,11 @@ function PacientesPage() {
         observacoes: vals.observacoes || null,
         motivoAcompanhamento: vals.motivoAcompanhamento?.trim() || null,
         modoEmissaoNf: vals.modoEmissaoNf,
-        diaEmissaoNf: vals.modoEmissaoNf === "data_especifica" ? parseValorBr(vals.diaEmissaoNf) : null,
+        diaEmissaoNf:
+          vals.modoEmissaoNf === "data_especifica" ? parseValorBr(vals.diaEmissaoNf) : null,
         modoEmissaoBoleto: vals.modoEmissaoBoleto,
-        diaEmissaoBoleto: vals.modoEmissaoBoleto === "data_especifica" ? parseValorBr(vals.diaEmissaoBoleto) : null,
+        diaEmissaoBoleto:
+          vals.modoEmissaoBoleto === "data_especifica" ? parseValorBr(vals.diaEmissaoBoleto) : null,
         ativo: vals.ativo,
         valorMensal: parseValorBr(vals.valorMensal),
         valorSessao: parseValorBr(vals.valorSessao),
@@ -234,7 +293,9 @@ function PacientesPage() {
         cep: vals.cep?.trim() ? onlyDigits(vals.cep) : null,
         cidade: vals.cidade?.trim() || null,
         uf: vals.uf?.trim().toUpperCase() || null,
-        codigoMunicipioIbge: vals.codigoMunicipioIbge?.trim() ? Number(vals.codigoMunicipioIbge.trim()) : null,
+        codigoMunicipioIbge: vals.codigoMunicipioIbge?.trim()
+          ? Number(vals.codigoMunicipioIbge.trim())
+          : null,
       };
       if (editing) {
         await updatePaciente(editing.id, payload);
@@ -374,9 +435,24 @@ function PacientesPage() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard label="Total" value={total} accent="cyan" icon={<Users className="h-4 w-4" />} />
-        <KpiCard label="Particular" value={nParticular} accent="cyan" icon={<UserCheck className="h-4 w-4" />} />
-        <KpiCard label="Convênio" value={nConvenio} accent="purple" icon={<Briefcase className="h-4 w-4" />} />
-        <KpiCard label="Judicial" value={nJudicial} accent="magenta" icon={<Scale className="h-4 w-4" />} />
+        <KpiCard
+          label="Particular"
+          value={nParticular}
+          accent="cyan"
+          icon={<UserCheck className="h-4 w-4" />}
+        />
+        <KpiCard
+          label="Convênio"
+          value={nConvenio}
+          accent="purple"
+          icon={<Briefcase className="h-4 w-4" />}
+        />
+        <KpiCard
+          label="Judicial"
+          value={nJudicial}
+          accent="magenta"
+          icon={<Scale className="h-4 w-4" />}
+        />
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -389,7 +465,10 @@ function PacientesPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v as PacienteTipo | "todos")}>
+        <Select
+          value={filterTipo}
+          onValueChange={(v) => setFilterTipo(v as PacienteTipo | "todos")}
+        >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
@@ -448,8 +527,12 @@ function PacientesPage() {
                       {p.nome}
                     </Link>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{maskCPF(p.cpf)}</TableCell>
-                  <TableCell><TipoBadge value={p.tipo} /></TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {maskCPF(p.cpf)}
+                  </TableCell>
+                  <TableCell>
+                    <TipoBadge value={p.tipo} />
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {p.convenioNome ?? p.numeroProcesso ?? "—"}
                   </TableCell>
@@ -462,14 +545,26 @@ function PacientesPage() {
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={p.ativo}
-                          onCheckedChange={(v) => toggleAtivoMutation.mutate({ id: p.id, ativo: v })}
+                          onCheckedChange={(v) =>
+                            toggleAtivoMutation.mutate({ id: p.id, ativo: v })
+                          }
                         />
-                        <span className={cn("text-xs", p.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                        <span
+                          className={cn(
+                            "text-xs",
+                            p.ativo ? "text-[#047857]" : "text-muted-foreground",
+                          )}
+                        >
                           {p.ativo ? "Ativo" : "Inativo"}
                         </span>
                       </div>
                     ) : (
-                      <span className={cn("text-xs", p.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          p.ativo ? "text-[#047857]" : "text-muted-foreground",
+                        )}
+                      >
                         {p.ativo ? "Ativo" : "Inativo"}
                       </span>
                     )}
@@ -512,137 +607,231 @@ function PacientesPage() {
         </div>
       )}
 
-      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(o) => {
+          if (!o) closeModal();
+        }}
+      >
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar paciente" : "Novo paciente"}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-              <FormField control={form.control} name="nome" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome *</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome *</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="cpf" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CPF</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="000.000.000-00" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="telefone" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="(51) 99999-0000" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="cpf"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPF</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} placeholder="000.000.000-00" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="telefone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefone</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} placeholder="(51) 99999-0000" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl><Input type="email" {...field} value={field.value ?? ""} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="tipo" render={({ field }) => (
+                <FormField
+                  control={form.control}
+                  name="tipo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="particular">Particular</SelectItem>
+                          <SelectItem value="convenio">Convênio</SelectItem>
+                          <SelectItem value="judicial">Judicial</SelectItem>
+                          <SelectItem value="puc">PUC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="regimeCobranca"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Regime</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="mensalista">Mensalista</SelectItem>
+                          <SelectItem value="por_sessao">Por sessão</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {regimeWatch === "mensalista" ? (
+                <FormField
+                  control={form.control}
+                  name="valorMensal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor mensal (R$)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="1028,00"
+                          inputMode="decimal"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="valorSessao"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor por sessão (R$)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="150,00"
+                          inputMode="decimal"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={form.control}
+                name="modeloRelatorio"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <FormLabel>Modelo de relatório</FormLabel>
+                    <Select value={field.value ?? "convencional"} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
-                        <SelectItem value="particular">Particular</SelectItem>
-                        <SelectItem value="convenio">Convênio</SelectItem>
-                        <SelectItem value="judicial">Judicial</SelectItem>
+                        <SelectItem value="convencional">Convencional</SelectItem>
+                        <SelectItem value="unimed">Unimed</SelectItem>
+                        <SelectItem value="sharepoint">SharePoint (judicial)</SelectItem>
                         <SelectItem value="puc">PUC</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
-                )} />
-
-                <FormField control={form.control} name="regimeCobranca" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Regime</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="mensalista">Mensalista</SelectItem>
-                        <SelectItem value="por_sessao">Por sessão</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
-
-              {regimeWatch === "mensalista" ? (
-                <FormField control={form.control} name="valorMensal" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor mensal (R$)</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="1028,00" inputMode="decimal" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              ) : (
-                <FormField control={form.control} name="valorSessao" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valor por sessão (R$)</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ""} placeholder="150,00" inputMode="decimal" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              )}
-
-              <FormField control={form.control} name="modeloRelatorio" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Modelo de relatório</FormLabel>
-                  <Select value={field.value ?? "convencional"} onValueChange={field.onChange}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      <SelectItem value="convencional">Convencional</SelectItem>
-                      <SelectItem value="unimed">Unimed</SelectItem>
-                      <SelectItem value="sharepoint">SharePoint (judicial)</SelectItem>
-                      <SelectItem value="puc">PUC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+                )}
+              />
 
               {tipoWatch === "convenio" && (
-                <FormField control={form.control} name="convenioId" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Convênio</FormLabel>
-                    <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || null)}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {convenios.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="convenioId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Convênio</FormLabel>
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={(v) => field.onChange(v || null)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {convenios.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
 
               {(tipoWatch === "judicial" || tipoWatch === "puc") && (
-                <FormField control={form.control} name="numeroProcesso" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número do processo</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="numeroProcesso"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número do processo</FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
 
               {tipoWatch === "particular" && (
@@ -651,67 +840,120 @@ function PacientesPage() {
                     Endereço — obrigatório para emissão automática da NF (tomador particular)
                   </p>
                   <div className="grid grid-cols-3 gap-3">
-                    <FormField control={form.control} name="endereco" render={({ field }) => (
-                      <FormItem className="col-span-2">
-                        <FormLabel>Logradouro</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Rua Exemplo" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="numeroEndereco" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="123" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="endereco"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Logradouro</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} placeholder="Rua Exemplo" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="numeroEndereco"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Número</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} placeholder="123" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <FormField control={form.control} name="complemento" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Complemento</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="Apto 101" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="bairro" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bairro</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="complemento"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Complemento</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} placeholder="Apto 101" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bairro"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bairro</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <div className="grid grid-cols-3 gap-3">
-                    <FormField control={form.control} name="cep" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CEP</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} placeholder="00000-000" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="cidade" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cidade</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="uf" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>UF</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ""} maxLength={2} placeholder="RS" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <FormField
+                      control={form.control}
+                      name="cep"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CEP</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} placeholder="00000-000" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cidade"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cidade</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value ?? ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="uf"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>UF</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value ?? ""}
+                              maxLength={2}
+                              placeholder="RS"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  <FormField control={form.control} name="codigoMunicipioIbge" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Código município IBGE</FormLabel>
-                      <FormControl><Input {...field} value={field.value ?? ""} placeholder="4314902" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormField
+                    control={form.control}
+                    name="codigoMunicipioIbge"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Código município IBGE</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ""} placeholder="4314902" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               )}
 
@@ -719,12 +961,16 @@ function PacientesPage() {
                 <p className="text-xs font-medium text-muted-foreground">
                   Atendimento — usado no extrato financeiro mensal
                 </p>
-                <FormField control={form.control} name="frequenciaAtendimento" render={({ field }) => (
-                  <CampoFrequenciaAtendimento field={field} />
-                )} />
-                <FormField control={form.control} name="diasSemana" render={({ field }) => (
-                  <CampoDiasSemana field={field} />
-                )} />
+                <FormField
+                  control={form.control}
+                  name="frequenciaAtendimento"
+                  render={({ field }) => <CampoFrequenciaAtendimento field={field} />}
+                />
+                <FormField
+                  control={form.control}
+                  name="diasSemana"
+                  render={({ field }) => <CampoDiasSemana field={field} />}
+                />
               </div>
 
               <PacienteConsultaExperimentalSection
@@ -732,95 +978,152 @@ function PacientesPage() {
                 value={consultaDraft}
                 onChange={setConsultaDraft}
                 pacienteId={editing?.id}
-                onSaved={(patch) =>
-                  setEditing((prev) => (prev ? { ...prev, ...patch } : prev))
-                }
+                onSaved={(patch) => setEditing((prev) => (prev ? { ...prev, ...patch } : prev))}
               />
 
-              <FormField control={form.control} name="motivoAcompanhamento" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Motivo do acompanhamento</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      value={field.value ?? ""}
-                      rows={2}
-                      placeholder="Por que este paciente está em tratamento na clínica (diagnóstico, indicação, etc.)"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="motivoAcompanhamento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Motivo do acompanhamento</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        value={field.value ?? ""}
+                        rows={2}
+                        placeholder="Por que este paciente está em tratamento na clínica (diagnóstico, indicação, etc.)"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Emissão de NF</p>
-                <FormField control={form.control} name="modoEmissaoNf" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Modo de emissão</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="automatico_pagamento">Automático após pagamento (Cora/boleto)</SelectItem>
-                        <SelectItem value="data_especifica">Data fixa mensal no cadastro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                {form.watch("modoEmissaoNf") === "data_especifica" && (
-                  <FormField control={form.control} name="diaEmissaoNf" render={({ field }) => (
+                <FormField
+                  control={form.control}
+                  name="modoEmissaoNf"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Dia do mês (1–28)</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value ?? ""} type="number" min={1} max={28} placeholder="10" />
-                      </FormControl>
+                      <FormLabel>Modo de emissão</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="automatico_pagamento">
+                            Automático após pagamento (Cora/boleto)
+                          </SelectItem>
+                          <SelectItem value="data_especifica">
+                            Data fixa mensal no cadastro
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
-                  )} />
+                  )}
+                />
+                {form.watch("modoEmissaoNf") === "data_especifica" && (
+                  <FormField
+                    control={form.control}
+                    name="diaEmissaoNf"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dia do mês (1–28)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            type="number"
+                            min={1}
+                            max={28}
+                            placeholder="10"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
               </div>
 
               <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
                 <p className="text-xs font-medium text-muted-foreground">Emissão de boleto</p>
-                <FormField control={form.control} name="modoEmissaoBoleto" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Modo de emissão</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="automatico_pagamento">Manual na tela Cobranças</SelectItem>
-                        <SelectItem value="data_especifica">Data fixa mensal no cadastro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                {form.watch("modoEmissaoBoleto") === "data_especifica" && (
-                  <FormField control={form.control} name="diaEmissaoBoleto" render={({ field }) => (
+                <FormField
+                  control={form.control}
+                  name="modoEmissaoBoleto"
+                  render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Dia do mês (1–28)</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value ?? ""} type="number" min={1} max={28} placeholder="5" />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground">
-                        Requer CPF e e-mail no cadastro. Vencimento ≈ dia + 7. Envio automático se n8n estiver configurado.
-                      </p>
+                      <FormLabel>Modo de emissão</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="automatico_pagamento">
+                            Manual na tela Cobranças
+                          </SelectItem>
+                          <SelectItem value="data_especifica">
+                            Data fixa mensal no cadastro
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
-                  )} />
+                  )}
+                />
+                {form.watch("modoEmissaoBoleto") === "data_especifica" && (
+                  <FormField
+                    control={form.control}
+                    name="diaEmissaoBoleto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dia do mês (1–28)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            type="number"
+                            min={1}
+                            max={28}
+                            placeholder="5"
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Requer CPF e e-mail no cadastro. Vencimento ≈ dia + 7. Envio automático se
+                          n8n estiver configurado.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
               </div>
 
-              <FormField control={form.control} name="observacoes" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl><Textarea {...field} value={field.value ?? ""} rows={3} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="observacoes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} value={field.value ?? ""} rows={3} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancelar
+                </Button>
                 <Button type="submit" disabled={mutation.isPending}>
                   {mutation.isPending ? "Salvando…" : "Salvar"}
                 </Button>
@@ -830,13 +1133,18 @@ function PacientesPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir paciente</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
-              pacientes sem histórico de cobranças, sessões ou agendamentos. Caso já tenha
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível
+              excluir pacientes sem histórico de cobranças, sessões ou agendamentos. Caso já tenha
               histórico, use o botão de status na tabela para inativá-lo.
             </AlertDialogDescription>
           </AlertDialogHeader>

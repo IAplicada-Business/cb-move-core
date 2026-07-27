@@ -45,10 +45,7 @@ export function RemarcarAgendamentoSection({ target, onAbrirRemarcar }: Props) {
   const dataIso = slotLocal?.dataIso ?? "";
   const fisioId = target.fisioterapeuta_id ?? "";
 
-  const semanaDestino = useMemo(
-    () => (dataIso ? calcularSemanaDestino(dataIso) : null),
-    [dataIso],
-  );
+  const semanaDestino = useMemo(() => (dataIso ? calcularSemanaDestino(dataIso) : null), [dataIso]);
 
   const competencia = useMemo(() => {
     const d = new Date(target.inicio);
@@ -56,12 +53,8 @@ export function RemarcarAgendamentoSection({ target, onAbrirRemarcar }: Props) {
   }, [target.inicio]);
 
   const { data: agendamentosSemana = [] } = useQuery({
-    queryKey: queryKeys.agendamentos.periodo(
-      semanaDestino?.inicio ?? "",
-      semanaDestino?.fim ?? "",
-    ),
-    queryFn: () =>
-      fetchAgendamentosPeriodo(semanaDestino!.inicio, semanaDestino!.fim),
+    queryKey: queryKeys.agendamentos.periodo(semanaDestino?.inicio ?? "", semanaDestino?.fim ?? ""),
+    queryFn: () => fetchAgendamentosPeriodo(semanaDestino!.inicio, semanaDestino!.fim),
     enabled: open && !!semanaDestino,
   });
 
@@ -93,11 +86,7 @@ export function RemarcarAgendamentoSection({ target, onAbrirRemarcar }: Props) {
       competencia.ano,
     ),
     queryFn: () =>
-      fetchPlanoSessoesMensalPaciente(
-        target.paciente_id!,
-        competencia.mes,
-        competencia.ano,
-      ),
+      fetchPlanoSessoesMensalPaciente(target.paciente_id!, competencia.mes, competencia.ano),
     enabled: open && !!target.paciente_id,
   });
 

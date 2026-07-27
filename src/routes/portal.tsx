@@ -6,7 +6,7 @@ import { diag } from "@/lib/client-diagnostics";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 
-export const Route = (createFileRoute as any)("/portal")({
+export const Route = createFileRoute("/portal")({
   component: PortalShell,
 });
 
@@ -64,16 +64,18 @@ function PortalShell() {
         </div>
         {/* Nav tabs */}
         <nav className="flex overflow-x-auto border-t bg-white">
-          {[
-            { to: "/portal/", label: "Início" },
-            { to: "/portal/sessoes", label: "Sessões" },
-            { to: "/portal/exercicios", label: "Exercícios" },
-            { to: "/portal/laudos", label: "Documentos" },
-            { to: "/portal/contato", label: "Contato" },
-          ].map((item) => (
+          {(
+            [
+              { to: "/portal/", label: "Início" },
+              { to: "/portal/sessoes", label: "Sessões" },
+              { to: "/portal/exercicios", label: "Exercícios" },
+              { to: "/portal/laudos", label: "Documentos" },
+              { to: "/portal/contato", label: "Contato" },
+            ] as const
+          ).map((item) => (
             <Link
               key={item.to}
-              to={item.to as any}
+              to={item.to}
               className="flex-shrink-0 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-cb-cyan-600 [&.active]:border-b-2 [&.active]:border-cb-cyan-600 [&.active]:text-cb-cyan-600"
             >
               {item.label}

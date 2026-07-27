@@ -2,38 +2,38 @@
 
 Workflow criado no n8n Cloud (iaplicada).
 
-| Campo | Valor |
-|-------|-------|
-| Nome | CB MOVE - Boleto Docs |
-| ID | `Hj81THpuh8nflvCq` |
-| Editor | https://iaplicada.app.n8n.cloud/workflow/Hj81THpuh8nflvCq |
-| Webhook produção | `https://iaplicada.app.n8n.cloud/webhook/cbmove-boleto-docs` |
-| Webhook teste | `https://iaplicada.app.n8n.cloud/webhook-test/cbmove-boleto-docs` |
-| SDK fonte | [`workflow_boleto_docs.sdk.js`](workflow_boleto_docs.sdk.js) |
-| Export JSON | [`workflow_boleto_docs.json`](workflow_boleto_docs.json) |
+| Campo            | Valor                                                             |
+| ---------------- | ----------------------------------------------------------------- |
+| Nome             | CB MOVE - Boleto Docs                                             |
+| ID               | `Hj81THpuh8nflvCq`                                                |
+| Editor           | https://iaplicada.app.n8n.cloud/workflow/Hj81THpuh8nflvCq         |
+| Webhook produção | `https://iaplicada.app.n8n.cloud/webhook/cbmove-boleto-docs`      |
+| Webhook teste    | `https://iaplicada.app.n8n.cloud/webhook-test/cbmove-boleto-docs` |
+| SDK fonte        | [`workflow_boleto_docs.sdk.js`](workflow_boleto_docs.sdk.js)      |
+| Export JSON      | [`workflow_boleto_docs.json`](workflow_boleto_docs.json)          |
 
 ## Estado pós code-review (jul/2026)
 
 Itens já implementados no CBmove **antes** deste workflow:
 
-| Item | Onde | Status |
-|------|------|--------|
-| Split **Gerar** / **Enviar** boleto | UI + edges | Concluído |
-| Edge `send-boleto-cobranca` | Supabase | Deployada |
-| Dedup por `event_id` | `boleto-cobranca-queue.ts` + `cobrancas_envios` | Concluído na edge |
-| Canais dinâmicos `email` / `whatsapp` | Edge (telefone ≥ 10 dígitos) | Concluído |
-| Notificações Cora desligadas | `emit-boleto-cora` | Concluído |
-| Auditoria `cobrancas_envios` | Migration + insert pós-webhook 2xx | Concluído na edge |
+| Item                                  | Onde                                            | Status            |
+| ------------------------------------- | ----------------------------------------------- | ----------------- |
+| Split **Gerar** / **Enviar** boleto   | UI + edges                                      | Concluído         |
+| Edge `send-boleto-cobranca`           | Supabase                                        | Deployada         |
+| Dedup por `event_id`                  | `boleto-cobranca-queue.ts` + `cobrancas_envios` | Concluído na edge |
+| Canais dinâmicos `email` / `whatsapp` | Edge (telefone ≥ 10 dígitos)                    | Concluído         |
+| Notificações Cora desligadas          | `emit-boleto-cora`                              | Concluído         |
+| Auditoria `cobrancas_envios`          | Migration + insert pós-webhook 2xx              | Concluído na edge |
 
 O workflow n8n **não** grava em `cobrancas_envios` — isso já é feito pela edge após resposta 200 do webhook.
 
 ## 1. Credenciais no n8n
 
-| Credencial | Tipo | Nós | Status |
-|------------|------|-----|--------|
-| CB MOVE NF Webhook Secret | `httpHeaderAuth` | Webhook Boleto Docs | Reutilizada (mesma da NF) |
-| Gmail OAuth2 API | `gmailOAuth2` | Enviar Gmail | Auto-vinculada |
-| CB MOVE Z-API Client Token | `httpHeaderAuth` | Z-API WhatsApp | **Criar manualmente** |
+| Credencial                 | Tipo             | Nós                 | Status                    |
+| -------------------------- | ---------------- | ------------------- | ------------------------- |
+| CB MOVE NF Webhook Secret  | `httpHeaderAuth` | Webhook Boleto Docs | Reutilizada (mesma da NF) |
+| Gmail OAuth2 API           | `gmailOAuth2`    | Enviar Gmail        | Auto-vinculada            |
+| CB MOVE Z-API Client Token | `httpHeaderAuth` | Z-API WhatsApp      | **Criar manualmente**     |
 
 ### Webhook Secret
 

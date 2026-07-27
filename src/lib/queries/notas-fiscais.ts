@@ -121,10 +121,10 @@ export async function fetchNFs(filters?: {
   if (filters?.search) {
     const q = filters.search.toLowerCase();
     return rows.filter(
-      nf =>
+      (nf) =>
         nf.pacienteNome?.toLowerCase().includes(q) ||
         nf.destinatarioNome?.toLowerCase().includes(q) ||
-        nf.numero?.toLowerCase().includes(q)
+        nf.numero?.toLowerCase().includes(q),
     );
   }
   return rows;
@@ -192,10 +192,14 @@ export async function updateNF(
       ...(patch.pdfUrl != null ? { pdf_url: patch.pdfUrl } : {}),
       ...(patch.emissao != null ? { emissao: patch.emissao } : {}),
       ...(patch.destinatarioNome != null ? { destinatario_nome: patch.destinatarioNome } : {}),
-      ...(patch.destinatarioDocumento != null ? { destinatario_documento: patch.destinatarioDocumento } : {}),
+      ...(patch.destinatarioDocumento != null
+        ? { destinatario_documento: patch.destinatarioDocumento }
+        : {}),
       ...(patch.corpoPacienteNome != null ? { corpo_paciente_nome: patch.corpoPacienteNome } : {}),
       ...(patch.corpoPacienteCpf != null ? { corpo_paciente_cpf: patch.corpoPacienteCpf } : {}),
-      ...(patch.corpoNumeroProcesso != null ? { corpo_numero_processo: patch.corpoNumeroProcesso } : {}),
+      ...(patch.corpoNumeroProcesso != null
+        ? { corpo_numero_processo: patch.corpoNumeroProcesso }
+        : {}),
       ...(patch.corpoTotalSessoes != null ? { corpo_total_sessoes: patch.corpoTotalSessoes } : {}),
     })
     .eq("id", id)
@@ -216,7 +220,10 @@ export async function uploadNfPdf(file: File, ano: number, numero: string): Prom
   return data.publicUrl;
 }
 
-export async function sendNfEmail(nfId: string, tipo: PacienteTipo): Promise<{ ok: boolean; queued: boolean }> {
+export async function sendNfEmail(
+  nfId: string,
+  tipo: PacienteTipo,
+): Promise<{ ok: boolean; queued: boolean }> {
   return invokeEdgeFunction<{ ok: boolean; queued: boolean }>("send-nf-email", {
     nf_id: nfId,
     tipo,
@@ -265,7 +272,10 @@ export function documentoValidoParaNf(doc: string | null | undefined): boolean {
 }
 
 export function documentoElegivelCobranca(
-  row: Pick<{ destinatarioDocumento: string | null; pacienteCpf: string | null }, "destinatarioDocumento" | "pacienteCpf">,
+  row: Pick<
+    { destinatarioDocumento: string | null; pacienteCpf: string | null },
+    "destinatarioDocumento" | "pacienteCpf"
+  >,
 ): boolean {
   return documentoValidoParaNf(row.destinatarioDocumento) || documentoValidoParaNf(row.pacienteCpf);
 }
@@ -287,7 +297,9 @@ export async function sincronizarNfComCobranca(nf: NotaFiscal): Promise<NotaFisc
 export async function prepararEmitFocus(nf: NotaFiscal): Promise<NotaFiscal> {
   const synced = await sincronizarNfComCobranca(nf);
   if (!documentoValidoParaNf(synced.destinatarioDocumento)) {
-    throw new Error("CPF/CNPJ do destinatário ausente ou inválido — complete o cadastro do paciente");
+    throw new Error(
+      "CPF/CNPJ do destinatário ausente ou inválido — complete o cadastro do paciente",
+    );
   }
   return synced;
 }
@@ -345,15 +357,13 @@ export async function fetchCobrancaIdsComNf(cobrancaIds: string[]): Promise<Set<
     .not("cobranca_id", "is", null);
   if (error) throw error;
   return new Set(
-    (data ?? [])
-      .map((row) => row.cobranca_id as string | null)
-      .filter((id): id is string => !!id),
+    (data ?? []).map((row) => row.cobranca_id as string | null).filter((id): id is string => !!id),
   );
 }
 
 export async function fetchNFsPorPacienteAno(
   pacienteId: string,
-  ano: number
+  ano: number,
 ): Promise<NotaFiscal[]> {
   const { data, error } = await supabase
     .from("notas_fiscais")

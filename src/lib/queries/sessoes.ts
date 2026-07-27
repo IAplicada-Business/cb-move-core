@@ -1,10 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resolveMoveSessaoSiglaDia } from "@/lib/domain/frequencia";
 import { resolverFrequenciaExtrato } from "@/lib/domain/atendimento-cadastro";
-import {
-  calcularMetricaComparecimento,
-  type MetricaComparecimento,
-} from "@/lib/domain/frequencia";
+import { calcularMetricaComparecimento, type MetricaComparecimento } from "@/lib/domain/frequencia";
 import { fetchPaciente } from "@/lib/queries/pacientes";
 import { syncSessaoFisioterapeutasExtras } from "@/lib/queries/sessao-fisioterapeutas";
 import type { FrequenciaSigla, PacienteTipo } from "@/lib/types";
@@ -44,10 +41,7 @@ type PacienteFreqRow = {
 
 function monthRange(mes: number, ano: number) {
   const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const fim =
-    mes === 12
-      ? `${ano + 1}-01-01`
-      : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+  const fim = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
   return { inicio, fim };
 }
 
@@ -84,19 +78,14 @@ export async function fetchComparecimentoMensalPorPacientes(
       .in("paciente_id", uniqueIds)
       .eq("competencia_mes", mes)
       .eq("competencia_ano", ano),
-    supabase
-      .from("pacientes")
-      .select("id, frequencia_atendimento")
-      .in("id", uniqueIds),
+    supabase.from("pacientes").select("id, frequencia_atendimento").in("id", uniqueIds),
   ]);
 
   if (sessoesRes.error) throw sessoesRes.error;
   if (cobrancasRes.error) throw cobrancasRes.error;
   if (pacientesRes.error) throw pacientesRes.error;
 
-  const sessoesPorPaciente = groupByPaciente(
-    (sessoesRes.data ?? []) as SessaoMesRow[],
-  );
+  const sessoesPorPaciente = groupByPaciente((sessoesRes.data ?? []) as SessaoMesRow[]);
 
   const cobrancaPorPaciente = new Map<string, CobrancaMesRow>();
   for (const row of (cobrancasRes.data ?? []) as CobrancaMesRow[]) {
@@ -120,13 +109,10 @@ export async function fetchComparecimentoMensalPorPacientes(
       null,
     );
 
-    result[pacienteId] = calcularMetricaComparecimento(
-      sessoesPorPaciente.get(pacienteId) ?? [],
-      {
-        qtdSessoesCobranca: cobranca?.qtd_sessoes,
-        frequenciaAtendimento,
-      },
-    );
+    result[pacienteId] = calcularMetricaComparecimento(sessoesPorPaciente.get(pacienteId) ?? [], {
+      qtdSessoesCobranca: cobranca?.qtd_sessoes,
+      frequenciaAtendimento,
+    });
   }
 
   return result;
@@ -313,10 +299,7 @@ export async function fetchSessoesGradeMensal(
 
     const key = `${row.paciente_id}|${row.data}`;
     const atual = cellMap.get(key);
-    if (
-      !atual ||
-      (siglaRank[row.sigla] ?? 0) > (siglaRank[atual.sigla] ?? 0)
-    ) {
+    if (!atual || (siglaRank[row.sigla] ?? 0) > (siglaRank[atual.sigla] ?? 0)) {
       cellMap.set(key, {
         id: row.id,
         paciente_id: row.paciente_id,

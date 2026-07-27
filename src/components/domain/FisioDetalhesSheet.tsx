@@ -2,7 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, CalendarCheck2, ClipboardCheck, Pencil, Trash2 } from "lucide-react";
 
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/format";
@@ -16,8 +20,16 @@ function formatPct(v: number | null): string {
 }
 
 function MetricCard({
-  icon, label, value, hint,
-}: { icon: React.ReactNode; label: string; value: string; hint?: string }) {
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <div className="rounded-lg border bg-muted/30 p-3">
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -31,7 +43,10 @@ function MetricCard({
 }
 
 export function FisioDetalhesSheet({
-  fisio, onClose, onEdit, onDelete,
+  fisio,
+  onClose,
+  onEdit,
+  onDelete,
 }: {
   fisio: Fisio | null;
   onClose: () => void;
@@ -45,7 +60,12 @@ export function FisioDetalhesSheet({
   });
 
   return (
-    <Sheet open={!!fisio} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Sheet
+      open={!!fisio}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         {fisio && (
           <>
@@ -75,10 +95,15 @@ export function FisioDetalhesSheet({
             <div className="mt-5 space-y-4">
               <div className="space-y-1 text-sm">
                 {fisio.registro_profissional && (
-                  <p><span className="text-muted-foreground">CREFITO:</span> {fisio.registro_profissional}</p>
+                  <p>
+                    <span className="text-muted-foreground">CREFITO:</span>{" "}
+                    {fisio.registro_profissional}
+                  </p>
                 )}
                 {fisio.email && (
-                  <p><span className="text-muted-foreground">E-mail:</span> {fisio.email}</p>
+                  <p>
+                    <span className="text-muted-foreground">E-mail:</span> {fisio.email}
+                  </p>
                 )}
               </div>
 

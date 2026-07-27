@@ -49,10 +49,13 @@ serve(async (req) => {
       if (countErr) throw countErr;
 
       if ((count ?? 0) <= 1) {
-        return new Response(JSON.stringify({ error: "Não é possível excluir o último administrador" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "Não é possível excluir o último administrador" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     }
 

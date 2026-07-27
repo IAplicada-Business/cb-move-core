@@ -8,7 +8,9 @@ async function loadAccessContext(): Promise<{
   roles: AppRole[];
   fisioterapeutaId: string | null;
 } | null> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) return null;
 
   const [rolesRes, profileRes] = await Promise.all([

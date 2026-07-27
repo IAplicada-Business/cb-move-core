@@ -16,7 +16,10 @@ type CreateBody = {
 const STAFF_ROLES = new Set(["admin", "membro", "cliente"]);
 const DEFAULT_INITIAL_PASSWORD = Deno.env.get("DEFAULT_INITIAL_PASSWORD") ?? "CB2026";
 
-async function findUserByEmail(admin: Awaited<ReturnType<typeof requireAdminUser>>["admin"], email: string) {
+async function findUserByEmail(
+  admin: Awaited<ReturnType<typeof requireAdminUser>>["admin"],
+  email: string,
+) {
   let page = 1;
   while (true) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
@@ -87,10 +90,13 @@ serve(async (req) => {
     }
 
     if (role === "cliente" && !pacienteId) {
-      return new Response(JSON.stringify({ error: "Cliente precisa estar vinculado a um paciente" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Cliente precisa estar vinculado a um paciente" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     if (role === "cliente") {
@@ -159,17 +165,20 @@ serve(async (req) => {
       },
     });
 
-    return new Response(JSON.stringify({
-      ok: true,
-      user_id: userId,
-      created: !existing,
-      message: existing
-        ? `Usuário atualizado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`
-        : `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        user_id: userId,
+        created: !existing,
+        message: existing
+          ? `Usuário atualizado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`
+          : `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     const authResp = authErrorResponse(err, corsHeaders);
     if (authResp) return authResp;

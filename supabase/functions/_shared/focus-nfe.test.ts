@@ -120,7 +120,6 @@ Deno.test("convenio sem tomador cai no município POA", () => {
   }
 });
 
-
 Deno.test("descricao particular segue padrao DANFSe 2085", () => {
   const payload = buildFocusNfsenPayload(
     {
@@ -137,7 +136,8 @@ Deno.test("descricao particular segue padrao DANFSe 2085", () => {
   );
   const desc = String(payload.descricao_servico ?? "");
   if (!desc.includes("ABRIL DE 2026")) throw new Error(`mes ausente: ${desc}`);
-  if (!desc.includes("02, 06, 09, 13, 16, 20, 23, 27 E 30")) throw new Error(`dias ausentes: ${desc}`);
+  if (!desc.includes("02, 06, 09, 13, 16, 20, 23, 27 E 30"))
+    throw new Error(`dias ausentes: ${desc}`);
   if (!desc.includes("TOTALIZANDO 09 SESSÕES")) throw new Error(`total ausente: ${desc}`);
   if (!desc.includes("CREFITO: 122 334-F")) throw new Error(`crefito ausente: ${desc}`);
   if (!desc.includes("REFERENTE ÀS SESSÕES")) throw new Error(`acento ÀS ausente: ${desc}`);

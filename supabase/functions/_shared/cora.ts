@@ -52,7 +52,11 @@ function createMtlsClient(certificate: string, privateKey: string): Deno.HttpCli
  * Token Parceria Cora — Basic auth + client_secret.
  * Integração Direta não usa este fluxo.
  */
-async function getPartnerToken(apiBase: string, clientId: string, clientSecret: string): Promise<string> {
+async function getPartnerToken(
+  apiBase: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<string> {
   const basic = btoa(`${clientId}:${clientSecret}`);
   const res = await fetch(`${apiBase}/oauth/token`, {
     method: "POST",

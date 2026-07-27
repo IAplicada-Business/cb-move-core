@@ -1,5 +1,8 @@
 import { MonthPicker } from "@/components/domain/MonthPicker";
-import { PacienteCombobox, type PacienteComboboxOption } from "@/components/domain/PacienteCombobox";
+import {
+  PacienteCombobox,
+  type PacienteComboboxOption,
+} from "@/components/domain/PacienteCombobox";
 
 type Props = {
   pacientes: PacienteComboboxOption[];

@@ -1,42 +1,35 @@
-import {
-  workflow,
-  node,
-  trigger,
-  ifElse,
-  expr,
-  newCredential,
-} from '@n8n/workflow-sdk';
+import { workflow, node, trigger, ifElse, expr, newCredential } from "@n8n/workflow-sdk";
 
 const webhookBoleto = trigger({
-  type: 'n8n-nodes-base.webhook',
+  type: "n8n-nodes-base.webhook",
   version: 2.1,
   config: {
-    name: 'Webhook Boleto Docs',
+    name: "Webhook Boleto Docs",
     parameters: {
-      path: 'cbmove-boleto-docs',
-      httpMethod: 'POST',
-      responseMode: 'responseNode',
-      authentication: 'headerAuth',
+      path: "cbmove-boleto-docs",
+      httpMethod: "POST",
+      responseMode: "responseNode",
+      authentication: "headerAuth",
       options: {
         responseHeaders: {
-          entries: [{ name: 'Content-Type', value: 'application/json' }],
+          entries: [{ name: "Content-Type", value: "application/json" }],
         },
       },
     },
     credentials: {
-      httpHeaderAuth: newCredential('CB MOVE NF Webhook Secret'),
+      httpHeaderAuth: newCredential("CB MOVE NF Webhook Secret"),
     },
   },
 });
 
 const parsePayload = node({
-  type: 'n8n-nodes-base.code',
+  type: "n8n-nodes-base.code",
   version: 2,
   config: {
-    name: 'Parse payload',
+    name: "Parse payload",
     parameters: {
-      mode: 'runOnceForAllItems',
-      language: 'javaScript',
+      mode: "runOnceForAllItems",
+      language: "javaScript",
       jsCode: `const body = $input.first().json.body ?? $input.first().json;
 if (!body.cobranca_id) throw new Error('cobranca_id obrigatório');
 if (!body.boleto_url) throw new Error('boleto_url obrigatório');
@@ -76,13 +69,13 @@ return [{
 });
 
 const montarMensagens = node({
-  type: 'n8n-nodes-base.code',
+  type: "n8n-nodes-base.code",
   version: 2,
   config: {
-    name: 'Montar mensagens',
+    name: "Montar mensagens",
     parameters: {
-      mode: 'runOnceForAllItems',
-      language: 'javaScript',
+      mode: "runOnceForAllItems",
+      language: "javaScript",
       jsCode: `const p = $input.first().json;
 const nome = p.paciente?.nome || 'Cliente';
 const assunto = \`CB MOVE — Boleto \${p.competencia || ''} — \${nome} — \${p.valor_fmt}\`.trim();
@@ -111,24 +104,24 @@ return [{ json: { ...p, assunto, email_html: html, whatsapp_text: whatsapp } }];
 });
 
 const enviarGmail = node({
-  type: 'n8n-nodes-base.gmail',
+  type: "n8n-nodes-base.gmail",
   version: 2.2,
   config: {
-    name: 'Enviar Gmail',
+    name: "Enviar Gmail",
     parameters: {
-      resource: 'message',
-      operation: 'send',
-      sendTo: expr('{{ $json.to_email }}'),
-      subject: expr('{{ $json.assunto }}'),
-      emailType: 'html',
-      message: expr('{{ $json.email_html }}'),
+      resource: "message",
+      operation: "send",
+      sendTo: expr("{{ $json.to_email }}"),
+      subject: expr("{{ $json.assunto }}"),
+      emailType: "html",
+      message: expr("{{ $json.email_html }}"),
       options: {
         appendAttribution: false,
-        senderName: 'CB MOVE Neuroscience',
+        senderName: "CB MOVE Neuroscience",
       },
     },
     credentials: {
-      gmailOAuth2: newCredential('Gmail account'),
+      gmailOAuth2: newCredential("Gmail account"),
     },
   },
 });
@@ -136,72 +129,72 @@ const enviarGmail = node({
 const temWhatsapp = ifElse({
   version: 2.3,
   config: {
-    name: 'Tem WhatsApp?',
+    name: "Tem WhatsApp?",
     parameters: {
       conditions: {
-        options: { caseSensitive: true, leftValue: '', typeValidation: 'strict' },
+        options: { caseSensitive: true, leftValue: "", typeValidation: "strict" },
         conditions: [
           {
             leftValue: expr('{{ $("Montar mensagens").item.json.tem_whatsapp }}'),
-            operator: { type: 'boolean', operation: 'true' },
-            rightValue: '',
+            operator: { type: "boolean", operation: "true" },
+            rightValue: "",
           },
         ],
-        combinator: 'and',
+        combinator: "and",
       },
     },
   },
 });
 
 const zapiWhatsapp = node({
-  type: 'n8n-nodes-base.httpRequest',
+  type: "n8n-nodes-base.httpRequest",
   version: 4.4,
   config: {
-    name: 'Z-API WhatsApp',
-    onError: 'continueRegularOutput',
+    name: "Z-API WhatsApp",
+    onError: "continueRegularOutput",
     parameters: {
-      method: 'POST',
+      method: "POST",
       url: "={{ 'https://api.z-api.io/instances/' + $env.ZAPI_INSTANCE_ID + '/token/' + $env.ZAPI_INSTANCE_TOKEN + '/send-text' }}",
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
       sendHeaders: true,
       headerParameters: {
-        parameters: [{ name: 'Content-Type', value: 'application/json' }],
+        parameters: [{ name: "Content-Type", value: "application/json" }],
       },
       sendBody: true,
-      contentType: 'json',
-      specifyBody: 'json',
-      jsonBody: expr('={{ { phone: $("Montar mensagens").item.json.telefone_e164, message: $("Montar mensagens").item.json.whatsapp_text } }}'),
+      contentType: "json",
+      specifyBody: "json",
+      jsonBody: expr(
+        '={{ { phone: $("Montar mensagens").item.json.telefone_e164, message: $("Montar mensagens").item.json.whatsapp_text } }}',
+      ),
       options: {
         response: { response: { neverError: true } },
       },
     },
     credentials: {
-      httpHeaderAuth: newCredential('CB MOVE Z-API Client Token'),
+      httpHeaderAuth: newCredential("CB MOVE Z-API Client Token"),
     },
   },
 });
 
 const respondOk = node({
-  type: 'n8n-nodes-base.respondToWebhook',
+  type: "n8n-nodes-base.respondToWebhook",
   version: 1.5,
   config: {
-    name: 'Respond 200',
+    name: "Respond 200",
     parameters: {
-      respondWith: 'json',
-      responseBody: expr('={{ { ok: true, event_id: $("Parse payload").item.json.event_id, cobranca_id: $("Parse payload").item.json.cobranca_id } }}'),
+      respondWith: "json",
+      responseBody: expr(
+        '={{ { ok: true, event_id: $("Parse payload").item.json.event_id, cobranca_id: $("Parse payload").item.json.cobranca_id } }}',
+      ),
       options: { responseCode: 200 },
     },
   },
 });
 
-export default workflow('cbmove-boleto-docs', 'CB MOVE - Boleto Docs')
+export default workflow("cbmove-boleto-docs", "CB MOVE - Boleto Docs")
   .add(webhookBoleto)
   .to(parsePayload)
   .to(montarMensagens)
   .to(enviarGmail)
-  .to(
-    temWhatsapp
-      .onTrue(zapiWhatsapp.to(respondOk))
-      .onFalse(respondOk),
-  );
+  .to(temWhatsapp.onTrue(zapiWhatsapp.to(respondOk)).onFalse(respondOk));

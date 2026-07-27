@@ -15,19 +15,45 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -79,10 +105,10 @@ const optionalEmail = z.string().email("E-mail inválido").optional().or(z.liter
 const schema = z.object({
   nome: z.string().min(1, "Nome obrigatório"),
   ativo: z.boolean(),
-  cnpj: z.string().optional().refine(
-    (v) => !v || onlyDigits(v).length === 14,
-    "CNPJ deve ter 14 dígitos",
-  ),
+  cnpj: z
+    .string()
+    .optional()
+    .refine((v) => !v || onlyDigits(v).length === 14, "CNPJ deve ter 14 dígitos"),
   razao_social: z.string().optional(),
   email_nf: optionalEmail,
   email_envio: optionalEmail,
@@ -93,10 +119,10 @@ const schema = z.object({
   cep: z.string().optional(),
   cidade: z.string().optional(),
   uf: z.string().max(2, "UF com 2 letras").optional(),
-  codigo_municipio_ibge: z.string().optional().refine(
-    (v) => !v || /^\d{7}$/.test(v),
-    "Código IBGE com 7 dígitos",
-  ),
+  codigo_municipio_ibge: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\d{7}$/.test(v), "Código IBGE com 7 dígitos"),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -329,7 +355,12 @@ function ConveniosPage() {
                         checked={c.ativo}
                         onCheckedChange={(v) => toggleMutation.mutate({ id: c.id, ativo: v })}
                       />
-                      <span className={cn("text-xs", c.ativo ? "text-[#047857]" : "text-muted-foreground")}>
+                      <span
+                        className={cn(
+                          "text-xs",
+                          c.ativo ? "text-[#047857]" : "text-muted-foreground",
+                        )}
+                      >
                         {c.ativo ? "Ativo" : "Inativo"}
                       </span>
                     </div>
@@ -359,136 +390,225 @@ function ConveniosPage() {
         </div>
       )}
 
-      <Dialog open={modalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(o) => {
+          if (!o) closeModal();
+        }}
+      >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar convênio" : "Novo convênio"}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-              <FormField control={form.control} name="nome" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome *</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="cnpj" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CNPJ</FormLabel>
+                    <FormLabel>Nome *</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="00.000.000/0000-00" />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-                <FormField control={form.control} name="razao_social" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Razão social</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="cnpj"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CNPJ</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="00.000.000/0000-00" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="razao_social"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Razão social</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField control={form.control} name="email_nf" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail tomador (NFS-e)</FormLabel>
-                  <FormControl><Input {...field} type="email" placeholder="tomador@convenio.com" /></FormControl>
-                  <FormDescription>Vai na nota fiscal enviada à Focus.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="email_nf"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail tomador (NFS-e)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" placeholder="tomador@convenio.com" />
+                    </FormControl>
+                    <FormDescription>Vai na nota fiscal enviada à Focus.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="email_envio" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail envio (documentação)</FormLabel>
-                  <FormControl><Input {...field} type="email" placeholder="logjur@convenio.com" /></FormControl>
-                  <FormDescription>Destino do e-mail/n8n. Se vazio, usa o e-mail tomador.</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="email_envio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail envio (documentação)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="email" placeholder="logjur@convenio.com" />
+                    </FormControl>
+                    <FormDescription>
+                      Destino do e-mail/n8n. Se vazio, usa o e-mail tomador.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-3 gap-3">
-                <FormField control={form.control} name="endereco" render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Endereço (logradouro)</FormLabel>
-                    <FormControl><Input {...field} placeholder="AV RIO DE JANEIRO" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="numero" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número</FormLabel>
-                    <FormControl><Input {...field} placeholder="555" /></FormControl>
-                    <FormDescription>Obrigatório p/ NFS-e.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="endereco"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Endereço (logradouro)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="AV RIO DE JANEIRO" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="numero"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="555" />
+                      </FormControl>
+                      <FormDescription>Obrigatório p/ NFS-e.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="complemento" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Complemento</FormLabel>
-                    <FormControl><Input {...field} placeholder="Sala 801" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="bairro" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bairro</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="complemento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Complemento</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Sala 801" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bairro"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bairro</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <FormField control={form.control} name="cep" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CEP</FormLabel>
-                    <FormControl><Input {...field} placeholder="00000-000" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="cidade" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cidade</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="uf" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>UF</FormLabel>
-                    <FormControl><Input {...field} maxLength={2} placeholder="RS" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="cep"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CEP</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="00000-000" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="cidade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cidade</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="uf"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>UF</FormLabel>
+                      <FormControl>
+                        <Input {...field} maxLength={2} placeholder="RS" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField control={form.control} name="codigo_municipio_ibge" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código município IBGE</FormLabel>
-                  <FormControl><Input {...field} placeholder="4314902" /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="codigo_municipio_ibge"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código município IBGE</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="4314902" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <FormField control={form.control} name="ativo" render={({ field }) => (
-                <FormItem className="flex items-center gap-3">
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                  <FormLabel className="!mt-0">Ativo</FormLabel>
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="ativo"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-3">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="!mt-0">Ativo</FormLabel>
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={closeModal}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={closeModal}>
+                  Cancelar
+                </Button>
                 <Button type="submit" disabled={mutation.isPending}>
                   {mutation.isPending ? "Salvando…" : "Salvar"}
                 </Button>
@@ -498,13 +618,19 @@ function ConveniosPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir convênio</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
-              convênios sem pacientes vinculados. Caso já tenha pacientes, use o botão Ativo/Inativo.
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível
+              excluir convênios sem pacientes vinculados. Caso já tenha pacientes, use o botão
+              Ativo/Inativo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

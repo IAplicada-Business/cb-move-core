@@ -44,10 +44,13 @@ serve(async (req) => {
     }
 
     if (role === "cliente" && !pacienteId) {
-      return new Response(JSON.stringify({ error: "Cliente precisa estar vinculado a um paciente" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Cliente precisa estar vinculado a um paciente" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     if (role === "cliente") {
@@ -72,7 +75,8 @@ serve(async (req) => {
       }
     }
 
-    const siteUrl = Deno.env.get("SITE_URL") ?? Deno.env.get("PUBLIC_SITE_URL") ?? "http://localhost:8080";
+    const siteUrl =
+      Deno.env.get("SITE_URL") ?? Deno.env.get("PUBLIC_SITE_URL") ?? "http://localhost:8080";
     const redirectTo = `${siteUrl.replace(/\/$/, "")}/redefinir-senha`;
 
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
@@ -92,14 +96,17 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({
-      ok: true,
-      user_id: data.user?.id ?? null,
-      message: "Convite enviado por e-mail. A pessoa definirá a senha no primeiro acesso.",
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        user_id: data.user?.id ?? null,
+        message: "Convite enviado por e-mail. A pessoa definirá a senha no primeiro acesso.",
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err) {
     const authResp = authErrorResponse(err, corsHeaders);
     if (authResp) return authResp;

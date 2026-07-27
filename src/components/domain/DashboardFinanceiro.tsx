@@ -11,14 +11,43 @@ import { downloadCSV } from "@/lib/csv";
 import { competenciaLabel, extratoToCsvRows } from "@/lib/domain/extrato-financeiro";
 import { brl } from "@/lib/format";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
-import { fetchFinanceiroKpisPorTipo, fetchRelatorioReceitaConvenio } from "@/lib/queries/financeiro";
+import {
+  fetchFinanceiroKpisPorTipo,
+  fetchRelatorioReceitaConvenio,
+} from "@/lib/queries/financeiro";
 import type { PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_ABREV = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 // Anel de 5 arcos sólidos da marca CB MOVE — mesma geometria usada no PDF de
 // "Relatórios por tipo". SVG puro porque drivers de impressão (Microsoft Print
@@ -47,7 +76,10 @@ function buildBrandRingSvg(size: number): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${arcs}</svg>`;
 }
 
-const TIPO_KPI: Record<PacienteTipo, { label: string; accent: "cyan" | "magenta" | "purple" | "orange" }> = {
+const TIPO_KPI: Record<
+  PacienteTipo,
+  { label: string; accent: "cyan" | "magenta" | "purple" | "orange" }
+> = {
   particular: { label: "Particular", accent: "cyan" },
   judicial: { label: "Judicial", accent: "magenta" },
   convenio: { label: "Convênio", accent: "purple" },
@@ -197,7 +229,9 @@ export function DashboardFinanceiro() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-semibold">Financeiro</h2>
-          <p className="text-sm text-muted-foreground">Receita total, por convênio e extrato exportável</p>
+          <p className="text-sm text-muted-foreground">
+            Receita total, por convênio e extrato exportável
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Select
@@ -219,10 +253,20 @@ export function DashboardFinanceiro() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={exportarCsv} disabled={!extrato || linhas.length === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportarCsv}
+            disabled={!extrato || linhas.length === 0}
+          >
             <Download className="h-4 w-4 mr-1" /> Exportar extrato (CSV)
           </Button>
-          <Button variant="outline" size="sm" onClick={imprimir} disabled={!extrato || linhas.length === 0}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={imprimir}
+            disabled={!extrato || linhas.length === 0}
+          >
             <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
           </Button>
         </div>
@@ -230,10 +274,17 @@ export function DashboardFinanceiro() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {loadingKpis ? (
-          <div className="col-span-full"><LoadingState /></div>
+          <div className="col-span-full">
+            <LoadingState />
+          </div>
         ) : (
           <>
-            <KpiCard label="Receita total" value={brl(totalReceita)} accent="lime" hint={competenciaLabel(mes, ano)} />
+            <KpiCard
+              label="Receita total"
+              value={brl(totalReceita)}
+              accent="lime"
+              hint={competenciaLabel(mes, ano)}
+            />
             {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
               const cfg = TIPO_KPI[tipo];
               const k = kpiMap[tipo];
@@ -256,7 +307,10 @@ export function DashboardFinanceiro() {
         {loadingReceita ? (
           <LoadingState />
         ) : receita.length === 0 ? (
-          <EmptyState title="Sem dados" description="Não há cobranças de convênio nesta competência." />
+          <EmptyState
+            title="Sem dados"
+            description="Não há cobranças de convênio nesta competência."
+          />
         ) : (
           <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
             <Table>
@@ -278,7 +332,9 @@ export function DashboardFinanceiro() {
                     <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
                     <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
                     <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">{brl(d.recebido)}</TableCell>
+                    <TableCell className="text-right tabular-nums font-medium">
+                      {brl(d.recebido)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -302,7 +358,9 @@ export function DashboardFinanceiro() {
             <div ref={printRef}>
               <div className="px-4 py-3 border-b bg-muted/30 print:block">
                 <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
-                <p className="text-xs text-muted-foreground">CB MOVE Neuroscience · Relatório Financeiro</p>
+                <p className="text-xs text-muted-foreground">
+                  CB MOVE Neuroscience · Relatório Financeiro
+                </p>
               </div>
               <Table>
                 <TableHeader>
@@ -322,11 +380,17 @@ export function DashboardFinanceiro() {
                 <TableBody>
                   {linhas.map((l) => (
                     <TableRow key={l.cobrancaId}>
-                      <TableCell className="font-medium whitespace-nowrap">{l.pacienteNome}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{l.avaliacao ?? "—"}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {l.pacienteNome}
+                      </TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">
+                        {l.avaliacao ?? "—"}
+                      </TableCell>
                       <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
                       <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{l.numSessoes ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {l.numSessoes ?? "—"}
+                      </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
                       <TableCell className="text-right tabular-nums whitespace-nowrap">
                         {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
@@ -341,7 +405,9 @@ export function DashboardFinanceiro() {
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/40">
-                    <TableCell colSpan={7} className="font-semibold">Total</TableCell>
+                    <TableCell colSpan={7} className="font-semibold">
+                      Total
+                    </TableCell>
                     <TableCell className="text-right font-bold tabular-nums">
                       {brl(extrato!.totalPrevisto)}
                     </TableCell>
@@ -356,7 +422,8 @@ export function DashboardFinanceiro() {
           </div>
         )}
         <p className="text-xs text-muted-foreground px-1">
-          Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao criar a cobrança.
+          Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao
+          criar a cobrança.
         </p>
       </section>
     </div>

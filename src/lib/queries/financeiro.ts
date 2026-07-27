@@ -87,26 +87,39 @@ export async function fetchFinanceiroKpis(mes: number, ano: number): Promise<Fin
 }
 
 export async function fetchFinanceiroKpisPorTipo(mes: number, ano: number): Promise<KpiPorTipo[]> {
-  const { data, error } = await supabase.rpc("financeiro_kpis_por_tipo", { p_mes: mes, p_ano: ano });
+  const { data, error } = await supabase.rpc("financeiro_kpis_por_tipo", {
+    p_mes: mes,
+    p_ano: ano,
+  });
   if (error) throw error;
-  return ((data ?? []) as { tipo: PacienteTipo; valor: number | string; pacientes: number }[]).map((r) => ({
-    tipo: r.tipo,
-    valor: Number(r.valor) || 0,
-    pacientes: Number(r.pacientes) || 0,
-  }));
+  return ((data ?? []) as { tipo: PacienteTipo; valor: number | string; pacientes: number }[]).map(
+    (r) => ({
+      tipo: r.tipo,
+      valor: Number(r.valor) || 0,
+      pacientes: Number(r.pacientes) || 0,
+    }),
+  );
 }
 
-export async function fetchRelatorioReceitaConvenio(mes: number, ano: number): Promise<ReceitaConvenioRow[]> {
-  const { data, error } = await supabase.rpc("relatorio_receita_convenio", { p_mes: mes, p_ano: ano });
+export async function fetchRelatorioReceitaConvenio(
+  mes: number,
+  ano: number,
+): Promise<ReceitaConvenioRow[]> {
+  const { data, error } = await supabase.rpc("relatorio_receita_convenio", {
+    p_mes: mes,
+    p_ano: ano,
+  });
   if (error) throw error;
-  return ((data ?? []) as {
-    convenio: string;
-    pacientes: number;
-    sessoes: number;
-    nfs_emitidas: number;
-    faturado: number | string;
-    recebido: number | string;
-  }[]).map((r) => ({
+  return (
+    (data ?? []) as {
+      convenio: string;
+      pacientes: number;
+      sessoes: number;
+      nfs_emitidas: number;
+      faturado: number | string;
+      recebido: number | string;
+    }[]
+  ).map((r) => ({
     convenio: r.convenio,
     pacientes: Number(r.pacientes) || 0,
     sessoes: Number(r.sessoes) || 0,
@@ -117,7 +130,9 @@ export async function fetchRelatorioReceitaConvenio(mes: number, ano: number): P
 }
 
 export async function resolverDestinatarioNf(cobrancaId: string): Promise<DestinatarioNf> {
-  const { data, error } = await supabase.rpc("resolver_destinatario_nf", { p_cobranca_id: cobrancaId });
+  const { data, error } = await supabase.rpc("resolver_destinatario_nf", {
+    p_cobranca_id: cobrancaId,
+  });
   if (error) throw error;
   const r = data as Record<string, unknown>;
   return {
@@ -129,7 +144,8 @@ export async function resolverDestinatarioNf(cobrancaId: string): Promise<Destin
     competenciaMes: r.competencia_mes != null ? Number(r.competencia_mes) : null,
     competenciaAno: r.competencia_ano != null ? Number(r.competencia_ano) : null,
     destinatarioNome: String(r.destinatario_nome ?? ""),
-    destinatarioDocumento: r.destinatario_documento != null ? String(r.destinatario_documento) : null,
+    destinatarioDocumento:
+      r.destinatario_documento != null ? String(r.destinatario_documento) : null,
     corpoPacienteNome: r.corpo_paciente_nome != null ? String(r.corpo_paciente_nome) : null,
     corpoPacienteCpf: r.corpo_paciente_cpf != null ? String(r.corpo_paciente_cpf) : null,
     corpoNumeroProcesso: r.corpo_numero_processo != null ? String(r.corpo_numero_processo) : null,
@@ -147,20 +163,22 @@ export async function criarNfDeCobranca(cobrancaId: string): Promise<string> {
 export async function fetchCobrancasSemNf(mes: number, ano: number): Promise<CobrancaSemNf[]> {
   const { data, error } = await supabase.rpc("cobrancas_sem_nf", { p_mes: mes, p_ano: ano });
   if (error) throw error;
-  return ((data ?? []) as {
-    cobranca_id: string;
-    paciente_id: string;
-    paciente_nome: string;
-    paciente_cpf: string | null;
-    paciente_telefone: string | null;
-    tipo: PacienteTipo;
-    valor: number | string;
-    competencia_mes: number | null;
-    competencia_ano: number | null;
-    destinatario_nome: string | null;
-    destinatario_documento: string | null;
-    status: CobrancaStatus;
-  }[]).map((r) => ({
+  return (
+    (data ?? []) as {
+      cobranca_id: string;
+      paciente_id: string;
+      paciente_nome: string;
+      paciente_cpf: string | null;
+      paciente_telefone: string | null;
+      tipo: PacienteTipo;
+      valor: number | string;
+      competencia_mes: number | null;
+      competencia_ano: number | null;
+      destinatario_nome: string | null;
+      destinatario_documento: string | null;
+      status: CobrancaStatus;
+    }[]
+  ).map((r) => ({
     cobrancaId: r.cobranca_id,
     pacienteId: r.paciente_id,
     pacienteNome: r.paciente_nome,

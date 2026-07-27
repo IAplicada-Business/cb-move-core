@@ -9,8 +9,18 @@ import { cn } from "@/lib/utils";
 
 const DIAS_GRID = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 function ddmmyyToDate(value: string): Date | null {
@@ -77,10 +87,7 @@ export function DateInputDDMMYY({
     setView({ year: base.getFullYear(), month: base.getMonth() });
   }, [open, selected, today]);
 
-  const grid = useMemo(
-    () => buildCalendarGrid(view.year, view.month),
-    [view.year, view.month],
-  );
+  const grid = useMemo(() => buildCalendarGrid(view.year, view.month), [view.year, view.month]);
 
   function selectDay(day: Date) {
     onChange(formatDateDDMMYY(day));
@@ -159,7 +166,9 @@ export function DateInputDDMMYY({
                 onClick={() => selectDay(day)}
                 className={cn(
                   "h-8 w-8 rounded-md text-sm transition-colors hover:bg-accent",
-                  selected && sameDay(day, selected) && "bg-primary text-primary-foreground hover:bg-primary/90",
+                  selected &&
+                    sameDay(day, selected) &&
+                    "bg-primary text-primary-foreground hover:bg-primary/90",
                   !selected && sameDay(day, today) && "border border-primary/40",
                 )}
               >

@@ -108,7 +108,9 @@ export function filtrarAfetadosRemarcacao(
   return [...map.values()].sort((a, b) => a.inicio.localeCompare(b.inicio));
 }
 
-function metricasFromResumo(resumo: ReturnType<typeof montarResumoPlanoSessoesMensal>): MetricasPlanoImpacto {
+function metricasFromResumo(
+  resumo: ReturnType<typeof montarResumoPlanoSessoesMensal>,
+): MetricasPlanoImpacto {
   return {
     noPadrao: resumo.agendadasNoPlano,
     faltantes: resumo.faltantes,

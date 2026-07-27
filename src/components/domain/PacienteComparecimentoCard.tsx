@@ -45,7 +45,9 @@ export function PacienteComparecimentoCard({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Comparecimento
             </p>
-            <p className="text-sm text-muted-foreground">Frequência prevista × realizadas (P + RC)</p>
+            <p className="text-sm text-muted-foreground">
+              Frequência prevista × realizadas (P + RC)
+            </p>
           </div>
         )}
         <div className="text-right">
@@ -54,7 +56,10 @@ export function PacienteComparecimentoCard({
             className={cn(
               "text-lg font-bold tabular-nums",
               metrica.taxa != null && metrica.taxa >= 0.9 && "text-cb-lime",
-              metrica.taxa != null && metrica.taxa >= 0.75 && metrica.taxa < 0.9 && "text-cb-orange",
+              metrica.taxa != null &&
+                metrica.taxa >= 0.75 &&
+                metrica.taxa < 0.9 &&
+                "text-cb-orange",
               metrica.taxa != null && metrica.taxa < 0.75 && "text-cb-magenta",
               metrica.taxa == null && "text-foreground",
             )}

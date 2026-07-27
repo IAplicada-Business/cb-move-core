@@ -1,11 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
-import { statusAgendamentoFromSigla, deveEspelharSiglaStatus, siglaEspelhoFromStatus, formatSiglaHistorico } from "@/lib/domain/frequencia";
-import type { FrequenciaSigla, StatusAgendamento } from "@/lib/types";
 import {
-  upsertSessaoSigla,
-  clearSessaoSigla,
-  fetchSessaoSiglaDia,
-} from "@/lib/queries/sessoes";
+  statusAgendamentoFromSigla,
+  deveEspelharSiglaStatus,
+  siglaEspelhoFromStatus,
+  formatSiglaHistorico,
+} from "@/lib/domain/frequencia";
+import type { FrequenciaSigla, StatusAgendamento } from "@/lib/types";
+import { upsertSessaoSigla, clearSessaoSigla, fetchSessaoSiglaDia } from "@/lib/queries/sessoes";
 
 export type EscopoRemanejamento = "pontual" | "semana" | "serie_mes";
 
@@ -61,16 +62,14 @@ async function insertHistorico(row: {
   escopo?: string | null;
   usuario_id?: string | null;
 }) {
-  const db = supabase as any;
-  const { error } = await db.from("agendamento_historico").insert(row);
+  const { error } = await supabase.from("agendamento_historico").insert(row);
   if (error) throw error;
 }
 
 export async function fetchAgendamentoHistorico(agendamentoId: string): Promise<HistoricoRow[]> {
-  const db = supabase as any;
   const ids = await coletarIdsHistorico(agendamentoId);
 
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("agendamento_historico")
     .select("*")
     .in("agendamento_id", ids)
@@ -304,8 +303,7 @@ export async function registrarSiglaFrequencia(
 }
 
 export async function fetchAgendaAviso(data: string): Promise<string> {
-  const db = supabase as any;
-  const { data: row, error } = await db
+  const { data: row, error } = await supabase
     .from("agenda_avisos")
     .select("texto")
     .eq("data", data)
@@ -315,11 +313,12 @@ export async function fetchAgendaAviso(data: string): Promise<string> {
 }
 
 export async function upsertAgendaAviso(data: string, texto: string): Promise<void> {
-  const db = supabase as any;
-  const { error } = await db.from("agenda_avisos").upsert(
-    { data, texto: texto.trim(), updated_at: new Date().toISOString() },
-    { onConflict: "data" },
-  );
+  const { error } = await supabase
+    .from("agenda_avisos")
+    .upsert(
+      { data, texto: texto.trim(), updated_at: new Date().toISOString() },
+      { onConflict: "data" },
+    );
   if (error) throw error;
 }
 

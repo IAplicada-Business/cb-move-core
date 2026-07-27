@@ -108,7 +108,8 @@ async function fetchFrequenciaCompetencia(
     .eq("competencia_mes", mes)
     .eq("competencia_ano", ano)
     .maybeSingle();
-  const cobFreq = (data as { frequencia_atendimento?: string | null } | null)?.frequencia_atendimento;
+  const cobFreq = (data as { frequencia_atendimento?: string | null } | null)
+    ?.frequencia_atendimento;
   return resolverFrequenciaCompetencia(cobFreq, pacienteFrequencia);
 }
 
@@ -142,7 +143,9 @@ async function computeSessoesCompetencia(
   return { diasTexto: formatDiasAtendidos([...dias]), total: dias.size * multiplicador };
 }
 
-function tomadorFromConvenio(convenio: ConvenioTomadorRow | null | undefined): TomadorForFocus | undefined {
+function tomadorFromConvenio(
+  convenio: ConvenioTomadorRow | null | undefined,
+): TomadorForFocus | undefined {
   if (!convenio) return undefined;
   return {
     email: convenio.email_nf,
@@ -164,9 +167,7 @@ function resolveTomador(
 ): TomadorForFocus | undefined {
   if (!paciente) return undefined;
 
-  const convenio = Array.isArray(paciente.convenios)
-    ? paciente.convenios[0]
-    : paciente.convenios;
+  const convenio = Array.isArray(paciente.convenios) ? paciente.convenios[0] : paciente.convenios;
 
   if (tipo === "particular") {
     return mergeTomador(documento, undefined, {
@@ -199,7 +200,11 @@ function resolveFisio(paciente: PacienteTomadorRow | null): {
   let display = nome;
   if (nome.toUpperCase().includes("CHARLENE BRITO")) {
     display = "DRA. CHARLENE BRITO";
-  } else if (nome && !nome.toUpperCase().startsWith("DRA") && !nome.toUpperCase().startsWith("DR ")) {
+  } else if (
+    nome &&
+    !nome.toUpperCase().startsWith("DRA") &&
+    !nome.toUpperCase().startsWith("DR ")
+  ) {
     display = `DRA. ${nome}`;
   }
   return {
@@ -221,7 +226,8 @@ serve(async (req) => {
 
     const { data: nf, error } = await admin
       .from("notas_fiscais")
-      .select(`
+      .select(
+        `
         id, tipo, status, valor, paciente_id,
         competencia_mes, competencia_ano,
         destinatario_nome, destinatario_documento,
@@ -237,7 +243,8 @@ serve(async (req) => {
             endereco, numero, complemento, bairro, cep, cidade, uf, codigo_municipio_ibge
           )
         )
-      `)
+      `,
+      )
       .eq("id", nf_id)
       .single();
     if (error) throw new Error(error.message ?? "Erro ao carregar NF");
@@ -257,10 +264,18 @@ serve(async (req) => {
     );
     const tipoSessao = tipoSessaoDeTexto(frequenciaLabel);
     const multiplicador = MULT_POR_TIPO[tipoSessao] ?? 1;
-    const diasGravados = ((nf as { corpo_dias_atendidos?: string | null }).corpo_dias_atendidos ?? "").trim();
+    const diasGravados = (
+      (nf as { corpo_dias_atendidos?: string | null }).corpo_dias_atendidos ?? ""
+    ).trim();
     const computado = diasGravados
       ? { diasTexto: diasGravados, total: nf.corpo_total_sessoes }
-      : await computeSessoesCompetencia(admin, nf.paciente_id, nf.competencia_mes, nf.competencia_ano, multiplicador);
+      : await computeSessoesCompetencia(
+          admin,
+          nf.paciente_id,
+          nf.competencia_mes,
+          nf.competencia_ano,
+          multiplicador,
+        );
 
     const nfForFocus: NfForFocus = {
       id: nf.id,

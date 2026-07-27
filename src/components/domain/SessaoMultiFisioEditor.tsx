@@ -103,7 +103,12 @@ export function SessaoMultiFisioEditor({ pacienteId, dataIso, fisioPrincipalId }
           </label>
         ))}
       </div>
-      <Button size="sm" variant="outline" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => saveMutation.mutate()}
+        disabled={saveMutation.isPending}
+      >
         {saveMutation.isPending ? "Salvando…" : "Salvar fisios da sessão"}
       </Button>
     </div>

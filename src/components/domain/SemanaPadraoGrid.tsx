@@ -70,7 +70,9 @@ export function SlotStatusLegend() {
     <div className="flex flex-wrap gap-4 text-[11.5px] text-muted-foreground">
       {items.map((s) => (
         <span key={s} className="inline-flex items-center gap-1.5 font-medium">
-          <span className={cn("inline-block h-2.5 w-2.5 rounded-full", SLOT_STATUS_STYLE[s].legend)} />
+          <span
+            className={cn("inline-block h-2.5 w-2.5 rounded-full", SLOT_STATUS_STYLE[s].legend)}
+          />
           {SLOT_STATUS_STYLE[s].label}
         </span>
       ))}
@@ -89,32 +91,45 @@ export function SlotCellContent({
 }) {
   if (status === "ocupado") {
     return (
-      <span className={cn("block truncate text-center text-[11px] leading-tight", SLOT_STATUS_STYLE.ocupado.text)}>
+      <span
+        className={cn(
+          "block truncate text-center text-[11px] leading-tight",
+          SLOT_STATUS_STYLE.ocupado.text,
+        )}
+      >
         {pacienteNome ?? "—"}
         {nota ? <span className="block text-[10px] font-normal opacity-80">{nota}</span> : null}
       </span>
     );
   }
   if (status === "vago") {
-    return <span className={cn("block text-center text-[11px] italic", SLOT_STATUS_STYLE.vago.text)}>vago</span>;
+    return (
+      <span className={cn("block text-center text-[11px] italic", SLOT_STATUS_STYLE.vago.text)}>
+        vago
+      </span>
+    );
   }
   if (status === "indisponivel") {
-    return <span className={cn("block text-center text-[11px]", SLOT_STATUS_STYLE.indisponivel.text)}>xxx</span>;
+    return (
+      <span className={cn("block text-center text-[11px]", SLOT_STATUS_STYLE.indisponivel.text)}>
+        xxx
+      </span>
+    );
   }
   if (status === "ferias") {
-    return <span className={cn("block text-center text-[11px]", SLOT_STATUS_STYLE.ferias.text)}>férias</span>;
+    return (
+      <span className={cn("block text-center text-[11px]", SLOT_STATUS_STYLE.ferias.text)}>
+        férias
+      </span>
+    );
   }
-  return <span className={cn("block text-center text-[11px]", SLOT_STATUS_STYLE.extra.text)}>EXTRA</span>;
+  return (
+    <span className={cn("block text-center text-[11px]", SLOT_STATUS_STYLE.extra.text)}>EXTRA</span>
+  );
 }
 
 /** Linha de intervalo: "—" na coluna horário + label centralizado no restante. */
-export function IntervaloRow({
-  label,
-  fisioCount,
-}: {
-  label: string;
-  fisioCount: number;
-}) {
+export function IntervaloRow({ label, fisioCount }: { label: string; fisioCount: number }) {
   return (
     <>
       <div className="sticky left-0 z-10 flex items-center justify-center bg-[#F3F4F6] px-2 py-1.5 text-[11px] text-muted-foreground">
@@ -148,7 +163,11 @@ export function SemanaPadraoGridShell({
   diaSemana: number;
   disponibilidade: FisioDisponibilidade[];
   indisponibilidades: FisioIndisponibilidade[];
-  getAgendamentos: (fisioId: string, blocoInicio: string, blocoFim: string) => Array<{
+  getAgendamentos: (
+    fisioId: string,
+    blocoInicio: string,
+    blocoFim: string,
+  ) => Array<{
     id: string;
     status?: StatusAgendamento;
     pacientes?: { nome: string } | null;

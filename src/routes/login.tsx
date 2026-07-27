@@ -61,7 +61,9 @@ function LoginPage() {
     setResetLoading(true);
     try {
       const redirectTo = `${window.location.origin}/redefinir-senha`;
-      const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), { redirectTo });
+      const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+        redirectTo,
+      });
       if (error) throw error;
       toast.success("Enviamos um link para redefinir a senha no seu e-mail");
     } catch (err) {
@@ -84,7 +86,9 @@ function LoginPage() {
             </div>
             <div className="leading-tight">
               <div className="text-base font-extrabold tracking-wide text-cb-cyan-900">CB MOVE</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cb-cyan-700">Neuroscience</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cb-cyan-700">
+                Neuroscience
+              </div>
             </div>
           </div>
 

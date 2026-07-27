@@ -14,17 +14,19 @@ export async function fetchSessaoFisioterapeutas(sessaoId: string): Promise<Sess
     .eq("sessao_id", sessaoId);
   if (error) throw error;
 
-  return (data ?? []).map((row: {
-    sessao_id: string;
-    fisioterapeuta_id: string;
-    principal: boolean;
-    fisioterapeutas?: { nome: string } | null;
-  }) => ({
-    sessaoId: row.sessao_id,
-    fisioterapeutaId: row.fisioterapeuta_id,
-    principal: row.principal,
-    fisioNome: row.fisioterapeutas?.nome,
-  }));
+  return (data ?? []).map(
+    (row: {
+      sessao_id: string;
+      fisioterapeuta_id: string;
+      principal: boolean;
+      fisioterapeutas?: { nome: string } | null;
+    }) => ({
+      sessaoId: row.sessao_id,
+      fisioterapeutaId: row.fisioterapeuta_id,
+      principal: row.principal,
+      fisioNome: row.fisioterapeutas?.nome,
+    }),
+  );
 }
 
 /** Define todos os fisios de uma sessão; principalId (ou primeiro) é o principal. */

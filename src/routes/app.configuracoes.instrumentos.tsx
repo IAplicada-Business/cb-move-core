@@ -25,17 +25,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -118,7 +131,12 @@ function CamposDialog({
   const campos = instrumento.campos ?? [];
 
   return (
-    <Dialog open={!!instrumento} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={!!instrumento}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -143,11 +161,12 @@ function CamposDialog({
                     {TIPO_LABEL[campo.tipo] ?? campo.tipo}
                   </span>
                 </div>
-                {campo.tipo === "number" && (campo.min !== undefined || campo.max !== undefined) && (
-                  <p className="text-xs text-muted-foreground">
-                    Intervalo: {campo.min ?? "—"} a {campo.max ?? "—"}
-                  </p>
-                )}
+                {campo.tipo === "number" &&
+                  (campo.min !== undefined || campo.max !== undefined) && (
+                    <p className="text-xs text-muted-foreground">
+                      Intervalo: {campo.min ?? "—"} a {campo.max ?? "—"}
+                    </p>
+                  )}
                 {campo.opcoes && campo.opcoes.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {campo.opcoes.map((op) => (
@@ -253,7 +272,9 @@ function InstrumentosPage() {
                   <TableRow key={inst.id}>
                     <TableCell className="font-mono text-xs">{inst.codigo}</TableCell>
                     <TableCell className="font-medium">{inst.nome}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{inst.categoria}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {inst.categoria}
+                    </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
                         v{inst.versao}
@@ -307,12 +328,14 @@ function InstrumentosPage() {
         </div>
       )}
 
-      <CamposDialog
-        instrumento={viewingInstrumento}
-        onClose={() => setViewingInstrumento(null)}
-      />
+      <CamposDialog instrumento={viewingInstrumento} onClose={() => setViewingInstrumento(null)} />
 
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
+      <Dialog
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Editar instrumento</DialogTitle>
@@ -339,7 +362,9 @@ function InstrumentosPage() {
                 value={editForm.status}
                 onValueChange={(v) => setEditForm((f) => ({ ...f, status: v }))}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ativo">Ativo</SelectItem>
                   <SelectItem value="inativo">Inativo</SelectItem>
@@ -348,7 +373,9 @@ function InstrumentosPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancelar
+            </Button>
             <Button
               disabled={updateMutation.isPending || !editForm.nome.trim()}
               onClick={() => updateMutation.mutate()}
@@ -359,13 +386,18 @@ function InstrumentosPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
+      <AlertDialog
+        open={!!deleting}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir instrumento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível excluir
-              instrumentos que nunca foram aplicados em prontuários.
+              Tem certeza que deseja excluir <strong>{deleting?.nome}</strong>? Só é possível
+              excluir instrumentos que nunca foram aplicados em prontuários.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

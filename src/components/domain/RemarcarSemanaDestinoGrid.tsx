@@ -85,10 +85,7 @@ export function RemarcarSemanaDestinoGrid({
     });
   }, [fisioId, dataIso, disponibilidade, indisponibilidades, agendamentos, excluirIds]);
 
-  const vagosDiaAtivo = useMemo(
-    () => blocos.filter((b) => b.selecionavel).length,
-    [blocos],
-  );
+  const vagosDiaAtivo = useMemo(() => blocos.filter((b) => b.selecionavel).length, [blocos]);
 
   return (
     <div className="space-y-2">
@@ -133,10 +130,7 @@ export function RemarcarSemanaDestinoGrid({
       </div>
 
       <div className="max-h-[min(280px,38vh)] overflow-y-auto overflow-x-auto rounded-lg border border-border bg-card">
-        <div
-          className="grid gap-px bg-border"
-          style={{ gridTemplateColumns: "72px 1fr" }}
-        >
+        <div className="grid gap-px bg-border" style={{ gridTemplateColumns: "72px 1fr" }}>
           <div className="bg-muted/50 px-2 py-2 text-center text-[10px] font-bold uppercase text-muted-foreground">
             Horário
           </div>
@@ -146,16 +140,13 @@ export function RemarcarSemanaDestinoGrid({
 
           {GRADE_SEMANA_PADRAO.map((row) => {
             if (row.kind === "intervalo") {
-              return (
-                <IntervaloRow key={`int-${row.inicio}`} label={row.label} fisioCount={1} />
-              );
+              return <IntervaloRow key={`int-${row.inicio}`} label={row.label} fisioCount={1} />;
             }
 
             const bloco = blocos.find((b) => b.horaInicio === row.inicio);
             const status: SlotStatus = bloco?.status ?? "vago";
             const selecionado =
-              slotSelecionado?.dataIso === dataIso &&
-              slotSelecionado.horaInicio === row.inicio;
+              slotSelecionado?.dataIso === dataIso && slotSelecionado.horaInicio === row.inicio;
 
             return (
               <div key={`blk-${row.inicio}`} className="contents">
@@ -179,10 +170,7 @@ export function RemarcarSemanaDestinoGrid({
                     selecionado && "ring-2 ring-cb-cyan-600 ring-offset-1",
                   )}
                 >
-                  <SlotCellContent
-                    status={status}
-                    pacienteNome={bloco?.pacienteNome}
-                  />
+                  <SlotCellContent status={status} pacienteNome={bloco?.pacienteNome} />
                 </button>
               </div>
             );
@@ -193,7 +181,9 @@ export function RemarcarSemanaDestinoGrid({
       <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
         {(["vago", "ocupado", "indisponivel"] as SlotStatus[]).map((s) => (
           <span key={s} className="inline-flex items-center gap-1">
-            <span className={cn("inline-block h-2 w-2 rounded-full", SLOT_STATUS_STYLE[s].legend)} />
+            <span
+              className={cn("inline-block h-2 w-2 rounded-full", SLOT_STATUS_STYLE[s].legend)}
+            />
             {SLOT_STATUS_STYLE[s].label}
           </span>
         ))}

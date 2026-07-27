@@ -84,15 +84,16 @@ serve(async (req) => {
 
     const doc = await docRes.json();
     const documentKey = doc?.document?.key ?? null;
-    const assinaturaLink = doc?.document?.downloads?.signed_file_url
-      ?? doc?.document?.url
-      ?? null;
+    const assinaturaLink = doc?.document?.downloads?.signed_file_url ?? doc?.document?.url ?? null;
 
-    await admin.from("relatorios_atendimento").update({
-      assinatura_link: assinaturaLink,
-      clicksign_document_key: documentKey,
-      status: "aguardando_assinatura",
-    }).eq("id", relatorio_id);
+    await admin
+      .from("relatorios_atendimento")
+      .update({
+        assinatura_link: assinaturaLink,
+        clicksign_document_key: documentKey,
+        status: "aguardando_assinatura",
+      })
+      .eq("id", relatorio_id);
 
     return new Response(
       JSON.stringify({

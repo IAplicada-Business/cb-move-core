@@ -6,7 +6,8 @@ import { triggerSendBoletoCobranca } from "../_shared/trigger-send-boleto-cobran
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 serve(async (req) => {
@@ -23,8 +24,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
 
     const authorized =
-      (cronSecret && headerSecret === cronSecret) ||
-      authHeader === `Bearer ${serviceKey}`;
+      (cronSecret && headerSecret === cronSecret) || authHeader === `Bearer ${serviceKey}`;
 
     if (!authorized) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -36,7 +36,9 @@ serve(async (req) => {
     const hoje = new Date();
     const dia = hoje.getDate();
 
-    const { data, error } = await admin.rpc("processar_boleto_emissao_data_especifica", { p_dia: dia });
+    const { data, error } = await admin.rpc("processar_boleto_emissao_data_especifica", {
+      p_dia: dia,
+    });
     if (error) throw error;
 
     const resultado = (data ?? {}) as {
@@ -46,8 +48,13 @@ serve(async (req) => {
     };
 
     const cobrancaIds = Array.isArray(resultado.cobranca_ids) ? resultado.cobranca_ids : [];
-    const emissoes: { cobranca_id: string; ok: boolean; envio_ok?: boolean; erro?: string; envio_erro?: string }[] =
-      [];
+    const emissoes: {
+      cobranca_id: string;
+      ok: boolean;
+      envio_ok?: boolean;
+      erro?: string;
+      envio_erro?: string;
+    }[] = [];
 
     for (const cobrancaId of cobrancaIds) {
       const emit = await triggerEmitBoletoCora(

@@ -47,7 +47,12 @@ export async function fetchUsers(): Promise<UserRow[]> {
 
   const byId = new Map<string, UserRow>();
   for (const p of profiles ?? []) {
-    byId.set(p.id, { ...p, role: roleMap.get(p.id) ?? null, paciente_id: null, paciente_nome: null });
+    byId.set(p.id, {
+      ...p,
+      role: roleMap.get(p.id) ?? null,
+      paciente_id: null,
+      paciente_nome: null,
+    });
   }
 
   for (const r of roles ?? []) {
@@ -78,9 +83,8 @@ function sortUsers(users: UserRow[]): UserRow[] {
 }
 
 export async function updateUserRole(userId: string, role: PrimaryRole) {
-  const db = supabase as any;
-  await db.from("user_roles").delete().eq("user_id", userId);
-  const { error } = await db.from("user_roles").insert({ user_id: userId, role });
+  await supabase.from("user_roles").delete().eq("user_id", userId);
+  const { error } = await supabase.from("user_roles").insert({ user_id: userId, role });
   if (error) throw error;
 }
 
@@ -102,8 +106,10 @@ export async function deleteUser(userId: string) {
   return invokeEdgeFunction<{ ok: boolean; message: string }>("delete-user", { user_id: userId });
 }
 
-export async function fetchMenuPermissions(role: PrimaryRole): Promise<Partial<Record<MenuKey, boolean>>> {
-  const { data, error } = await (supabase as any)
+export async function fetchMenuPermissions(
+  role: PrimaryRole,
+): Promise<Partial<Record<MenuKey, boolean>>> {
+  const { data, error } = await supabase
     .from("menu_permissions")
     .select("menu_key, enabled")
     .eq("role", role);
@@ -116,7 +122,10 @@ export async function fetchMenuPermissions(role: PrimaryRole): Promise<Partial<R
   return map;
 }
 
-export async function saveMenuPermissions(role: PrimaryRole, permissions: Partial<Record<MenuKey, boolean>>) {
+export async function saveMenuPermissions(
+  role: PrimaryRole,
+  permissions: Partial<Record<MenuKey, boolean>>,
+) {
   const rows = Object.entries(permissions).map(([menu_key, enabled]) => ({
     role,
     menu_key,
@@ -124,7 +133,7 @@ export async function saveMenuPermissions(role: PrimaryRole, permissions: Partia
     updated_at: new Date().toISOString(),
   }));
 
-  const { error } = await (supabase as any).from("menu_permissions").upsert(rows, {
+  const { error } = await supabase.from("menu_permissions").upsert(rows, {
     onConflict: "role,menu_key",
   });
   if (error) throw error;

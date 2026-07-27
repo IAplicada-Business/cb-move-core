@@ -5,8 +5,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Plus, Search, MoreHorizontal, FileText, X, ExternalLink, Mail, RefreshCw,
-  ChevronsDownUp, ChevronsUpDown, AlertCircle,
+  Plus,
+  Search,
+  MoreHorizontal,
+  FileText,
+  X,
+  ExternalLink,
+  Mail,
+  RefreshCw,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,13 +26,24 @@ import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
-  fetchNFs, createNF, emitNfManual, emitNfAutomatico, sendNfEmail, updateNF, uploadNfPdf,
-  documentoValidoParaNf, documentoElegivelCobranca, emitFocusDeCobranca, prepararEmitFocus,
+  fetchNFs,
+  createNF,
+  emitNfManual,
+  emitNfAutomatico,
+  sendNfEmail,
+  updateNF,
+  uploadNfPdf,
+  documentoValidoParaNf,
+  documentoElegivelCobranca,
+  emitFocusDeCobranca,
+  prepararEmitFocus,
   type NotaFiscal,
 } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import {
-  criarNfDeCobranca, fetchCobrancasSemNf, resolverDestinatarioNf,
+  criarNfDeCobranca,
+  fetchCobrancasSemNf,
+  resolverDestinatarioNf,
   type CobrancaSemNf,
 } from "@/lib/queries/financeiro";
 import type { NfStatus, PacienteTipo } from "@/lib/types";
@@ -33,24 +53,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/app/notas-fiscais")({
@@ -59,10 +111,33 @@ export const Route = createFileRoute("/app/notas-fiscais")({
   component: NotasFiscaisPage,
 });
 
-const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const MESES_ABREV = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 const MESES_FULL = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 /** Radix Select não aceita value="" em SelectItem — use "todos" como sentinela. */
@@ -82,7 +157,11 @@ function competenciaOpcoes() {
   const opts: { label: string; mes: number; ano: number }[] = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({ label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`, mes: d.getMonth() + 1, ano: d.getFullYear() });
+    opts.push({
+      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
+      mes: d.getMonth() + 1,
+      ano: d.getFullYear(),
+    });
   }
   return opts;
 }
@@ -104,7 +183,6 @@ const emitirNFSchema = z.object({
 });
 
 type EmitirNFForm = z.infer<typeof emitirNFSchema>;
-
 
 type ModalEmitirProps = {
   open: boolean;
@@ -172,17 +250,19 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
 
   useEffect(() => {
     if (!watchCobrancaId || !open) return;
-    resolverDestinatarioNf(watchCobrancaId).then((d) => {
-      form.setValue("destinatarioNome", d.destinatarioNome);
-      form.setValue("destinatarioDocumento", d.destinatarioDocumento ?? "");
-      form.setValue("valor", d.valor);
-      form.setValue("competenciaMes", d.competenciaMes ?? form.getValues("competenciaMes"));
-      form.setValue("competenciaAno", d.competenciaAno ?? form.getValues("competenciaAno"));
-      if (d.corpoPacienteNome) form.setValue("corpoPacienteNome", d.corpoPacienteNome);
-      if (d.corpoPacienteCpf) form.setValue("corpoPacienteCpf", d.corpoPacienteCpf);
-      if (d.corpoNumeroProcesso) form.setValue("corpoNumeroProcesso", d.corpoNumeroProcesso);
-      if (d.corpoTotalSessoes) form.setValue("corpoTotalSessoes", d.corpoTotalSessoes);
-    }).catch((e: Error) => toast.error(e.message));
+    resolverDestinatarioNf(watchCobrancaId)
+      .then((d) => {
+        form.setValue("destinatarioNome", d.destinatarioNome);
+        form.setValue("destinatarioDocumento", d.destinatarioDocumento ?? "");
+        form.setValue("valor", d.valor);
+        form.setValue("competenciaMes", d.competenciaMes ?? form.getValues("competenciaMes"));
+        form.setValue("competenciaAno", d.competenciaAno ?? form.getValues("competenciaAno"));
+        if (d.corpoPacienteNome) form.setValue("corpoPacienteNome", d.corpoPacienteNome);
+        if (d.corpoPacienteCpf) form.setValue("corpoPacienteCpf", d.corpoPacienteCpf);
+        if (d.corpoNumeroProcesso) form.setValue("corpoNumeroProcesso", d.corpoNumeroProcesso);
+        if (d.corpoTotalSessoes) form.setValue("corpoTotalSessoes", d.corpoTotalSessoes);
+      })
+      .catch((e: Error) => toast.error(e.message));
   }, [watchCobrancaId, open, form]);
 
   useEffect(() => {
@@ -230,7 +310,9 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
       } else {
         const doc = (data.destinatarioDocumento ?? "").replace(/\D/g, "");
         if (doc.length !== 11 && doc.length !== 14) {
-          throw new Error("Emissão automática exige CPF (11 dígitos) ou CNPJ (14 dígitos) do destinatário");
+          throw new Error(
+            "Emissão automática exige CPF (11 dígitos) ou CNPJ (14 dígitos) do destinatário",
+          );
         }
         return emitNfAutomatico(nfId);
       }
@@ -250,25 +332,49 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
   });
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setPdfFile(null); onClose(); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          setPdfFile(null);
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Emitir Nota Fiscal</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Emitir Nota Fiscal</DialogTitle>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
-            <FormField control={form.control} name="pacienteId" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Paciente</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value ?? ""} disabled={!!prefill}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    {(pacientes.data ?? []).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="pacienteId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Paciente</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? ""}
+                    disabled={!!prefill}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {(pacientes.data ?? []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {pacienteSelecionado && (
               <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
@@ -277,99 +383,184 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="competenciaMes" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mês</FormLabel>
-                  <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value)}>
-                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {MESES_FULL.map((m, i) => <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )} />
-              <FormField control={form.control} name="competenciaAno" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ano</FormLabel>
-                  <FormControl><Input type="number" {...field} /></FormControl>
-                </FormItem>
-              )} />
+              <FormField
+                control={form.control}
+                name="competenciaMes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mês</FormLabel>
+                    <Select
+                      onValueChange={(v) => field.onChange(Number(v))}
+                      value={String(field.value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {MESES_FULL.map((m, i) => (
+                          <SelectItem key={i + 1} value={String(i + 1)}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="competenciaAno"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ano</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
 
-            <FormField control={form.control} name="valor" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Valor (R$)</FormLabel>
-                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="valor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor (R$)</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-            <FormField control={form.control} name="destinatarioNome" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Destinatário — Nome</FormLabel>
-                <FormControl><Input {...field} readOnly={isParticular} /></FormControl>
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="destinatarioNome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destinatário — Nome</FormLabel>
+                  <FormControl>
+                    <Input {...field} readOnly={isParticular} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-            <FormField control={form.control} name="destinatarioDocumento" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Destinatário — CPF / CNPJ</FormLabel>
-                <FormControl>
-                  <Input {...field} readOnly={isParticular} placeholder={isParticular ? "CPF do paciente" : "000.000.000/0001-00"} />
-                </FormControl>
-                {isParticular && (
-                  <p className="text-xs text-muted-foreground">Particular: tomador é o paciente (CPF bloqueado).</p>
-                )}
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="destinatarioDocumento"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destinatário — CPF / CNPJ</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      readOnly={isParticular}
+                      placeholder={isParticular ? "CPF do paciente" : "000.000.000/0001-00"}
+                    />
+                  </FormControl>
+                  {isParticular && (
+                    <p className="text-xs text-muted-foreground">
+                      Particular: tomador é o paciente (CPF bloqueado).
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
 
             {isJudicial && (
               <div className="rounded-md border border-dashed p-4 space-y-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Corpo da NF — Judicial</p>
-                <FormField control={form.control} name="corpoPacienteNome" render={({ field }) => (
-                  <FormItem><FormLabel>Nome do paciente</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="corpoNumeroProcesso" render={({ field }) => (
-                  <FormItem><FormLabel>Processo</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Corpo da NF — Judicial
+                </p>
+                <FormField
+                  control={form.control}
+                  name="corpoPacienteNome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome do paciente</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="corpoNumeroProcesso"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Processo</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
             )}
 
-            <FormField control={form.control} name="modo" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Modo de emissão</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="manual">Manual (número + PDF)</SelectItem>
-                    <SelectItem value="automatico">Automático (Focus NFe)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )} />
+            <FormField
+              control={form.control}
+              name="modo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Modo de emissão</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual (número + PDF)</SelectItem>
+                      <SelectItem value="automatico">Automático (Focus NFe)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
 
             {watchModo === "automatico" && (
               <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
-                Homologação Focus NFe — emite NFS-e Nacional POA e grava PDF no sistema. Certificado A1 já configurado no painel.
+                Homologação Focus NFe — emite NFS-e Nacional POA e grava PDF no sistema. Certificado
+                A1 já configurado no painel.
               </p>
             )}
 
             {watchModo === "manual" && (
               <>
-                <FormField control={form.control} name="numeroNf" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número da NF</FormLabel>
-                    <FormControl><Input {...field} placeholder="NF-001284" /></FormControl>
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="numeroNf"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Número da NF</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="NF-001284" />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <div>
                   <Label>Upload PDF</Label>
-                  <Input type="file" accept=".pdf" className="mt-1" onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)} />
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    className="mt-1"
+                    onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+                  />
                 </div>
               </>
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? "Processando…" : "Emitir NF"}
               </Button>
@@ -380,7 +571,6 @@ function ModalEmitirNF({ open, onClose, prefill }: ModalEmitirProps) {
     </Dialog>
   );
 }
-
 
 function NFRow({
   nf,
@@ -405,8 +595,7 @@ function NFRow({
     (nf.status === "pendente" || nf.status === "erro") &&
     documentoValidoParaNf(nf.destinatarioDocumento);
 
-  const podeFocus =
-    nf.status === "erro" || nf.status === "pendente" || nf.status === "processando";
+  const podeFocus = nf.status === "erro" || nf.status === "pendente" || nf.status === "processando";
 
   const focusMutation = useMutation({
     mutationFn: async () => {
@@ -420,10 +609,9 @@ function NFRow({
           nf.status === "processando"
             ? `Focus: ${result.focus_status ?? "processando_autorizacao"}`
             : (result.message ?? "Aguardando autorização via webhook.");
-        toast.message(
-          nf.status === "processando" ? "Status consultado" : "Reemissão enviada",
-          { description: detail },
-        );
+        toast.message(nf.status === "processando" ? "Status consultado" : "Reemissão enviada", {
+          description: detail,
+        });
       } else {
         toast.success("NF atualizada na Focus");
       }
@@ -469,7 +657,9 @@ function NFRow({
             />
           </TableCell>
         )}
-        <TableCell className={`font-mono text-sm text-muted-foreground ${selectable ? "" : "pl-4"}`}>
+        <TableCell
+          className={`font-mono text-sm text-muted-foreground ${selectable ? "" : "pl-4"}`}
+        >
           {nf.numero ?? "—"}
         </TableCell>
         {!hidePaciente && <TableCell className="font-medium">{nf.pacienteNome ?? "—"}</TableCell>}
@@ -484,9 +674,13 @@ function NFRow({
             isJudicial={isJudicial}
           />
         </TableCell>
-        <TableCell><TipoBadge value={nf.tipo} /></TableCell>
+        <TableCell>
+          <TipoBadge value={nf.tipo} />
+        </TableCell>
         <TableCell className="text-sm">{formatDate(nf.emissao)}</TableCell>
-        <TableCell><StatusBadge kind="nf" value={nf.status} /></TableCell>
+        <TableCell>
+          <StatusBadge kind="nf" value={nf.status} />
+        </TableCell>
         <TableCell className="text-right font-medium tabular-nums">{brl(nf.valor)}</TableCell>
         <TableCell>
           <div className="flex items-center justify-end gap-1">
@@ -501,7 +695,9 @@ function NFRow({
                   else focusMutation.mutate();
                 }}
               >
-                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${focusMutation.isPending ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-3.5 w-3.5 mr-1 ${focusMutation.isPending ? "animate-spin" : ""}`}
+                />
                 {nf.status === "erro"
                   ? "Reemitir"
                   : nf.status === "processando"
@@ -511,12 +707,15 @@ function NFRow({
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {nf.pdfUrl && (
                   <DropdownMenuItem onClick={() => window.open(nf.pdfUrl!, "_blank")}>
-                    <ExternalLink className="h-4 w-4 mr-2" />Ver PDF
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ver PDF
                   </DropdownMenuItem>
                 )}
                 {podeFocus && (
@@ -537,12 +736,14 @@ function NFRow({
                 )}
                 {nf.status === "emitida" && (
                   <DropdownMenuItem onClick={() => reenviar.mutate()} disabled={reenviar.isPending}>
-                    <Mail className="h-4 w-4 mr-2" />Reenviar por e-mail
+                    <Mail className="h-4 w-4 mr-2" />
+                    Reenviar por e-mail
                   </DropdownMenuItem>
                 )}
                 {nf.status !== "cancelada" && nf.status !== "emitida" && (
                   <DropdownMenuItem onClick={() => cancelar.mutate()} className="text-destructive">
-                    <X className="h-4 w-4 mr-2" />Cancelar NF
+                    <X className="h-4 w-4 mr-2" />
+                    Cancelar NF
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -557,8 +758,8 @@ function NFRow({
             <AlertDialogTitle>Reemitir nota fiscal?</AlertDialogTitle>
             <AlertDialogDescription>
               A NF de <strong>{nf.pacienteNome ?? "paciente"}</strong> ({brl(nf.valor)}) será
-              reenviada à Focus NFe com a mesma referência. O status passará para
-              {" "}<strong>processando</strong> até o webhook confirmar autorização ou novo erro.
+              reenviada à Focus NFe com a mesma referência. O status passará para{" "}
+              <strong>processando</strong> até o webhook confirmar autorização ou novo erro.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -598,8 +799,14 @@ function agruparPorCliente(nfs: NotaFiscal[]): NfGrupo[] {
     let grupo = map.get(key);
     if (!grupo) {
       grupo = {
-        key, label, documento: nf.destinatarioDocumento ?? null,
-        total: 0, temErro: false, temPendente: false, latest: nf.createdAt, nfs: [],
+        key,
+        label,
+        documento: nf.destinatarioDocumento ?? null,
+        total: 0,
+        temErro: false,
+        temPendente: false,
+        latest: nf.createdAt,
+        nfs: [],
       };
       map.set(key, grupo);
     }
@@ -632,12 +839,8 @@ function DestinatarioDetalhes({
   return (
     <>
       <div>{nome ?? "—"}</div>
-      {documento && (
-        <div className="text-xs text-muted-foreground">CPF/CNPJ: {documento}</div>
-      )}
-      {telefone && (
-        <div className="text-xs text-muted-foreground">Tel: {telefone}</div>
-      )}
+      {documento && <div className="text-xs text-muted-foreground">CPF/CNPJ: {documento}</div>}
+      {telefone && <div className="text-xs text-muted-foreground">Tel: {telefone}</div>}
       {isJudicial && corpoNome && (
         <div className="text-xs text-muted-foreground mt-0.5">
           Corpo: {corpoNome}
@@ -705,7 +908,9 @@ function LinhaAEmitir({
           </span>
         )}
       </TableCell>
-      <TableCell><TipoBadge value={row.tipo} /></TableCell>
+      <TableCell>
+        <TipoBadge value={row.tipo} />
+      </TableCell>
       <TableCell className="text-sm">
         <StatusBadge value={row.status} />
       </TableCell>
@@ -716,7 +921,9 @@ function LinhaAEmitir({
       </TableCell>
       <TableCell className="text-right font-medium tabular-nums">{brl(row.valor)}</TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <Button size="sm" variant="outline" onClick={onEmitir}>Emitir</Button>
+        <Button size="sm" variant="outline" onClick={onEmitir}>
+          Emitir
+        </Button>
       </TableCell>
     </TableRow>
   );
@@ -743,8 +950,10 @@ function NotasFiscaisPage() {
   const selectAllNfRef = useRef<HTMLInputElement>(null);
 
   const compOpts = competenciaOpcoes();
-  const compMes = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
-  const compAno = filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[1]) : undefined;
+  const compMes =
+    filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
+  const compAno =
+    filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[1]) : undefined;
 
   const filters = {
     search: search || undefined,
@@ -791,8 +1000,7 @@ function NotasFiscaisPage() {
     [nfs, selectedNfIds],
   );
   const allNfsFocusSelected =
-    nfsFocusPendentes.length > 0 &&
-    nfsFocusPendentes.every((nf) => selectedNfIds.has(nf.id));
+    nfsFocusPendentes.length > 0 && nfsFocusPendentes.every((nf) => selectedNfIds.has(nf.id));
   const someNfsFocusSelected = nfsFocusPendentes.some((nf) => selectedNfIds.has(nf.id));
   const selectedCobrancas = useMemo(
     () => aEmitir.filter((row) => selectedCobrancaIds.has(row.cobrancaId)),
@@ -856,9 +1064,7 @@ function NotasFiscaisPage() {
         try {
           const result = await emitFocusDeCobranca(row.cobrancaId, { timeoutMs: 30_000 });
           if (!result?.ok || result.status !== "processando") {
-            throw new Error(
-              result?.error ?? result?.message ?? "Focus não aceitou a emissão",
-            );
+            throw new Error(result?.error ?? result?.message ?? "Focus não aceitou a emissão");
           }
           ok += 1;
         } catch (e) {
@@ -902,9 +1108,7 @@ function NotasFiscaisPage() {
           await prepararEmitFocus(nf);
           const result = await emitNfAutomatico(nf.id, { timeoutMs: 30_000 });
           if (!result?.ok || result.status !== "processando") {
-            throw new Error(
-              result?.error ?? result?.message ?? "Focus não aceitou a emissão",
-            );
+            throw new Error(result?.error ?? result?.message ?? "Focus não aceitou a emissão");
           }
           ok += 1;
         } catch (e) {
@@ -1007,20 +1211,28 @@ function NotasFiscaisPage() {
           <p className="text-sm text-muted-foreground">Gestão de notas fiscais emitidas</p>
         </div>
         <Button size="sm" onClick={() => abrirEmitir()}>
-          <Plus className="h-4 w-4 mr-1" />Emitir NF
+          <Plus className="h-4 w-4 mr-1" />
+          Emitir NF
         </Button>
       </header>
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por paciente, nº ou destinatário…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+          <Input
+            placeholder="Buscar por paciente, nº ou destinatário…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
         </div>
         <Select
           value={filtroStatus || FILTRO_TODOS}
           onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as NfStatus))}
         >
-          <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
             <SelectItem value="pendente">Pendente</SelectItem>
@@ -1031,11 +1243,15 @@ function NotasFiscaisPage() {
           </SelectContent>
         </Select>
         <Select value={filtroComp} onValueChange={setFiltroComp}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Competência" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Competência" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value={FILTRO_TODAS_COMP}>Todas</SelectItem>
             {compOpts.map((o) => (
-              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>{o.label}</SelectItem>
+              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
+                {o.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -1043,7 +1259,9 @@ function NotasFiscaisPage() {
           value={filtroTipo || FILTRO_TODOS}
           onValueChange={(v) => setFiltroTipo(v === FILTRO_TODOS ? "" : (v as PacienteTipo))}
         >
-          <SelectTrigger className="w-36"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value={FILTRO_TODOS}>Todos</SelectItem>
             <SelectItem value="particular">Particular</SelectItem>
@@ -1053,8 +1271,17 @@ function NotasFiscaisPage() {
           </SelectContent>
         </Select>
         {temFiltro && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setFiltroStatus(""); setFiltroTipo(""); }}>
-            <X className="h-4 w-4 mr-1" />Limpar
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setFiltroStatus("");
+              setFiltroTipo("");
+            }}
+          >
+            <X className="h-4 w-4 mr-1" />
+            Limpar
           </Button>
         )}
       </div>
@@ -1065,14 +1292,21 @@ function NotasFiscaisPage() {
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title="Erro ao carregar notas"
-          description={query.error instanceof Error ? query.error.message : "Tente recarregar a página."}
+          description={
+            query.error instanceof Error ? query.error.message : "Tente recarregar a página."
+          }
         />
       ) : nfs.length === 0 && aEmitir.length === 0 ? (
         <EmptyState
           icon={<FileText className="h-8 w-8" />}
           title="Sem notas fiscais"
           description="Emita a primeira nota fiscal ou verifique cobranças pendentes de NF."
-          action={<Button size="sm" onClick={() => abrirEmitir()}><Plus className="h-4 w-4 mr-1" />Emitir NF</Button>}
+          action={
+            <Button size="sm" onClick={() => abrirEmitir()}>
+              <Plus className="h-4 w-4 mr-1" />
+              Emitir NF
+            </Button>
+          }
         />
       ) : (
         <div className="space-y-4">
@@ -1084,69 +1318,86 @@ function NotasFiscaisPage() {
                     A emitir — {semNfQuery.isLoading ? "…" : `${aEmitir.length} cobrança(s) sem NF`}
                     {!semNfQuery.isLoading && compMes && compAno && (
                       <span className="font-normal text-amber-800">
-                        {" "}· {MESES_ABREV[compMes - 1]}/{compAno}
+                        {" "}
+                        · {MESES_ABREV[compMes - 1]}/{compAno}
                       </span>
                     )}
                   </p>
                   <p className="text-xs font-normal text-amber-800">
-                    Selecione cobranças sem NF e emita em lote via Focus. Use o filtro de competência acima para outro mês.
+                    Selecione cobranças sem NF e emita em lote via Focus. Use o filtro de
+                    competência acima para outro mês.
                   </p>
                   {!semNfQuery.isLoading && aEmitirSemDocumento > 0 && (
                     <p className="text-xs font-medium text-destructive">
-                      {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para selecionar,
-                      mas só emite após completar o cadastro em Pacientes.
+                      {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para
+                      selecionar, mas só emite após completar o cadastro em Pacientes.
                     </p>
                   )}
                   {semNfQuery.isError && (
                     <p className="text-xs text-destructive font-medium">
-                      Erro ao carregar fila: {semNfQuery.error instanceof Error ? semNfQuery.error.message : "Falha na consulta"}
+                      Erro ao carregar fila:{" "}
+                      {semNfQuery.error instanceof Error
+                        ? semNfQuery.error.message
+                        : "Falha na consulta"}
                     </p>
                   )}
-                  {!semNfQuery.isLoading && !semNfQuery.isError && aEmitir.length === 0 && compMes && compAno && (
-                    <p className="text-xs text-amber-900 font-medium">
-                      Nenhuma cobrança sem NF nesta competência — troque o mês no filtro (ex.: Jun/2026).
-                    </p>
-                  )}
+                  {!semNfQuery.isLoading &&
+                    !semNfQuery.isError &&
+                    aEmitir.length === 0 &&
+                    compMes &&
+                    compAno && (
+                      <p className="text-xs text-amber-900 font-medium">
+                        Nenhuma cobrança sem NF nesta competência — troque o mês no filtro (ex.:
+                        Jun/2026).
+                      </p>
+                    )}
                 </div>
-                  {selectedCobrancas.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-medium">
-                        {selectedCobrancas.length} selecionada{selectedCobrancas.length > 1 ? "s" : ""}
-                        {selectedCobrancasElegiveis.length < selectedCobrancas.length && (
-                          <span className="text-destructive">
-                            {" "}({selectedCobrancasElegiveis.length} elegível
-                            {selectedCobrancasElegiveis.length > 1 ? "eis" : ""})
-                          </span>
-                        )}
-                      </span>
-                      <Button
-                        size="sm"
-                        disabled={bulkBusy || selectedCobrancasElegiveis.length === 0}
-                        onClick={abrirConfirmBulkEmit}
-                      >
-                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
-                        {bulkProgress
-                          ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
-                          : "Emitir selecionadas"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={bulkBusy}
-                        onClick={() => setSelectedCobrancaIds(new Set())}
-                      >
-                        Limpar
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                {selectedCobrancas.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium">
+                      {selectedCobrancas.length} selecionada
+                      {selectedCobrancas.length > 1 ? "s" : ""}
+                      {selectedCobrancasElegiveis.length < selectedCobrancas.length && (
+                        <span className="text-destructive">
+                          {" "}
+                          ({selectedCobrancasElegiveis.length} elegível
+                          {selectedCobrancasElegiveis.length > 1 ? "eis" : ""})
+                        </span>
+                      )}
+                    </span>
+                    <Button
+                      size="sm"
+                      disabled={bulkBusy || selectedCobrancasElegiveis.length === 0}
+                      onClick={abrirConfirmBulkEmit}
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
+                      {bulkProgress
+                        ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
+                        : "Emitir selecionadas"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={bulkBusy}
+                      onClick={() => setSelectedCobrancaIds(new Set())}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
+                )}
               </div>
-              {semNfQuery.isLoading ? (
-                <div className="px-4 py-6"><LoadingState /></div>
-              ) : aEmitir.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">
-                  Nenhuma linha para selecionar nesta competência.
-                  {compOpts.filter((o) => `${o.mes}-${o.ano}` !== filtroComp).slice(0, 1).map((o) => (
+            </div>
+            {semNfQuery.isLoading ? (
+              <div className="px-4 py-6">
+                <LoadingState />
+              </div>
+            ) : aEmitir.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">
+                Nenhuma linha para selecionar nesta competência.
+                {compOpts
+                  .filter((o) => `${o.mes}-${o.ano}` !== filtroComp)
+                  .slice(0, 1)
+                  .map((o) => (
                     <Button
                       key={`${o.mes}-${o.ano}`}
                       variant="link"
@@ -1156,8 +1407,8 @@ function NotasFiscaisPage() {
                       Ver {o.label}
                     </Button>
                   ))}
-                </p>
-              ) : (
+              </p>
+            ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1216,9 +1467,16 @@ function NotasFiscaisPage() {
                     </span>
                     <Button size="sm" disabled={bulkBusy} onClick={abrirConfirmBulkEmitNfs}>
                       <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
-                      {bulkProgress ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…` : "Enviar à Focus"}
+                      {bulkProgress
+                        ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
+                        : "Enviar à Focus"}
                     </Button>
-                    <Button size="sm" variant="ghost" disabled={bulkBusy} onClick={() => setSelectedNfIds(new Set())}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={bulkBusy}
+                      onClick={() => setSelectedNfIds(new Set())}
+                    >
                       Limpar
                     </Button>
                   </div>
@@ -1230,14 +1488,21 @@ function NotasFiscaisPage() {
           {grupos.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {grupos.length} cliente{grupos.length > 1 ? "s" : ""} · {nfs.length} nota{nfs.length > 1 ? "s" : ""}
+                {grupos.length} cliente{grupos.length > 1 ? "s" : ""} · {nfs.length} nota
+                {nfs.length > 1 ? "s" : ""}
               </p>
               <div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={() => setOpenGroups(grupos.map((g) => g.key))}>
-                  <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />Expandir tudo
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpenGroups(grupos.map((g) => g.key))}
+                >
+                  <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+                  Expandir tudo
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setOpenGroups([])}>
-                  <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />Recolher tudo
+                  <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
+                  Recolher tudo
                 </Button>
               </div>
             </div>
@@ -1246,17 +1511,25 @@ function NotasFiscaisPage() {
           <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <Accordion type="multiple" value={openGroups} onValueChange={setOpenGroups}>
               {grupos.map((grupo) => (
-                <AccordionItem key={grupo.key} value={grupo.key} className="border-b last:border-b-0">
+                <AccordionItem
+                  key={grupo.key}
+                  value={grupo.key}
+                  className="border-b last:border-b-0"
+                >
                   <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30">
                     <div className="flex items-center justify-between flex-1 gap-2 pr-2 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
-                        {grupo.temErro && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                        {grupo.temErro && (
+                          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        )}
                         <span className="font-medium truncate">{grupo.label}</span>
                         <span className="text-xs text-muted-foreground shrink-0">
                           {grupo.nfs.length} nota{grupo.nfs.length > 1 ? "s" : ""}
                         </span>
                       </div>
-                      <span className="text-sm font-medium tabular-nums shrink-0">{brl(grupo.total)}</span>
+                      <span className="text-sm font-medium tabular-nums shrink-0">
+                        {brl(grupo.total)}
+                      </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-0">
@@ -1276,7 +1549,11 @@ function NotasFiscaisPage() {
                               />
                             </TableHead>
                           )}
-                          <TableHead className={nfsFocusPendentes.length > 0 ? "w-24" : "w-24 pl-4"}>Nº</TableHead>
+                          <TableHead
+                            className={nfsFocusPendentes.length > 0 ? "w-24" : "w-24 pl-4"}
+                          >
+                            Nº
+                          </TableHead>
                           <TableHead>Destinatário</TableHead>
                           <TableHead>Tipo</TableHead>
                           <TableHead>Emissão</TableHead>
@@ -1309,7 +1586,10 @@ function NotasFiscaisPage() {
 
       <ModalEmitirNF
         open={modalEmitir}
-        onClose={() => { setModalEmitir(false); setPrefill(null); }}
+        onClose={() => {
+          setModalEmitir(false);
+          setPrefill(null);
+        }}
         prefill={prefill}
       />
 
@@ -1328,8 +1608,10 @@ function NotasFiscaisPage() {
               Emitir {bulkTargetCobrancas.length} nota{bulkTargetCobrancas.length > 1 ? "s" : ""}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Serão criadas e enviadas à Focus NFe em sequência ({bulkTargetCobrancas.length} cobrança
-              {bulkTargetCobrancas.length > 1 ? "s" : ""}). CPF/CNPJ e telefone vêm do cadastro do paciente.
+              Serão criadas e enviadas à Focus NFe em sequência ({bulkTargetCobrancas.length}{" "}
+              cobrança
+              {bulkTargetCobrancas.length > 1 ? "s" : ""}). CPF/CNPJ e telefone vêm do cadastro do
+              paciente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

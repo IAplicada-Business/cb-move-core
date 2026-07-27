@@ -35,12 +35,16 @@ function splitLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (inQuote) {
-      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-      else if (c === '"') inQuote = false;
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (c === '"') inQuote = false;
       else cur += c;
     } else {
-      if (c === DELIMITER) { out.push(cur); cur = ""; }
-      else if (c === '"') inQuote = true;
+      if (c === DELIMITER) {
+        out.push(cur);
+        cur = "";
+      } else if (c === '"') inQuote = true;
       else cur += c;
     }
   }

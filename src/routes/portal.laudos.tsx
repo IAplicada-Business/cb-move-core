@@ -6,7 +6,7 @@ import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 
-export const Route = (createFileRoute as any)("/portal/laudos")({
+export const Route = createFileRoute("/portal/laudos")({
   component: PortalLaudos,
 });
 
@@ -23,7 +23,7 @@ function PortalLaudos() {
 
   React.useEffect(() => {
     if (!pacienteId) return;
-    (supabase as any)
+    supabase
       .from("relatorios_atendimento")
       .select("id, created_at, pdf_url")
       .eq("paciente_id", pacienteId)
@@ -60,7 +60,10 @@ function PortalLaudos() {
               year: "numeric",
             });
             return (
-              <li key={doc.id} className="flex items-center justify-between rounded-xl border bg-white px-4 py-4 shadow-sm">
+              <li
+                key={doc.id}
+                className="flex items-center justify-between rounded-xl border bg-white px-4 py-4 shadow-sm"
+              >
                 <div>
                   <p className="text-sm font-semibold capitalize text-foreground">
                     Relatório de {mes}

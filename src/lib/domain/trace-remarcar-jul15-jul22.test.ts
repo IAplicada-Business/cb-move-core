@@ -103,7 +103,6 @@ describe("trace remarcar 15/07 → 22/07 (canvas Arthur)", () => {
       avisos: impacto?.avisos ?? [],
     };
 
-    // eslint-disable-next-line no-console
     console.log(JSON.stringify(trace, null, 2));
 
     expect(cruzaSemana).toBe(true);

@@ -10,10 +10,34 @@ import {
 
 describe("relatorio-atendimento-linhas", () => {
   const sessoes = [
-    { id: "s1", data: "2026-06-02", sigla: "P", fisioterapeuta_id: "f1", fisioterapeutas: { nome: "Lorenzo" } },
-    { id: "s2", data: "2026-06-02", sigla: "P", fisioterapeuta_id: "f2", fisioterapeutas: { nome: "William" } },
-    { id: "s3", data: "2026-06-05", sigla: "P", fisioterapeuta_id: "f1", fisioterapeutas: { nome: "Lorenzo" } },
-    { id: "s4", data: "2026-06-06", sigla: "F", fisioterapeuta_id: "f1", fisioterapeutas: { nome: "Lorenzo" } },
+    {
+      id: "s1",
+      data: "2026-06-02",
+      sigla: "P",
+      fisioterapeuta_id: "f1",
+      fisioterapeutas: { nome: "Lorenzo" },
+    },
+    {
+      id: "s2",
+      data: "2026-06-02",
+      sigla: "P",
+      fisioterapeuta_id: "f2",
+      fisioterapeutas: { nome: "William" },
+    },
+    {
+      id: "s3",
+      data: "2026-06-05",
+      sigla: "P",
+      fisioterapeuta_id: "f1",
+      fisioterapeutas: { nome: "Lorenzo" },
+    },
+    {
+      id: "s4",
+      data: "2026-06-06",
+      sigla: "F",
+      fisioterapeuta_id: "f1",
+      fisioterapeutas: { nome: "Lorenzo" },
+    },
   ];
 
   it("conta sessões P/RC sem multiplicar por fisio", () => {

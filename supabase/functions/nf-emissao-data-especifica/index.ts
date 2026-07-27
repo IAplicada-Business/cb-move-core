@@ -5,7 +5,8 @@ import { triggerEmitNf } from "../_shared/trigger-emit-nf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 serve(async (req) => {
@@ -22,8 +23,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
 
     const authorized =
-      (cronSecret && headerSecret === cronSecret) ||
-      authHeader === `Bearer ${serviceKey}`;
+      (cronSecret && headerSecret === cronSecret) || authHeader === `Bearer ${serviceKey}`;
 
     if (!authorized) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {

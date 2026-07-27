@@ -1,6 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import { syncConsultaExperimentalProntuario } from "@/lib/queries/prontuario";
-import type { FormaPagamento, ModeloRelatorio, ModoEmissaoBoleto, ModoEmissaoNf, PacienteTipo, RegimeCobranca } from "../types";
+import type {
+  FormaPagamento,
+  ModeloRelatorio,
+  ModoEmissaoBoleto,
+  ModoEmissaoNf,
+  PacienteTipo,
+  RegimeCobranca,
+} from "../types";
 
 export type Paciente = {
   id: string;
@@ -218,10 +225,12 @@ export async function uploadPeriodizacaoPdf(pacienteId: string, file: File): Pro
   }
 
   const path = periodizacaoPdfStoragePath(pacienteId);
-  const { error: uploadError } = await supabase.storage.from(PERIODIZACAO_PDF_BUCKET).upload(path, file, {
-    upsert: true,
-    contentType: "application/pdf",
-  });
+  const { error: uploadError } = await supabase.storage
+    .from(PERIODIZACAO_PDF_BUCKET)
+    .upload(path, file, {
+      upsert: true,
+      contentType: "application/pdf",
+    });
   if (uploadError) throw uploadError;
 
   const { data } = supabase.storage.from(PERIODIZACAO_PDF_BUCKET).getPublicUrl(path);
@@ -236,12 +245,16 @@ export async function uploadPeriodizacaoPdf(pacienteId: string, file: File): Pro
 
 export async function removePeriodizacaoPdf(pacienteId: string): Promise<void> {
   const path = periodizacaoPdfStoragePath(pacienteId);
-  const { error: removeError } = await supabase.storage.from(PERIODIZACAO_PDF_BUCKET).remove([path]);
+  const { error: removeError } = await supabase.storage
+    .from(PERIODIZACAO_PDF_BUCKET)
+    .remove([path]);
   if (removeError && !/not found/i.test(removeError.message)) throw removeError;
   await updatePeriodizacaoPdfUrl(pacienteId, null);
 }
 
-export async function createPaciente(input: Omit<Paciente, "id" | "createdAt" | "convenioNome">): Promise<Paciente> {
+export async function createPaciente(
+  input: Omit<Paciente, "id" | "createdAt" | "convenioNome">,
+): Promise<Paciente> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("pacientes")
@@ -300,7 +313,10 @@ export async function checkPacienteDependencias(id: string): Promise<PacienteDel
   const [cobrancas, sessoes, agendamentos] = await Promise.all([
     supabase.from("cobrancas").select("id", { count: "exact", head: true }).eq("paciente_id", id),
     supabase.from("sessoes").select("id", { count: "exact", head: true }).eq("paciente_id", id),
-    supabase.from("agendamentos").select("id", { count: "exact", head: true }).eq("paciente_id", id),
+    supabase
+      .from("agendamentos")
+      .select("id", { count: "exact", head: true })
+      .eq("paciente_id", id),
   ]);
   if (cobrancas.error) throw cobrancas.error;
   if (sessoes.error) throw sessoes.error;
@@ -316,7 +332,7 @@ export async function deletePaciente(id: string): Promise<void> {
   const deps = await checkPacienteDependencias(id);
   if (deps.cobrancas > 0 || deps.sessoes > 0 || deps.agendamentos > 0) {
     throw new Error(
-      "Este paciente já tem histórico (cobranças, sessões ou agendamentos) e não pode ser excluído. Use \"Inativar\" para removê-lo das listas ativas sem perder o histórico.",
+      'Este paciente já tem histórico (cobranças, sessões ou agendamentos) e não pode ser excluído. Use "Inativar" para removê-lo das listas ativas sem perder o histórico.',
     );
   }
   const { error } = await supabase.from("pacientes").delete().eq("id", id);
@@ -325,7 +341,7 @@ export async function deletePaciente(id: string): Promise<void> {
 
 export async function updatePaciente(
   id: string,
-  input: Partial<Omit<Paciente, "id" | "createdAt" | "convenioNome">>
+  input: Partial<Omit<Paciente, "id" | "createdAt" | "convenioNome">>,
 ): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)

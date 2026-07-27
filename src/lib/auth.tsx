@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         Promise.all([
           supabase.from("user_roles").select("role").eq("user_id", userId),
           supabase.from("profiles").select("fisioterapeuta_id").eq("id", userId).maybeSingle(),
-          (supabase as any).from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
+          supabase.from("pacientes").select("id").eq("user_id", userId).maybeSingle(),
         ]),
         LOAD_ROLES_TIMEOUT_MS,
       );
@@ -66,7 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
       setRoles(fetchedRoles);
       setFisioterapeutaId(
-        (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ?? null,
+        (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ??
+          null,
       );
 
       const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
@@ -78,7 +79,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userId,
         roles: fetchedRoles,
         fisioterapeutaId:
-          (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ?? null,
+          (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ??
+          null,
         pacienteId: pacId,
         isPaciente: isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)),
       });
@@ -110,8 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const shouldReload =
-      options?.reloadRoles !== false && rolesUserIdRef.current !== next.user.id;
+    const shouldReload = options?.reloadRoles !== false && rolesUserIdRef.current !== next.user.id;
     if (!shouldReload) return;
 
     const rolesPromise = loadRoles(next.user.id);

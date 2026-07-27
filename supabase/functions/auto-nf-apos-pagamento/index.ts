@@ -4,7 +4,8 @@ import { buildAutoNfContext, processAutoNfAfterPaid } from "../_shared/auto-nf-a
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-internal-trigger",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-internal-trigger",
 };
 
 serve(async (req) => {
@@ -47,10 +48,9 @@ serve(async (req) => {
       emitAuthHeader: authHeader?.startsWith("Bearer ") ? authHeader : null,
     });
 
-    return new Response(
-      JSON.stringify({ ok: true, cobranca_id: cobrancaId, ...result }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ ok: true, cobranca_id: cobrancaId, ...result }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     const authResp = authErrorResponse(err, corsHeaders);
     if (authResp) return authResp;

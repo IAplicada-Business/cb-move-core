@@ -47,7 +47,6 @@ describe("trace Arthur confirmado 15/07 08:00 → 20/07 12:40", () => {
       agendamentos: AGENDAMENTOS_ANTES_REMARCAR,
     });
 
-    // eslint-disable-next-line no-console
     console.log(
       JSON.stringify(
         {

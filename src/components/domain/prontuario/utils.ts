@@ -2,8 +2,13 @@ import type { PacienteTipo, FrequenciaSigla } from "@/lib/types";
 import type { SessaoProntuario } from "@/lib/queries/prontuario";
 
 const DIAS_SEMANA = [
-  "domingo", "segunda-feira", "terça-feira", "quarta-feira",
-  "quinta-feira", "sexta-feira", "sábado",
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
 ];
 
 export function pacienteCodigoCurto(id: string): string {
@@ -47,11 +52,7 @@ export function countSessoesRealizadas(sessoes: SessaoProntuario[]): number {
   return sessoes.filter((s) => s.sigla === "P" || s.sigla === "RC").length;
 }
 
-export function countEvolucoesMes(
-  evolucoes: { data: string }[],
-  mes: number,
-  ano: number,
-): number {
+export function countEvolucoesMes(evolucoes: { data: string }[], mes: number, ano: number): number {
   return filterPorCompetencia(evolucoes, mes, ano).length;
 }
 

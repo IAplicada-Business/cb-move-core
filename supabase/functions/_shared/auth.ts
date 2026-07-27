@@ -48,7 +48,10 @@ async function resolveUserFromRequest(req: Request, supabaseUrl: string, supabas
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: { user }, error } = await userClient.auth.getUser(token);
+  const {
+    data: { user },
+    error,
+  } = await userClient.auth.getUser(token);
   if (error || !user) throw new AuthError("Não autenticado", 401);
   return user;
 }
@@ -198,7 +201,10 @@ export async function requireRelatorioStaffUser(
     .maybeSingle();
   if (!paciente) throw new AuthError("Paciente não encontrado", 404);
 
-  if (paciente.fisioterapeuta_id === fisioId || paciente.consulta_experimental_fisio_id === fisioId) {
+  if (
+    paciente.fisioterapeuta_id === fisioId ||
+    paciente.consulta_experimental_fisio_id === fisioId
+  ) {
     return { userId: user.id, admin };
   }
 

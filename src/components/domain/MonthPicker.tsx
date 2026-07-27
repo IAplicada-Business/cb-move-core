@@ -6,8 +6,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 
 const MESES_ABREV = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
 ];
 
 export function monthPickerLabel(mes: number, ano: number) {
@@ -43,11 +53,7 @@ export function MonthPicker({ mes, ano, onChange, className }: MonthPickerProps)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          className={cn("gap-2 capitalize", className)}
-        >
+        <Button type="button" variant="outline" className={cn("gap-2 capitalize", className)}>
           <Calendar className="h-4 w-4" />
           {monthPickerLabel(mes, ano)}
         </Button>

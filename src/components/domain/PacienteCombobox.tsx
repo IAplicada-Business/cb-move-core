@@ -76,7 +76,9 @@ export function PacienteCombobox({
           {loading ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Carregando pacientes…</p>
           ) : filtered.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nenhum paciente encontrado.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhum paciente encontrado.
+            </p>
           ) : (
             <div className="p-1">
               {filtered.map((p) => (

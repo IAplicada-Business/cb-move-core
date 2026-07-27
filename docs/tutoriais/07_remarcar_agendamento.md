@@ -62,10 +62,10 @@ Por padrão, o sistema já traz o fisio do agendamento original.
 
 Há **duas formas** de escolher — as duas ficam sempre sincronizadas:
 
-| Forma | Como fazer |
-|-------|------------|
-| **Campos no topo** | Preencha **Nova data** (dd/mm/aa) e **Hora** (HH:mm) |
-| **Grade da semana** | Clique em um horário **vago** na grade |
+| Forma               | Como fazer                                           |
+| ------------------- | ---------------------------------------------------- |
+| **Campos no topo**  | Preencha **Nova data** (dd/mm/aa) e **Hora** (HH:mm) |
+| **Grade da semana** | Clique em um horário **vago** na grade               |
 
 **Importante:** ao mudar a data no campo, a aba do dia (Seg, Ter, Qua…) muda junto. Ao clicar em uma aba, a data no campo também atualiza.
 
@@ -99,11 +99,11 @@ Significa que o novo horário está em uma semana diferente da atual.
 
 O sistema simula o efeito da remarcação no **plano contratual do mês** do paciente. Pode mostrar, por exemplo:
 
-| Mensagem | Significado |
-|----------|-------------|
-| *1 slot ficará vazio no padrão contratual* | Um dia previsto no plano ficará sem sessão agendada |
-| *1 horário ficará fora do padrão (extra)* | Um horário ficará fora dos dias previstos no contrato |
-| *Plano após remarcação: X no padrão · Y faltante(s) · Z extra(s)* | Resumo previsto do mês após a mudança |
+| Mensagem                                                          | Significado                                           |
+| ----------------------------------------------------------------- | ----------------------------------------------------- |
+| _1 slot ficará vazio no padrão contratual_                        | Um dia previsto no plano ficará sem sessão agendada   |
+| _1 horário ficará fora do padrão (extra)_                         | Um horário ficará fora dos dias previstos no contrato |
+| _Plano após remarcação: X no padrão · Y faltante(s) · Z extra(s)_ | Resumo previsto do mês após a mudança                 |
 
 **Atenção:** esses avisos são uma **prévia**. Servem para a recepção decidir se a remarcação faz sentido antes de confirmar.
 
@@ -123,11 +123,11 @@ Isso ocorre quando o novo dia já possui outra marcação na planilha do pacient
 
 Antes de confirmar, escolha **o que mais será deslocado** junto com o horário selecionado:
 
-| Opção | Use quando… | Efeito |
-|-------|-------------|--------|
-| **Só este horário** | Apenas uma sessão muda | Somente o horário aberto é remarcado |
-| **Demais futuros na mesma semana** | O paciente troca a semana inteira | Todos os horários futuros do paciente **na mesma semana** são deslocados pelo mesmo intervalo |
-| **Demais futuros até fim do mês** | Mudança estrutural no mês | Todos os horários futuros do paciente **até o fim do mês** são deslocados pelo mesmo intervalo |
+| Opção                              | Use quando…                       | Efeito                                                                                         |
+| ---------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Só este horário**                | Apenas uma sessão muda            | Somente o horário aberto é remarcado                                                           |
+| **Demais futuros na mesma semana** | O paciente troca a semana inteira | Todos os horários futuros do paciente **na mesma semana** são deslocados pelo mesmo intervalo  |
+| **Demais futuros até fim do mês**  | Mudança estrutural no mês         | Todos os horários futuros do paciente **até o fim do mês** são deslocados pelo mesmo intervalo |
 
 O sistema mostra entre parênteses **quantos horários** serão afetados em cada opção.
 
@@ -165,14 +165,14 @@ O sistema mostra entre parênteses **quantos horários** serão afetados em cada
 **Paciente:** Arthur Borba Tavares  
 **Situação:** remarcar sessão de 15/07 às 08:00
 
-| Etapa | Ação |
-|-------|------|
-| Abertura | Sistema mostra horário atual: 15/07/26 08:00 |
-| Escolha | Novo horário: 20/07/26 12:40 (clicando em slot vago na grade) |
-| Aviso de semana | “A data cai em outra semana…” → agenda irá para semana 20–24 jul |
-| Impacto no plano | 11 no padrão · 1 faltante · 1 extra |
-| Escopo | Só este horário |
-| Resultado | Horário de 15/07 remarcado; novo agendamento em 20/07 12:40 |
+| Etapa            | Ação                                                             |
+| ---------------- | ---------------------------------------------------------------- |
+| Abertura         | Sistema mostra horário atual: 15/07/26 08:00                     |
+| Escolha          | Novo horário: 20/07/26 12:40 (clicando em slot vago na grade)    |
+| Aviso de semana  | “A data cai em outra semana…” → agenda irá para semana 20–24 jul |
+| Impacto no plano | 11 no padrão · 1 faltante · 1 extra                              |
+| Escopo           | Só este horário                                                  |
+| Resultado        | Horário de 15/07 remarcado; novo agendamento em 20/07 12:40      |
 
 ---
 
@@ -228,24 +228,24 @@ Sim. Hoje a data do formulário e a aba ativa da grade usam a **mesma informaç�
 
 ## 11. Erros a evitar
 
-| Erro | Consequência | Como evitar |
-|------|--------------|-------------|
-| Confirmar sem ler o impacto no plano | Plano mensal com faltantes ou extras inesperados | Sempre expandir e ler **Impacto no plano mensal** |
-| Usar escopo “mês” sem necessidade | Vários horários deslocados de uma vez | Confirmar com o paciente antes; preferir escopo pontual |
-| Ignorar aviso de outra semana | Equipe procura o paciente na semana errada | Após confirmar, verificar se a agenda navegou para a semana correta |
-| Tentar remarcar para horário ocupado | Sistema bloqueia a confirmação | Escolher slot **vago** (verde/disponível na grade) |
+| Erro                                 | Consequência                                     | Como evitar                                                         |
+| ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------- |
+| Confirmar sem ler o impacto no plano | Plano mensal com faltantes ou extras inesperados | Sempre expandir e ler **Impacto no plano mensal**                   |
+| Usar escopo “mês” sem necessidade    | Vários horários deslocados de uma vez            | Confirmar com o paciente antes; preferir escopo pontual             |
+| Ignorar aviso de outra semana        | Equipe procura o paciente na semana errada       | Após confirmar, verificar se a agenda navegou para a semana correta |
+| Tentar remarcar para horário ocupado | Sistema bloqueia a confirmação                   | Escolher slot **vago** (verde/disponível na grade)                  |
 
 ---
 
 ## 12. Roteiro para treinamento em equipe (15 min)
 
-| Tempo | Atividade |
-|-------|-----------|
+| Tempo | Atividade                                          |
+| ----- | -------------------------------------------------- |
 | 3 min | Explicar quando usar remarcar vs. novo agendamento |
 | 5 min | Demonstração ao vivo: remarcação pontual com grade |
-| 3 min | Mostrar avisos de semana e impacto no plano |
-| 3 min | Demonstrar escopos (pontual vs. semana) |
-| 2 min | Checklist pós-confirmação e dúvidas |
+| 3 min | Mostrar avisos de semana e impacto no plano        |
+| 3 min | Demonstrar escopos (pontual vs. semana)            |
+| 2 min | Checklist pós-confirmação e dúvidas                |
 
 ---
 
@@ -264,4 +264,4 @@ Encaminhe ao suporte técnico ou gestão para verificação no histórico do age
 
 ---
 
-*CBmove — Treinamento Recepção · Remarcar agendamento · Atualizado em jul/2026*
+_CBmove — Treinamento Recepção · Remarcar agendamento · Atualizado em jul/2026_

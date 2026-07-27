@@ -59,7 +59,9 @@ describe("validarCobrancaParaBoletoCora", () => {
   it("rejeita vencimento no passado", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-14T12:00:00-03:00"));
-    expect(validarCobrancaParaBoletoCora({ ...base, vencimento: "2026-01-01" })).toMatch(/passado/i);
+    expect(validarCobrancaParaBoletoCora({ ...base, vencimento: "2026-01-01" })).toMatch(
+      /passado/i,
+    );
   });
 
   it("rejeita CPF/CNPJ inválido", () => {

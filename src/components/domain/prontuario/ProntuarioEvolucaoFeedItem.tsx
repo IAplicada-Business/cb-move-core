@@ -31,7 +31,10 @@ export function ProntuarioEvolucaoFeedItem({
   const status = evolucaoStatus(evolucao);
   const isRascunho = status === "rascunho";
   const hora = evolucao.created_at
-    ? new Date(evolucao.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    ? new Date(evolucao.created_at).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     : "—";
   const sessaoLabel = evolucao.sessoes
     ? `${evolucao.sessoes.sigla} ${formatHoraSessao(evolucao.sessoes.hora)}`
@@ -82,7 +85,12 @@ export function ProntuarioEvolucaoFeedItem({
             {status === "registrada" ? "Registrada" : "Rascunho · revisar"}
           </span>
           {canEdit && (
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onEdit(evolucao)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => onEdit(evolucao)}
+            >
               {isRascunho ? "Estruturar e revisar" : "Editar"}
             </Button>
           )}
@@ -91,7 +99,9 @@ export function ProntuarioEvolucaoFeedItem({
 
       {showTranscricaoOnly ? (
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Transcrição</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Transcrição
+          </p>
           <blockquote className="border-l-2 border-cb-cyan-200 pl-4 text-sm italic text-muted-foreground whitespace-pre-wrap">
             &ldquo;{evolucao.transcricao_raw}&rdquo;
           </blockquote>
