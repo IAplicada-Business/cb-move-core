@@ -30,8 +30,9 @@ const CARDS = [
   },
   {
     href: "/app/configuracoes/templates",
-    title: "Templates NF",
-    description: "Templates versionados para emissão de notas fiscais.",
+    title: "Templates",
+    description:
+      "Modelos versionados de NF, e-mail e relatórios (RQ.GPS.*). Layout de PDF definido no código.",
     icon: (
       <svg
         viewBox="0 0 24 24"

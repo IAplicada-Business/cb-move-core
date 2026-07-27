@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Briefcase,
   Building2,
@@ -20,6 +20,11 @@ import { queryKeys } from "@/lib/queries";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal } from "@/lib/queries/prontuario";
 import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
+import {
+  filterPacientesRelatorioLote,
+  mensagemEscopoRelatorioLote,
+  podeGerarLoteRelatorio,
+} from "@/lib/domain/relatorio-lote";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
@@ -46,25 +51,25 @@ const TIPO_RELATORIO: Record<
 > = {
   particular: {
     label: "Particular",
-    descricao: "Modelo convencional de relatório de atendimento",
+    descricao: "Modelo convencional — gere para todos os particulares ou um paciente",
     icon: Briefcase,
     accent: "text-cb-cyan-600 bg-cb-cyan-050",
   },
   judicial: {
     label: "Judicial",
-    descricao: "Modelo para processos judiciais",
+    descricao: "Modelo judicial — gere para todos os pacientes judiciais ou um paciente",
     icon: Gavel,
     accent: "text-cb-magenta bg-[#FDF2F8]",
   },
   convenio: {
     label: "Convênio",
-    descricao: "Modelo Unimed / convênios — gere para 1 paciente ou para todos de uma vez",
+    descricao: "Modelo Unimed / convênios — selecione o convênio e gere para todos os pacientes",
     icon: Building2,
     accent: "text-purple-600 bg-purple-50",
   },
   puc: {
     label: "PUC",
-    descricao: "Modelo institucional PUC",
+    descricao: "Modelo institucional PUC — gere para todos os pacientes PUC ou um paciente",
     icon: GraduationCap,
     accent: "text-cb-orange bg-[#FFF7ED]",
   },
@@ -109,7 +114,23 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
   const [resultado, setResultado] = useState<RelatorioGerado | null>(null);
   const [lote, setLote] = useState<LoteResultado[] | null>(null);
   const [loteRodando, setLoteRodando] = useState(false);
+  const loteAbortRef = useRef(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    loteAbortRef.current = false;
+    return () => {
+      loteAbortRef.current = true;
+    };
+  }, []);
+
+  function tentarFecharDialog() {
+    if (loteRodando) {
+      toast.warning("Aguarde o término da geração em lote ou mantenha esta janela aberta.");
+      return;
+    }
+    onClose();
+  }
 
   const conveniosQuery = useQuery({
     queryKey: queryKeys.convenios.all,
@@ -122,8 +143,10 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
     queryFn: () => fetchPacientes({ tipo, ativo: true }),
   });
 
-  const pacientesFiltrados = (pacientesQuery.data ?? []).filter(
-    (p) => tipo !== "convenio" || !convenioId || p.convenioId === convenioId,
+  const pacientesFiltrados = filterPacientesRelatorioLote(
+    pacientesQuery.data ?? [],
+    tipo,
+    convenioId,
   );
 
   const gerarMutation = useMutation({
@@ -137,17 +160,21 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
   });
 
   async function gerarEmLote() {
-    if (pacientesFiltrados.length === 0) return;
+    if (pacientesFiltrados.length === 0 || loteRodando) return;
+    loteAbortRef.current = false;
     setLoteRodando(true);
     setLote([]);
+    setResultado(null);
     const resultados: LoteResultado[] = [];
     for (const p of pacientesFiltrados) {
+      if (loteAbortRef.current) break;
       try {
         const data = (await gerarRelatorioMensal({
           pacienteId: p.id,
           mes,
           ano,
         })) as RelatorioGerado;
+        if (loteAbortRef.current) break;
         resultados.push({
           pacienteId: p.id,
           pacienteNome: p.nome,
@@ -156,6 +183,7 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
           pdfUrl: data.pdf_url,
         });
       } catch (e) {
+        if (loteAbortRef.current) break;
         resultados.push({
           pacienteId: p.id,
           pacienteNome: p.nome,
@@ -163,21 +191,44 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
           detalhe: e instanceof Error ? e.message : "Erro ao gerar relatório",
         });
       }
-      setLote([...resultados]);
+      if (!loteAbortRef.current) setLote([...resultados]);
     }
+    if (loteAbortRef.current) return;
     setLoteRodando(false);
     void queryClient.invalidateQueries({ queryKey: ["prontuario", "relatorios"] });
     const ok = resultados.filter((r) => r.status === "ok").length;
     if (ok === resultados.length) toast.success(`${ok} relatório(s) gerado(s) com sucesso`);
-    else toast.warning(`${ok}/${resultados.length} relatório(s) gerado(s) — verifique os erros`);
+    else if (resultados.length > 0) {
+      toast.warning(`${ok}/${resultados.length} relatório(s) gerado(s) — verifique os erros`);
+    }
   }
 
   const paciente = pacientesQuery.data?.find((p) => p.id === pacienteId);
   const convenioSelecionado = conveniosQuery.data?.find((c) => c.id === convenioId);
+  const podeGerarLote = podeGerarLoteRelatorio(pacientesFiltrados, tipo, convenioId);
+  const escopoMensagem = mensagemEscopoRelatorioLote({
+    isLoading: pacientesQuery.isLoading,
+    tipo,
+    convenioId,
+    count: pacientesFiltrados.length,
+    tipoLabel: cfg.label,
+  });
+  const loteLabel =
+    tipo === "convenio"
+      ? `Gerar para todos os ${pacientesFiltrados.length} pacientes de ${convenioSelecionado?.nome ?? "este convênio"}`
+      : `Gerar para todos os ${pacientesFiltrados.length} pacientes ${cfg.label.toLowerCase()}`;
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open onOpenChange={(open) => !open && tentarFecharDialog()}>
+      <DialogContent
+        className={`sm:max-w-md${loteRodando ? " [&>button]:pointer-events-none [&>button]:opacity-30" : ""}`}
+        onInteractOutside={(e) => {
+          if (loteRodando) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (loteRodando) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <cfg.icon className="h-5 w-5" />
@@ -229,10 +280,31 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
             </div>
           )}
 
+          <p className="rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+            {escopoMensagem}
+          </p>
+
+          {loteRodando && (
+            <p className="text-xs text-amber-700">
+              Geração em andamento — mantenha esta janela aberta até concluir.
+            </p>
+          )}
+
+          {podeGerarLote && (
+            <Button className="w-full" disabled={loteRodando} onClick={gerarEmLote}>
+              {loteRodando ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4 mr-1.5" />
+              )}
+              {loteRodando
+                ? `Gerando… (${lote?.length ?? 0}/${pacientesFiltrados.length})`
+                : loteLabel}
+            </Button>
+          )}
+
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              {tipo === "convenio" ? "Paciente (opcional para gerar 1 de cada vez)" : "Paciente"}
-            </label>
+            <label className="text-sm font-medium">Paciente específico (opcional)</label>
             <Select
               value={pacienteId}
               onValueChange={(v) => {
@@ -295,31 +367,14 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
           )}
 
           <Button
+            variant="outline"
             className="w-full"
-            disabled={!pacienteId || gerarMutation.isPending}
+            disabled={!pacienteId || gerarMutation.isPending || loteRodando}
             onClick={() => gerarMutation.mutate()}
           >
             <FileText className="h-4 w-4 mr-1.5" />
-            {gerarMutation.isPending ? "Gerando…" : "Gerar relatório deste paciente"}
+            {gerarMutation.isPending ? "Gerando…" : "Gerar só deste paciente"}
           </Button>
-
-          {tipo === "convenio" && convenioId && pacientesFiltrados.length > 0 && (
-            <Button
-              variant="secondary"
-              className="w-full"
-              disabled={loteRodando}
-              onClick={gerarEmLote}
-            >
-              {loteRodando ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <FileText className="h-4 w-4 mr-1.5" />
-              )}
-              {loteRodando
-                ? `Gerando… (${lote?.length ?? 0}/${pacientesFiltrados.length})`
-                : `Gerar para todos os ${pacientesFiltrados.length} pacientes de ${convenioSelecionado?.nome ?? "este convênio"}`}
-            </Button>
-          )}
 
           {lote && lote.length > 0 && (
             <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border p-2">
@@ -375,9 +430,9 @@ function RelatoriosPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Relatórios por tipo de atendimento</h1>
           <p className="text-sm text-muted-foreground">
-            Escolha o tipo de paciente para gerar o relatório de atendimento no modelo
-            correspondente. Para convênios, é possível gerar de uma vez para todos os pacientes
-            vinculados.
+            Geração em lote por tipo de atendimento: convênio (todos de um convênio), judicial, PUC
+            ou particular (todos os pacientes ativos daquele tipo). Também é possível gerar apenas
+            um paciente.
           </p>
         </div>
         <Button variant="outline" asChild className="gap-2">

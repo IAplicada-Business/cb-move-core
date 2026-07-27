@@ -9,6 +9,15 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
+import {
+  CATEGORIA_META,
+  categoriasTemplatesVisiveis,
+  filtrarTemplatesPorCategoria,
+  MODELO_LABEL,
+  TEMPLATES_PAGE_DESCRICAO,
+  TIPO_LABEL,
+  type TemplateCategoria,
+} from "@/lib/domain/templates-versionados";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,9 +53,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/configuracoes/templates")({
-  head: () => ({ meta: [{ title: "Templates · CB MOVE" }] }),
+  head: () => ({ meta: [{ title: "Templates versionados · CB MOVE" }] }),
   component: TemplatesPage,
 });
 
@@ -118,13 +128,92 @@ function TemplatesPage() {
     setEditAtivo(t.ativo);
   }
 
+  const categoriasVisiveis = categoriasTemplatesVisiveis(templates);
+
+  function renderTabela(items: Template[]) {
+    if (items.length === 0) {
+      return (
+        <EmptyState
+          icon={<FileText className="h-8 w-8" />}
+          title="Nenhum template nesta categoria"
+          description="Não há registros versionados para este grupo."
+        />
+      );
+    }
+
+    return (
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Código</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Modelo</TableHead>
+              <TableHead>Versão</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Criado em</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((t) => (
+              <TableRow key={t.id}>
+                <TableCell className="font-mono text-xs">{t.codigo}</TableCell>
+                <TableCell className="text-sm">{TIPO_LABEL[t.tipo] ?? t.tipo}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {t.modelo ? (MODELO_LABEL[t.modelo] ?? t.modelo) : "—"}
+                </TableCell>
+                <TableCell>
+                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                    v{t.versao}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+                      t.ativo
+                        ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
+                        : "bg-muted text-muted-foreground border-border"
+                    }`}
+                  >
+                    {t.ativo ? "Ativo" : "Inativo"}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {formatDate(t.created_at)}
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setPreview(t)}>Visualizar</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openEdit(t)}>Editar</DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleting(t)}
+                      >
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-foreground">Templates NF</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Templates versionados para emissão de notas fiscais
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">Templates versionados</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{TEMPLATES_PAGE_DESCRICAO}</p>
       </header>
 
       {isLoading ? (
@@ -136,70 +225,21 @@ function TemplatesPage() {
           description="Nenhum template versionado cadastrado no sistema."
         />
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Código</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Modelo</TableHead>
-                <TableHead>Versão</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {templates.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="font-mono text-xs">{t.codigo}</TableCell>
-                  <TableCell className="text-sm">{t.tipo}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{t.modelo ?? "—"}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                      v{t.versao}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
-                        t.ativo
-                          ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
-                          : "bg-muted text-muted-foreground border-border"
-                      }`}
-                    >
-                      {t.ativo ? "Ativo" : "Inativo"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(t.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setPreview(t)}>
-                          Visualizar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(t)}>Editar</DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleting(t)}
-                        >
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <Tabs defaultValue="nota_fiscal" className="space-y-4">
+          <TabsList className="flex h-auto flex-wrap gap-1">
+            {categoriasVisiveis.map((cat) => (
+              <TabsTrigger key={cat} value={cat} className="text-xs sm:text-sm">
+                {CATEGORIA_META[cat].label} ({filtrarTemplatesPorCategoria(templates, cat).length})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {categoriasVisiveis.map((cat) => (
+            <TabsContent key={cat} value={cat} className="space-y-3">
+              <p className="text-sm text-muted-foreground">{CATEGORIA_META[cat].descricao}</p>
+              {renderTabela(filtrarTemplatesPorCategoria(templates, cat))}
+            </TabsContent>
+          ))}
+        </Tabs>
       )}
 
       <Dialog
