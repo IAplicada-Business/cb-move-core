@@ -240,24 +240,40 @@ export async function marcarComoPago(id: string, pagoEm: string): Promise<Marcar
     .eq("id", id);
   if (error) throw error;
 
+  let nfDisparada = false;
+  let nfId: string | null = null;
+  let nfErro: string | null = null;
+
   try {
     const result = await invokeEdgeFunction<{
       emit_nf_disparado?: boolean;
       nf_id?: string | null;
+      nf_criada?: boolean;
       erro?: string | null;
     }>("auto-nf-apos-pagamento", { cobranca_id: id }, { timeoutMs: 35_000 });
-    return {
-      nfDisparada: Boolean(result.emit_nf_disparado),
-      nfId: result.nf_id ?? null,
-      nfErro: result.erro ?? null,
-    };
+    nfDisparada = Boolean(result.emit_nf_disparado);
+    nfId = result.nf_id ?? null;
+    nfErro = result.erro ?? null;
   } catch (err) {
-    return {
-      nfDisparada: false,
-      nfId: null,
-      nfErro: err instanceof Error ? err.message : String(err),
-    };
+    nfErro = err instanceof Error ? err.message : String(err);
   }
+
+  try {
+    await supabase.from("cobrancas_pagamentos_eventos").insert({
+      cobranca_id: id,
+      origem: "manual",
+      marcou_pago: true,
+      nf_criada: Boolean(nfId),
+      nf_id: nfId,
+      emit_nf_disparado: nfDisparada,
+      erro: nfErro,
+      payload: { pago_em: pagoEm, via: "app.cobrancas" },
+    });
+  } catch {
+    // Log de auditoria não bloqueia a baixa manual.
+  }
+
+  return { nfDisparada, nfId, nfErro };
 }
 
 /**

@@ -38,14 +38,17 @@ import {
   type Cobranca,
 } from "@/lib/queries/cobrancas";
 import { fetchFinanceiroKpis } from "@/lib/queries/financeiro";
+import { fetchCobrancaNfResumo } from "@/lib/queries/notas-fiscais";
 import { fetchPacientes } from "@/lib/queries/pacientes";
+import { podeMarcarComoPago, resolverNfFluxoStatus } from "@/lib/domain/cobranca-nf-fluxo";
+import { CobrancaNfFluxoBadge } from "@/components/domain/CobrancaNfFluxoBadge";
 import {
   agregarCobrancasPorPaciente,
   calcularKpisDeCobrancas,
   type PacienteCobrancaResumo,
   type StatusResumo,
 } from "@/lib/domain/cobrancas-por-paciente";
-import type { CobrancaStatus, FormaPagamento, PacienteTipo, RegimeCobranca } from "@/lib/types";
+import type { CobrancaStatus, FormaPagamento, NfStatus } from "@/lib/types";
 import {
   parseCSVBradesco,
   parseOFX,
@@ -496,7 +499,7 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
                       <SelectContent>
                         <SelectItem value="boleto">Boleto</SelectItem>
                         <SelectItem value="deposito">Depósito</SelectItem>
-                        <SelectItem value="transferencia">Transferência / PIX</SelectItem>
+                        <SelectItem value="transferencia">PIX / transferência</SelectItem>
                         <SelectItem value="alvara_judicial">Alvará judicial</SelectItem>
                         <SelectItem value="convenio_direto">Convênio direto</SelectItem>
                       </SelectContent>
@@ -587,12 +590,16 @@ function ModalNovaCobranca({ open, onClose }: { open: boolean; onClose: () => vo
 
 function ModalMarcarPago({
   cobranca,
+  nfStatus,
   onClose,
 }: {
   cobranca: Cobranca | null;
+  nfStatus?: NfStatus | null;
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const nfFluxo = cobranca ? resolverNfFluxoStatus(cobranca, nfStatus) : "nao_aplica";
+  const podeConfirmar = podeMarcarComoPago(nfFluxo);
   const form = useForm<MarcarPagoForm>({
     resolver: zodResolver(marcarPagoSchema),
     defaultValues: { pagoEm: new Date().toISOString().split("T")[0] },
@@ -631,10 +638,13 @@ function ModalMarcarPago({
           <DialogTitle>Marcar como pago</DialogTitle>
         </DialogHeader>
         {cobranca && (
-          <div className="text-sm text-muted-foreground mb-2">
-            <span className="font-medium text-foreground">{cobranca.pacienteNome}</span>
-            {" — "}
-            {brl(cobranca.valor)}
+          <div className="text-sm text-muted-foreground mb-2 space-y-2">
+            <div>
+              <span className="font-medium text-foreground">{cobranca.pacienteNome}</span>
+              {" — "}
+              {brl(cobranca.valor)}
+            </div>
+            <CobrancaNfFluxoBadge fluxo={nfFluxo} />
           </div>
         )}
         <Form {...form}>
@@ -656,7 +666,7 @@ function ModalMarcarPago({
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending || !podeConfirmar}>
                 {mutation.isPending ? "Salvando…" : "Confirmar pagamento"}
               </Button>
             </DialogFooter>
@@ -1174,6 +1184,14 @@ function CobrancasPage() {
   });
 
   const cobrancas = query.data ?? [];
+  const cobrancaIds = useMemo(() => cobrancas.map((c) => c.id), [cobrancas]);
+  const nfResumoQuery = useQuery({
+    queryKey: ["notas_fiscais", "cobrancaResumo", cobrancaIds],
+    queryFn: () => fetchCobrancaNfResumo(cobrancaIds),
+    enabled: cobrancaIds.length > 0,
+  });
+  const nfPorCobranca = nfResumoQuery.data ?? new Map();
+
   const pacientes = useMemo(() => agregarCobrancasPorPaciente(cobrancas), [cobrancas]);
 
   const kpis = useMemo(() => {
@@ -1312,7 +1330,7 @@ function CobrancasPage() {
             <SelectItem value={FILTRO_TODOS}>Todas as formas</SelectItem>
             <SelectItem value="boleto">Boleto</SelectItem>
             <SelectItem value="deposito">Depósito</SelectItem>
-            <SelectItem value="transferencia">Transferência</SelectItem>
+            <SelectItem value="transferencia">PIX / transferência</SelectItem>
             <SelectItem value="alvara_judicial">Alvará judicial</SelectItem>
             <SelectItem value="convenio_direto">Convênio direto</SelectItem>
           </SelectContent>
@@ -1384,7 +1402,11 @@ function CobrancasPage() {
       )}
 
       <ModalNovaCobranca open={modalNova} onClose={() => setModalNova(false)} />
-      <ModalMarcarPago cobranca={marcarPago} onClose={() => setMarcarPago(null)} />
+      <ModalMarcarPago
+        cobranca={marcarPago}
+        nfStatus={marcarPago ? nfPorCobranca.get(marcarPago.id)?.status : null}
+        onClose={() => setMarcarPago(null)}
+      />
       <ModalParcelarCobranca cobranca={parcelando} onClose={() => setParcelando(null)} />
       <ModalExtrato
         open={modalExtrato}

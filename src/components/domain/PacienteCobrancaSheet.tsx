@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import {
   CheckCircle2,
   Copy,
@@ -43,10 +43,15 @@ import {
   validarEmitBoletoCoraLocal,
 } from "@/lib/queries/boleto-cora";
 import { fetchCobrancas, updateCobranca, type Cobranca } from "@/lib/queries/cobrancas";
-import { fetchCobrancaIdsComNf } from "@/lib/queries/notas-fiscais";
+import { fetchCobrancaNfResumo } from "@/lib/queries/notas-fiscais";
 import { queryKeys } from "@/lib/queries";
 import type { CobrancaStatus, FormaPagamento } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  CobrancaNfFluxoBadge,
+  CobrancaNfFluxoChip,
+} from "@/components/domain/CobrancaNfFluxoBadge";
+import { resolverNfFluxoStatus, podeMarcarComoPago } from "@/lib/domain/cobranca-nf-fluxo";
 
 const MESES_ABREV = [
   "Jan",
@@ -73,7 +78,7 @@ function formaPgtoLabel(f: FormaPagamento | null) {
   const map: Record<FormaPagamento, string> = {
     boleto: "Boleto",
     deposito: "Depósito",
-    transferencia: "Transferência",
+    transferencia: "PIX / transferência",
     alvara_judicial: "Alvará judicial",
     convenio_direto: "Convênio direto",
   };
@@ -110,17 +115,6 @@ function podeEnviarBoletoPaciente(c: Cobranca) {
 
 const FORMAS_PARCELAVEIS: FormaPagamento[] = ["deposito", "transferencia", "alvara_judicial"];
 
-const FORMAS_NF_ANTES_PAGAMENTO: FormaPagamento[] = [
-  "deposito",
-  "transferencia",
-  "alvara_judicial",
-];
-
-function precisaNfAntesPagamento(c: Cobranca): boolean {
-  if (c.status === "pago") return false;
-  return FORMAS_NF_ANTES_PAGAMENTO.includes(c.formaPagamento as FormaPagamento);
-}
-
 function podeParcelar(c: Cobranca) {
   return (
     cobrancaAtiva(c) &&
@@ -146,6 +140,7 @@ export function PacienteCobrancaSheet({
 }: Props) {
   const qc = useQueryClient();
   const open = !!pacienteId;
+  const [verCanceladas, setVerCanceladas] = useState(false);
 
   const histQuery = useQuery({
     queryKey: queryKeys.cobrancas.list({ pacienteId: pacienteId ?? "" }),
@@ -153,17 +148,30 @@ export function PacienteCobrancaSheet({
     enabled: open,
   });
 
-  const cobrancaIds = histQuery.data?.map((c) => c.id) ?? [];
-  const nfIdsQuery = useQuery({
-    queryKey: ["notas_fiscais", "cobrancaIds", cobrancaIds],
-    queryFn: () => fetchCobrancaIdsComNf(cobrancaIds),
+  const cobrancasAtivas = useMemo(
+    () => (histQuery.data ?? []).filter((c) => c.status !== "cancelado"),
+    [histQuery.data],
+  );
+  const cobrancaIds = useMemo(() => cobrancasAtivas.map((c) => c.id), [cobrancasAtivas]);
+  const nfResumoQuery = useQuery({
+    queryKey: ["notas_fiscais", "cobrancaResumo", cobrancaIds],
+    queryFn: () => fetchCobrancaNfResumo(cobrancaIds),
     enabled: open && cobrancaIds.length > 0,
   });
-  const cobrancaIdsComNf = nfIdsQuery.data ?? new Set<string>();
+  const nfPorCobranca = nfResumoQuery.data ?? new Map();
 
   const resumo: PacienteCobrancaResumo | null = histQuery.data
     ? (agregarCobrancasPorPaciente(histQuery.data)[0] ?? null)
     : null;
+
+  const cobrancasHistorico = useMemo(
+    () => resumo?.cobrancas.filter((c) => c.status !== "cancelado") ?? [],
+    [resumo],
+  );
+  const cobrancasCanceladas = useMemo(
+    () => resumo?.cobrancas.filter((c) => c.status === "cancelado") ?? [],
+    [resumo],
+  );
 
   const gerarBoleto = useMutation({
     mutationFn: (cobrancaId: string) => gerarBoletoCora(cobrancaId),
@@ -297,188 +305,229 @@ export function PacienteCobrancaSheet({
             <div>
               <h3 className="text-sm font-semibold mb-2">Histórico de cobranças</h3>
               <Accordion type="multiple" className="w-full">
-                {resumo.cobrancas.map((c) => (
-                  <AccordionItem key={c.id} value={c.id}>
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex flex-1 items-center justify-between gap-2 pr-2">
-                        <div className="text-left">
-                          <p className="text-sm font-medium">
-                            {mesAbrev(c.competenciaMes, c.competenciaAno)}
-                            {c.parcelaNumero && c.parcelaTotal && (
-                              <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                                (parcela {c.parcelaNumero}/{c.parcelaTotal})
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground tabular-nums">
-                            {brl(c.valor)} · {formaPgtoLabel(c.formaPagamento)}
-                          </p>
-                        </div>
-                        <StatusBadge value={c.status} />
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3 pb-2 text-sm">
-                        {precisaNfAntesPagamento(c) && !cobrancaIdsComNf.has(c.id) && (
-                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                            Emita a NF em{" "}
-                            <Link
-                              to="/app/notas-fiscais"
-                              className="font-medium underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Notas Fiscais
-                            </Link>{" "}
-                            antes de marcar como paga.
-                          </div>
-                        )}
-                        {precisaNfAntesPagamento(c) && cobrancaIdsComNf.has(c.id) && (
-                          <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                            NF vinculada
-                          </span>
-                        )}
-                        <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                          <span>Vencimento</span>
-                          <span className="text-right text-foreground">
-                            {formatDate(c.vencimento)}
-                          </span>
-                          <span>Pago em</span>
-                          <span className="text-right text-foreground">{formatDate(c.pagoEm)}</span>
-                          <span>Serviço</span>
-                          <span className="text-right text-foreground">{c.servico ?? "—"}</span>
-                        </div>
-
-                        {c.boletoUrl && (
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                window.open(c.boletoUrl!, "_blank", "noopener,noreferrer")
-                              }
-                            >
-                              <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                              Abrir boleto
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copiarTexto(c.boletoUrl!, "Link do boleto copiado")}
-                            >
-                              <Copy className="h-3.5 w-3.5 mr-1" />
-                              Copiar link
-                            </Button>
-                          </div>
-                        )}
-
-                        {c.pixEmv && (
-                          <div className="rounded-md border border-cb-cyan-200 bg-cb-cyan-50/50 p-3 space-y-2">
-                            <div className="flex items-center gap-1.5 text-xs font-medium text-cb-cyan-900">
-                              <QrCode className="h-3.5 w-3.5" />
-                              PIX Copia e Cola
-                            </div>
-                            <p className="text-[11px] font-mono break-all text-muted-foreground line-clamp-4">
-                              {c.pixEmv}
+                {cobrancasHistorico.map((c) => {
+                  const nfFluxo = resolverNfFluxoStatus(c, nfPorCobranca.get(c.id)?.status);
+                  const podePagar = podeMarcarComoPago(nfFluxo);
+                  return (
+                    <AccordionItem key={c.id} value={c.id}>
+                      <AccordionTrigger className="hover:no-underline py-3">
+                        <div className="flex flex-1 items-center justify-between gap-2 pr-2">
+                          <div className="text-left">
+                            <p className="text-sm font-medium">
+                              {mesAbrev(c.competenciaMes, c.competenciaAno)}
+                              {c.parcelaNumero && c.parcelaTotal && (
+                                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                  (parcela {c.parcelaNumero}/{c.parcelaTotal})
+                                </span>
+                              )}
                             </p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-cb-cyan-300 bg-white"
-                              onClick={() => copiarTexto(c.pixEmv!, "Código PIX copiado")}
-                            >
-                              <Copy className="h-3.5 w-3.5 mr-1" />
-                              Copiar código PIX
-                            </Button>
+                            <p className="text-xs text-muted-foreground tabular-nums">
+                              {brl(c.valor)} · {formaPgtoLabel(c.formaPagamento)}
+                            </p>
                           </div>
-                        )}
-
-                        {podeGerarBoleto(c) &&
-                          (() => {
-                            const bloqueio = validarEmitBoletoCoraLocal({
-                              pacienteCpf: c.pacienteCpf ?? pacienteCpf,
-                              pacienteEmail: c.pacienteEmail ?? pacienteEmail,
-                              vencimento: c.vencimento,
-                              valor: c.valor,
-                            });
-                            return bloqueio ? (
-                              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
-                                {bloqueio}
-                              </p>
-                            ) : null;
-                          })()}
-
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {podeGerarBoleto(c) && (
-                            <Button
-                              size="sm"
-                              disabled={gerarBoleto.isPending}
-                              onClick={() => {
-                                const bloqueio = validarEmitBoletoCoraLocal({
-                                  pacienteCpf: c.pacienteCpf ?? pacienteCpf,
-                                  pacienteEmail: c.pacienteEmail ?? pacienteEmail,
-                                  vencimento: c.vencimento,
-                                  valor: c.valor,
-                                });
-                                if (bloqueio) {
-                                  toast.error(bloqueio);
-                                  return;
-                                }
-                                gerarBoleto.mutate(c.id);
-                              }}
-                            >
-                              {gerarBoleto.isPending && gerarBoleto.variables === c.id ? (
-                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                              ) : (
-                                <FileText className="h-3.5 w-3.5 mr-1" />
-                              )}
-                              Gerar boleto
-                            </Button>
-                          )}
-                          {podeEnviarBoletoPaciente(c) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={enviarBoleto.isPending}
-                              onClick={() => enviarBoleto.mutate(c.id)}
-                            >
-                              {enviarBoleto.isPending && enviarBoleto.variables === c.id ? (
-                                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                              ) : (
-                                <Send className="h-3.5 w-3.5 mr-1" />
-                              )}
-                              Enviar boleto
-                            </Button>
-                          )}
-                          {c.status !== "pago" && c.status !== "cancelado" && (
-                            <Button size="sm" variant="outline" onClick={() => onMarcarPago(c)}>
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                              Marcar pago
-                            </Button>
-                          )}
-                          {podeParcelar(c) && (
-                            <Button size="sm" variant="outline" onClick={() => onParcelar(c)}>
-                              <SplitSquareHorizontal className="h-3.5 w-3.5 mr-1" />
-                              Parcelar
-                            </Button>
-                          )}
-                          {c.status !== "cancelado" && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive"
-                              disabled={cancelar.isPending}
-                              onClick={() => cancelar.mutate(c.id)}
-                            >
-                              <X className="h-3.5 w-3.5 mr-1" />
-                              Cancelar
-                            </Button>
-                          )}
+                          <div className="flex flex-col items-end gap-1">
+                            <StatusBadge value={c.status} />
+                            <CobrancaNfFluxoChip fluxo={nfFluxo} />
+                          </div>
                         </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3 pb-2 text-sm">
+                          <CobrancaNfFluxoBadge fluxo={nfFluxo} />
+                          <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                            <span>Vencimento</span>
+                            <span className="text-right text-foreground">
+                              {formatDate(c.vencimento)}
+                            </span>
+                            <span>Pago em</span>
+                            <span className="text-right text-foreground">
+                              {formatDate(c.pagoEm)}
+                            </span>
+                            <span>Serviço</span>
+                            <span className="text-right text-foreground">{c.servico ?? "—"}</span>
+                          </div>
+
+                          {c.boletoUrl && (
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  window.open(c.boletoUrl!, "_blank", "noopener,noreferrer")
+                                }
+                              >
+                                <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                                Abrir boleto
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copiarTexto(c.boletoUrl!, "Link do boleto copiado")}
+                              >
+                                <Copy className="h-3.5 w-3.5 mr-1" />
+                                Copiar link
+                              </Button>
+                            </div>
+                          )}
+
+                          {c.pixEmv && (
+                            <div className="rounded-md border border-cb-cyan-200 bg-cb-cyan-50/50 p-3 space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-cb-cyan-900">
+                                <QrCode className="h-3.5 w-3.5" />
+                                PIX Copia e Cola
+                              </div>
+                              <p className="text-[11px] font-mono break-all text-muted-foreground line-clamp-4">
+                                {c.pixEmv}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-cb-cyan-300 bg-white"
+                                onClick={() => copiarTexto(c.pixEmv!, "Código PIX copiado")}
+                              >
+                                <Copy className="h-3.5 w-3.5 mr-1" />
+                                Copiar código PIX
+                              </Button>
+                            </div>
+                          )}
+
+                          {podeGerarBoleto(c) &&
+                            (() => {
+                              const bloqueio = validarEmitBoletoCoraLocal({
+                                pacienteCpf: c.pacienteCpf ?? pacienteCpf,
+                                pacienteEmail: c.pacienteEmail ?? pacienteEmail,
+                                vencimento: c.vencimento,
+                                valor: c.valor,
+                              });
+                              return bloqueio ? (
+                                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                                  {bloqueio}
+                                </p>
+                              ) : null;
+                            })()}
+
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {podeGerarBoleto(c) && (
+                              <Button
+                                size="sm"
+                                disabled={gerarBoleto.isPending}
+                                onClick={() => {
+                                  const bloqueio = validarEmitBoletoCoraLocal({
+                                    pacienteCpf: c.pacienteCpf ?? pacienteCpf,
+                                    pacienteEmail: c.pacienteEmail ?? pacienteEmail,
+                                    vencimento: c.vencimento,
+                                    valor: c.valor,
+                                  });
+                                  if (bloqueio) {
+                                    toast.error(bloqueio);
+                                    return;
+                                  }
+                                  gerarBoleto.mutate(c.id);
+                                }}
+                              >
+                                {gerarBoleto.isPending && gerarBoleto.variables === c.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <FileText className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Gerar boleto
+                              </Button>
+                            )}
+                            {podeEnviarBoletoPaciente(c) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={enviarBoleto.isPending}
+                                onClick={() => enviarBoleto.mutate(c.id)}
+                              >
+                                {enviarBoleto.isPending && enviarBoleto.variables === c.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <Send className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Enviar boleto
+                              </Button>
+                            )}
+                            {c.status !== "pago" && c.status !== "cancelado" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!podePagar}
+                                title={
+                                  !podePagar
+                                    ? "Emita a NF antes de registrar o pagamento"
+                                    : undefined
+                                }
+                                onClick={() => onMarcarPago(c)}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                Marcar pago
+                              </Button>
+                            )}
+                            {podeParcelar(c) && (
+                              <Button size="sm" variant="outline" onClick={() => onParcelar(c)}>
+                                <SplitSquareHorizontal className="h-3.5 w-3.5 mr-1" />
+                                Parcelar
+                              </Button>
+                            )}
+                            {c.status !== "cancelado" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive"
+                                disabled={cancelar.isPending}
+                                onClick={() => cancelar.mutate(c.id)}
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" />
+                                Cancelar
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
               </Accordion>
+              {cobrancasCanceladas.length > 0 && (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-muted-foreground"
+                    onClick={() => setVerCanceladas((v) => !v)}
+                  >
+                    {verCanceladas ? "Ocultar" : "Ver"} canceladas ({cobrancasCanceladas.length})
+                  </Button>
+                  {verCanceladas && (
+                    <Accordion type="multiple" className="w-full mt-1 opacity-70">
+                      {cobrancasCanceladas.map((c) => (
+                        <AccordionItem key={c.id} value={c.id}>
+                          <AccordionTrigger className="hover:no-underline py-2">
+                            <div className="flex flex-1 items-center justify-between gap-2 pr-2">
+                              <div className="text-left">
+                                <p className="text-sm font-medium">
+                                  {mesAbrev(c.competenciaMes, c.competenciaAno)}
+                                </p>
+                                <p className="text-xs text-muted-foreground tabular-nums">
+                                  {brl(c.valor)} · {formaPgtoLabel(c.formaPagamento)}
+                                </p>
+                              </div>
+                              <StatusBadge value={c.status} />
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-xs text-muted-foreground pb-2">
+                              {c.observacoes ?? "Sem observações."}
+                            </p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

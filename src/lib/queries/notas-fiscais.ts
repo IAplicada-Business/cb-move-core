@@ -348,17 +348,42 @@ export async function resolverNfIdDeCobranca(cobrancaId: string): Promise<string
   }
 }
 
-export async function fetchCobrancaIdsComNf(cobrancaIds: string[]): Promise<Set<string>> {
-  if (cobrancaIds.length === 0) return new Set();
+export type CobrancaNfResumo = {
+  cobrancaId: string;
+  nfId: string;
+  status: NfStatus;
+};
+
+export async function fetchCobrancaNfResumo(
+  cobrancaIds: string[],
+): Promise<Map<string, CobrancaNfResumo>> {
+  if (cobrancaIds.length === 0) return new Map();
   const { data, error } = await supabase
     .from("notas_fiscais")
-    .select("cobranca_id")
+    .select("id, cobranca_id, status")
     .in("cobranca_id", cobrancaIds)
-    .not("cobranca_id", "is", null);
+    .neq("status", "cancelada")
+    .not("cobranca_id", "is", null)
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return new Set(
-    (data ?? []).map((row) => row.cobranca_id as string | null).filter((id): id is string => !!id),
-  );
+
+  const map = new Map<string, CobrancaNfResumo>();
+  for (const row of data ?? []) {
+    const cobrancaId = row.cobranca_id as string | null;
+    if (!cobrancaId || map.has(cobrancaId)) continue;
+    map.set(cobrancaId, {
+      cobrancaId,
+      nfId: row.id,
+      status: row.status as NfStatus,
+    });
+  }
+  return map;
+}
+
+/** @deprecated Prefer fetchCobrancaNfResumo para distinguir status da NF. */
+export async function fetchCobrancaIdsComNf(cobrancaIds: string[]): Promise<Set<string>> {
+  const resumo = await fetchCobrancaNfResumo(cobrancaIds);
+  return new Set(resumo.keys());
 }
 
 export async function fetchNFsPorPacienteAno(
