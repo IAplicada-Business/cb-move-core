@@ -25,7 +25,7 @@ function FinanceiroPage() {
       <header>
         <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
         <p className="text-sm text-muted-foreground">
-          Receita por tipo, receita por convênio e extrato financeiro do mês
+          Receita por convênio, extrato filtrado e exportações CSV/XLSX/PDF na mesma tela.
         </p>
       </header>
       <DashboardFinanceiro />

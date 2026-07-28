@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   buildExtratoFinanceiro,
   extrairSituacao,
+  filtrarExtratoPorConvenio,
   formatPlano,
+  grupoReceitaConvenio,
   inferirFrequencia,
   mapExtratoFinanceiroLinha,
   type ExtratoFinanceiroRawRow,
@@ -11,6 +13,7 @@ import {
 const baseRow: ExtratoFinanceiroRawRow = {
   id: "c1",
   paciente_id: "p1",
+  tipo: "particular",
   valor: 10280,
   status: "pendente",
   regime: "mensalista",
@@ -22,12 +25,14 @@ const baseRow: ExtratoFinanceiroRawRow = {
   pago_em: null,
   pacientes: {
     nome: "Alexandre Pires Belser",
+    tipo: "particular" as const,
     criado_em: "2025-03-19",
     valor_mensal: 1028,
     valor_sessao: 266,
-    regime_cobranca: "mensalista",
+    regime_cobranca: "mensalista" as const,
     frequencia_atendimento: "5x semana duplo",
     dias_semana: "2ª a 6ª (duplos)",
+    convenios: null,
   },
 };
 
@@ -52,6 +57,7 @@ describe("extrato-financeiro", () => {
     expect(linha.valorUnitario).toBe(1028);
     expect(linha.frequencia).toBe("5x semana duplo");
     expect(linha.diasSemana).toBe("2ª a 6ª (duplos)");
+    expect(linha.grupoConvenio).toBe("Particular");
   });
 
   it("preenche recebido quando status é pago", () => {
@@ -73,5 +79,47 @@ describe("extrato-financeiro", () => {
     expect(resumo.qtdLinhas).toBe(2);
     expect(resumo.totalPrevisto).toBe(10780);
     expect(resumo.totalRecebido).toBe(500);
+  });
+
+  it("agrupa convênio como no RPC de receita", () => {
+    expect(grupoReceitaConvenio("convenio", "Unimed")).toBe("Unimed");
+    expect(grupoReceitaConvenio("judicial", null)).toBe("Judicial");
+  });
+
+  it("usa tipo da cobrança, não do paciente, sem convênio vinculado", () => {
+    const linha = mapExtratoFinanceiroLinha({
+      ...baseRow,
+      tipo: "judicial",
+      pacientes: {
+        ...baseRow.pacientes!,
+        tipo: "particular",
+        convenios: null,
+      },
+    });
+    expect(linha.grupoConvenio).toBe("Judicial");
+  });
+
+  it("filtra extrato por convênio selecionado", () => {
+    const resumo = buildExtratoFinanceiro(
+      [
+        baseRow,
+        {
+          ...baseRow,
+          id: "c2",
+          tipo: "convenio",
+          pacientes: {
+            ...baseRow.pacientes!,
+            nome: "Amanda Pavan",
+            tipo: "convenio",
+            convenios: { nome: "Unimed" },
+          },
+        },
+      ],
+      7,
+      2026,
+    );
+    const filtrado = filtrarExtratoPorConvenio(resumo, "Unimed");
+    expect(filtrado.qtdLinhas).toBe(1);
+    expect(filtrado.linhas[0]?.pacienteNome).toBe("Amanda Pavan");
   });
 });

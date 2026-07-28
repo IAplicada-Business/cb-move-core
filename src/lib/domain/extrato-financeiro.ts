@@ -1,4 +1,4 @@
-import type { CobrancaStatus, RegimeCobranca } from "../types";
+import type { CobrancaStatus, PacienteTipo, RegimeCobranca } from "../types";
 import { formatDate } from "../format";
 import { resolverDiasSemanaExtrato, resolverFrequenciaExtrato } from "./atendimento-cadastro";
 
@@ -15,6 +15,17 @@ export type ExtratoFinanceiroLinha = {
   valorPrevisto: number;
   valorRecebido: number | null;
   situacao: string;
+  /** Mesma chave usada em `relatorio_receita_convenio` (convênio ou tipo capitalizado). */
+  grupoConvenio: string;
+};
+
+export type ReceitaConvenioExportRow = {
+  convenio: string;
+  pacientes: number;
+  sessoes: number;
+  nfsEmitidas: number;
+  faturado: number;
+  recebido: number;
 };
 
 export type ExtratoFinanceiroResumo = {
@@ -29,6 +40,7 @@ export type ExtratoFinanceiroResumo = {
 export type ExtratoFinanceiroRawRow = {
   id: string;
   paciente_id: string;
+  tipo: PacienteTipo;
   valor: number | string;
   status: CobrancaStatus;
   regime: RegimeCobranca | null;
@@ -40,14 +52,26 @@ export type ExtratoFinanceiroRawRow = {
   pago_em: string | null;
   pacientes: {
     nome: string;
+    tipo: PacienteTipo;
     criado_em: string | null;
     valor_mensal: number | null;
     valor_sessao: number | null;
     regime_cobranca: RegimeCobranca;
     frequencia_atendimento: string | null;
     dias_semana: string | null;
+    convenios: { nome: string } | null;
   } | null;
 };
+
+/** Alinha com COALESCE(conv.nome, initcap(c.tipo::text)) no RPC relatorio_receita_convenio. */
+export function grupoReceitaConvenio(
+  tipoCobranca: PacienteTipo | null | undefined,
+  convenioNome: string | null | undefined,
+): string {
+  if (convenioNome?.trim()) return convenioNome.trim();
+  if (!tipoCobranca) return "—";
+  return tipoCobranca.charAt(0).toUpperCase() + tipoCobranca.slice(1);
+}
 
 const MESES = [
   "Janeiro",
@@ -123,10 +147,13 @@ export function mapExtratoFinanceiroLinha(row: ExtratoFinanceiroRawRow): Extrato
   const regime = row.regime ?? row.pacientes?.regime_cobranca ?? null;
   const pago = row.status === "pago";
 
+  const grupoConvenio = grupoReceitaConvenio(row.tipo, row.pacientes?.convenios?.nome);
+
   return {
     cobrancaId: row.id,
     pacienteId: row.paciente_id,
     pacienteNome: row.pacientes?.nome ?? "—",
+    grupoConvenio,
     avaliacao: row.pacientes?.criado_em ? formatDate(row.pacientes.criado_em) : null,
     frequencia: resolverFrequenciaExtrato(
       row.frequencia_atendimento,
@@ -143,26 +170,80 @@ export function mapExtratoFinanceiroLinha(row: ExtratoFinanceiroRawRow): Extrato
   };
 }
 
+function resumirLinhasExtrato(
+  linhas: ExtratoFinanceiroLinha[],
+  mes: number,
+  ano: number,
+): ExtratoFinanceiroResumo {
+  const ordenadas = [...linhas].sort((a, b) =>
+    a.pacienteNome.localeCompare(b.pacienteNome, "pt-BR"),
+  );
+  const totalPrevisto = ordenadas.reduce((s, l) => s + l.valorPrevisto, 0);
+  const totalRecebido = ordenadas.reduce((s, l) => s + (l.valorRecebido ?? 0), 0);
+
+  return {
+    competenciaMes: mes,
+    competenciaAno: ano,
+    linhas: ordenadas,
+    totalPrevisto,
+    totalRecebido,
+    qtdLinhas: ordenadas.length,
+  };
+}
+
 export function buildExtratoFinanceiro(
   rows: ExtratoFinanceiroRawRow[],
   mes: number,
   ano: number,
 ): ExtratoFinanceiroResumo {
-  const linhas = rows
-    .map(mapExtratoFinanceiroLinha)
-    .sort((a, b) => a.pacienteNome.localeCompare(b.pacienteNome, "pt-BR"));
+  return resumirLinhasExtrato(rows.map(mapExtratoFinanceiroLinha), mes, ano);
+}
 
-  const totalPrevisto = linhas.reduce((s, l) => s + l.valorPrevisto, 0);
-  const totalRecebido = linhas.reduce((s, l) => s + (l.valorRecebido ?? 0), 0);
+export function filtrarExtratoPorConvenio(
+  resumo: ExtratoFinanceiroResumo,
+  convenio: string | null,
+): ExtratoFinanceiroResumo {
+  if (!convenio) return resumo;
+  return resumirLinhasExtrato(
+    resumo.linhas.filter((l) => l.grupoConvenio === convenio),
+    resumo.competenciaMes,
+    resumo.competenciaAno,
+  );
+}
 
-  return {
-    competenciaMes: mes,
-    competenciaAno: ano,
-    linhas,
-    totalPrevisto,
-    totalRecebido,
-    qtdLinhas: linhas.length,
-  };
+export function receitaConvenioToCsvRows(
+  rows: ReceitaConvenioExportRow[],
+): Record<string, unknown>[] {
+  return rows.map((r) => ({
+    Convênio: r.convenio,
+    Pacientes: r.pacientes,
+    Sessões: r.sessoes,
+    "NFs emitidas": r.nfsEmitidas,
+    Faturado: numeroBR(r.faturado),
+    Recebido: numeroBR(r.recebido),
+  }));
+}
+
+export async function receitaConvenioToXlsxBlob(rows: ReceitaConvenioExportRow[]): Promise<Blob> {
+  const XLSX = await import("xlsx");
+  const cols = [
+    "Convênio",
+    "Pacientes",
+    "Sessões",
+    "NFs emitidas",
+    "Faturado",
+    "Recebido",
+  ] as const;
+  const dataRows = receitaConvenioToCsvRows(rows);
+  const aoa = [cols, ...dataRows.map((row) => cols.map((col) => String(row[col] ?? "")))];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Receita por convênio");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  return new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
 }
 
 /** Formata número no padrão pt-BR (vírgula decimal) para abrir corretamente no Excel. */

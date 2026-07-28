@@ -15,6 +15,7 @@ export async function fetchExtratoFinanceiro(
       `
       id,
       paciente_id,
+      tipo,
       valor,
       status,
       regime,
@@ -26,12 +27,14 @@ export async function fetchExtratoFinanceiro(
       pago_em,
       pacientes (
         nome,
+        tipo,
         criado_em,
         valor_mensal,
         valor_sessao,
         regime_cobranca,
         frequencia_atendimento,
-        dias_semana
+        dias_semana,
+        convenios ( nome )
       )
     `,
     )

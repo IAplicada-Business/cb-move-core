@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { Download, Printer, FileSpreadsheet } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Download, FileSpreadsheet, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -12,6 +12,9 @@ import {
   competenciaLabel,
   extratoToCsvRows,
   extratoToXlsxBlob,
+  filtrarExtratoPorConvenio,
+  receitaConvenioToCsvRows,
+  receitaConvenioToXlsxBlob,
 } from "@/lib/domain/extrato-financeiro";
 import { brl } from "@/lib/format";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
@@ -22,10 +25,14 @@ import {
 import type { PacienteTipo } from "@/lib/types";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -90,6 +97,103 @@ const TIPO_KPI: Record<
   puc: { label: "PUC", accent: "orange" },
 };
 
+type ExportOpcao =
+  "receita-csv" | "receita-xlsx" | "receita-pdf" | "extrato-csv" | "extrato-xlsx" | "extrato-pdf";
+
+const PRINT_DOC_STYLES = `
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11px; margin: 24px; color: #111; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  p { margin: 0 0 16px; color: #555; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 700; }
+  .num { text-align: right; white-space: nowrap; }
+  .total td { font-weight: 700; background: #f9fafb; }
+  .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; padding: 8px; margin-bottom: 12px; }
+
+  .brand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .brand-mark { flex: 0 0 auto; line-height: 0; }
+  .brand-word { display: flex; flex-direction: column; line-height: 1.15; }
+  .brand-word b { font-size: 13px; letter-spacing: 0.2px; color: #2c2c2c; }
+  .brand-word span { font-size: 7.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #6b7280; }
+  .brand-doc-title { margin-left: auto; text-align: right; }
+  .brand-doc-title b { font-size: 12px; display: block; color: #2c2c2c; }
+  .brand-doc-title span { font-size: 10px; color: #6b7280; }
+  .brand-bar { height: 3px; background: #2D8388; border-radius: 2px; margin: 8px 0 18px; }
+  .brand-footer { display: flex; height: 3px; border-radius: 2px; overflow: hidden; margin-top: 28px; }
+  .brand-footer span { flex: 1; }
+  .brand-footer .m { background: #D946A0; }
+  .brand-footer .o { background: #F58A1F; }
+  .brand-footer .l { background: #C5D932; }
+  .brand-footer .c { background: #3FB5BC; }
+  .brand-footer .p { background: #7B4FB5; }
+  .footer-text { font-size: 8.5px; color: #6b7280; text-align: center; margin-top: 6px; }
+`;
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function imprimirDocumentoHtml(docTitulo: string, docSubtitulo: string, conteudo: string) {
+  const geradoEm = new Date().toLocaleDateString("pt-BR");
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(docTitulo)} · ${escapeHtml(docSubtitulo)}</title>
+    <style>${PRINT_DOC_STYLES}</style>
+  </head>
+  <body>
+    <div class="brand-header">
+      <div class="brand-mark">${buildBrandRingSvg(28)}</div>
+      <div class="brand-word"><b>CB MOVE</b><span>Neuroscience</span></div>
+      <div class="brand-doc-title"><b>${escapeHtml(docTitulo)}</b><span>${escapeHtml(docSubtitulo)}</span></div>
+    </div>
+    <div class="brand-bar"></div>
+    ${conteudo}
+    <div class="brand-footer"><span class="m"></span><span class="o"></span><span class="l"></span><span class="c"></span><span class="p"></span></div>
+    <p class="footer-text">Documento gerado pela CB MOVE Neuroscience em ${geradoEm}</p>
+  </body>
+</html>`;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+  };
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    toast.error("Não foi possível preparar a impressão");
+    cleanup();
+    return;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const win = iframe.contentWindow;
+  win?.addEventListener("afterprint", cleanup);
+  window.setTimeout(() => {
+    win?.focus();
+    win?.print();
+  }, 150);
+  window.setTimeout(cleanup, 60_000);
+}
+
 function competenciaOpcoes() {
   const now = new Date();
   const opts: { label: string; mes: number; ano: number }[] = [];
@@ -104,10 +208,22 @@ function competenciaOpcoes() {
   return opts;
 }
 
+function slugArquivo(nome: string) {
+  return nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase()
+    .slice(0, 48);
+}
+
 export function DashboardFinanceiro() {
   const now = new Date();
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [ano, setAno] = useState(now.getFullYear());
+  const [filtroConvenio, setFiltroConvenio] = useState<string | null>(null);
+  const [exportSelectKey, setExportSelectKey] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
   const compOpts = competenciaOpcoes();
 
@@ -127,114 +243,172 @@ export function DashboardFinanceiro() {
   const kpis = kpisQuery.data ?? [];
   const receita = receitaQuery.data ?? [];
   const extrato = extratoQuery.data;
-  const linhas = extrato?.linhas ?? [];
+  const extratoVisivel = useMemo(
+    () => (extrato ? filtrarExtratoPorConvenio(extrato, filtroConvenio) : undefined),
+    [extrato, filtroConvenio],
+  );
+  const receitaVisivel = useMemo(
+    () => (filtroConvenio ? receita.filter((r) => r.convenio === filtroConvenio) : receita),
+    [receita, filtroConvenio],
+  );
+  const linhas = extratoVisivel?.linhas ?? [];
   const kpiMap = Object.fromEntries(kpis.map((k) => [k.tipo, k]));
   const totalReceita = kpis.reduce((s, k) => s + k.valor, 0);
+  const receitaSelecionada = filtroConvenio
+    ? receita.find((r) => r.convenio === filtroConvenio)
+    : null;
+  const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
+  const sufixoArquivo = filtroConvenio ? slugArquivo(filtroConvenio) : "todos";
 
-  function exportarCsv() {
-    if (!extrato || linhas.length === 0) return;
-    const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
-    downloadCSV(`extrato-financeiro-${mesNome}-${ano}.csv`, extratoToCsvRows(extrato));
-    toast.success("Extrato exportado em CSV");
+  useEffect(() => {
+    setFiltroConvenio(null);
+  }, [mes, ano]);
+
+  const podeExportarReceita = receitaVisivel.length > 0;
+  const podeExportarExtrato = Boolean(extratoVisivel && linhas.length > 0);
+
+  function executarExportacao(opcao: ExportOpcao) {
+    switch (opcao) {
+      case "receita-csv":
+        exportarCsvReceita();
+        break;
+      case "receita-xlsx":
+        void exportarXlsxReceita().catch((e: Error) => toast.error(e.message));
+        break;
+      case "receita-pdf":
+        imprimirReceita();
+        break;
+      case "extrato-csv":
+        exportarCsvExtrato();
+        break;
+      case "extrato-xlsx":
+        void exportarXlsxExtrato().catch((e: Error) => toast.error(e.message));
+        break;
+      case "extrato-pdf":
+        imprimirExtrato();
+        break;
+    }
+    setExportSelectKey((k) => k + 1);
   }
 
-  async function exportarXlsx() {
-    if (!extrato || linhas.length === 0) return;
-    const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
-    const blob = await extratoToXlsxBlob(extrato);
+  function exportarCsvExtrato() {
+    if (!extratoVisivel || linhas.length === 0) return;
+    downloadCSV(
+      `extrato-financeiro-${mesNome}-${ano}-${sufixoArquivo}.csv`,
+      extratoToCsvRows(extratoVisivel),
+    );
+    toast.success(
+      filtroConvenio ? `Extrato de ${filtroConvenio} exportado em CSV` : "Extrato exportado em CSV",
+    );
+  }
+
+  async function exportarXlsxExtrato() {
+    if (!extratoVisivel || linhas.length === 0) return;
+    const blob = await extratoToXlsxBlob(extratoVisivel);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `extrato-financeiro-${mesNome}-${ano}.xlsx`;
+    a.download = `extrato-financeiro-${mesNome}-${ano}-${sufixoArquivo}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Extrato exportado em XLSX");
+    toast.success(
+      filtroConvenio
+        ? `Extrato de ${filtroConvenio} exportado em XLSX`
+        : "Extrato exportado em XLSX",
+    );
   }
 
-  function imprimir() {
+  function exportarCsvReceita() {
+    if (receitaVisivel.length === 0) return;
+    downloadCSV(
+      `receita-convenio-${mesNome}-${ano}-${sufixoArquivo}.csv`,
+      receitaConvenioToCsvRows(receitaVisivel),
+    );
+    toast.success(
+      filtroConvenio
+        ? `Receita de ${filtroConvenio} exportada em CSV`
+        : "Receita por convênio exportada em CSV",
+    );
+  }
+
+  async function exportarXlsxReceita() {
+    if (receitaVisivel.length === 0) return;
+    const blob = await receitaConvenioToXlsxBlob(receitaVisivel);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receita-convenio-${mesNome}-${ano}-${sufixoArquivo}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(
+      filtroConvenio
+        ? `Receita de ${filtroConvenio} exportada em XLSX`
+        : "Receita por convênio exportada em XLSX",
+    );
+  }
+
+  function imprimirReceita() {
+    if (receitaVisivel.length === 0) return;
+
+    const totalFaturado = receitaVisivel.reduce((s, r) => s + r.faturado, 0);
+    const totalRecebidoVal = receitaVisivel.reduce((s, r) => s + r.recebido, 0);
+    const linhasTabela = receitaVisivel
+      .map(
+        (d) => `<tr>
+      <td>${escapeHtml(d.convenio)}</td>
+      <td class="num">${d.pacientes}</td>
+      <td class="num">${d.sessoes}</td>
+      <td class="num">${d.nfsEmitidas}</td>
+      <td class="num">${escapeHtml(brl(d.faturado))}</td>
+      <td class="num">${escapeHtml(brl(d.recebido))}</td>
+    </tr>`,
+      )
+      .join("");
+
+    const subtitulo = filtroConvenio
+      ? `${competenciaLabel(mes, ano)} · ${filtroConvenio}`
+      : competenciaLabel(mes, ano);
+
+    const conteudo = `
+      <div class="mes-titulo">${escapeHtml(competenciaLabel(mes, ano))}</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Convênio</th>
+            <th class="num">Pacientes</th>
+            <th class="num">Sessões</th>
+            <th class="num">NFs emitidas</th>
+            <th class="num">Faturado</th>
+            <th class="num">Recebido</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${linhasTabela}
+          <tr class="total">
+            <td>Total</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num">${escapeHtml(brl(totalFaturado))}</td>
+            <td class="num">${escapeHtml(brl(totalRecebidoVal))}</td>
+          </tr>
+        </tbody>
+      </table>`;
+
+    imprimirDocumentoHtml("Receita por Convênio", subtitulo, conteudo);
+    toast.success(
+      filtroConvenio
+        ? `Receita de ${filtroConvenio} enviada para impressão`
+        : "Receita por convênio enviada para impressão",
+    );
+  }
+
+  function imprimirExtrato() {
     if (!printRef.current) return;
-    const conteudo = printRef.current.innerHTML;
-    const geradoEm = new Date().toLocaleDateString("pt-BR");
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <title>Extrato financeiro · ${competenciaLabel(mes, ano)}</title>
-    <style>
-      body { font-family: Calibri, Arial, sans-serif; font-size: 11px; margin: 24px; color: #111; }
-      h1 { font-size: 16px; margin: 0 0 4px; }
-      p { margin: 0 0 16px; color: #555; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }
-      th { background: #f3f4f6; font-weight: 700; }
-      .num { text-align: right; white-space: nowrap; }
-      .total td { font-weight: 700; background: #f9fafb; }
-      .mes-titulo { text-align: center; font-weight: 700; background: #eef2ff; }
-
-      .brand-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-      .brand-mark { flex: 0 0 auto; line-height: 0; }
-      .brand-word { display: flex; flex-direction: column; line-height: 1.15; }
-      .brand-word b { font-size: 13px; letter-spacing: 0.2px; color: #2c2c2c; }
-      .brand-word span { font-size: 7.5px; letter-spacing: 1.4px; text-transform: uppercase; color: #6b7280; }
-      .brand-doc-title { margin-left: auto; text-align: right; }
-      .brand-doc-title b { font-size: 12px; display: block; color: #2c2c2c; }
-      .brand-doc-title span { font-size: 10px; color: #6b7280; }
-      .brand-bar { height: 3px; background: #2D8388; border-radius: 2px; margin: 8px 0 18px; }
-      .brand-footer { display: flex; height: 3px; border-radius: 2px; overflow: hidden; margin-top: 28px; }
-      .brand-footer span { flex: 1; }
-      .brand-footer .m { background: #D946A0; }
-      .brand-footer .o { background: #F58A1F; }
-      .brand-footer .l { background: #C5D932; }
-      .brand-footer .c { background: #3FB5BC; }
-      .brand-footer .p { background: #7B4FB5; }
-      .footer-text { font-size: 8.5px; color: #6b7280; text-align: center; margin-top: 6px; }
-    </style>
-  </head>
-  <body>
-    <div class="brand-header">
-      <div class="brand-mark">${buildBrandRingSvg(28)}</div>
-      <div class="brand-word"><b>CB MOVE</b><span>Neuroscience</span></div>
-      <div class="brand-doc-title"><b>Extrato Financeiro</b><span>${competenciaLabel(mes, ano)}</span></div>
-    </div>
-    <div class="brand-bar"></div>
-    ${conteudo}
-    <div class="brand-footer"><span class="m"></span><span class="o"></span><span class="l"></span><span class="c"></span><span class="p"></span></div>
-    <p class="footer-text">Documento gerado pela CB MOVE Neuroscience em ${geradoEm}</p>
-  </body>
-</html>`;
-
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.setAttribute("aria-hidden", "true");
-    document.body.appendChild(iframe);
-
-    const cleanup = () => {
-      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    };
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      toast.error("Não foi possível preparar a impressão");
-      cleanup();
-      return;
-    }
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    const win = iframe.contentWindow;
-    win?.addEventListener("afterprint", cleanup);
-    window.setTimeout(() => {
-      win?.focus();
-      win?.print();
-    }, 150);
-    window.setTimeout(cleanup, 60_000);
+    const subtitulo = filtroConvenio
+      ? `${competenciaLabel(mes, ano)} · ${filtroConvenio}`
+      : competenciaLabel(mes, ano);
+    imprimirDocumentoHtml("Extrato Financeiro", subtitulo, printRef.current.innerHTML);
   }
 
   const loadingKpis = kpisQuery.isLoading;
@@ -247,7 +421,8 @@ export function DashboardFinanceiro() {
         <div>
           <h2 className="text-base font-semibold">Financeiro</h2>
           <p className="text-sm text-muted-foreground">
-            Receita total, por convênio e extrato exportável
+            Receita total, receita por convênio e extrato exportável — selecione um convênio para
+            filtrar e exportar
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -270,34 +445,66 @@ export function DashboardFinanceiro() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportarCsv}
-            disabled={!extrato || linhas.length === 0}
+          <Select
+            key={exportSelectKey}
+            onValueChange={(v) => executarExportacao(v as ExportOpcao)}
+            disabled={!podeExportarReceita && !podeExportarExtrato}
           >
-            <Download className="h-4 w-4 mr-1" /> Exportar CSV
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void exportarXlsx().catch((e: Error) => toast.error(e.message));
-            }}
-            disabled={!extrato || linhas.length === 0}
-          >
-            <FileSpreadsheet className="h-4 w-4 mr-1" /> Exportar XLSX
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={imprimir}
-            disabled={!extrato || linhas.length === 0}
-          >
-            <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
-          </Button>
+            <SelectTrigger className="w-[168px] gap-2">
+              <Download className="h-4 w-4 shrink-0 opacity-70" />
+              <SelectValue placeholder="Exportar…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Receita por convênio</SelectLabel>
+                <SelectItem value="receita-csv" disabled={!podeExportarReceita}>
+                  CSV
+                </SelectItem>
+                <SelectItem value="receita-xlsx" disabled={!podeExportarReceita}>
+                  XLSX
+                </SelectItem>
+                <SelectItem value="receita-pdf" disabled={!podeExportarReceita}>
+                  Imprimir / PDF
+                </SelectItem>
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>Extrato</SelectLabel>
+                <SelectItem value="extrato-csv" disabled={!podeExportarExtrato}>
+                  CSV
+                </SelectItem>
+                <SelectItem value="extrato-xlsx" disabled={!podeExportarExtrato}>
+                  XLSX
+                </SelectItem>
+                <SelectItem value="extrato-pdf" disabled={!podeExportarExtrato}>
+                  Imprimir / PDF
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       </div>
+
+      {filtroConvenio && receitaSelecionada && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+          <Badge variant="secondary" className="font-normal">
+            Filtro: {filtroConvenio}
+          </Badge>
+          <span className="text-sm text-muted-foreground">
+            Faturado {brl(receitaSelecionada.faturado)} · Recebido{" "}
+            {brl(receitaSelecionada.recebido)} · {receitaSelecionada.pacientes} paciente(s)
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-7 gap-1"
+            onClick={() => setFiltroConvenio(null)}
+          >
+            <X className="h-3.5 w-3.5" />
+            Ver receita total
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {loadingKpis ? (
@@ -330,7 +537,12 @@ export function DashboardFinanceiro() {
       </div>
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">Receita por convênio</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Receita por convênio</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Clique em uma linha para filtrar o extrato e exportar só aquele convênio ou tipo.
+          </p>
+        </div>
         {loadingReceita ? (
           <LoadingState />
         ) : receita.length === 0 ? (
@@ -352,18 +564,34 @@ export function DashboardFinanceiro() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {receita.map((d) => (
-                  <TableRow key={d.convenio}>
-                    <TableCell className="font-medium">{d.convenio}</TableCell>
-                    <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
-                    <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
-                    <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
-                    <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
-                    <TableCell className="text-right tabular-nums font-medium">
-                      {brl(d.recebido)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {receita.map((d) => {
+                  const selecionado = filtroConvenio === d.convenio;
+                  return (
+                    <TableRow
+                      key={d.convenio}
+                      className={`cursor-pointer transition-colors hover:bg-muted/40 ${selecionado ? "bg-primary/5" : ""}`}
+                      onClick={() =>
+                        setFiltroConvenio((atual) => (atual === d.convenio ? null : d.convenio))
+                      }
+                    >
+                      <TableCell className="font-medium">
+                        {d.convenio}
+                        {selecionado && (
+                          <Badge variant="outline" className="ml-2 text-[10px] py-0">
+                            filtrado
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
+                      <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
+                      <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
+                      <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {brl(d.recebido)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -371,14 +599,31 @@ export function DashboardFinanceiro() {
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">Extrato financeiro detalhado</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {filtroConvenio ? `Extrato · ${filtroConvenio}` : "Extrato da competência"}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {filtroConvenio
+              ? "Linhas filtradas conforme a receita selecionada acima."
+              : "Todas as cobranças do mês. Selecione um convênio na tabela para exportar por grupo."}
+          </p>
+        </div>
         {loadingExtrato ? (
           <LoadingState />
         ) : linhas.length === 0 ? (
           <EmptyState
             icon={<FileSpreadsheet className="h-8 w-8" />}
-            title="Sem cobranças nesta competência"
-            description="Não há linhas para gerar o extrato financeiro do período selecionado."
+            title={
+              filtroConvenio
+                ? `Sem cobranças para ${filtroConvenio}`
+                : "Sem cobranças nesta competência"
+            }
+            description={
+              filtroConvenio
+                ? "Não há linhas de extrato para este convênio ou tipo no período."
+                : "Não há linhas para gerar o extrato financeiro do período selecionado."
+            }
           />
         ) : (
           <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
@@ -387,6 +632,7 @@ export function DashboardFinanceiro() {
                 <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
                 <p className="text-xs text-muted-foreground">
                   CB MOVE Neuroscience · Relatório Financeiro
+                  {filtroConvenio ? ` · ${filtroConvenio}` : ""}
                 </p>
               </div>
               <Table>
@@ -436,10 +682,10 @@ export function DashboardFinanceiro() {
                       Total
                     </TableCell>
                     <TableCell className="text-right font-bold tabular-nums">
-                      {brl(extrato!.totalPrevisto)}
+                      {brl(extratoVisivel!.totalPrevisto)}
                     </TableCell>
                     <TableCell className="text-right font-bold tabular-nums">
-                      {brl(extrato!.totalRecebido)}
+                      {brl(extratoVisivel!.totalRecebido)}
                     </TableCell>
                     <TableCell />
                   </TableRow>
