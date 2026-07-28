@@ -38,29 +38,47 @@ async function fetchModoEmissaoNf(
   return modo === "data_especifica" ? "data_especifica" : "automatico_pagamento";
 }
 
-async function findNfEmitivel(admin: SupabaseClient, cobrancaId: string): Promise<string | null> {
+type NfAtiva = { id: string; status: string };
+
+async function findNfAtiva(admin: SupabaseClient, cobrancaId: string): Promise<NfAtiva | null> {
   const { data, error } = await admin
     .from("notas_fiscais")
-    .select("id")
+    .select("id, status")
     .eq("cobranca_id", cobrancaId)
-    .in("status", ["pendente", "erro"])
+    .neq("status", "cancelada")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data?.id ?? null;
+  return data?.id ? { id: data.id, status: data.status } : null;
+}
+
+async function findNfEmitivel(admin: SupabaseClient, cobrancaId: string): Promise<string | null> {
+  const nf = await findNfAtiva(admin, cobrancaId);
+  if (!nf) return null;
+  if (nf.status === "emitida" || nf.status === "regularizada_retroativa") return null;
+  if (nf.status === "pendente" || nf.status === "erro") return nf.id;
+  return null;
 }
 
 async function criarOuObterNfEmitivel(
   admin: SupabaseClient,
   cobrancaId: string,
-): Promise<{ nfId: string | null; criada: boolean; erro: string | null }> {
+): Promise<{ nfId: string | null; criada: boolean; erro: string | null; skipEmit: boolean }> {
+  const existente = await findNfAtiva(admin, cobrancaId);
+  if (
+    existente &&
+    (existente.status === "emitida" || existente.status === "regularizada_retroativa")
+  ) {
+    return { nfId: existente.id, criada: false, erro: null, skipEmit: true };
+  }
+
   const { data, error: nfErr } = await admin.rpc("criar_nf_de_cobranca", {
     p_cobranca_id: cobrancaId,
   });
   if (!nfErr) {
     const nfId = typeof data === "string" ? data : null;
-    return { nfId, criada: Boolean(nfId), erro: null };
+    return { nfId, criada: Boolean(nfId), erro: null, skipEmit: false };
   }
 
   if ((nfErr.message ?? "").toLowerCase().includes("já existe nf")) {
@@ -69,10 +87,11 @@ async function criarOuObterNfEmitivel(
       nfId,
       criada: false,
       erro: nfId ? null : "NF existente já emitida ou em processamento",
+      skipEmit: !nfId,
     };
   }
 
-  return { nfId: null, criada: false, erro: nfErr.message ?? String(nfErr) };
+  return { nfId: null, criada: false, erro: nfErr.message ?? String(nfErr), skipEmit: false };
 }
 
 export async function buildAutoNfContext(admin: SupabaseClient): Promise<AutoNfContext> {
@@ -121,7 +140,7 @@ export async function processAutoNfAfterPaid(
     return result;
   }
 
-  const { nfId, criada, erro } = await criarOuObterNfEmitivel(admin, cobrancaId);
+  const { nfId, criada, erro, skipEmit } = await criarOuObterNfEmitivel(admin, cobrancaId);
   if (erro && !nfId) {
     result.erro = erro.startsWith("criar_nf") ? erro : `criar_nf_de_cobranca: ${erro}`;
     return result;
@@ -131,6 +150,7 @@ export async function processAutoNfAfterPaid(
   if (!nfId) return result;
 
   result.nf_id = nfId;
+  if (skipEmit) return result;
   const emitResult = resolvedCtx.emitAuthHeader
     ? await triggerEmitNf(resolvedCtx.supabaseUrl, nfId, {
         mode: "user",
