@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FlaskConical, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { DashboardSection, DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
@@ -212,7 +213,13 @@ export function ProntuarioAvaliacoesTab({
           description="Registre escalas e instrumentos de avaliação neurofuncional."
         />
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <DashboardSection
+          eyebrow="Prontuário"
+          accent="purple"
+          title="Avaliações aplicadas"
+          badge={<DashboardSectionBadge accent="purple">{aplicados.length}</DashboardSectionBadge>}
+          noPadding
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -244,7 +251,7 @@ export function ProntuarioAvaliacoesTab({
               ))}
             </TableBody>
           </Table>
-        </div>
+        </DashboardSection>
       )}
 
       {canEdit && (

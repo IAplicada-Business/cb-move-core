@@ -1,11 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Lock, Plus, Search, Shield, Trash2, Users } from "lucide-react";
+import { Lock, Plus, Search, Shield, Trash2, UserCheck, UserCog, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
+import { PageHeader } from "@/components/brand/PageHeader";
+import {
+  DashboardPage,
+  DashboardSection,
+  DashboardSectionBadge,
+  KpiGrid,
+} from "@/components/domain/DashboardSection";
+import { KpiCard } from "@/components/domain/KpiCard";
+import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { UsuarioCardGrid, type UsuarioCardRow } from "@/components/domain/UsuarioCardGrid";
 import { queryKeys } from "@/lib/queries";
 import { useAuth } from "@/lib/auth";
 import {
@@ -23,7 +34,6 @@ import {
   type UserRow,
 } from "@/lib/queries/usuarios";
 import { normalizeRole, PRIMARY_ROLES, ROLE_LABELS, type PrimaryRole } from "@/lib/permissions";
-import type { AppRole } from "@/lib/types";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
 
@@ -55,14 +65,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -71,45 +73,15 @@ export const Route = createFileRoute("/app/usuarios")({
   component: UsuariosPage,
 });
 
-const ROLE_BADGE: Record<PrimaryRole, string> = {
-  admin: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-100",
-  membro: "bg-[#F7FEE7] text-cb-lime border-[#BEF264]",
-  cliente: "bg-slate-100 text-slate-700 border-slate-200",
-};
-
-function RoleBadge({ role }: { role: AppRole | null }) {
-  const primary = normalizeRole(role);
-  if (!primary) return <span className="text-xs text-muted-foreground">—</span>;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium",
-        ROLE_BADGE[primary],
-      )}
-    >
-      {ROLE_LABELS[primary]}
-    </span>
-  );
-}
-
 function findUserByEmail(users: UserRow[], email: string): UserRow | undefined {
   const target = email.toLowerCase();
   return users.find((u) => u.email?.toLowerCase() === target);
 }
 
-type UsuarioTableRow = {
-  key: string;
-  nome: string;
-  email: string;
-  perfil: PrimaryRole;
-  registered: UserRow | undefined;
-  isReference: boolean;
-};
-
-function buildUsuarioRows(users: UserRow[]): UsuarioTableRow[] {
+function buildUsuarioRows(users: UserRow[]): UsuarioCardRow[] {
   const referenceEmails = new Set(COLABORADORES_REFERENCIA.map((c) => c.email.toLowerCase()));
 
-  const rows: UsuarioTableRow[] = COLABORADORES_REFERENCIA.map((c) => ({
+  const rows: UsuarioCardRow[] = COLABORADORES_REFERENCIA.map((c) => ({
     key: c.email,
     nome: c.nome,
     email: c.email,
@@ -134,11 +106,6 @@ function buildUsuarioRows(users: UserRow[]): UsuarioTableRow[] {
   }
 
   return rows;
-}
-
-function statusLabel(user: UserRow | undefined): string {
-  if (!user) return "Não cadastrado";
-  return "Cadastrado — aguardando 1º acesso";
 }
 
 function AcessosMatrix({
@@ -189,7 +156,7 @@ function AcessosMatrix({
 }
 
 function UsuariosPage() {
-  const { roles, user } = useAuth();
+  const { roles, user, refreshRoles } = useAuth();
   const qc = useQueryClient();
   const isAdmin = roles.includes("admin");
 
@@ -203,7 +170,7 @@ function UsuariosPage() {
   const [pacienteQuery, setPacienteQuery] = useState("");
   const [menuDraft, setMenuDraft] = useState<Partial<Record<MenuKey, boolean>>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [userToDelete, setUserToDelete] = useState<UsuarioTableRow | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UsuarioCardRow | null>(null);
 
   const {
     data: users = [],
@@ -260,10 +227,13 @@ function UsuariosPage() {
       }
       return result;
     },
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.menuPermissions("membro") });
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.menuAccess });
+      if (!roles.includes("admin")) {
+        await refreshRoles();
+      }
       toast.success(res.message ?? "Usuário salvo");
       setCadastroOpen(false);
       setCadastroForm({ nome: "", email: "", role: "membro", paciente_id: "" });
@@ -298,6 +268,28 @@ function UsuariosPage() {
     );
   }, [usuarioRows, searchQuery]);
 
+  const nAdmin = useMemo(
+    () => users.filter((u) => normalizeRole(u.role) === "admin").length,
+    [users],
+  );
+  const nMembro = useMemo(
+    () => users.filter((u) => normalizeRole(u.role) === "membro").length,
+    [users],
+  );
+  const nCliente = useMemo(
+    () => users.filter((u) => normalizeRole(u.role) === "cliente").length,
+    [users],
+  );
+  const nPendentes = useMemo(() => usuarioRows.filter((r) => !r.registered).length, [usuarioRows]);
+
+  function openCadastroFromRow(row: UsuarioCardRow) {
+    openCadastro({
+      nome: row.nome,
+      email: row.email,
+      role: normalizeRole(row.registered?.role) ?? row.perfil,
+    });
+  }
+
   function openCadastro(prefill?: { nome: string; email: string; role: PrimaryRole }) {
     setCadastroForm({
       nome: prefill?.nome ?? "",
@@ -311,139 +303,135 @@ function UsuariosPage() {
 
   if (!isAdmin) {
     return (
-      <div className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold text-foreground">Usuários do sistema</h1>
-        </header>
+      <DashboardPage>
+        <PageHeader
+          crumbs={[{ label: "Equipe" }, { label: "Usuários" }]}
+          title="Usuários do sistema"
+        />
         <EmptyState
           icon={<Lock className="h-8 w-8" />}
           title="Acesso restrito"
           description="Esta seção é visível apenas para administradores."
         />
-      </div>
+      </DashboardPage>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Usuários do sistema</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cadastre a equipe com senha inicial <strong>{DEFAULT_INITIAL_PASSWORD}</strong>. Para
-            perfil Membro, defina os acessos ao menu no mesmo fluxo de cadastro.
-          </p>
-        </div>
-        <Button onClick={() => openCadastro()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Cadastrar usuário
-        </Button>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[{ label: "Equipe" }, { label: "Usuários" }]}
+        title="Usuários do sistema"
+        description={`Cadastre a equipe com senha inicial ${DEFAULT_INITIAL_PASSWORD}. Para perfil Membro, defina os acessos ao menu no mesmo fluxo.`}
+        actions={
+          <Button
+            onClick={() => openCadastro()}
+            className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700"
+          >
+            <Plus className="h-4 w-4" />
+            Cadastrar usuário
+          </Button>
+        }
+      />
 
-      <div className="space-y-4">
-        <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          <Users className="mr-2 inline h-4 w-4" />
-          Lista extraída de <em>Informações Colaboradores.docx</em>, mais usuários cadastrados no
-          sistema. <strong>{users.length}</strong> cadastrados (<strong>{cadastradosCount}</strong>{" "}
-          da equipe de referência).
-        </div>
+      <KpiGrid columns={4}>
+        <KpiCard
+          label="Cadastrados"
+          value={users.length}
+          accent="cyan"
+          icon={<Users className="h-5 w-5" />}
+        />
+        <KpiCard
+          label="Equipe ref."
+          value={cadastradosCount}
+          accent="purple"
+          icon={<UserCheck className="h-5 w-5" />}
+          share={
+            COLABORADORES_REFERENCIA.length > 0
+              ? (cadastradosCount / COLABORADORES_REFERENCIA.length) * 100
+              : 0
+          }
+        />
+        <KpiCard
+          label="Administradores"
+          value={nAdmin}
+          accent="lime"
+          icon={<Shield className="h-5 w-5" />}
+        />
+        <KpiCard
+          label="Pendentes"
+          value={nPendentes}
+          accent="orange"
+          icon={<UserCog className="h-5 w-5" />}
+        />
+      </KpiGrid>
 
-        <div className="relative max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      {users.length > 0 && (
+        <StatusDistributionBar
+          totalLabel="Usuários por perfil"
+          formatValue={(n) => String(n)}
+          segments={[
+            { label: "Admin", value: nAdmin, colorClass: "bg-cb-cyan-600" },
+            { label: "Membro", value: nMembro, colorClass: "bg-cb-lime" },
+            { label: "Cliente", value: nCliente, colorClass: "bg-cb-purple" },
+          ]}
+        />
+      )}
+
+      <DataToolbar>
+        <DataToolbarSearch>
+          <Search className="h-4 w-4 shrink-0 text-cb-muted" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por nome ou e-mail…"
-            className="pl-9"
+            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
           />
-        </div>
+        </DataToolbarSearch>
+        <p className="ml-auto text-xs font-medium text-cb-muted">
+          {usuarioRows.length} na lista · {users.length} cadastrados
+        </p>
+      </DataToolbar>
 
-        {isLoading ? (
-          <LoadingState />
-        ) : isError ? (
-          <EmptyState
-            icon={<Users className="h-8 w-8" />}
-            title="Erro ao carregar usuários"
-            description={error instanceof Error ? error.message : "Tente novamente."}
-            action={
-              <Button onClick={() => refetch()} disabled={isFetching}>
-                {isFetching ? "Carregando…" : "Tentar novamente"}
-              </Button>
-            }
+      {isLoading ? (
+        <LoadingState />
+      ) : isError ? (
+        <EmptyState
+          icon={<Users className="h-8 w-8" />}
+          title="Erro ao carregar usuários"
+          description={error instanceof Error ? error.message : "Tente novamente."}
+          action={
+            <Button onClick={() => refetch()} disabled={isFetching}>
+              {isFetching ? "Carregando…" : "Tentar novamente"}
+            </Button>
+          }
+        />
+      ) : filteredUsuarioRows.length === 0 ? (
+        <EmptyState
+          icon={<Search className="h-8 w-8" />}
+          title="Nenhum usuário encontrado"
+          description="Tente buscar por outro nome ou e-mail."
+        />
+      ) : (
+        <DashboardSection
+          eyebrow="Equipe"
+          accent="cyan"
+          title="Equipe e acessos"
+          badge={
+            <DashboardSectionBadge accent="cyan">
+              {filteredUsuarioRows.length}
+            </DashboardSectionBadge>
+          }
+          description="Referência de colaboradores + usuários extras cadastrados no sistema"
+        >
+          <UsuarioCardGrid
+            rows={filteredUsuarioRows}
+            currentUserId={user?.id}
+            onEdit={openCadastroFromRow}
+            onDelete={setUserToDelete}
           />
-        ) : filteredUsuarioRows.length === 0 ? (
-          <EmptyState
-            icon={<Search className="h-8 w-8" />}
-            title="Nenhum usuário encontrado"
-            description="Tente buscar por outro nome ou e-mail."
-          />
-        ) : (
-          <div className="overflow-hidden rounded-xl border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Perfil</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-56 text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsuarioRows.map((row) => {
-                  const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
-                  const isSelf = row.registered?.id === user?.id;
-                  return (
-                    <TableRow key={row.key}>
-                      <TableCell className="font-medium">{row.nome}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{row.email}</TableCell>
-                      <TableCell>
-                        <RoleBadge role={displayRole} />
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {statusLabel(row.registered)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              openCadastro({
-                                nome: row.nome,
-                                email: row.email,
-                                role: normalizeRole(row.registered?.role) ?? row.perfil,
-                              })
-                            }
-                          >
-                            {row.registered ? "Editar" : "Cadastrar"}
-                          </Button>
-                          {row.registered && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                              disabled={isSelf}
-                              title={
-                                isSelf
-                                  ? "Você não pode excluir seu próprio usuário"
-                                  : "Excluir usuário"
-                              }
-                              onClick={() => setUserToDelete(row)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
+        </DashboardSection>
+      )}
 
       <Dialog open={cadastroOpen} onOpenChange={setCadastroOpen}>
         <DialogContent
@@ -599,6 +587,6 @@ function UsuariosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </DashboardPage>
   );
 }

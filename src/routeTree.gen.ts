@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as DesignPreviewRouteImport } from './routes/design-preview'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
@@ -38,7 +39,6 @@ import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configur
 import { Route as AppConfiguracoesConveniosRouteImport } from './routes/app.configuracoes.convenios'
 import { Route as AppConfiguracoesCreditosRouteImport } from './routes/app.configuracoes.creditos'
 import { Route as AppConfiguracoesInstrumentosRouteImport } from './routes/app.configuracoes.instrumentos'
-import { Route as AppConfiguracoesIntegracoesRouteImport } from './routes/app.configuracoes.integracoes'
 import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
 import { Route as AppPacientesIndexRouteImport } from './routes/app.pacientes.index'
 import { Route as AppPacientesPacienteIdRouteImport } from './routes/app.pacientes.$pacienteId'
@@ -51,6 +51,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesignPreviewRoute = DesignPreviewRouteImport.update({
+  id: '/design-preview',
+  path: '/design-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -191,12 +196,6 @@ const AppConfiguracoesInstrumentosRoute =
     path: '/instrumentos',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
-const AppConfiguracoesIntegracoesRoute =
-  AppConfiguracoesIntegracoesRouteImport.update({
-    id: '/integracoes',
-    path: '/integracoes',
-    getParentRoute: () => AppConfiguracoesRoute,
-  } as any)
 const AppConfiguracoesTemplatesRoute =
   AppConfiguracoesTemplatesRouteImport.update({
     id: '/templates',
@@ -217,6 +216,7 @@ const AppPacientesPacienteIdRoute = AppPacientesPacienteIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/design-preview': typeof DesignPreviewRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -243,7 +243,6 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
   '/app/configuracoes/creditos': typeof AppConfiguracoesCreditosRoute
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
-  '/app/configuracoes/integracoes': typeof AppConfiguracoesIntegracoesRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
@@ -251,6 +250,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/design-preview': typeof DesignPreviewRoute
   '/login': typeof LoginRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
   '/app/agenda': typeof AppAgendaRoute
@@ -274,7 +274,6 @@ export interface FileRoutesByTo {
   '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
   '/app/configuracoes/creditos': typeof AppConfiguracoesCreditosRoute
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
-  '/app/configuracoes/integracoes': typeof AppConfiguracoesIntegracoesRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
@@ -284,6 +283,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/design-preview': typeof DesignPreviewRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRouteWithChildren
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -310,7 +310,6 @@ export interface FileRoutesById {
   '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
   '/app/configuracoes/creditos': typeof AppConfiguracoesCreditosRoute
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
-  '/app/configuracoes/integracoes': typeof AppConfiguracoesIntegracoesRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
@@ -321,6 +320,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/design-preview'
     | '/login'
     | '/portal'
     | '/redefinir-senha'
@@ -347,7 +347,6 @@ export interface FileRouteTypes {
     | '/app/configuracoes/convenios'
     | '/app/configuracoes/creditos'
     | '/app/configuracoes/instrumentos'
-    | '/app/configuracoes/integracoes'
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
     | '/app/configuracoes/'
@@ -355,6 +354,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/design-preview'
     | '/login'
     | '/redefinir-senha'
     | '/app/agenda'
@@ -378,7 +378,6 @@ export interface FileRouteTypes {
     | '/app/configuracoes/convenios'
     | '/app/configuracoes/creditos'
     | '/app/configuracoes/instrumentos'
-    | '/app/configuracoes/integracoes'
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
     | '/app/configuracoes'
@@ -387,6 +386,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/design-preview'
     | '/login'
     | '/portal'
     | '/redefinir-senha'
@@ -413,7 +413,6 @@ export interface FileRouteTypes {
     | '/app/configuracoes/convenios'
     | '/app/configuracoes/creditos'
     | '/app/configuracoes/instrumentos'
-    | '/app/configuracoes/integracoes'
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
     | '/app/configuracoes/'
@@ -423,6 +422,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  DesignPreviewRoute: typeof DesignPreviewRoute
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRouteWithChildren
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
@@ -442,6 +442,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/design-preview': {
+      id: '/design-preview'
+      path: '/design-preview'
+      fullPath: '/design-preview'
+      preLoaderRoute: typeof DesignPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -633,13 +640,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesInstrumentosRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
-    '/app/configuracoes/integracoes': {
-      id: '/app/configuracoes/integracoes'
-      path: '/integracoes'
-      fullPath: '/app/configuracoes/integracoes'
-      preLoaderRoute: typeof AppConfiguracoesIntegracoesRouteImport
-      parentRoute: typeof AppConfiguracoesRoute
-    }
     '/app/configuracoes/templates': {
       id: '/app/configuracoes/templates'
       path: '/templates'
@@ -668,7 +668,6 @@ interface AppConfiguracoesRouteChildren {
   AppConfiguracoesConveniosRoute: typeof AppConfiguracoesConveniosRoute
   AppConfiguracoesCreditosRoute: typeof AppConfiguracoesCreditosRoute
   AppConfiguracoesInstrumentosRoute: typeof AppConfiguracoesInstrumentosRoute
-  AppConfiguracoesIntegracoesRoute: typeof AppConfiguracoesIntegracoesRoute
   AppConfiguracoesTemplatesRoute: typeof AppConfiguracoesTemplatesRoute
   AppConfiguracoesIndexRoute: typeof AppConfiguracoesIndexRoute
 }
@@ -677,7 +676,6 @@ const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
   AppConfiguracoesConveniosRoute: AppConfiguracoesConveniosRoute,
   AppConfiguracoesCreditosRoute: AppConfiguracoesCreditosRoute,
   AppConfiguracoesInstrumentosRoute: AppConfiguracoesInstrumentosRoute,
-  AppConfiguracoesIntegracoesRoute: AppConfiguracoesIntegracoesRoute,
   AppConfiguracoesTemplatesRoute: AppConfiguracoesTemplatesRoute,
   AppConfiguracoesIndexRoute: AppConfiguracoesIndexRoute,
 }
@@ -759,6 +757,7 @@ const PortalRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  DesignPreviewRoute: DesignPreviewRoute,
   LoginRoute: LoginRoute,
   PortalRoute: PortalRouteWithChildren,
   RedefinirSenhaRoute: RedefinirSenhaRoute,

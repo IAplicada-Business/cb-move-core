@@ -192,8 +192,9 @@ export function FisioHorariosDialog({ open, onOpenChange, fisios }: Props) {
             <div>
               <h3 className="font-semibold">Disponibilidade semanal</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Faixas recorrentes Seg–Sex. Sessão = 50 min; a grade usa os blocos do mockup (com 3
-                intervalos fixos) e a duração do agendamento permanece 50 min.
+                Faixas recorrentes Seg–Sex. Cada bloco da grade ={" "}
+                <strong className="font-semibold text-foreground">1h25 (85 min)</strong>, com 3
+                intervalos fixos entre os horários.
               </p>
             </div>
 

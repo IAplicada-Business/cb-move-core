@@ -22,6 +22,55 @@ export const GRADE_SEMANA_PADRAO: GradeLinha[] = [
 export const BLOCOS_COUNT = GRADE_SEMANA_PADRAO.filter((r) => r.kind === "bloco").length;
 export const INTERVALOS_COUNT = GRADE_SEMANA_PADRAO.filter((r) => r.kind === "intervalo").length;
 
+/** Duração padrão da sessão CB MOVE — 1h25 (85 min), alinhada aos blocos da grade. */
+export const SESSAO_DURACAO_MIN = 85;
+
+export const SESSAO_DURACAO_OPCOES = [85, 60] as const;
+
+/** Durações válidas no formulário — blocos da grade + exceção 1h; inclui valor atual se fora da lista. */
+export function sessaoDuracaoOpcoes(valorAtual?: number): number[] {
+  const fromGrade = GRADE_SEMANA_PADRAO.filter((r) => r.kind === "bloco").map((r) =>
+    duracaoBlocoMin(r.inicio, r.fim),
+  );
+  const set = new Set([...fromGrade, 60]);
+  if (valorAtual != null && valorAtual > 0) set.add(valorAtual);
+  return [...set].sort((a, b) => b - a);
+}
+
+export function duracaoBlocoMin(blocoInicio: string, blocoFim: string): number {
+  return timeToMinutes(blocoFim) - timeToMinutes(blocoInicio);
+}
+
+/** Rótulo amigável — 85 → "1h25". */
+export function duracaoSessaoLabel(minutos: number): string {
+  if (minutos === SESSAO_DURACAO_MIN) return "1h25";
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  if (h > 0 && m > 0) return `${h}h${String(m).padStart(2, "0")}`;
+  if (h > 0) return `${h}h`;
+  return `${minutos}min`;
+}
+
+export function blocoDuracaoDefault(horaInicio: string): number {
+  const row = GRADE_SEMANA_PADRAO.find((r) => r.kind === "bloco" && r.inicio === horaInicio);
+  if (row?.kind === "bloco") return duracaoBlocoMin(row.inicio, row.fim);
+  return SESSAO_DURACAO_MIN;
+}
+
+export function horarioSessaoLabel(
+  inicioIso: string,
+  duracaoMin: number = SESSAO_DURACAO_MIN,
+): string {
+  const startMin = isoWallClockMinutes(inicioIso);
+  const endMin = startMin + duracaoMin;
+  const fmt = (mins: number) => {
+    const h = Math.floor(mins / 60) % 24;
+    const m = mins % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+  return `${fmt(startMin)}–${fmt(endMin)} · ${duracaoSessaoLabel(duracaoMin)}`;
+}
+
 export type SlotStatus = "ocupado" | "vago" | "indisponivel" | "ferias" | "extra";
 
 export function timeToMinutes(hhmm: string) {

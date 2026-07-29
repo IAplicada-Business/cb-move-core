@@ -9,6 +9,8 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { BrandTableShell } from "@/components/brand/BrandTable";
+import { DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -315,7 +317,12 @@ function ConveniosPage() {
           }
         />
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <BrandTableShell
+          eyebrow="Cadastro"
+          accent="cyan"
+          title="Convênios"
+          badge={<DashboardSectionBadge accent="cyan">{convenios.length}</DashboardSectionBadge>}
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -387,7 +394,7 @@ function ConveniosPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </BrandTableShell>
       )}
 
       <Dialog

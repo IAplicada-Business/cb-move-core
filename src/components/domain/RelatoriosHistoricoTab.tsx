@@ -205,62 +205,58 @@ export function RelatoriosHistoricoTab() {
           description="Altere os filtros ou gere relatórios na aba Gerar."
         />
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Paciente</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Modelo</TableHead>
-                <TableHead>Sessões</TableHead>
-                <TableHead>Gerado em</TableHead>
-                <TableHead>Formato</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Paciente</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Modelo</TableHead>
+              <TableHead>Sessões</TableHead>
+              <TableHead>Gerado em</TableHead>
+              <TableHead>Formato</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell>
+                  <Link
+                    to="/app/prontuario"
+                    search={{ pacienteId: r.paciente_id, tab: "documentos" }}
+                    className="font-medium text-cb-cyan-800 hover:underline"
+                  >
+                    {r.paciente_nome}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {tipoPacienteLabel(r.paciente_tipo, r.convenio_nome)}
+                </TableCell>
+                <TableCell>{modeloRelatorioLabel(r)}</TableCell>
+                <TableCell>{r.num_sessoes ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">
+                    {relatorioFormatoBadge(
+                      r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null,
+                      !!r.xlsx_url,
+                    )}
+                  </Badge>
+                </TableCell>
+                <TableCell>{statusBadge(r)}</TableCell>
+                <TableCell className="text-right">
+                  <RelatorioArquivoMenu
+                    pdfUrl={r.pdf_url}
+                    xlsxUrl={r.xlsx_url}
+                    formatoArquivo={r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null}
+                    onError={(e) => toast.error(e.message)}
+                  />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <Link
-                      to="/app/prontuario"
-                      search={{ pacienteId: r.paciente_id, tab: "documentos" }}
-                      className="font-medium text-cb-cyan-800 hover:underline"
-                    >
-                      {r.paciente_nome}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {tipoPacienteLabel(r.paciente_tipo, r.convenio_nome)}
-                  </TableCell>
-                  <TableCell>{modeloRelatorioLabel(r)}</TableCell>
-                  <TableCell>{r.num_sessoes ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(r.created_at)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {relatorioFormatoBadge(
-                        r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null,
-                        !!r.xlsx_url,
-                      )}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{statusBadge(r)}</TableCell>
-                  <TableCell className="text-right">
-                    <RelatorioArquivoMenu
-                      pdfUrl={r.pdf_url}
-                      xlsxUrl={r.xlsx_url}
-                      formatoArquivo={r.formato_arquivo as "pdf" | "xlsx" | "dual" | "docx" | null}
-                      onError={(e) => toast.error(e.message)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       {!historicoQuery.isLoading && rows.some((r) => r.modelo_pdf === "documento_fisico") && (

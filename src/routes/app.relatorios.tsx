@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Briefcase,
   Building2,
@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import { MonthPicker } from "@/components/domain/MonthPicker";
 import { RelatorioArquivoMenu } from "@/components/domain/RelatorioArquivoMenu";
 import { RelatoriosHistoricoTab } from "@/components/domain/RelatoriosHistoricoTab";
+import { KpiCard } from "@/components/domain/KpiCard";
+import { DashboardPage, DashboardSection, KpiGrid } from "@/components/domain/DashboardSection";
+import { PageHeader } from "@/components/brand/PageHeader";
 import { queryKeys } from "@/lib/queries";
 import {
   filterPacientesRelatorioLote,
@@ -438,65 +441,132 @@ function RelatoriosPage() {
   const [tipoSelecionado, setTipoSelecionado] = useState<PacienteTipo | null>(null);
   const [aba, setAba] = useState<"gerar" | "historico">("gerar");
 
+  const { data: pacientes = [] } = useQuery({
+    queryKey: queryKeys.pacientes.all,
+    queryFn: fetchPacientes,
+  });
+
+  const stats = useMemo(() => {
+    const ativos = pacientes.filter((p) => p.ativo);
+    return {
+      total: ativos.length,
+      particular: ativos.filter((p) => p.tipo === "particular").length,
+      convenio: ativos.filter((p) => p.tipo === "convenio").length,
+      judicial: ativos.filter((p) => p.tipo === "judicial").length,
+      puc: ativos.filter((p) => p.tipo === "puc").length,
+    };
+  }, [pacientes]);
+
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Relatórios de atendimento</h1>
-          <p className="text-sm text-muted-foreground">
-            Gere relatórios mensais por tipo de atendimento ou consulte o histórico da competência.
-          </p>
-        </div>
-        <Button variant="outline" asChild className="gap-2">
-          <Link to="/app/financeiro">
-            <TrendingUp className="h-4 w-4" /> Dashboard Financeiro
-          </Link>
-        </Button>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[{ label: "Financeiro" }, { label: "Relatórios" }]}
+        title="Relatórios de atendimento"
+        description="Gere relatórios mensais por tipo de atendimento ou consulte o histórico da competência."
+        actions={
+          <Button variant="outline" asChild className="gap-2">
+            <Link to="/app/financeiro">
+              <TrendingUp className="h-4 w-4" /> Dashboard Financeiro
+            </Link>
+          </Button>
+        }
+      />
+
+      <KpiGrid columns={4}>
+        <KpiCard
+          label="Pacientes ativos"
+          value={stats.total}
+          accent="cyan"
+          icon={<FileText className="h-5 w-5" />}
+        />
+        <KpiCard
+          label="Particular"
+          value={stats.particular}
+          accent="cyan"
+          icon={<Briefcase className="h-5 w-5" />}
+        />
+        <KpiCard
+          label="Convênio"
+          value={stats.convenio}
+          accent="purple"
+          icon={<Building2 className="h-5 w-5" />}
+        />
+        <KpiCard
+          label="Judicial + PUC"
+          value={stats.judicial + stats.puc}
+          accent="magenta"
+          icon={<Gavel className="h-5 w-5" />}
+        />
+      </KpiGrid>
 
       <Tabs value={aba} onValueChange={(v) => setAba(v as "gerar" | "historico")}>
-        <TabsList>
-          <TabsTrigger value="gerar">Gerar</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
+        <TabsList className="h-auto bg-cb-cyan-050/60 p-1">
+          <TabsTrigger value="gerar" className="data-[state=active]:bg-white">
+            Gerar
+          </TabsTrigger>
+          <TabsTrigger value="historico" className="data-[state=active]:bg-white">
+            Histórico
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="gerar" className="mt-6 space-y-6">
-          <p className="text-sm text-muted-foreground">
-            Geração em lote por tipo: convênio (todos de um convênio), judicial, PUC ou particular.
-            Também é possível gerar apenas um paciente.
-          </p>
-
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {(Object.keys(TIPO_RELATORIO) as PacienteTipo[]).map((tipo) => {
-              const cfg = TIPO_RELATORIO[tipo];
-              return (
-                <button
-                  key={tipo}
-                  type="button"
-                  onClick={() => setTipoSelecionado(tipo)}
-                  className="rounded-xl border bg-card p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <div
-                    className={`inline-flex h-10 w-10 items-center justify-center rounded-lg ${cfg.accent}`}
+        <TabsContent value="gerar" className="mt-6">
+          <DashboardSection
+            eyebrow="Relatórios"
+            accent="purple"
+            title="Gerar por tipo"
+            description="Lote por convênio, judicial, PUC ou particular — ou um paciente específico."
+          >
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {(Object.keys(TIPO_RELATORIO) as PacienteTipo[]).map((tipo) => {
+                const cfg = TIPO_RELATORIO[tipo];
+                const count =
+                  tipo === "particular"
+                    ? stats.particular
+                    : tipo === "convenio"
+                      ? stats.convenio
+                      : tipo === "judicial"
+                        ? stats.judicial
+                        : stats.puc;
+                return (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => setTipoSelecionado(tipo)}
+                    className="rounded-[10px] border border-border bg-background/50 p-5 text-left shadow-[0_1px_2px_rgba(15,75,80,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_14px_rgba(15,75,80,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-cyan-600"
                   >
-                    <cfg.icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="mt-3 font-semibold">{cfg.label}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{cfg.descricao}</p>
-                </button>
-              );
-            })}
-          </div>
+                    <div
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${cfg.accent}`}
+                    >
+                      <cfg.icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="mt-4 font-bold text-cb-ink">{cfg.label}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-cb-muted">{cfg.descricao}</p>
+                    <p className="mt-3 text-sm font-semibold tabular-nums text-cb-cyan-800">
+                      {count} paciente{count !== 1 ? "s" : ""} ativo{count !== 1 ? "s" : ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </DashboardSection>
         </TabsContent>
 
         <TabsContent value="historico" className="mt-6">
-          <RelatoriosHistoricoTab />
+          <DashboardSection
+            eyebrow="Relatórios"
+            accent="cyan"
+            title="Histórico de relatórios"
+            noPadding
+            bodyClassName="p-6"
+          >
+            <RelatoriosHistoricoTab />
+          </DashboardSection>
         </TabsContent>
       </Tabs>
 
       {tipoSelecionado && (
         <GerarRelatorioDialog tipo={tipoSelecionado} onClose={() => setTipoSelecionado(null)} />
       )}
-    </div>
+    </DashboardPage>
   );
 }

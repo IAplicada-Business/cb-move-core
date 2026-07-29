@@ -2,6 +2,11 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, FileText, Search, Users } from "lucide-react";
 
+import {
+  DashboardSection,
+  DashboardSectionBadge,
+  KpiGrid,
+} from "@/components/domain/DashboardSection";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -56,34 +61,34 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
   }, [rows]);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-8">
+      <KpiGrid columns={4}>
         <KpiCard
           label="Pacientes ativos"
           value={kpis.totalPacientes}
           accent="cyan"
-          icon={<Users className="h-4 w-4 text-cb-cyan-600" />}
+          icon={<Users className="h-5 w-5" />}
         />
         <KpiCard
           label="Evoluções registradas"
           value={kpis.totalEvolucoes}
           accent="purple"
-          icon={<ClipboardList className="h-4 w-4 text-cb-purple" />}
+          icon={<ClipboardList className="h-5 w-5" />}
         />
         <KpiCard
           label="Com evolução (30 dias)"
           value={kpis.evolucaoRecente}
           accent="lime"
-          icon={<FileText className="h-4 w-4 text-cb-lime" />}
+          icon={<FileText className="h-5 w-5" />}
           hint={`${kpis.comEvolucao} pacientes com histórico`}
         />
         <KpiCard
           label="Sem relatório gerado"
           value={kpis.semRelatorio}
           accent="orange"
-          icon={<FileText className="h-4 w-4 text-cb-orange" />}
+          icon={<FileText className="h-5 w-5" />}
         />
-      </div>
+      </KpiGrid>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -100,7 +105,13 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
       ) : rows.length === 0 ? (
         <EmptyState title="Nenhum paciente" description="Não há pacientes ativos para exibir." />
       ) : (
-        <div className="rounded-lg border">
+        <DashboardSection
+          eyebrow="Prontuário"
+          accent="purple"
+          title="Visão geral por paciente"
+          badge={<DashboardSectionBadge accent="purple">{rows.length}</DashboardSectionBadge>}
+          noPadding
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -141,7 +152,7 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </DashboardSection>
       )}
     </div>
   );

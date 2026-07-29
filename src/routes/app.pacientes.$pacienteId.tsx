@@ -1,14 +1,24 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, User, ClipboardCheck, FileText, Receipt } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ClipboardCheck, Pencil, Receipt, User } from "lucide-react";
 
 import { LoadingState } from "@/components/domain/LoadingState";
+import { PacienteCadastroDialog } from "@/components/domain/PacienteCadastroDialog";
 import { HistoricoComparecimentoTable } from "@/components/domain/HistoricoComparecimentoTable";
 import { MonthPicker, monthPickerLabel } from "@/components/domain/MonthPicker";
 import { PacienteComparecimentoCard } from "@/components/domain/PacienteComparecimentoCard";
 import { PacienteFinanceiroTab } from "@/components/domain/PacienteFinanceiroTab";
-import { TipoBadge } from "@/components/domain/TipoBadge";
+import {
+  PacienteHero,
+  PacienteInfoField,
+  PacienteInfoGrid,
+} from "@/components/domain/PacienteHero";
+import {
+  DashboardPage,
+  DashboardSection,
+  DashboardSectionBadge,
+} from "@/components/domain/DashboardSection";
 import { queryKeys } from "@/lib/queries";
 import { fetchPaciente } from "@/lib/queries/pacientes";
 import {
@@ -18,8 +28,8 @@ import {
 import { formatPhone } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/pacientes/$pacienteId")({
   head: () => ({
@@ -30,12 +40,15 @@ export const Route = createFileRoute("/app/pacientes/$pacienteId")({
 
 function PacienteDetalhe() {
   const { pacienteId } = Route.useParams();
+  const qc = useQueryClient();
   const { roles, fisioterapeutaId } = useAuth();
   const podeVerFinanceiro = can.viewFinance(roles, fisioterapeutaId);
+  const podeGerirPacientes = can.managePacientes(roles, fisioterapeutaId);
   const now = React.useMemo(() => new Date(), []);
   const [mesSelecionado, setMesSelecionado] = React.useState(now.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = React.useState(now.getFullYear());
   const [activeTab, setActiveTab] = React.useState("dados");
+  const [editOpen, setEditOpen] = React.useState(false);
 
   function selecionarMes(mes: number, ano: number) {
     setMesSelecionado(mes);
@@ -61,130 +74,130 @@ function PacienteDetalhe() {
   });
 
   if (loadPac) return <LoadingState />;
-  if (!paciente) return <div className="p-6 text-muted-foreground">Paciente não encontrado.</div>;
+  if (!paciente) return <div className="text-cb-muted">Paciente não encontrado.</div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link to="/app/pacientes" className="rounded-md p-1.5 hover:bg-accent">
-            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{paciente.nome}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <TipoBadge value={paciente.tipo} />
-              {paciente.convenioNome && (
-                <span className="text-sm text-muted-foreground">{paciente.convenioNome}</span>
-              )}
-            </div>
-          </div>
-        </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/prontuario" search={{ pacienteId }}>
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
-            Abrir prontuário
-          </Link>
-        </Button>
-      </div>
+    <DashboardPage>
+      <PacienteHero
+        pacienteId={pacienteId}
+        nome={paciente.nome}
+        tipo={paciente.tipo}
+        convenioNome={paciente.convenioNome}
+        numeroProcesso={paciente.numeroProcesso}
+        telefone={formatPhone(paciente.telefone)}
+        email={paciente.email}
+        ativo={paciente.ativo}
+        actions={
+          podeGerirPacientes ? (
+            <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Editar
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <PacienteCadastroDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        paciente={paciente}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: queryKeys.pacientes.byId(pacienteId) });
+        }}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dados">
-        <TabsList>
-          <TabsTrigger value="dados">
-            <User className="mr-1.5 h-3.5 w-3.5" />
+        <TabsList className="h-auto flex-wrap gap-1 bg-cb-cyan-050/60 p-1">
+          <TabsTrigger value="dados" className="gap-1.5 data-[state=active]:bg-white">
+            <User className="h-3.5 w-3.5" />
             Dados
           </TabsTrigger>
-          <TabsTrigger value="comparecimento">
-            <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" />
+          <TabsTrigger value="comparecimento" className="gap-1.5 data-[state=active]:bg-white">
+            <ClipboardCheck className="h-3.5 w-3.5" />
             Comparecimento
           </TabsTrigger>
           {podeVerFinanceiro && (
-            <TabsTrigger value="financeiro">
-              <Receipt className="mr-1.5 h-3.5 w-3.5" />
+            <TabsTrigger value="financeiro" className="gap-1.5 data-[state=active]:bg-white">
+              <Receipt className="h-3.5 w-3.5" />
               Financeiro
             </TabsTrigger>
           )}
         </TabsList>
 
         <TabsContent value="dados" className="mt-6">
-          <div className="space-y-4 rounded-xl border bg-card p-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Nome</p>
-                <p className="mt-1 font-medium text-foreground">{paciente.nome}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Tipo</p>
-                <p className="mt-1 capitalize text-foreground">{paciente.tipo}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Telefone</p>
-                <p className="mt-1 text-foreground">{formatPhone(paciente.telefone) || "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">E-mail</p>
-                <p className="mt-1 text-foreground">{paciente.email ?? "—"}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Convênio / processo
-                </p>
-                <p className="mt-1 text-foreground">
-                  {paciente.convenioNome ?? paciente.numeroProcesso ?? "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Frequência</p>
-                <p className="mt-1 text-foreground">{paciente.frequenciaAtendimento ?? "—"}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Dias da semana
-                </p>
-                <p className="mt-1 text-foreground">{paciente.diasSemana ?? "—"}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Motivo do acompanhamento
-                </p>
-                <p className="mt-1 whitespace-pre-wrap text-foreground">
+          <DashboardSection
+            eyebrow="Paciente"
+            accent="cyan"
+            title="Cadastro clínico"
+            description="Informações principais do paciente"
+          >
+            <PacienteInfoGrid>
+              <PacienteInfoField label="Nome">{paciente.nome}</PacienteInfoField>
+              <PacienteInfoField label="Tipo">
+                <span className="capitalize">{paciente.tipo}</span>
+              </PacienteInfoField>
+              <PacienteInfoField label="Telefone">
+                {formatPhone(paciente.telefone) || "—"}
+              </PacienteInfoField>
+              <PacienteInfoField label="E-mail">{paciente.email ?? "—"}</PacienteInfoField>
+              <PacienteInfoField label="Convênio / processo">
+                {paciente.convenioNome ?? paciente.numeroProcesso ?? "—"}
+              </PacienteInfoField>
+              <PacienteInfoField label="Frequência">
+                {paciente.frequenciaAtendimento ?? "—"}
+              </PacienteInfoField>
+              <PacienteInfoField label="Dias da semana" className="sm:col-span-2">
+                {paciente.diasSemana ?? "—"}
+              </PacienteInfoField>
+              <PacienteInfoField label="Motivo do acompanhamento" className="sm:col-span-2">
+                <span className="whitespace-pre-wrap font-normal text-cb-muted">
                   {paciente.motivoAcompanhamento ?? "—"}
-                </p>
-              </div>
-            </div>
-          </div>
+                </span>
+              </PacienteInfoField>
+            </PacienteInfoGrid>
+          </DashboardSection>
         </TabsContent>
 
         <TabsContent value="comparecimento" className="mt-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Comparecimento mensal</h2>
-              <p className="text-sm text-muted-foreground">
-                Selecione o mês para ver frequência prevista × realizadas
-              </p>
-            </div>
-            <MonthPicker mes={mesSelecionado} ano={anoSelecionado} onChange={selecionarMes} />
-          </div>
-
-          {loadComparecimento ? (
-            <LoadingState />
-          ) : comparecimentoAtual ? (
-            <PacienteComparecimentoCard
-              metrica={comparecimentoAtual}
-              mesLabel={monthPickerLabel(mesSelecionado, anoSelecionado)}
-              showHeader={false}
-            />
-          ) : null}
-
-          <div className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Histórico mensal</h2>
-              <p className="text-sm text-muted-foreground">
-                Últimos 12 meses — clique em uma linha para trocar o mês selecionado
-              </p>
-            </div>
-            {loadHistorico ? (
+          <DashboardSection
+            eyebrow="Frequência"
+            accent="lime"
+            title="Comparecimento mensal"
+            badge={
+              <DashboardSectionBadge accent="lime">
+                {monthPickerLabel(mesSelecionado, anoSelecionado)}
+              </DashboardSectionBadge>
+            }
+            description="Frequência prevista × realizadas no mês selecionado"
+            actions={
+              <MonthPicker mes={mesSelecionado} ano={anoSelecionado} onChange={selecionarMes} />
+            }
+            noPadding
+            bodyClassName="p-6"
+          >
+            {loadComparecimento ? (
               <LoadingState />
+            ) : comparecimentoAtual ? (
+              <PacienteComparecimentoCard
+                metrica={comparecimentoAtual}
+                mesLabel={monthPickerLabel(mesSelecionado, anoSelecionado)}
+                showHeader={false}
+              />
+            ) : null}
+          </DashboardSection>
+
+          <DashboardSection
+            eyebrow="Histórico"
+            accent="purple"
+            title="Histórico mensal"
+            description="Últimos 12 meses — clique em uma linha para trocar o mês selecionado"
+            noPadding
+            bodyClassName="overflow-x-auto p-2"
+          >
+            {loadHistorico ? (
+              <div className="p-4">
+                <LoadingState />
+              </div>
             ) : (
               <HistoricoComparecimentoTable
                 historico={historico}
@@ -193,15 +206,24 @@ function PacienteDetalhe() {
                 onSelectMes={selecionarMes}
               />
             )}
-          </div>
+          </DashboardSection>
         </TabsContent>
 
         {podeVerFinanceiro && (
           <TabsContent value="financeiro" className="mt-6">
-            <PacienteFinanceiroTab pacienteId={pacienteId} />
+            <DashboardSection
+              eyebrow="Financeiro"
+              accent="orange"
+              title="Financeiro do paciente"
+              description="Cobranças, notas fiscais e histórico de pagamentos"
+              noPadding
+              bodyClassName="p-6"
+            >
+              <PacienteFinanceiroTab pacienteId={pacienteId} />
+            </DashboardSection>
           </TabsContent>
         )}
       </Tabs>
-    </div>
+    </DashboardPage>
   );
 }

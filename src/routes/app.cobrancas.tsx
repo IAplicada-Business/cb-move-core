@@ -19,6 +19,15 @@ import {
 import { toast } from "sonner";
 
 import { KpiCard } from "@/components/domain/KpiCard";
+import {
+  DashboardPage,
+  DashboardSection,
+  DashboardSectionBadge,
+  KpiGrid,
+} from "@/components/domain/DashboardSection";
+import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
@@ -1206,25 +1215,30 @@ function CobrancasPage() {
   const pacienteSheet = pacientes.find((p) => p.pacienteId === pacienteSheetId);
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Cobranças</h1>
-          <p className="text-sm text-muted-foreground">Gestão de faturamento</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setModalExtrato(true)}>
-            <Upload className="h-4 w-4 mr-1" />
-            Extrato Bradesco
-          </Button>
-          <Button size="sm" onClick={() => setModalNova(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nova cobrança
-          </Button>
-        </div>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[{ label: "Financeiro" }, { label: "Cobranças" }]}
+        title="Cobranças"
+        description="Gestão de faturamento e acompanhamento de pagamentos"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setModalExtrato(true)}>
+              <Upload className="h-4 w-4 mr-1" />
+              Extrato Bradesco
+            </Button>
+            <Button
+              size="sm"
+              className="bg-cb-cyan-600 hover:bg-cb-cyan-700"
+              onClick={() => setModalNova(true)}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Nova cobrança
+            </Button>
+          </>
+        }
+      />
 
-      <div className="rounded-lg border border-cb-cyan-600/20 bg-cb-cyan-50/40 px-4 py-3 text-sm text-foreground">
+      <div className="rounded-[10px] border border-cb-cyan-600/20 bg-cb-cyan-050/50 px-5 py-4 text-sm text-foreground">
         Para depósito, PIX ou alvará: em{" "}
         <Link to="/app/notas-fiscais" className="font-medium text-cb-cyan-800 underline">
           Notas Fiscais
@@ -1240,47 +1254,62 @@ function CobrancasPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <KpiGrid columns={4}>
         <KpiCard
           label="Total do mês"
           value={brl(kpis.total)}
           accent="cyan"
-          icon={<DollarSign className="h-4 w-4 text-cb-cyan-600" />}
+          icon={<DollarSign className="h-5 w-5" />}
           hint={kpiHint}
+          share={100}
         />
         <KpiCard
           label="Pago"
           value={brl(kpis.pago)}
           accent="lime"
-          icon={<CheckCircle2 className="h-4 w-4" style={{ color: "var(--cb-lime)" }} />}
+          icon={<CheckCircle2 className="h-5 w-5" />}
           hint={kpiHint}
+          share={kpis.total > 0 ? (kpis.pago / kpis.total) * 100 : 0}
         />
         <KpiCard
           label="Pendente"
           value={brl(kpis.pendente)}
           accent="orange"
-          icon={<Clock className="h-4 w-4 text-cb-orange" />}
+          icon={<Clock className="h-5 w-5" />}
           hint={kpiHint}
+          share={kpis.total > 0 ? (kpis.pendente / kpis.total) * 100 : 0}
         />
         <KpiCard
           label="Vencido"
           value={brl(kpis.vencido)}
           accent="magenta"
-          icon={<AlertTriangle className="h-4 w-4 text-cb-magenta" />}
+          icon={<AlertTriangle className="h-5 w-5" />}
           hint={kpiHint}
+          share={kpis.total > 0 ? (kpis.vencido / kpis.total) * 100 : 0}
         />
-      </div>
+      </KpiGrid>
 
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      {kpis.total > 0 && (
+        <StatusDistributionBar
+          totalLabel={`Composição · ${kpiHint}`}
+          segments={[
+            { label: "Pago", value: kpis.pago, colorClass: "bg-cb-lime" },
+            { label: "Pendente", value: kpis.pendente, colorClass: "bg-cb-orange" },
+            { label: "Vencido", value: kpis.vencido, colorClass: "bg-cb-magenta" },
+          ]}
+        />
+      )}
+
+      <DataToolbar>
+        <DataToolbarSearch>
+          <Search className="h-4 w-4 shrink-0 text-cb-muted" />
           <Input
             placeholder="Buscar por paciente…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
+            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
           />
-        </div>
+        </DataToolbarSearch>
 
         <Select
           value={filtroComp || FILTRO_TODOS}
@@ -1351,7 +1380,7 @@ function CobrancasPage() {
             Limpar
           </Button>
         )}
-      </div>
+      </DataToolbar>
 
       {query.isLoading ? (
         <LoadingState />
@@ -1373,7 +1402,13 @@ function CobrancasPage() {
           }
         />
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <DashboardSection
+          eyebrow="Financeiro"
+          accent="cyan"
+          title="Cobranças"
+          badge={<DashboardSectionBadge accent="cyan">{kpiHint}</DashboardSectionBadge>}
+          noPadding
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -1398,7 +1433,7 @@ function CobrancasPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </DashboardSection>
       )}
 
       <ModalNovaCobranca open={modalNova} onClose={() => setModalNova(false)} />
@@ -1423,6 +1458,6 @@ function CobrancasPage() {
         onMarcarPago={(c) => setMarcarPago(c)}
         onParcelar={(c) => setParcelando(c)}
       />
-    </div>
+    </DashboardPage>
   );
 }

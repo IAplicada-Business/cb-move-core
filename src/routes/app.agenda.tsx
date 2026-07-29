@@ -4,12 +4,31 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CalendarClock,
+  CheckCircle2,
+  Plus,
+  Search,
+  UserX,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
+import {
+  DashboardPage,
+  DashboardSection,
+  DashboardSectionBadge,
+  DashboardSectionHeader,
+  KpiGrid,
+} from "@/components/domain/DashboardSection";
+import { KpiCard } from "@/components/domain/KpiCard";
+import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
 import { FilterChip } from "@/components/domain/FilterChip";
 import { FisioHorariosDialog } from "@/components/domain/FisioHorariosDialog";
 import { PacientePlanoSessoesCard } from "@/components/domain/PacientePlanoSessoesCard";
@@ -97,6 +116,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
+  blocoDuracaoDefault,
+  duracaoSessaoLabel,
+  horarioSessaoLabel,
+  SESSAO_DURACAO_MIN,
+  sessaoDuracaoOpcoes,
+} from "@/lib/domain/slot-status";
+import {
   formatDateDDMMYY,
   formatDateTimeDDMMYY,
   isoToDDMMYY,
@@ -113,6 +139,8 @@ export const Route = createFileRoute("/app/agenda")({
 const DIAS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DIAS_SEMANA_LABEL = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
 const DIAS_SEMANA = [1, 2, 3, 4, 5];
+const HOURS: number[] = [];
+for (let h = 8; h <= 20; h++) HOURS.push(h);
 const FILTRO_TODOS = "todos";
 const MESES = [
   "Janeiro",
@@ -158,9 +186,6 @@ const STATUS_EDITAVEIS: StatusAgendamento[] = [
   "ferias",
   "horario_extra",
 ];
-
-const HOURS: number[] = [];
-for (let h = 8; h <= 20; h++) HOURS.push(h);
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -401,7 +426,7 @@ function AgendaSlot({
     <>
       <span className="block truncate font-bold">{shortName(ag.pacientes?.nome ?? "—")}</span>
       <span className="block truncate opacity-80">
-        {fisio} · {ag.duracao_min}min
+        {fisio} · {duracaoSessaoLabel(ag.duracao_min)}
       </span>
     </>
   );
@@ -559,7 +584,7 @@ function AgendaPage() {
       fisioId: "",
       data: formatDateDDMMYY(today),
       horaInicio: "08:00",
-      duracao: 50,
+      duracao: blocoDuracaoDefault("08:00"),
       servico: "Fisioterapia neurológica",
       statusSlot: "agendado",
       agendarSerieMesmoDia: false,
@@ -599,6 +624,12 @@ function AgendaPage() {
   const horaInicioWatch = form.watch("horaInicio");
   const duracaoWatch = form.watch("duracao");
 
+  useEffect(() => {
+    if (!modalOpen || isMarcacaoSlot) return;
+    if (!/^\d{2}:\d{2}$/.test(horaInicioWatch)) return;
+    form.setValue("duracao", blocoDuracaoDefault(horaInicioWatch), { shouldValidate: true });
+  }, [horaInicioWatch, modalOpen, isMarcacaoSlot, form]);
+
   const propostasSeriePlano = useMemo(() => {
     if (!planoNovoAg || planoNovoAg.faltantes <= 0) return [];
     const iso = parseDDMMYYToISO(dataWatch);
@@ -618,7 +649,7 @@ function AgendaPage() {
     return montarPropostasAgendamento({
       slots,
       horaBase: horaInicioWatch || "08:00",
-      duracaoMin: duracaoWatch || 50,
+      duracaoMin: duracaoWatch || SESSAO_DURACAO_MIN,
     });
   }, [planoNovoAg, dataWatch, horaInicioWatch, duracaoWatch]);
 
@@ -717,7 +748,7 @@ function AgendaPage() {
         fisioId: "",
         data: formatDateDDMMYY(today),
         horaInicio: "08:00",
-        duracao: 50,
+        duracao: blocoDuracaoDefault("08:00"),
         servico: "Fisioterapia neurológica",
         statusSlot: "agendado",
         agendarSerieMesmoDia: false,
@@ -830,6 +861,18 @@ function AgendaPage() {
     [agendamentos, filterFisio, filterTipo, buscaGrade, fisioScopeId],
   );
 
+  const agendaStats = useMemo(() => {
+    const paraStats = filtered.filter((a) => !STATUS_SLOT.includes(a.status));
+    return {
+      total: paraStats.length,
+      confirmados: paraStats.filter((a) => a.status === "confirmado").length,
+      realizados: paraStats.filter((a) => a.status === "realizado").length,
+      faltos: paraStats.filter((a) => a.status === "faltou").length,
+      cancelados: paraStats.filter((a) => a.status === "cancelado").length,
+      agendados: paraStats.filter((a) => a.status === "agendado").length,
+    };
+  }, [filtered]);
+
   function labelHistorico(item: HistoricoRow) {
     const siglaAnterior = parseSiglaHistorico(item.status_anterior);
     const siglaNova = parseSiglaHistorico(item.status_novo);
@@ -926,7 +969,7 @@ function AgendaPage() {
       fisioId: fisioId ?? (filterFisio !== FILTRO_TODOS ? filterFisio : ""),
       data: formatDateDDMMYY(day),
       horaInicio,
-      duracao: 50,
+      duracao: blocoDuracaoDefault(horaInicio),
       servico: "Fisioterapia neurológica",
       statusSlot: "agendado",
       agendarSerieMesmoDia: false,
@@ -987,48 +1030,110 @@ function AgendaPage() {
   const navLabelNext = visao === "mes" || visao === "frequencia" ? "Próx. mês" : "Próx. semana";
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Operação <span className="opacity-50">›</span>{" "}
-            {visao === "frequencia" ? "Frequência" : "Agenda"}
-          </p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{headerTitle}</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={navBack}>
-            <ChevronLeft className="h-4 w-4" />
-            {navLabelPrev}
-          </Button>
-          <Button variant="outline" size="sm" onClick={navForward}>
-            {navLabelNext}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          {podeGerir && (
-            <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
-              Horários / Indisponibilidade
+    <DashboardPage>
+      <PageHeader
+        crumbs={[
+          { label: "Operação" },
+          { label: visao === "frequencia" ? "Frequência" : "Agenda" },
+        ]}
+        title={headerTitle}
+        description={
+          visao === "frequencia"
+            ? "Controle de frequência mensal por paciente"
+            : "Planejamento semanal, grade diária e visão mensal"
+        }
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={navBack}>
+              <ChevronLeft className="h-4 w-4" />
+              {navLabelPrev}
             </Button>
-          )}
-          {podeGerir && visao !== "frequencia" && (
-            <Button onClick={() => setModalOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" /> Novo agendamento
+            <Button variant="outline" size="sm" onClick={navForward}>
+              {navLabelNext}
+              <ChevronRight className="h-4 w-4" />
             </Button>
-          )}
-        </div>
-      </div>
+            {podeGerir && (
+              <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
+                Horários
+              </Button>
+            )}
+            {podeGerir && visao !== "frequencia" && (
+              <Button
+                onClick={() => setModalOpen(true)}
+                className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700"
+              >
+                <Plus className="h-4 w-4" /> Novo agendamento
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2.5 rounded-xl border bg-card px-4 py-3">
+      {visao !== "frequencia" && (
+        <>
+          <KpiGrid columns={4}>
+            <KpiCard
+              label="No período"
+              value={agendaStats.total}
+              accent="cyan"
+              icon={<CalendarClock className="h-5 w-5" />}
+            />
+            <KpiCard
+              label="Confirmados"
+              value={agendaStats.confirmados}
+              accent="lime"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              share={
+                agendaStats.total > 0 ? (agendaStats.confirmados / agendaStats.total) * 100 : 0
+              }
+            />
+            <KpiCard
+              label="Realizados"
+              value={agendaStats.realizados}
+              accent="purple"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              share={agendaStats.total > 0 ? (agendaStats.realizados / agendaStats.total) * 100 : 0}
+            />
+            <KpiCard
+              label="Faltos"
+              value={agendaStats.faltos}
+              accent="orange"
+              icon={<UserX className="h-5 w-5" />}
+              share={agendaStats.total > 0 ? (agendaStats.faltos / agendaStats.total) * 100 : 0}
+            />
+          </KpiGrid>
+
+          {agendaStats.total > 0 && (
+            <StatusDistributionBar
+              totalLabel="Status no período"
+              formatValue={(n) => String(n)}
+              segments={[
+                { label: "Agendado", value: agendaStats.agendados, colorClass: "bg-cb-orange" },
+                { label: "Confirmado", value: agendaStats.confirmados, colorClass: "bg-cb-lime" },
+                { label: "Realizado", value: agendaStats.realizados, colorClass: "bg-cb-purple" },
+                { label: "Faltou", value: agendaStats.faltos, colorClass: "bg-cb-magenta" },
+                {
+                  label: "Cancelado",
+                  value: agendaStats.cancelados,
+                  colorClass: "bg-muted-foreground/40",
+                },
+              ]}
+            />
+          )}
+        </>
+      )}
+
+      <DataToolbar>
         {visao === "semana" && (
-          <div className="relative min-w-[220px] flex-1 max-w-sm">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <DataToolbarSearch>
+            <Search className="h-4 w-4 shrink-0 text-cb-muted" />
             <Input
               value={buscaGrade}
               onChange={(e) => setBuscaGrade(e.target.value)}
               placeholder="Buscar paciente ou fisioterapeuta"
-              className="h-9 pl-8"
+              className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
             />
-          </div>
+          </DataToolbarSearch>
         )}
         {!isFisioScoped && (
           <FilterChip
@@ -1047,7 +1152,7 @@ function AgendaPage() {
         {visao === "semana" && (
           <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
             {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""} · {BLOCOS_COUNT}{" "}
-            blocos · {INTERVALOS_COUNT} intervalos
+            blocos · {INTERVALOS_COUNT} intervalos · sessão {duracaoSessaoLabel(SESSAO_DURACAO_MIN)}
           </p>
         )}
         <div className={visao === "semana" ? "" : "ml-auto"}>
@@ -1058,7 +1163,7 @@ function AgendaPage() {
             onChange={(v) => setVisao(v as VisaoAgenda)}
           />
         </div>
-      </div>
+      </DataToolbar>
 
       {isLoading && visao !== "frequencia" ? (
         <LoadingState />
@@ -1071,129 +1176,146 @@ function AgendaPage() {
           filtroTodos={FILTRO_TODOS}
         />
       ) : visao === "semana" ? (
-        <div className="space-y-3">
-          <div className="flex flex-wrap gap-1 border-b border-border">
-            {weekDays.map((day, i) => (
-              <button
-                key={toDateStr(day)}
-                type="button"
-                onClick={() => setDiaSemanaIdx(i)}
-                className={cn(
-                  "min-w-[108px] px-3 py-2.5 text-center transition-colors",
-                  diaSemanaIdx === i
-                    ? "border-b-2 border-cb-cyan-600 text-foreground"
-                    : "border-b-2 border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <span className="block text-[11px] font-bold uppercase tracking-wide">
-                  {DIAS_SEMANA_LABEL[i]}
-                </span>
-                <span className="block text-xs font-semibold tabular-nums">
-                  {formatDateDDMMYY(day)}
-                </span>
-              </button>
-            ))}
-          </div>
+        <DashboardSection
+          eyebrow="Grade"
+          accent="cyan"
+          title="Semana padrão"
+          noPadding
+          bodyClassName="space-y-4 p-4"
+        >
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5 rounded-[10px] border border-border bg-muted/30 p-1.5">
+              {weekDays.map((day, i) => (
+                <button
+                  key={toDateStr(day)}
+                  type="button"
+                  onClick={() => setDiaSemanaIdx(i)}
+                  className={cn(
+                    "min-w-[108px] rounded-lg px-3 py-2.5 text-center transition-all",
+                    diaSemanaIdx === i
+                      ? "bg-card text-cb-ink shadow-sm ring-1 ring-cb-cyan-100"
+                      : "text-cb-muted hover:bg-card/70 hover:text-cb-ink",
+                  )}
+                >
+                  <span className="block text-[11px] font-bold uppercase tracking-wide">
+                    {DIAS_SEMANA_LABEL[i]}
+                  </span>
+                  <span className="block text-xs font-semibold tabular-nums">
+                    {formatDateDDMMYY(day)}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          {fisiosVisiveis.length === 0 ? (
-            <EmptyState
-              title="Nenhum fisioterapeuta ativo"
-              description="Cadastre fisioterapeutas em Equipe para montar a grade da agenda."
-            />
-          ) : (
-            <SemanaPadraoGridShell
-              fisios={fisiosVisiveis}
-              fisioHeaders={fisiosVisiveis.map((f) => fisioColHeader(f.nome, fisiosNomes))}
-              day={diaSelecionado}
-              diaSemana={diaSemanaIdx + 1}
-              disponibilidade={disponibilidade}
-              indisponibilidades={indisponibilidades}
-              getAgendamentos={(fisioId, blocoInicio, blocoFim) =>
-                filtered.filter(
-                  (a) =>
-                    a.fisioterapeuta_id === fisioId &&
-                    toDateStr(new Date(a.inicio)) === dataSelecionada &&
-                    agendamentoNoBloco(a.inicio, blocoInicio, blocoFim),
-                )
-              }
-              onSlotClick={(id) => {
-                const ag = filtered.find((a) => a.id === id);
-                if (ag) setSelectedAgend(ag);
-              }}
-              onEmptyClick={(fisioId, horaInicio) =>
-                abrirNovoSlot(diaSelecionado, horaInicio, fisioId)
-              }
-              podeGerir={podeGerir}
-            />
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <SlotStatusLegend />
-            {fisiosVisiveis.length > 6 && (
-              <p className="text-[11px] text-muted-foreground">
-                → role pra ver os {fisiosVisiveis.length} fisioterapeutas
-              </p>
+            {fisiosVisiveis.length === 0 ? (
+              <EmptyState
+                title="Nenhum fisioterapeuta ativo"
+                description="Cadastre fisioterapeutas em Equipe para montar a grade da agenda."
+              />
+            ) : (
+              <SemanaPadraoGridShell
+                fisios={fisiosVisiveis}
+                fisioHeaders={fisiosVisiveis.map((f) => fisioColHeader(f.nome, fisiosNomes))}
+                day={diaSelecionado}
+                diaSemana={diaSemanaIdx + 1}
+                disponibilidade={disponibilidade}
+                indisponibilidades={indisponibilidades}
+                getAgendamentos={(fisioId, blocoInicio, blocoFim) =>
+                  filtered.filter(
+                    (a) =>
+                      a.fisioterapeuta_id === fisioId &&
+                      toDateStr(new Date(a.inicio)) === dataSelecionada &&
+                      agendamentoNoBloco(a.inicio, blocoInicio, blocoFim),
+                  )
+                }
+                onSlotClick={(id) => {
+                  const ag = filtered.find((a) => a.id === id);
+                  if (ag) setSelectedAgend(ag);
+                }}
+                onEmptyClick={(fisioId, horaInicio) =>
+                  abrirNovoSlot(diaSelecionado, horaInicio, fisioId)
+                }
+                podeGerir={podeGerir}
+              />
             )}
-          </div>
 
-          <section className="space-y-2">
-            {podeGerir && (
-              <div className="rounded-xl border bg-card p-4 space-y-3">
-                <div>
-                  <Label htmlFor="aviso-dia" className="text-sm font-semibold">
-                    Avisos do dia
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {DIAS_SEMANA_LABEL[diaSemanaIdx]} {formatDateDDMMYY(diaSelecionado)} — um aviso
-                    por linha
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <SlotStatusLegend />
+              {fisiosVisiveis.length > 6 && (
+                <p className="text-[11px] text-muted-foreground">
+                  → role pra ver os {fisiosVisiveis.length} fisioterapeutas
+                </p>
+              )}
+            </div>
+
+            <section className="space-y-3">
+              {podeGerir && (
+                <div className="overflow-hidden rounded-[10px] border border-cb-orange/35 bg-card shadow-[0_1px_2px_rgba(245,138,31,0.1)]">
+                  <DashboardSectionHeader
+                    eyebrow="Agenda"
+                    accent="orange"
+                    title="Avisos do dia"
+                    description={`${DIAS_SEMANA_LABEL[diaSemanaIdx]} ${formatDateDDMMYY(diaSelecionado)} — um aviso por linha`}
+                  />
+                  <div className="space-y-3 border-t border-cb-orange/15 bg-[#FFFBEB]/40 p-5">
+                    <Textarea
+                      id="aviso-dia"
+                      value={avisoDraft}
+                      onChange={(e) => setAvisoDraft(e.target.value)}
+                      placeholder={"Ex.: Dani não virá hoje\nHelena não fará às 14h"}
+                      rows={3}
+                      className="resize-y border-cb-orange/30 bg-background text-sm text-cb-ink placeholder:text-cb-muted focus-visible:ring-cb-orange/40"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-cb-orange text-white hover:bg-cb-orange/90 disabled:opacity-50"
+                        disabled={avisoMutation.isPending || avisoDraft === avisoSalvo}
+                        onClick={() => avisoMutation.mutate()}
+                      >
+                        {avisoMutation.isPending ? "Salvando…" : "Salvar avisos"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(avisoSalvo || (podeGerir && avisoDraft.trim())) && (
+                <div className="overflow-hidden rounded-[10px] border border-cb-orange/40 shadow-[0_1px_2px_rgba(245,138,31,0.08)]">
+                  <div className="border-b border-cb-orange/20 bg-gradient-to-r from-[#FFF7ED] via-[#FFF7ED]/80 to-[#FFFBEB]/40 px-5 py-3">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-cb-orange">
+                      Publicado
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold text-cb-ink">Avisos do dia</p>
+                  </div>
+                  <p className="px-5 py-4 text-sm leading-relaxed text-cb-ink whitespace-pre-wrap">
+                    {formatAvisoDisplay(podeGerir ? avisoDraft : avisoSalvo) || "—"}
                   </p>
                 </div>
-                <Textarea
-                  id="aviso-dia"
-                  value={avisoDraft}
-                  onChange={(e) => setAvisoDraft(e.target.value)}
-                  placeholder={"Ex.: Dani não virá hoje\nHelena não fará às 14h"}
-                  rows={3}
-                  className="resize-y text-sm"
-                />
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={avisoMutation.isPending || avisoDraft === avisoSalvo}
-                    onClick={() => avisoMutation.mutate()}
-                  >
-                    {avisoMutation.isPending ? "Salvando…" : "Salvar avisos"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {(avisoSalvo || (podeGerir && avisoDraft.trim())) && (
-              <div className="rounded-lg border border-cb-orange/25 bg-[#FFF7ED] px-4 py-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-cb-orange mb-1.5">
-                  Avisos do dia
-                </p>
-                <p className="text-sm text-foreground/90 leading-relaxed">
-                  {formatAvisoDisplay(podeGerir ? avisoDraft : avisoSalvo) || "—"}
-                </p>
-              </div>
-            )}
-          </section>
-        </div>
+              )}
+            </section>
+          </div>
+        </DashboardSection>
       ) : visao === "dia" ? (
-        <div className="space-y-3">
-          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        <DashboardSection
+          eyebrow="Horários"
+          accent="lime"
+          title="Grade Seg–Sex"
+          description="Horários por dia — clique em slot vazio para agendar"
+          noPadding
+          bodyClassName="p-4 space-y-3"
+        >
+          <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-[0_1px_2px_rgba(15,75,80,0.06)]">
             <div
               className="grid min-w-[720px] gap-px bg-border"
-              style={{ gridTemplateColumns: "60px repeat(5, minmax(0, 1fr))" }}
+              style={{ gridTemplateColumns: "64px repeat(5, minmax(0, 1fr))" }}
             >
-              <div className="bg-cb-cyan-050 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground" />
+              <div className="bg-cb-cyan-050 px-2 py-3.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-cb-muted" />
               {weekDays.map((day, i) => (
                 <div
                   key={toDateStr(day)}
-                  className="bg-cb-cyan-050 px-2 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+                  className="bg-cb-cyan-050 px-2 py-3.5 text-center text-[11px] font-bold uppercase tracking-wide text-cb-ink"
                 >
                   {DIAS_PT[day.getDay()]} {day.getDate()}
                   <span className="sr-only"> {DIAS_SEMANA_LABEL[i]}</span>
@@ -1202,7 +1324,7 @@ function AgendaPage() {
 
               {HOURS.map((hour) => (
                 <Fragment key={hour}>
-                  <div className="bg-muted/50 px-2 py-2 text-right text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  <div className="bg-background px-2 py-2 text-right text-[11px] font-semibold tabular-nums text-cb-muted">
                     {String(hour).padStart(2, "0")}:00
                   </div>
                   {weekDays.map((day) => {
@@ -1212,7 +1334,9 @@ function AgendaPage() {
                         key={`${toDateStr(day)}-${hour}`}
                         className={cn(
                           "min-h-[60px] space-y-1 bg-card p-1.5",
-                          podeGerir && items.length === 0 && "cursor-pointer hover:bg-muted/30",
+                          podeGerir &&
+                            items.length === 0 &&
+                            "cursor-pointer hover:bg-cb-cyan-050/40",
                         )}
                         onClick={() => {
                           if (!podeGerir || items.length > 0) return;
@@ -1230,7 +1354,7 @@ function AgendaPage() {
             </div>
           </div>
           <TipoLegend />
-        </div>
+        </DashboardSection>
       ) : filtered.length === 0 ? (
         <EmptyState
           title="Mês sem agendamentos"
@@ -1247,45 +1371,59 @@ function AgendaPage() {
             const weekHasItems = week.days.some((d) => agendamentosNoDia(d).length > 0);
             if (!weekHasItems) return null;
             return (
-              <section key={week.label} className="space-y-3">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                  {week.label}
-                </h2>
-                {week.days.map((day) => {
-                  const items = agendamentosNoDia(day);
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={toDateStr(day)} className="rounded-xl border bg-card overflow-hidden">
-                      <header className="border-b bg-muted/30 px-4 py-2.5">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {day.toLocaleDateString("pt-BR", {
-                            weekday: "long",
-                            day: "2-digit",
-                            month: "short",
-                          })}
-                        </h3>
-                      </header>
-                      <ul className="divide-y">
-                        {items.map((a) => (
-                          <li
-                            key={a.id}
-                            className="flex cursor-pointer items-center gap-4 px-4 py-3 hover:bg-muted/40"
-                            onClick={() => setSelectedAgend(a)}
-                          >
-                            <span className="w-14 shrink-0 font-mono text-sm font-semibold text-muted-foreground">
-                              {formatHHMM(new Date(a.inicio))}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <AgendaSlot ag={a} interactive={false} className="max-w-md" />
-                            </div>
-                            <StatusBadge kind="agenda" value={a.status} />
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </section>
+              <DashboardSection
+                key={week.label}
+                eyebrow="Semana"
+                accent="cyan"
+                title={week.label}
+                noPadding
+                bodyClassName="p-4"
+              >
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {week.days.map((day) => {
+                    const items = agendamentosNoDia(day);
+                    if (items.length === 0) return null;
+                    return (
+                      <div
+                        key={toDateStr(day)}
+                        className="overflow-hidden rounded-[10px] border border-border bg-background/40"
+                      >
+                        <header className="border-b border-border bg-cb-cyan-050/60 px-4 py-3">
+                          <h3 className="text-sm font-bold capitalize text-cb-ink">
+                            {day.toLocaleDateString("pt-BR", {
+                              weekday: "long",
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                          </h3>
+                        </header>
+                        <ul className="divide-y divide-border">
+                          {items.map((a) => (
+                            <li
+                              key={a.id}
+                              className="flex cursor-pointer items-center gap-4 px-4 py-3.5 transition-colors hover:bg-cb-cyan-050/50"
+                              onClick={() => setSelectedAgend(a)}
+                            >
+                              <div className="grid min-h-[52px] min-w-[52px] shrink-0 place-items-center rounded-xl bg-cb-cyan-050 px-1 py-1.5 text-center ring-1 ring-cb-cyan-100">
+                                <span className="block text-[10px] font-bold tabular-nums text-cb-cyan-800">
+                                  {formatHHMM(new Date(a.inicio))}
+                                </span>
+                                <span className="block text-[9px] font-medium text-cb-muted">
+                                  {duracaoSessaoLabel(a.duracao_min)}
+                                </span>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <AgendaSlot ag={a} interactive={false} className="max-w-md" />
+                              </div>
+                              <StatusBadge kind="agenda" value={a.status} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              </DashboardSection>
             );
           })}
         </div>
@@ -1356,9 +1494,10 @@ function AgendaPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Horário</p>
                     <p className="font-medium">
+                      {horarioSessaoLabel(selectedAgend.inicio, selectedAgend.duracao_min)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {formatDateTimeDDMMYY(selectedAgend.inicio)}
-                      {" · "}
-                      {selectedAgend.duracao_min}min
                     </p>
                   </div>
                   <div>
@@ -1784,9 +1923,11 @@ function AgendaPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {[30, 45, 50, 60, 90].map((d) => (
+                        {sessaoDuracaoOpcoes(field.value).map((d) => (
                           <SelectItem key={d} value={String(d)}>
-                            {d} min
+                            {d === SESSAO_DURACAO_MIN
+                              ? `${duracaoSessaoLabel(d)} — sessão padrão`
+                              : `${duracaoSessaoLabel(d)} (${d} min)`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1834,6 +1975,6 @@ function AgendaPage() {
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardPage>
   );
 }

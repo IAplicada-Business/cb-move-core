@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, FileText, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
+import { DashboardSection, DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { monthPickerLabel } from "@/components/domain/MonthPicker";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -263,7 +264,19 @@ export function ProntuarioDocumentosTab({
           />
         )
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <DashboardSection
+          eyebrow="Prontuário"
+          accent="cyan"
+          title="Relatórios digitais"
+          badge={
+            relatoriosDigitais.length > 0 ? (
+              <DashboardSectionBadge accent="cyan">
+                {relatoriosDigitais.length}
+              </DashboardSectionBadge>
+            ) : undefined
+          }
+          noPadding
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -353,7 +366,7 @@ export function ProntuarioDocumentosTab({
               )}
             </TableBody>
           </Table>
-        </div>
+        </DashboardSection>
       )}
 
       <AlertDialog

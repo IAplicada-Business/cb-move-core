@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,8 +27,14 @@ import { initials } from "@/lib/format";
 import { ROLE_LABELS } from "@/lib/permissions";
 import { useMenuAccess } from "@/lib/hooks/use-menu-access";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
-export function Topbar() {
+type SidebarUserFooterProps = {
+  className?: string;
+  compact?: boolean;
+};
+
+export function SidebarUserFooter({ className, compact }: SidebarUserFooterProps) {
   const { user, signOut } = useAuth();
   const { primary } = useMenuAccess();
   const navigate = useNavigate();
@@ -72,43 +77,44 @@ export function Topbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-2">
-          <SidebarTrigger />
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-accent"
-            >
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">
-                {initials(userName)}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-cb-cyan-050/80",
+              className,
+            )}
+          >
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">
+              {initials(userName)}
+            </div>
+            {!compact && (
+              <div className="min-w-0 flex-1 leading-tight group-data-[collapsible=icon]:hidden">
+                <div className="truncate text-[13px] font-semibold text-cb-ink">{userName}</div>
+                <div className="truncate text-[10.5px] uppercase tracking-wide text-cb-muted">
+                  {userRole}
+                </div>
               </div>
-              <div className="hidden min-w-0 text-left leading-tight sm:block">
-                <div className="truncate text-sm font-semibold text-foreground">{userName}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{userRole}</div>
-              </div>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={openEdit}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar nome de exibição
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => signOut().then(() => navigate({ to: "/login" }))}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" side="top" className="w-56">
+          <DropdownMenuLabel className="truncate">{user?.email}</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={openEdit}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar nome de exibição
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => signOut().then(() => navigate({ to: "/login" }))}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-sm">

@@ -5,6 +5,7 @@ import type { AppRole } from "./types";
 import { resolvePostAuthPath } from "./auth-routes";
 import { mustResetPassword, type PostAuthPath } from "./password-reset";
 import { isCliente, isStaff } from "./permissions";
+import { syncAccessContext, invalidateAccessContext } from "./access-context";
 import { diag } from "./client-diagnostics";
 import { withTimeout } from "./edge-functions";
 
@@ -22,6 +23,8 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<PostAuthPath>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Recarrega papéis/perfil do usuário logado (menu + guards). */
+  refreshRoles: () => Promise<void>;
 };
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -35,13 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
   const rolesUserIdRef = React.useRef<string | null>(null);
   const rolesLoadingUserIdRef = React.useRef<string | null>(null);
+  const loadRolesEpochRef = React.useRef(0);
 
-  async function loadRoles(userId: string) {
-    if (rolesUserIdRef.current === userId) return;
-    if (rolesLoadingUserIdRef.current === userId) return;
+  async function loadRoles(userId: string, options?: { force?: boolean }) {
+    if (options?.force) {
+      invalidateAccessContext();
+    } else if (rolesUserIdRef.current === userId) {
+      return;
+    }
 
+    if (!options?.force && rolesLoadingUserIdRef.current === userId) {
+      return;
+    }
+
+    const epoch = ++loadRolesEpochRef.current;
     rolesLoadingUserIdRef.current = userId;
-    diag.info("auth", "carregando papéis", { userId });
+    diag.info("auth", "carregando papéis", { userId, force: Boolean(options?.force) });
 
     try {
       const [rolesResult, profileResult, pacResult] = await withTimeout(
@@ -53,8 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         LOAD_ROLES_TIMEOUT_MS,
       );
 
+      if (epoch !== loadRolesEpochRef.current) return;
+
       if (rolesResult.error) {
         diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
+        return;
       }
       if (profileResult.error) {
         diag.error("auth", "falha ao buscar profile", profileResult.error);
@@ -64,30 +79,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
-      setRoles(fetchedRoles);
-      setFisioterapeutaId(
-        (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ??
-          null,
-      );
+      const fetchedFisioId = profileResult.error
+        ? fisioterapeutaId
+        : ((profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ??
+          null);
 
-      const pacId = (pacResult.data as { id: string } | null)?.id ?? null;
-      setPacienteId(pacId);
+      setRoles(fetchedRoles);
+      if (!profileResult.error) {
+        setFisioterapeutaId(fetchedFisioId);
+      }
+
+      const pacId = pacResult.error
+        ? pacienteId
+        : ((pacResult.data as { id: string } | null)?.id ?? null);
+      if (!pacResult.error) {
+        setPacienteId(pacId);
+      }
       setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
       rolesUserIdRef.current = userId;
+      syncAccessContext({
+        roles: fetchedRoles,
+        fisioterapeutaId: fetchedFisioId,
+      });
 
       diag.info("auth", "papéis carregados", {
         userId,
         roles: fetchedRoles,
-        fisioterapeutaId:
-          (profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ??
-          null,
+        fisioterapeutaId: fetchedFisioId,
         pacienteId: pacId,
         isPaciente: isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)),
       });
     } catch (error) {
       diag.error("auth", "loadRoles falhou ou expirou", error);
     } finally {
-      if (rolesLoadingUserIdRef.current === userId) {
+      if (rolesLoadingUserIdRef.current === userId && epoch === loadRolesEpochRef.current) {
         rolesLoadingUserIdRef.current = null;
       }
     }
@@ -100,6 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsPaciente(false);
     rolesUserIdRef.current = null;
     rolesLoadingUserIdRef.current = null;
+    loadRolesEpochRef.current += 1;
+    syncAccessContext(null);
   }
 
   async function applySession(
@@ -184,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(data.session);
         if (data.session?.user) {
-          void loadRoles(data.session.user.id);
+          await loadRoles(data.session.user.id);
         } else {
           await clearRoles();
         }
@@ -200,13 +227,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
 
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        diag.info("auth", "aba visível — revalidando sessão");
-        void supabase.auth.getSession().then(({ data, error }) => {
-          if (error) diag.error("auth", "getSession ao voltar à aba falhou", error);
-          else diag.info("auth", "sessão revalidada", { hasSession: Boolean(data.session) });
-        });
-      }
+      if (document.visibilityState !== "visible") return;
+      diag.info("auth", "aba visível — revalidando sessão e papéis");
+      void supabase.auth.getSession().then(({ data, error }) => {
+        if (error) {
+          diag.error("auth", "getSession ao voltar à aba falhou", error);
+          return;
+        }
+        diag.info("auth", "sessão revalidada", { hasSession: Boolean(data.session) });
+        if (data.session?.user) {
+          void loadRoles(data.session.user.id, { force: true });
+        }
+      });
     };
     document.addEventListener("visibilitychange", onVisible);
 
@@ -218,6 +250,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const refreshRoles = React.useCallback(async () => {
+    const uid = session?.user?.id;
+    if (!uid) return;
+    await loadRoles(uid, { force: true });
+  }, [session?.user?.id]);
+
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
@@ -226,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     pacienteId,
     isPaciente,
+    refreshRoles,
     signIn: async (email, password) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;

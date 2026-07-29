@@ -19,7 +19,7 @@ export type SendBoletoCobrancaResult = {
 
 export class CoraNaoConfiguradaError extends Error {
   constructor(
-    message = "Integração Cora não configurada. Configure CORA_CLIENT_ID + certificado/chave em Integrações (ou aguarde a IAplicada aplicar as credenciais).",
+    message = "Integração Cora não configurada. Aguarde a IAplicada aplicar CORA_CLIENT_ID + certificado/chave no servidor.",
   ) {
     super(message);
     this.name = "CoraNaoConfiguradaError";
@@ -28,7 +28,7 @@ export class CoraNaoConfiguradaError extends Error {
 
 export class BoletoEnvioNaoConfiguradoError extends Error {
   constructor(
-    message = "Automação de envio não configurada. Configure N8N_WEBHOOK_BOLETO_DOCS em Integrações quando o workflow n8n estiver pronto.",
+    message = "Automação de envio não configurada. Aguarde a configuração de N8N_WEBHOOK_BOLETO_DOCS no servidor.",
   ) {
     super(message);
     this.name = "BoletoEnvioNaoConfiguradoError";

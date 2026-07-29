@@ -1,3 +1,4 @@
+import { DashboardSection } from "@/components/domain/DashboardSection";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { ProntuarioSessoesTab } from "@/components/domain/prontuario/ProntuarioSessoesTab";
@@ -27,52 +28,53 @@ export function ProntuarioHistoricoStatusTab({
 }: Props) {
   return (
     <div className="space-y-8">
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-base font-semibold">Histórico de status</h2>
-          <p className="text-xs text-muted-foreground">
-            Alterações de cadastro e situação do paciente
-          </p>
-        </div>
-
+      <DashboardSection
+        eyebrow="Prontuário"
+        accent="orange"
+        title="Histórico de status"
+        description="Alterações de cadastro e situação do paciente"
+        noPadding
+      >
         {loadingHistorico ? (
-          <LoadingState />
-        ) : historico.length === 0 ? (
-          <EmptyState
-            title="Sem alterações registradas"
-            description="Mudanças de status e campos do cadastro aparecerão aqui."
-          />
-        ) : (
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Campo</TableHead>
-                  <TableHead>De</TableHead>
-                  <TableHead>Para</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {historico.map((h) => (
-                  <TableRow key={h.id}>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">
-                      {formatDate(h.alterado_em)}
-                    </TableCell>
-                    <TableCell className="font-medium capitalize">
-                      {h.campo.replace(/_/g, " ")}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {h.valor_anterior ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">{h.valor_novo ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="p-6">
+            <LoadingState />
           </div>
+        ) : historico.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              title="Sem alterações registradas"
+              description="Mudanças de status e campos do cadastro aparecerão aqui."
+            />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Campo</TableHead>
+                <TableHead>De</TableHead>
+                <TableHead>Para</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {historico.map((h) => (
+                <TableRow key={h.id}>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">
+                    {formatDate(h.alterado_em)}
+                  </TableCell>
+                  <TableCell className="font-medium capitalize">
+                    {h.campo.replace(/_/g, " ")}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {h.valor_anterior ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-sm">{h.valor_novo ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </DashboardSection>
 
       <ProntuarioSessoesTab sessoes={sessoes} loading={loadingSessoes} />
     </div>

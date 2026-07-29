@@ -39,6 +39,9 @@ export type NotaFiscal = {
   competenciaAno: number | null;
   status: NfStatus;
   pdfUrl: string | null;
+  emitidaEm: string | null;
+  fiscalProvider: string | null;
+  updatedAt: string;
   createdAt: string;
 };
 
@@ -62,6 +65,9 @@ type Row = {
   competencia_ano: number | null;
   status: NfStatus;
   pdf_url: string | null;
+  emitida_em: string | null;
+  fiscal_provider: string | null;
+  updated_at: string;
   created_at: string;
   pacientes?: { nome: string; cpf: string | null; telefone: string | null } | null;
 };
@@ -89,6 +95,9 @@ const map = (r: Row): NotaFiscal => ({
   competenciaAno: r.competencia_ano,
   status: r.status,
   pdfUrl: r.pdf_url,
+  emitidaEm: r.emitida_em,
+  fiscalProvider: r.fiscal_provider,
+  updatedAt: r.updated_at,
   createdAt: r.created_at,
 });
 

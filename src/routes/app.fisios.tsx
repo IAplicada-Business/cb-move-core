@@ -4,13 +4,22 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MoreHorizontal, Plus, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { assertFisiosAccess } from "@/lib/route-access";
 
 import { EmptyState } from "@/components/domain/EmptyState";
+import { FisioCardGrid } from "@/components/domain/FisioCardGrid";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { KpiCard } from "@/components/domain/KpiCard";
+import {
+  DashboardPage,
+  DashboardSection,
+  DashboardSectionBadge,
+  KpiGrid,
+} from "@/components/domain/DashboardSection";
+import { PageHeader } from "@/components/brand/PageHeader";
 import { FisioDetalhesSheet } from "@/components/domain/FisioDetalhesSheet";
 import { queryKeys } from "@/lib/queries";
 import {
@@ -21,7 +30,6 @@ import {
   type Fisio,
   type FisioFormValues,
 } from "@/lib/queries/fisioterapeutas";
-import { initials } from "@/lib/format";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,12 +41,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -49,14 +51,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Form,
   FormControl,
   FormField,
@@ -65,7 +59,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/fisios")({
   head: () => ({ meta: [{ title: "Fisioterapeutas · CB MOVE" }] }),
@@ -150,14 +143,45 @@ function FisiosPage() {
     setEditing(null);
   }
 
+  const ativos = fisios.filter((f) => f.ativo).length;
+  const inativos = fisios.length - ativos;
+
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Fisioterapeutas</h1>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo fisio
-        </Button>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[{ label: "Equipe" }, { label: "Fisioterapeutas" }]}
+        title="Fisioterapeutas"
+        description="Equipe clínica, horários e disponibilidade na agenda"
+        actions={
+          <Button onClick={openNew} className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700">
+            <Plus className="h-4 w-4" /> Novo fisio
+          </Button>
+        }
+      />
+
+      {fisios.length > 0 && (
+        <KpiGrid columns={3}>
+          <KpiCard
+            label="Total"
+            value={fisios.length}
+            accent="cyan"
+            icon={<Users className="h-5 w-5" />}
+          />
+          <KpiCard
+            label="Ativos"
+            value={ativos}
+            accent="lime"
+            icon={<Users className="h-5 w-5" />}
+            share={fisios.length > 0 ? (ativos / fisios.length) * 100 : 0}
+          />
+          <KpiCard
+            label="Inativos"
+            value={inativos}
+            accent="orange"
+            icon={<Users className="h-5 w-5" />}
+          />
+        </KpiGrid>
+      )}
 
       {isLoading ? (
         <LoadingState />
@@ -173,75 +197,21 @@ function FisiosPage() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>CREFITO</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fisios.map((f) => (
-                <TableRow key={f.id} className="cursor-pointer" onClick={() => setViewing(f)}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2.5">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-cb-cyan-600 text-xs font-bold text-white">
-                        {initials(f.nome)}
-                      </div>
-                      <span className="text-cb-cyan-800">{f.nome}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {f.registro_profissional || "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{f.email || "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={f.ativo}
-                        onCheckedChange={(v) => toggleMutation.mutate({ id: f.id, ativo: v })}
-                        aria-label="Ativo/Inativo"
-                      />
-                      <span
-                        className={cn(
-                          "text-xs",
-                          f.ativo ? "text-[#047857]" : "text-muted-foreground",
-                        )}
-                      >
-                        {f.ativo ? "Ativo" : "Inativo"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setViewing(f)}>
-                          Ver detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(f)}>Editar</DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleting(f)}
-                        >
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DashboardSection
+          eyebrow="Equipe"
+          accent="cyan"
+          title="Fisioterapeutas"
+          badge={<DashboardSectionBadge accent="cyan">{fisios.length}</DashboardSectionBadge>}
+          bodyClassName="p-0"
+        >
+          <FisioCardGrid
+            fisios={fisios}
+            onOpen={setViewing}
+            onEdit={openEdit}
+            onDelete={setDeleting}
+            onToggleAtivo={(id, ativo) => toggleMutation.mutate({ id, ativo })}
+          />
+        </DashboardSection>
       )}
 
       <FisioDetalhesSheet
@@ -362,6 +332,6 @@ function FisiosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </DashboardPage>
   );
 }

@@ -191,7 +191,7 @@ export function PacienteCobrancaSheet({
     onError: (e: Error) => {
       if (e instanceof CoraNaoConfiguradaError) {
         toast.error(e.message, {
-          description: "Quando as credenciais chegarem, configure em Integrações e tente de novo.",
+          description: "Quando as credenciais forem aplicadas no servidor, tente de novo.",
         });
         return;
       }

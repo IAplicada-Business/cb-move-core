@@ -1,5 +1,6 @@
 import {
   GRADE_SEMANA_PADRAO,
+  SESSAO_DURACAO_MIN,
   agendamentoNoBloco,
   blocoDentroDisponibilidade,
   indisponibilidadeNoBloco,
@@ -98,7 +99,7 @@ export function checarConflitoRemarcacao(opts: {
     if (ag.status === "cancelado" || ag.status === "remarcacao") continue;
 
     const agIni = new Date(ag.inicio).getTime();
-    const agFim = agIni + (ag.duracao_min ?? 50) * 60_000;
+    const agFim = agIni + (ag.duracao_min ?? SESSAO_DURACAO_MIN) * 60_000;
     if (novoIni < agFim && novoFim > agIni) {
       return {
         ok: false,

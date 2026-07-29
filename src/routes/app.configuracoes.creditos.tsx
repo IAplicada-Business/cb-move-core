@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { DashboardSection } from "@/components/domain/DashboardSection";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { EmptyState } from "@/components/domain/EmptyState";
 import {
@@ -119,11 +120,12 @@ function CreditosIAPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border bg-card shadow-sm">
-        <header className="border-b px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">Histórico de uso</h2>
-        </header>
-
+      <DashboardSection
+        eyebrow="Inteligência artificial"
+        accent="purple"
+        title="Histórico de uso"
+        noPadding
+      >
         {isLoading ? (
           <div className="p-5">
             <LoadingState />
@@ -165,7 +167,7 @@ function CreditosIAPage() {
             </TableBody>
           </Table>
         )}
-      </section>
+      </DashboardSection>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { SESSAO_DURACAO_MIN } from "@/lib/domain/slot-status";
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { RemarcarSemanaDestinoGrid } from "@/components/domain/RemarcarSemanaDestinoGrid";
@@ -105,7 +106,7 @@ export function RemarcarDialog({
       data: "",
       horaInicio: "09:00",
       fisioId: "",
-      duracao: 50,
+      duracao: SESSAO_DURACAO_MIN,
       escopo: "pontual",
     },
   });

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { BrandTableShell } from "@/components/brand/BrandTable";
+import { DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -252,7 +254,14 @@ function InstrumentosPage() {
           description="Nenhum instrumento de avaliação neurológica cadastrado ainda."
         />
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <BrandTableShell
+          eyebrow="Catálogo"
+          accent="purple"
+          title="Instrumentos clínicos"
+          badge={
+            <DashboardSectionBadge accent="purple">{instrumentos.length}</DashboardSectionBadge>
+          }
+        >
           <Table>
             <TableHeader>
               <TableRow>
@@ -325,7 +334,7 @@ function InstrumentosPage() {
               })}
             </TableBody>
           </Table>
-        </div>
+        </BrandTableShell>
       )}
 
       <CamposDialog instrumento={viewingInstrumento} onClose={() => setViewingInstrumento(null)} />

@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { DashboardFinanceiro } from "@/components/domain/DashboardFinanceiro";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DashboardPage } from "@/components/domain/DashboardSection";
 import { assertFinanceAccess } from "@/lib/route-access";
 import { financeiroKpisPorTipoOptions } from "@/lib/queries/options";
 
@@ -21,14 +23,13 @@ export const Route = createFileRoute("/app/financeiro")({
 
 function FinanceiroPage() {
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard Financeiro</h1>
-        <p className="text-sm text-muted-foreground">
-          Receita por convênio, extrato filtrado e exportações CSV/XLSX/PDF na mesma tela.
-        </p>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[{ label: "Financeiro" }, { label: "Dashboard" }]}
+        title="Dashboard Financeiro"
+        description="Receita por tipo e convênio, extrato filtrado e exportações CSV, XLSX e PDF."
+      />
       <DashboardFinanceiro />
-    </div>
+    </DashboardPage>
   );
 }

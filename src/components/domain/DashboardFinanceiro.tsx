@@ -3,9 +3,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, FileSpreadsheet, X } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  DashboardSection,
+  DashboardSectionBadge,
+  KpiGrid,
+} from "@/components/domain/DashboardSection";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
+import { HorizontalMetricBars, TIPO_BAR_COLORS } from "@/components/domain/MetricVisuals";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { DataToolbar } from "@/components/brand/DataToolbar";
+import {
+  BrandTable,
+  BrandTableBody,
+  BrandTableCell,
+  BrandTableHead,
+  BrandTableHeader,
+  BrandTableNumCell,
+  BrandTableRow,
+} from "@/components/brand/BrandTable";
 import { queryKeys } from "@/lib/queries";
 import { downloadCSV } from "@/lib/csv";
 import {
@@ -44,6 +60,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 const MESES_ABREV = [
   "Jan",
@@ -218,6 +235,160 @@ function slugArquivo(nome: string) {
     .slice(0, 48);
 }
 
+function convenioInitials(nome: string) {
+  const parts = nome.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return nome.slice(0, 2).toUpperCase();
+}
+
+function formatCount(n: number) {
+  return n > 0 ? String(n) : "—";
+}
+
+function recebimentoPct(faturado: number, recebido: number) {
+  if (faturado <= 0) return 0;
+  return Math.min(100, Math.round((recebido / faturado) * 100));
+}
+
+type ReceitaConvenioRow = {
+  convenio: string;
+  pacientes: number;
+  sessoes: number;
+  nfsEmitidas: number;
+  faturado: number;
+  recebido: number;
+};
+
+function ReceitaConvenioPanel({
+  receita,
+  filtroConvenio,
+  onSelectConvenio,
+}: {
+  receita: ReceitaConvenioRow[];
+  filtroConvenio: string | null;
+  onSelectConvenio: (convenio: string | null) => void;
+}) {
+  const mostrarSessoes = receita.some((r) => r.sessoes > 0);
+  const totalFaturado = receita.reduce((s, r) => s + r.faturado, 0);
+  const totalRecebido = receita.reduce((s, r) => s + r.recebido, 0);
+  const totalPacientes = receita.reduce((s, r) => s + r.pacientes, 0);
+  const totalNfs = receita.reduce((s, r) => s + r.nfsEmitidas, 0);
+  const totalSessoes = receita.reduce((s, r) => s + r.sessoes, 0);
+
+  return (
+    <BrandTable>
+      <BrandTableHeader>
+        <BrandTableRow>
+          <BrandTableHead className="min-w-[180px]">Convênio</BrandTableHead>
+          <BrandTableHead className="w-20 text-right">Pac.</BrandTableHead>
+          {mostrarSessoes && <BrandTableHead className="w-20 text-right">Sess.</BrandTableHead>}
+          <BrandTableHead className="w-20 text-right">NFs</BrandTableHead>
+          <BrandTableHead className="min-w-[120px] text-right">Faturado</BrandTableHead>
+          <BrandTableHead className="min-w-[120px] text-right">Recebido</BrandTableHead>
+          <BrandTableHead className="min-w-[140px]">Recebimento</BrandTableHead>
+        </BrandTableRow>
+      </BrandTableHeader>
+      <BrandTableBody>
+        {receita.map((d) => {
+          const selecionado = filtroConvenio === d.convenio;
+          const pct = recebimentoPct(d.faturado, d.recebido);
+          return (
+            <BrandTableRow
+              key={d.convenio}
+              data-state={selecionado ? "selected" : undefined}
+              className={cn(
+                "cursor-pointer",
+                selecionado && "border-l-[3px] border-l-cb-cyan-600 bg-cb-cyan-050",
+              )}
+              onClick={() => onSelectConvenio(filtroConvenio === d.convenio ? null : d.convenio)}
+            >
+              <BrandTableCell>
+                <div className="flex items-center gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-cb-cyan-050 text-[11px] font-bold text-cb-cyan-800 ring-1 ring-cb-cyan-100">
+                    {convenioInitials(d.convenio)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-cb-ink">{d.convenio}</p>
+                    {selecionado && (
+                      <p className="text-[11px] font-medium text-cb-cyan-700">Filtrando extrato</p>
+                    )}
+                  </div>
+                </div>
+              </BrandTableCell>
+              <BrandTableNumCell className="text-cb-muted">
+                {formatCount(d.pacientes)}
+              </BrandTableNumCell>
+              {mostrarSessoes && (
+                <BrandTableNumCell className="text-cb-muted">
+                  {formatCount(d.sessoes)}
+                </BrandTableNumCell>
+              )}
+              <BrandTableNumCell className="text-cb-muted">
+                {formatCount(d.nfsEmitidas)}
+              </BrandTableNumCell>
+              <BrandTableNumCell className="font-medium text-cb-ink">
+                {brl(d.faturado)}
+              </BrandTableNumCell>
+              <BrandTableNumCell
+                className={cn("font-semibold", d.recebido > 0 ? "text-[#059669]" : "text-cb-muted")}
+              >
+                {brl(d.recebido)}
+              </BrandTableNumCell>
+              <BrandTableCell>
+                <div className="flex items-center gap-2.5">
+                  <div className="h-2 min-w-[72px] flex-1 overflow-hidden rounded-full bg-muted/50">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        pct >= 80
+                          ? "bg-[#34C759]"
+                          : pct >= 40
+                            ? "bg-cb-orange"
+                            : pct > 0
+                              ? "bg-cb-magenta"
+                              : "bg-muted",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-9 shrink-0 text-right text-xs font-semibold tabular-nums text-cb-muted">
+                    {pct}%
+                  </span>
+                </div>
+              </BrandTableCell>
+            </BrandTableRow>
+          );
+        })}
+        <BrandTableRow className="bg-muted/30 hover:bg-muted/30">
+          <BrandTableCell className="font-bold text-cb-ink">Total</BrandTableCell>
+          <BrandTableNumCell className="font-semibold text-cb-ink">
+            {totalPacientes}
+          </BrandTableNumCell>
+          {mostrarSessoes && (
+            <BrandTableNumCell className="font-semibold text-cb-ink">
+              {totalSessoes > 0 ? totalSessoes : "—"}
+            </BrandTableNumCell>
+          )}
+          <BrandTableNumCell className="font-semibold text-cb-ink">
+            {totalNfs > 0 ? totalNfs : "—"}
+          </BrandTableNumCell>
+          <BrandTableNumCell className="font-bold text-cb-ink">
+            {brl(totalFaturado)}
+          </BrandTableNumCell>
+          <BrandTableNumCell className="font-bold text-[#059669]">
+            {brl(totalRecebido)}
+          </BrandTableNumCell>
+          <BrandTableCell>
+            <span className="text-xs font-semibold tabular-nums text-cb-muted">
+              {recebimentoPct(totalFaturado, totalRecebido)}% do faturado
+            </span>
+          </BrandTableCell>
+        </BrandTableRow>
+      </BrandTableBody>
+    </BrandTable>
+  );
+}
+
 export function DashboardFinanceiro() {
   const now = new Date();
   const [mes, setMes] = useState(now.getMonth() + 1);
@@ -259,6 +430,9 @@ export function DashboardFinanceiro() {
     : null;
   const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
   const sufixoArquivo = filtroConvenio ? slugArquivo(filtroConvenio) : "todos";
+
+  const totalFaturadoConvenio = receitaVisivel.reduce((s, r) => s + r.faturado, 0);
+  const totalRecebidoConvenio = receitaVisivel.reduce((s, r) => s + r.recebido, 0);
 
   useEffect(() => {
     setFiltroConvenio(null);
@@ -415,17 +589,27 @@ export function DashboardFinanceiro() {
   const loadingReceita = receitaQuery.isLoading;
   const loadingExtrato = extratoQuery.isLoading;
 
+  const tipoBarItems = (["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map(
+    (tipo) => ({
+      label: TIPO_KPI[tipo].label,
+      value: kpiMap[tipo]?.valor ?? 0,
+      colorClass: TIPO_BAR_COLORS[tipo],
+    }),
+  );
+
+  const convenioBarItems = [...receita]
+    .sort((a, b) => b.faturado - a.faturado)
+    .slice(0, 6)
+    .map((r) => ({
+      label: r.convenio,
+      value: r.faturado,
+      colorClass: "bg-cb-cyan-600",
+    }));
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold">Financeiro</h2>
-          <p className="text-sm text-muted-foreground">
-            Receita total, receita por convênio e extrato exportável — selecione um convênio para
-            filtrar e exportar
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
+    <div className="space-y-8">
+      <DataToolbar className="justify-end">
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             value={`${mes}-${ano}`}
             onValueChange={(v) => {
@@ -483,7 +667,7 @@ export function DashboardFinanceiro() {
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </DataToolbar>
 
       {filtroConvenio && receitaSelecionada && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
@@ -506,199 +690,242 @@ export function DashboardFinanceiro() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {loadingKpis ? (
-          <div className="col-span-full">
+      {loadingKpis ? (
+        <LoadingState />
+      ) : (
+        <KpiGrid columns={5}>
+          <KpiCard
+            label="Receita total"
+            value={brl(totalReceita)}
+            accent="lime"
+            hint={competenciaLabel(mes, ano)}
+            share={100}
+          />
+          {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
+            const cfg = TIPO_KPI[tipo];
+            const k = kpiMap[tipo];
+            const valor = k?.valor ?? 0;
+            return (
+              <KpiCard
+                key={tipo}
+                label={cfg.label}
+                value={brl(valor)}
+                accent={cfg.accent}
+                hint={`${k?.pacientes ?? 0} paciente(s)`}
+                share={totalReceita > 0 ? (valor / totalReceita) * 100 : 0}
+              />
+            );
+          })}
+        </KpiGrid>
+      )}
+
+      {!loadingKpis && totalReceita > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DashboardSection
+            eyebrow="Composição"
+            title="Receita por tipo"
+            badge={
+              <DashboardSectionBadge accent="orange">
+                {mesNome}/{ano}
+              </DashboardSectionBadge>
+            }
+            accent="orange"
+            noPadding
+            bodyClassName="p-6"
+          >
+            <HorizontalMetricBars title="" items={tipoBarItems} formatValue={brl} />
+          </DashboardSection>
+          {convenioBarItems.length > 0 && (
+            <DashboardSection
+              eyebrow="Ranking"
+              title="Top convênios (faturado)"
+              badge={
+                <DashboardSectionBadge accent="cyan">
+                  {mesNome}/{ano}
+                </DashboardSectionBadge>
+              }
+              accent="cyan"
+              noPadding
+              bodyClassName="p-6"
+            >
+              <HorizontalMetricBars title="" items={convenioBarItems} formatValue={brl} />
+            </DashboardSection>
+          )}
+        </div>
+      )}
+
+      <DashboardSection
+        eyebrow="Financeiro"
+        title="Receita por convênio"
+        badge={
+          <DashboardSectionBadge accent="cyan">
+            {mesNome}/{ano}
+          </DashboardSectionBadge>
+        }
+        description="Clique em uma linha para filtrar o extrato e exportar só aquele convênio ou tipo."
+        accent="cyan"
+        actions={
+          !loadingReceita && receita.length > 0 ? (
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-cb-muted">
+                Faturado
+              </p>
+              <p className="text-lg font-bold tabular-nums text-cb-ink">
+                {brl(totalFaturadoConvenio)}
+              </p>
+              <p className="mt-0.5 text-xs tabular-nums text-[#059669]">
+                {brl(totalRecebidoConvenio)} recebido
+              </p>
+            </div>
+          ) : undefined
+        }
+        noPadding
+        bodyClassName="overflow-x-auto"
+      >
+        {loadingReceita ? (
+          <div className="p-6">
             <LoadingState />
           </div>
-        ) : (
-          <>
-            <KpiCard
-              label="Receita total"
-              value={brl(totalReceita)}
-              accent="lime"
-              hint={competenciaLabel(mes, ano)}
-            />
-            {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
-              const cfg = TIPO_KPI[tipo];
-              const k = kpiMap[tipo];
-              return (
-                <KpiCard
-                  key={tipo}
-                  label={cfg.label}
-                  value={brl(k?.valor ?? 0)}
-                  accent={cfg.accent}
-                  hint={`${k?.pacientes ?? 0} paciente(s)`}
-                />
-              );
-            })}
-          </>
-        )}
-      </div>
-
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Receita por convênio</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Clique em uma linha para filtrar o extrato e exportar só aquele convênio ou tipo.
-          </p>
-        </div>
-        {loadingReceita ? (
-          <LoadingState />
         ) : receita.length === 0 ? (
-          <EmptyState
-            title="Sem dados"
-            description="Não há cobranças de convênio nesta competência."
-          />
+          <div className="p-6">
+            <EmptyState
+              title="Sem dados"
+              description="Não há cobranças de convênio nesta competência."
+            />
+          </div>
         ) : (
-          <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+          <ReceitaConvenioPanel
+            receita={receita}
+            filtroConvenio={filtroConvenio}
+            onSelectConvenio={setFiltroConvenio}
+          />
+        )}
+      </DashboardSection>
+
+      <DashboardSection
+        eyebrow="Detalhamento"
+        title={filtroConvenio ? `Extrato · ${filtroConvenio}` : "Extrato da competência"}
+        badge={
+          <DashboardSectionBadge accent="purple">
+            {competenciaLabel(mes, ano)}
+          </DashboardSectionBadge>
+        }
+        description={
+          filtroConvenio
+            ? "Linhas filtradas conforme a receita selecionada acima."
+            : "Todas as cobranças do mês. Selecione um convênio na tabela para exportar por grupo."
+        }
+        accent="purple"
+        actions={
+          !loadingExtrato && linhas.length > 0 ? (
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-cb-muted">
+                Cobranças
+              </p>
+              <p className="text-lg font-bold tabular-nums text-cb-ink">{linhas.length}</p>
+              {extratoVisivel && (
+                <p className="mt-0.5 text-xs tabular-nums text-[#059669]">
+                  {brl(extratoVisivel.totalRecebido)} recebido
+                </p>
+              )}
+            </div>
+          ) : undefined
+        }
+        noPadding
+        bodyClassName="overflow-x-auto"
+      >
+        {loadingExtrato ? (
+          <div className="p-6">
+            <LoadingState />
+          </div>
+        ) : linhas.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              icon={<FileSpreadsheet className="h-8 w-8" />}
+              title={
+                filtroConvenio
+                  ? `Sem cobranças para ${filtroConvenio}`
+                  : "Sem cobranças nesta competência"
+              }
+              description={
+                filtroConvenio
+                  ? "Não há linhas de extrato para este convênio ou tipo no período."
+                  : "Não há linhas para gerar o extrato financeiro do período selecionado."
+              }
+            />
+          </div>
+        ) : (
+          <div ref={printRef}>
+            <div className="hidden print:block px-6 py-4 border-b bg-cb-cyan-050/50">
+              <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
+              <p className="text-xs text-muted-foreground">
+                CB MOVE Neuroscience · Relatório Financeiro
+                {filtroConvenio ? ` · ${filtroConvenio}` : ""}
+              </p>
+            </div>
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-cb-cyan-050">
                 <TableRow>
-                  <TableHead>Convênio</TableHead>
-                  <TableHead className="text-right">Pacientes</TableHead>
-                  <TableHead className="text-right">Sessões</TableHead>
-                  <TableHead className="text-right">NFs emitidas</TableHead>
-                  <TableHead className="text-right">Faturado</TableHead>
-                  <TableHead className="text-right">Recebido</TableHead>
+                  <TableHead className="text-[10.5px] font-bold uppercase tracking-wide text-cb-muted">
+                    Nome do Paciente
+                  </TableHead>
+                  <TableHead>Avaliação</TableHead>
+                  <TableHead>Frequência</TableHead>
+                  <TableHead>Dias da Semana</TableHead>
+                  <TableHead className="text-right">Nº Sessões</TableHead>
+                  <TableHead>Plano</TableHead>
+                  <TableHead className="text-right">R$ Sessão/Mês</TableHead>
+                  <TableHead className="text-right">R$ Previsto</TableHead>
+                  <TableHead className="text-right">R$ Recebido</TableHead>
+                  <TableHead>SITUAÇÃO</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {receita.map((d) => {
-                  const selecionado = filtroConvenio === d.convenio;
-                  return (
-                    <TableRow
-                      key={d.convenio}
-                      className={`cursor-pointer transition-colors hover:bg-muted/40 ${selecionado ? "bg-primary/5" : ""}`}
-                      onClick={() =>
-                        setFiltroConvenio((atual) => (atual === d.convenio ? null : d.convenio))
-                      }
-                    >
-                      <TableCell className="font-medium">
-                        {d.convenio}
-                        {selecionado && (
-                          <Badge variant="outline" className="ml-2 text-[10px] py-0">
-                            filtrado
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{d.pacientes}</TableCell>
-                      <TableCell className="text-right tabular-nums">{d.sessoes}</TableCell>
-                      <TableCell className="text-right tabular-nums">{d.nfsEmitidas}</TableCell>
-                      <TableCell className="text-right tabular-nums">{brl(d.faturado)}</TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {brl(d.recebido)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {linhas.map((l) => (
+                  <TableRow key={l.cobrancaId}>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      {l.pacienteNome}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {l.avaliacao ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
+                    <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{l.numSessoes ?? "—"}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap">
+                      {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
+                      {l.valorPrevisto > 0 ? brl(l.valorPrevisto) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap">
+                      {l.valorRecebido != null ? brl(l.valorRecebido) : ""}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-xs">{l.situacao}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/40">
+                  <TableCell colSpan={7} className="font-semibold">
+                    Total
+                  </TableCell>
+                  <TableCell className="text-right font-bold tabular-nums">
+                    {brl(extratoVisivel!.totalPrevisto)}
+                  </TableCell>
+                  <TableCell className="text-right font-bold tabular-nums">
+                    {brl(extratoVisivel!.totalRecebido)}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
               </TableBody>
             </Table>
           </div>
         )}
-      </section>
-
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            {filtroConvenio ? `Extrato · ${filtroConvenio}` : "Extrato da competência"}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {filtroConvenio
-              ? "Linhas filtradas conforme a receita selecionada acima."
-              : "Todas as cobranças do mês. Selecione um convênio na tabela para exportar por grupo."}
-          </p>
-        </div>
-        {loadingExtrato ? (
-          <LoadingState />
-        ) : linhas.length === 0 ? (
-          <EmptyState
-            icon={<FileSpreadsheet className="h-8 w-8" />}
-            title={
-              filtroConvenio
-                ? `Sem cobranças para ${filtroConvenio}`
-                : "Sem cobranças nesta competência"
-            }
-            description={
-              filtroConvenio
-                ? "Não há linhas de extrato para este convênio ou tipo no período."
-                : "Não há linhas para gerar o extrato financeiro do período selecionado."
-            }
-          />
-        ) : (
-          <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
-            <div ref={printRef}>
-              <div className="px-4 py-3 border-b bg-muted/30 print:block">
-                <h3 className="font-bold text-sm">{competenciaLabel(mes, ano)}</h3>
-                <p className="text-xs text-muted-foreground">
-                  CB MOVE Neuroscience · Relatório Financeiro
-                  {filtroConvenio ? ` · ${filtroConvenio}` : ""}
-                </p>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome do Paciente</TableHead>
-                    <TableHead>Avaliação</TableHead>
-                    <TableHead>Frequência</TableHead>
-                    <TableHead>Dias da Semana</TableHead>
-                    <TableHead className="text-right">Nº Sessões</TableHead>
-                    <TableHead>Plano</TableHead>
-                    <TableHead className="text-right">R$ Sessão/Mês</TableHead>
-                    <TableHead className="text-right">R$ Previsto</TableHead>
-                    <TableHead className="text-right">R$ Recebido</TableHead>
-                    <TableHead>SITUAÇÃO</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {linhas.map((l) => (
-                    <TableRow key={l.cobrancaId}>
-                      <TableCell className="font-medium whitespace-nowrap">
-                        {l.pacienteNome}
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {l.avaliacao ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-sm">{l.frequencia ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{l.diasSemana ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {l.numSessoes ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{l.plano}</TableCell>
-                      <TableCell className="text-right tabular-nums whitespace-nowrap">
-                        {l.valorUnitario != null ? brl(l.valorUnitario) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium whitespace-nowrap">
-                        {l.valorPrevisto > 0 ? brl(l.valorPrevisto) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums whitespace-nowrap">
-                        {l.valorRecebido != null ? brl(l.valorRecebido) : ""}
-                      </TableCell>
-                      <TableCell className="text-sm max-w-xs">{l.situacao}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="bg-muted/40">
-                    <TableCell colSpan={7} className="font-semibold">
-                      Total
-                    </TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">
-                      {brl(extratoVisivel!.totalPrevisto)}
-                    </TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">
-                      {brl(extratoVisivel!.totalRecebido)}
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground px-1">
+        <p className="border-t px-6 py-3 text-xs text-cb-muted">
           Frequência e dias vêm da cobrança ou do cadastro do paciente. Edite em Pacientes ou ao
           criar a cobrança.
         </p>
-      </section>
+      </DashboardSection>
     </div>
   );
 }
