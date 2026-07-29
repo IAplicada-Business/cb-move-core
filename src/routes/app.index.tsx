@@ -12,8 +12,9 @@ import {
 import { AgendaPreviewList, DivergenciaPreviewList } from "@/components/domain/DashboardLists";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { ReceitaMensalChart, ReceitaMensalLegend } from "@/components/domain/ReceitaMensalChart";
 import { PageHeader } from "@/components/brand/PageHeader";
-import { dashboardHomeOptions } from "@/lib/queries/options";
+import { dashboardHomeOptions, receitaMensalOptions } from "@/lib/queries/options";
 import { useAuth } from "@/lib/auth";
 import { can, isFisioScopedUser } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,10 @@ function Dashboard() {
   const mes = now.getMonth() + 1;
 
   const { data, isLoading } = useQuery(dashboardHomeOptions(ano, mes));
+  const receitaMensalQuery = useQuery({
+    ...receitaMensalOptions(ano),
+    enabled: podeVerFinanceiro,
+  });
 
   const kpis = data?.kpis;
   const proximas = data?.proximasAgendas ?? [];
@@ -103,6 +108,24 @@ function Dashboard() {
           }
         />
       </KpiGrid>
+
+      {podeVerFinanceiro && (
+        <DashboardSection
+          eyebrow="Financeiro"
+          accent="purple"
+          title="Receita por mês · por tipo de paciente"
+          description="Últimos 6 meses — cobranças por competência (exceto canceladas)"
+          actions={<ReceitaMensalLegend />}
+          noPadding
+          bodyClassName="px-4 pb-4 pt-2 sm:px-6"
+        >
+          {receitaMensalQuery.isLoading ? (
+            <LoadingState />
+          ) : (
+            <ReceitaMensalChart data={receitaMensalQuery.data ?? []} />
+          )}
+        </DashboardSection>
+      )}
 
       {divergenciaCount > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-sm text-[#92400E]">
