@@ -423,6 +423,7 @@ function UsuariosPage() {
             </DashboardSectionBadge>
           }
           description="Referência de colaboradores + usuários extras cadastrados no sistema"
+          noPadding
         >
           <UsuarioCardGrid
             rows={filteredUsuarioRows}

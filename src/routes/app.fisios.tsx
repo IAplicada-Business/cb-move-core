@@ -202,7 +202,7 @@ function FisiosPage() {
           accent="cyan"
           title="Fisioterapeutas"
           badge={<DashboardSectionBadge accent="cyan">{fisios.length}</DashboardSectionBadge>}
-          bodyClassName="p-0"
+          noPadding
         >
           <FisioCardGrid
             fisios={fisios}

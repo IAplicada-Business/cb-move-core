@@ -1,6 +1,14 @@
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 import { BrandBadge } from "@/components/brand/BrandBadge";
+import {
+  BrandTable,
+  BrandTableBody,
+  BrandTableCell,
+  BrandTableHead,
+  BrandTableHeader,
+  BrandTableRow,
+} from "@/components/brand/BrandTable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { normalizeRole, ROLE_LABELS, type PrimaryRole } from "@/lib/permissions";
@@ -42,89 +50,85 @@ type UsuarioCardGridProps = {
 
 export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: UsuarioCardGridProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {rows.map((row) => {
-        const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
-        const isSelf = row.registered?.id === currentUserId;
-        const cadastrado = !!row.registered;
+    <BrandTable>
+      <BrandTableHeader>
+        <BrandTableRow>
+          <BrandTableHead>Nome</BrandTableHead>
+          <BrandTableHead className="hidden sm:table-cell">E-mail</BrandTableHead>
+          <BrandTableHead className="w-[120px]">Perfil</BrandTableHead>
+          <BrandTableHead className="hidden md:table-cell w-[140px]">Status</BrandTableHead>
+          <BrandTableHead className="min-w-[120px] text-right">Ações</BrandTableHead>
+        </BrandTableRow>
+      </BrandTableHeader>
+      <BrandTableBody>
+        {rows.map((row) => {
+          const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
+          const isSelf = row.registered?.id === currentUserId;
+          const cadastrado = !!row.registered;
 
-        return (
-          <article
-            key={row.key}
-            className={cn(
-              "overflow-hidden rounded-[10px] border border-border bg-card",
-              "shadow-[0_1px_2px_rgba(15,75,80,0.06)] transition-shadow hover:shadow-[0_4px_14px_rgba(15,75,80,0.08)]",
-              !cadastrado && "border-dashed opacity-90",
-            )}
-          >
-            <div
-              className={cn("h-[3px]", cadastrado ? "bg-cb-cyan-600" : "bg-muted-foreground/25")}
-              aria-hidden
-            />
-            <div className="flex flex-col gap-4 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cb-cyan-050 text-sm font-bold text-cb-cyan-800 ring-1 ring-cb-cyan-100">
-                    {row.nome
-                      .split(/\s+/)
-                      .slice(0, 2)
-                      .map((p) => p[0]?.toUpperCase() ?? "")
-                      .join("")}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="truncate text-base font-bold text-cb-ink">{row.nome}</h3>
-                    <p className="mt-0.5 truncate text-sm text-cb-muted">{row.email}</p>
-                  </div>
+          return (
+            <BrandTableRow key={row.key} className={cn(!cadastrado && "bg-muted/20")}>
+              <BrandTableCell className="py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-cb-ink">{row.nome}</p>
+                  <p className="truncate text-xs text-cb-muted sm:hidden">{row.email}</p>
+                  <p className="truncate text-xs text-cb-muted md:hidden">
+                    {statusLabel(row.registered)}
+                  </p>
                 </div>
+              </BrandTableCell>
+              <BrandTableCell className="hidden max-w-[240px] truncate py-2.5 text-sm text-cb-muted sm:table-cell">
+                {row.email}
+              </BrandTableCell>
+              <BrandTableCell className="py-2.5">
                 <RoleBadge role={displayRole} />
-              </div>
-
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-cb-cyan-050/40 px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-cb-muted">
-                  Status
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium",
-                    cadastrado ? "text-cb-cyan-800" : "text-cb-muted",
+              </BrandTableCell>
+              <BrandTableCell className="hidden py-2.5 text-xs text-cb-muted md:table-cell">
+                {statusLabel(row.registered)}
+              </BrandTableCell>
+              <BrandTableCell className="py-2.5">
+                <div className="flex items-center justify-end gap-1">
+                  {cadastrado ? (
+                    <>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        aria-label={`Editar ${row.nome}`}
+                        onClick={() => onEdit(row)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={isSelf}
+                        aria-label={
+                          isSelf
+                            ? "Você não pode excluir seu próprio usuário"
+                            : `Excluir ${row.nome}`
+                        }
+                        onClick={() => onDelete(row)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="h-8 bg-cb-cyan-600 px-3 hover:bg-cb-cyan-700"
+                      onClick={() => onEdit(row)}
+                    >
+                      Cadastrar
+                    </Button>
                   )}
-                >
-                  {statusLabel(row.registered)}
-                </span>
-              </div>
-
-              {row.isReference && (
-                <p className="text-[11px] text-cb-muted">
-                  Equipe de referência (doc. colaboradores)
-                </p>
-              )}
-
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant={cadastrado ? "outline" : "default"}
-                  className={cn(!cadastrado && "bg-cb-cyan-600 hover:bg-cb-cyan-700")}
-                  onClick={() => onEdit(row)}
-                >
-                  {cadastrado ? "Editar" : "Cadastrar"}
-                </Button>
-                {cadastrado && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={isSelf}
-                    title={isSelf ? "Você não pode excluir seu próprio usuário" : "Excluir usuário"}
-                    onClick={() => onDelete(row)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </article>
-        );
-      })}
-    </div>
+                </div>
+              </BrandTableCell>
+            </BrandTableRow>
+          );
+        })}
+      </BrandTableBody>
+    </BrandTable>
   );
 }
