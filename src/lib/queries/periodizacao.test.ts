@@ -16,6 +16,9 @@ describe("proximoNumeroSessao", () => {
         atividadesPrevistas: null,
         status: "planejada",
         sessaoId: null,
+        fisioterapeutaId: null,
+        fisioterapeutaNome: null,
+        driveDocUrl: null,
         updatedAt: "",
       },
       {
@@ -26,6 +29,9 @@ describe("proximoNumeroSessao", () => {
         atividadesPrevistas: null,
         status: "planejada",
         sessaoId: null,
+        fisioterapeutaId: null,
+        fisioterapeutaNome: null,
+        driveDocUrl: null,
         updatedAt: "",
       },
     ];

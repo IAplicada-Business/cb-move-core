@@ -59,6 +59,9 @@ export const queryKeys = {
     all: ["fisioterapeutas"] as const,
     ativos: ["fisioterapeutas", "ativos"] as const,
     metrics: (fisioId: string) => ["fisioterapeutas", "metrics", fisioId] as const,
+    ultimasSessoes: (fisioId: string) => ["fisioterapeutas", "ultimas-sessoes", fisioId] as const,
+    usoLogs: (fisioId: string) => ["fisioterapeutas", "uso-logs", fisioId] as const,
+    contaVinculada: (fisioId: string) => ["fisioterapeutas", "conta", fisioId] as const,
   },
   fisioHorarios: {
     all: ["fisio_horarios"] as const,
@@ -113,3 +116,13 @@ export const queryKeys = {
     byUser: (id: string) => ["user_roles", id] as const,
   },
 };
+
+/** Query keys do painel lateral de detalhes do fisio (métricas, logs, conta). */
+export function fisioDetailQueryKeys(fisioId: string) {
+  return [
+    queryKeys.fisioterapeutas.metrics(fisioId),
+    queryKeys.fisioterapeutas.ultimasSessoes(fisioId),
+    queryKeys.fisioterapeutas.usoLogs(fisioId),
+    queryKeys.fisioterapeutas.contaVinculada(fisioId),
+  ] as const;
+}

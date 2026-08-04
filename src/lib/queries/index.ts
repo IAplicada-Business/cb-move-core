@@ -6,4 +6,4 @@ export function unwrap<T>(data: T | null, error: PostgrestError | null): T {
   return data;
 }
 
-export { queryKeys } from "./keys";
+export { queryKeys, fisioDetailQueryKeys } from "./keys";

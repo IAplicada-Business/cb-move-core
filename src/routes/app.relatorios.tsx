@@ -443,7 +443,7 @@ function RelatoriosPage() {
 
   const { data: pacientes = [] } = useQuery({
     queryKey: queryKeys.pacientes.all,
-    queryFn: fetchPacientes,
+    queryFn: () => fetchPacientes(),
   });
 
   const stats = useMemo(() => {

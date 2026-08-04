@@ -10,6 +10,13 @@ export type RendererKey =
   | "pdf-legado"
   | "dual-judicial-v1";
 
+const FORMATOS: FormatoArquivo[] = ["pdf", "xlsx", "dual", "docx"];
+
+export function parseFormatoArquivo(value: string | null | undefined): FormatoArquivo | null {
+  if (!value) return null;
+  return FORMATOS.includes(value as FormatoArquivo) ? (value as FormatoArquivo) : null;
+}
+
 const DEFAULT_REQUIRED: Record<ModeloRelatorio, string[]> = {
   convencional: ["paciente_nome"],
   unimed: ["paciente_nome"],

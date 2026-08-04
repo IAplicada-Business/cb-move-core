@@ -118,6 +118,8 @@ type PacienteProntuarioRow = {
   motivo_acompanhamento: string | null;
   modo_emissao_nf: Paciente["modoEmissaoNf"];
   dia_emissao_nf: number | null;
+  modo_emissao_boleto: Paciente["modoEmissaoBoleto"];
+  dia_emissao_boleto: number | null;
   consulta_experimental_em: string | null;
   consulta_experimental_fisio_id: string | null;
   consulta_experimental_observacoes: string | null;
@@ -164,6 +166,8 @@ function mapPacienteProntuario(r: PacienteProntuarioRow): ProntuarioPaciente {
     motivoAcompanhamento: r.motivo_acompanhamento,
     modoEmissaoNf: r.modo_emissao_nf ?? "automatico_pagamento",
     diaEmissaoNf: r.dia_emissao_nf,
+    modoEmissaoBoleto: r.modo_emissao_boleto ?? "automatico_pagamento",
+    diaEmissaoBoleto: r.dia_emissao_boleto,
     consultaExperimentalEm: r.consulta_experimental_em,
     consultaExperimentalFisioId: r.consulta_experimental_fisio_id,
     consultaExperimentalObservacoes: r.consulta_experimental_observacoes,

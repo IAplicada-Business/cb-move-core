@@ -68,7 +68,7 @@ export function PacienteConsultaExperimentalSection({
 
   const { data: fisios = [] } = useQuery({
     queryKey: queryKeys.fisioterapeutas.ativos,
-    queryFn: fetchFisios,
+    queryFn: () => fetchFisios({ ativosOnly: true }),
   });
 
   const saveMutation = useMutation({

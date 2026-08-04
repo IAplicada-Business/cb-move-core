@@ -1615,6 +1615,23 @@ export type Database = {
         Args: { p_paciente_id: string };
         Returns: boolean;
       };
+      get_fisio_conta_vinculada: {
+        Args: { p_fisio_id: string };
+        Returns: {
+          email: string | null;
+          user_id: string;
+        }[];
+      };
+      get_fisio_uso_logs: {
+        Args: { p_fisio_id: string; p_limit?: number };
+        Returns: {
+          categoria: string;
+          detalhe: string | null;
+          id: string;
+          titulo: string;
+          ts: string;
+        }[];
+      };
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"];
@@ -1712,11 +1729,11 @@ export type Database = {
         Returns: Json;
       };
       set_periodizacao_pdf_url: {
-        Args: { p_paciente_id: string; p_url: string };
+        Args: { p_paciente_id: string; p_url: string | null };
         Returns: undefined;
       };
       set_relatorio_atendimento_pdf_url: {
-        Args: { p_pdf_url: string; p_relatorio_id: string };
+        Args: { p_pdf_url: string | null; p_relatorio_id: string };
         Returns: undefined;
       };
     };

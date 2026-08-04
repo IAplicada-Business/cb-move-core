@@ -235,7 +235,10 @@ export async function receitaConvenioToXlsxBlob(rows: ReceitaConvenioExportRow[]
     "Recebido",
   ] as const;
   const dataRows = receitaConvenioToCsvRows(rows);
-  const aoa = [cols, ...dataRows.map((row) => cols.map((col) => String(row[col] ?? "")))];
+  const aoa: string[][] = [
+    [...cols],
+    ...dataRows.map((row) => cols.map((col) => String(row[col] ?? ""))),
+  ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
   const wb = XLSX.utils.book_new();

@@ -1,6 +1,16 @@
 import * as React from "react";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, FileText, Plus, Trash2, Pencil, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  ExternalLink,
+  FileText,
+  Plus,
+  Trash2,
+  Pencil,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -61,9 +71,39 @@ type Props = {
   pacienteId: string;
   paciente?: Paciente;
   readOnly?: boolean;
+  avaliacoesCount?: number;
+  onNavigateTab?: (tab: "avaliacoes" | "documentos") => void;
 };
 
-export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Props) {
+function ChecklistItem({
+  done,
+  label,
+  action,
+}: {
+  done: boolean;
+  label: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-start gap-2 text-sm">
+      {done ? (
+        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+      ) : (
+        <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      )}
+      <span className={done ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+      {action && <span className="ml-auto shrink-0">{action}</span>}
+    </li>
+  );
+}
+
+export function PacientePeriodizacaoTab({
+  pacienteId,
+  paciente,
+  readOnly,
+  avaliacoesCount = 0,
+  onNavigateTab,
+}: Props) {
   const qc = useQueryClient();
   const { roles } = useAuth();
   const canRemovePdf = can.removePeriodizacaoPdf(roles);
@@ -87,7 +127,7 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
 
   const { data: fisios = [] } = useQuery({
     queryKey: queryKeys.fisioterapeutas.ativos,
-    queryFn: fetchFisios,
+    queryFn: () => fetchFisios({ ativosOnly: true }),
   });
 
   const saveMutation = useMutation({
@@ -167,11 +207,54 @@ export function PacientePeriodizacaoTab({ pacienteId, paciente, readOnly }: Prop
   }
 
   const semConsultaExperimental = paciente && !paciente.consultaExperimentalEm;
+  const temAvaliacao = avaliacoesCount > 0;
+  const temFrequencia = Boolean(paciente?.frequenciaAtendimento?.trim());
+  const temObjetivos = itens.length > 0;
+  const temPdf = Boolean(periodizacaoPdfUrl);
 
   if (isLoading) return <LoadingState />;
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border bg-card p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Fluxo de periodização
+        </p>
+        <ul className="space-y-2">
+          <ChecklistItem
+            done={temAvaliacao}
+            label="1. Avaliação clínica aplicada"
+            action={
+              !temAvaliacao && onNavigateTab ? (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0"
+                  onClick={() => onNavigateTab("avaliacoes")}
+                >
+                  Ir para Avaliações
+                </Button>
+              ) : undefined
+            }
+          />
+          <ChecklistItem
+            done={temFrequencia}
+            label="2. Frequência de atendimento definida"
+            action={
+              !temFrequencia ? (
+                <Button variant="link" size="sm" className="h-auto p-0" asChild>
+                  <Link to="/app/pacientes/$pacienteId" params={{ pacienteId }}>
+                    Abrir cadastro
+                  </Link>
+                </Button>
+              ) : undefined
+            }
+          />
+          <ChecklistItem done={temObjetivos} label="3. Objetivos por sessão cadastrados" />
+          <ChecklistItem done={temPdf} label="4. PDF de periodização anexado" />
+        </ul>
+      </div>
+
       {semConsultaExperimental && (
         <Alert>
           <AlertTitle>Primeira Consulta Experimental pendente</AlertTitle>

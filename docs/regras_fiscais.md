@@ -72,12 +72,12 @@ O CSV exportado (aba "Logjur") tem as seguintes colunas:
 
 ### Mensalista
 
-- Valor fixo: R$ 1.028,00/mês (simples)
+- Valor fixo: R$ 1.110,00/mês (simples; reajuste ago/2026)
 - Duplo/Triplo: ⚠️ CONFIRMAR fator multiplicador
 
 ### Por Sessão
 
-- Valor padrão: R$ 266,00/sessão (simples)
+- Valor padrão: R$ 287,00/sessão (simples; reajuste ago/2026)
 - Sessão dupla: R$ 532,00 (ex.: Diego Pereira Agnes)
 - ⚠️ CONFIRMAR tabela completa de valores por tipo
 

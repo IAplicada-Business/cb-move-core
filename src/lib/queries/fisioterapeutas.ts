@@ -1,6 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  mapFisioUsoLogRows,
+  clampFisioUsoLogsLimit,
+  type FisioUsoLog,
+} from "@/lib/domain/fisio-uso-logs";
 import { SIGLAS_REALIZADAS } from "@/lib/domain/frequencia";
 import type { FrequenciaSigla } from "@/lib/types";
+
+export type { FisioUsoLog, FisioUsoLogCategoria } from "@/lib/domain/fisio-uso-logs";
 
 export type Fisio = {
   id: string;
@@ -24,8 +31,22 @@ export type FisioMetrics = {
   aderencia: number | null;
 };
 
-export async function fetchFisios(): Promise<Fisio[]> {
-  const { data, error } = await supabase.from("fisioterapeutas").select("*").order("nome");
+export type FisioUltimaSessao = {
+  id: string;
+  data: string;
+  sigla: string;
+  pacienteNome: string | null;
+};
+
+export type FisioContaVinculada = {
+  userId: string;
+  email: string | null;
+};
+
+export async function fetchFisios(opts?: { ativosOnly?: boolean }): Promise<Fisio[]> {
+  let q = supabase.from("fisioterapeutas").select("*").order("nome");
+  if (opts?.ativosOnly) q = q.eq("ativo", true);
+  const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as Fisio[];
 }
@@ -102,4 +123,54 @@ export async function fetchFisioMetrics(fisioId: string): Promise<FisioMetrics> 
     comparecimento: realizadas / total,
     aderencia: (total - faltasNaoJustificadas) / total,
   };
+}
+
+export async function fetchFisioUltimasSessoes(
+  fisioId: string,
+  limit = 10,
+): Promise<FisioUltimaSessao[]> {
+  const { data, error } = await supabase
+    .from("sessoes")
+    .select("id, data, sigla, pacientes(nome)")
+    .eq("fisioterapeuta_id", fisioId)
+    .order("data", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const r = row as {
+      id: string;
+      data: string;
+      sigla: string;
+      pacientes?: { nome: string } | null;
+    };
+    return {
+      id: r.id,
+      data: r.data,
+      sigla: r.sigla,
+      pacienteNome: r.pacientes?.nome ?? null,
+    };
+  });
+}
+
+export async function fetchFisioContaVinculada(
+  fisioId: string,
+): Promise<FisioContaVinculada | null> {
+  const { data, error } = await supabase.rpc("get_fisio_conta_vinculada", {
+    p_fisio_id: fisioId,
+  });
+  if (error) throw error;
+
+  const row = (data as { user_id: string; email: string | null }[] | null)?.[0];
+  if (!row) return null;
+  return { userId: row.user_id, email: row.email };
+}
+
+export async function fetchFisioUsoLogs(fisioId: string, limit = 25): Promise<FisioUsoLog[]> {
+  const { data, error } = await supabase.rpc("get_fisio_uso_logs", {
+    p_fisio_id: fisioId,
+    p_limit: clampFisioUsoLogsLimit(limit),
+  });
+  if (error) throw error;
+  return mapFisioUsoLogRows((data ?? []) as Parameters<typeof mapFisioUsoLogRows>[0]);
 }

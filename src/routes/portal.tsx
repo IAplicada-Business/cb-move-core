@@ -66,7 +66,7 @@ function PortalShell() {
         <nav className="flex overflow-x-auto border-t bg-white">
           {(
             [
-              { to: "/portal/", label: "Início" },
+              { to: "/portal" as const, label: "Início" },
               { to: "/portal/sessoes", label: "Sessões" },
               { to: "/portal/exercicios", label: "Exercícios" },
               { to: "/portal/laudos", label: "Documentos" },

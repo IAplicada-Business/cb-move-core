@@ -7,12 +7,12 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { diag } from "../lib/client-diagnostics";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -141,12 +141,37 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function AuthQueryCacheSync() {
+  const { user } = useAuth();
+  const { queryClient } = Route.useRouteContext();
+  const prevUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const nextUserId = user?.id ?? null;
+    const prevUserId = prevUserIdRef.current;
+
+    if (prevUserId !== null && prevUserId !== nextUserId) {
+      void queryClient.cancelQueries();
+      queryClient.clear();
+      diag.info("react-query", "cache limpo após troca de sessão", {
+        prevUserId,
+        nextUserId,
+      });
+    }
+
+    prevUserIdRef.current = nextUserId;
+  }, [user?.id, queryClient]);
+
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <AuthQueryCacheSync />
         <Outlet />
         <Toaster />
       </AuthProvider>

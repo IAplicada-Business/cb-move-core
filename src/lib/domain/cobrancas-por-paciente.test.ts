@@ -24,6 +24,9 @@ function cob(
     frequenciaAtendimento: null,
     diasSemana: null,
     qtdSessoes: null,
+    parcelamentoGrupoId: null,
+    parcelaNumero: null,
+    parcelaTotal: null,
     createdAt: "2026-07-01T00:00:00Z",
     ...partial,
   };

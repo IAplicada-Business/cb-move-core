@@ -1,9 +1,11 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
+
+import { LoadingState } from "@/components/domain/LoadingState";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { openRelatorioPdf } from "@/lib/relatorio-pdf-url";
-import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/portal/")({
   component: PortalInicio,
@@ -17,7 +19,7 @@ type Paciente = {
 
 type Agendamento = {
   id: string;
-  data_hora: string;
+  inicio: string;
   fisioterapeutas?: { nome: string } | null;
 };
 
@@ -27,6 +29,13 @@ type Relatorio = {
   pdf_url: string | null;
 };
 
+function firstSupabaseError(results: Array<{ error: { message: string } | null }>): string | null {
+  for (const res of results) {
+    if (res.error) return res.error.message;
+  }
+  return null;
+}
+
 function PortalInicio() {
   const { user, pacienteId } = useAuth();
   const [paciente, setPaciente] = React.useState<Paciente | null>(null);
@@ -34,15 +43,21 @@ function PortalInicio() {
   const [proximas, setProximas] = React.useState<Agendamento[]>([]);
   const [documentos, setDocumentos] = React.useState<Relatorio[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!user || !pacienteId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
     const hoje = new Date();
     const mesInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split("T")[0];
     const mesFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split("T")[0];
 
-    Promise.all([
-      supabase.from("pacientes").select("id, nome, tipo").eq("user_id", user.id).single(),
+    void Promise.all([
+      supabase.from("pacientes").select("id, nome, tipo").eq("id", pacienteId).single(),
       supabase
         .from("sessoes")
         .select("id")
@@ -52,11 +67,11 @@ function PortalInicio() {
         .lte("data", mesFim),
       supabase
         .from("agendamentos")
-        .select("id, data_hora, fisioterapeutas(nome)")
+        .select("id, inicio, fisioterapeutas(nome)")
         .eq("paciente_id", pacienteId)
-        .gte("data_hora", hoje.toISOString())
+        .gte("inicio", hoje.toISOString())
         .in("status", ["agendado", "confirmado"])
-        .order("data_hora", { ascending: true })
+        .order("inicio", { ascending: true })
         .limit(3),
       supabase
         .from("relatorios_atendimento")
@@ -66,12 +81,28 @@ function PortalInicio() {
         .order("created_at", { ascending: false })
         .limit(3),
     ]).then(([pacRes, sesRes, agRes, relRes]) => {
-      setPaciente(pacRes.data);
-      setSessoesCount((sesRes.data ?? []).length);
-      setProximas(agRes.data ?? []);
-      setDocumentos(relRes.data ?? []);
+      if (cancelled) return;
+
+      const errMsg = firstSupabaseError([pacRes, sesRes, agRes, relRes]);
+      if (errMsg) {
+        setLoadError(errMsg);
+        toast.error("Não foi possível carregar seus dados. Tente novamente.");
+        setPaciente(null);
+        setSessoesCount(0);
+        setProximas([]);
+        setDocumentos([]);
+      } else {
+        setPaciente(pacRes.data);
+        setSessoesCount((sesRes.data ?? []).length);
+        setProximas(agRes.data ?? []);
+        setDocumentos(relRes.data ?? []);
+      }
       setLoading(false);
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [user, pacienteId]);
 
   if (loading) return <LoadingState />;
@@ -98,6 +129,12 @@ function PortalInicio() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Não foi possível carregar todas as informações. {loadError}
+        </div>
+      )}
+
       {/* Hero */}
       <div className="rounded-2xl bg-gradient-to-br from-cb-cyan-600 to-teal-500 p-6 text-white shadow-md">
         <p className="text-sm font-medium opacity-80">Bem-vinda de volta,</p>
@@ -153,7 +190,7 @@ function PortalInicio() {
                   <div className="mt-0.5 h-2 w-2 rounded-full bg-cb-cyan-500 shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-foreground capitalize">
-                      {formatDataHora(ag.data_hora)}
+                      {formatDataHora(ag.inicio)}
                     </p>
                     <p className="text-xs text-muted-foreground">com {fisioNome}</p>
                   </div>

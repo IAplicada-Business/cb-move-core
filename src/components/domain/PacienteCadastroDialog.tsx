@@ -272,7 +272,7 @@ export function PacienteCadastroDialog({ open, onOpenChange, paciente, onSuccess
                       <Input
                         {...field}
                         value={field.value ?? ""}
-                        placeholder="1028,00"
+                        placeholder="1110,00"
                         inputMode="decimal"
                       />
                     </FormControl>
@@ -291,7 +291,7 @@ export function PacienteCadastroDialog({ open, onOpenChange, paciente, onSuccess
                       <Input
                         {...field}
                         value={field.value ?? ""}
-                        placeholder="150,00"
+                        placeholder="287,00"
                         inputMode="decimal"
                       />
                     </FormControl>

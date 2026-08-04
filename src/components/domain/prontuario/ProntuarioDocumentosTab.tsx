@@ -8,6 +8,7 @@ import { monthPickerLabel } from "@/components/domain/MonthPicker";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { RelatorioArquivoMenu } from "@/components/domain/RelatorioArquivoMenu";
+import { parseFormatoArquivo } from "@/lib/domain/relatorio-renderers";
 import { mesLabel } from "@/components/domain/prontuario/constants";
 import {
   AlertDialog,
@@ -317,7 +318,7 @@ export function ProntuarioDocumentosTab({
                         <RelatorioArquivoMenu
                           pdfUrl={r.pdf_url}
                           xlsxUrl={r.xlsx_url}
-                          formatoArquivo={r.formato_arquivo}
+                          formatoArquivo={parseFormatoArquivo(r.formato_arquivo)}
                           onError={(e) => toast.error(e.message)}
                         />
                       ) : (

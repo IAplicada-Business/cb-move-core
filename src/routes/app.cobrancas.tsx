@@ -57,7 +57,13 @@ import {
   type PacienteCobrancaResumo,
   type StatusResumo,
 } from "@/lib/domain/cobrancas-por-paciente";
-import type { CobrancaStatus, FormaPagamento, NfStatus } from "@/lib/types";
+import type {
+  CobrancaStatus,
+  FormaPagamento,
+  NfStatus,
+  PacienteTipo,
+  RegimeCobranca,
+} from "@/lib/types";
 import {
   parseCSVBradesco,
   parseOFX,

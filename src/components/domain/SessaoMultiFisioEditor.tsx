@@ -26,7 +26,7 @@ export function SessaoMultiFisioEditor({ pacienteId, dataIso, fisioPrincipalId }
 
   const { data: fisios = [] } = useQuery({
     queryKey: queryKeys.fisioterapeutas.ativos,
-    queryFn: fetchFisios,
+    queryFn: () => fetchFisios({ ativosOnly: true }),
   });
 
   const { data: sessaoId } = useQuery({

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { StatusAgendamento } from "@/lib/types";
 
 function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -23,7 +24,7 @@ export type ProximaAgenda = {
   inicio: string;
   pacienteNome: string;
   fisioNome: string;
-  status: string;
+  status: StatusAgendamento;
 };
 
 export type DivergenciaProntuario = {

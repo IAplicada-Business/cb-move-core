@@ -17,10 +17,7 @@ import { ProntuarioPatientHero } from "@/components/domain/prontuario/Prontuario
 import { ProntuarioVisaoGeralTab } from "@/components/domain/prontuario/ProntuarioVisaoGeralTab";
 import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { ProntuarioToolbar } from "@/components/domain/prontuario/ProntuarioToolbar";
-import {
-  countSessoesRealizadas,
-  filterSessoesPorCompetencia,
-} from "@/components/domain/prontuario/utils";
+import { countSessoesRealizadas } from "@/components/domain/prontuario/utils";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { queryKeys } from "@/lib/queries";
@@ -28,7 +25,6 @@ import { fetchPacientes } from "@/lib/queries/pacientes";
 import {
   createEvolucao,
   fetchEvolucoes,
-  fetchHistoricoStatus,
   fetchInstrumentosAplicados,
   fetchInstrumentosAtivos,
   fetchPacienteProntuario,
@@ -129,7 +125,7 @@ function ProntuarioPage() {
     enabled: !!selectedId && activeTab !== "visao-geral",
   });
 
-  const { data: sessoes = [], isLoading: loadSessoes } = useQuery({
+  const { data: sessoes = [] } = useQuery({
     queryKey: queryKeys.prontuario.sessoes(selectedId ?? ""),
     queryFn: () => fetchSessoesProntuario(selectedId!),
     enabled: !!selectedId && activeTab !== "visao-geral",
@@ -147,10 +143,10 @@ function ProntuarioPage() {
     enabled: !!selectedId && activeTab === "documentos",
   });
 
-  const { data: historico = [], isLoading: loadHistorico } = useQuery({
-    queryKey: queryKeys.prontuario.historico(selectedId ?? ""),
-    queryFn: () => fetchHistoricoStatus(selectedId!),
-    enabled: !!selectedId && activeTab === "historico",
+  const { data: instrumentosAplicados = [], isLoading: loadAvaliacoes } = useQuery({
+    queryKey: queryKeys.prontuario.avaliacoes(selectedId ?? ""),
+    queryFn: () => fetchInstrumentosAplicados(selectedId!),
+    enabled: !!selectedId && (activeTab === "avaliacoes" || activeTab === "periodizacao"),
   });
 
   const { data: fisios = [] } = useQuery({
@@ -162,12 +158,6 @@ function ProntuarioPage() {
   const { data: instrumentosAtivos = [] } = useQuery({
     queryKey: [...queryKeys.instrumentos.all, "ativos"],
     queryFn: fetchInstrumentosAtivos,
-    enabled: !!selectedId && activeTab === "avaliacoes",
-  });
-
-  const { data: instrumentosAplicados = [], isLoading: loadAvaliacoes } = useQuery({
-    queryKey: queryKeys.prontuario.avaliacoes(selectedId ?? ""),
-    queryFn: () => fetchInstrumentosAplicados(selectedId!),
     enabled: !!selectedId && activeTab === "avaliacoes",
   });
 
@@ -314,7 +304,6 @@ function ProntuarioPage() {
   const evolucaoLoading = createEvolucaoMutation.isPending || updateEvolucaoMutation.isPending;
 
   const sessoesRealizadas = countSessoesRealizadas(sessoes);
-  const sessoesFiltradas = filterSessoesPorCompetencia(sessoes, competenciaMes, competenciaAno);
 
   function handleCompetenciaChange(mes: number, ano: number) {
     setCompetenciaMes(mes);
@@ -422,7 +411,7 @@ function ProntuarioPage() {
             Periodização
           </TabsTrigger>
           <TabsTrigger value="historico" className={TAB_TRIGGER_CLS}>
-            Histórico de status
+            Histórico de documentos
           </TabsTrigger>
         </TabsList>
 
@@ -512,6 +501,8 @@ function ProntuarioPage() {
               pacienteId={selectedId}
               paciente={paciente ?? undefined}
               readOnly={!canEdit}
+              avaliacoesCount={instrumentosAplicados.length}
+              onNavigateTab={(tab) => handleTabChange(tab)}
             />
           )}
         </TabsContent>
@@ -519,17 +510,8 @@ function ProntuarioPage() {
         <TabsContent value="historico" className="mt-0">
           {!selectedId ? (
             renderPatientRequired()
-          ) : loadPaciente ? (
-            renderPatientLoading()
-          ) : pacienteError || !paciente ? (
-            renderPatientError()
           ) : (
-            <ProntuarioHistoricoStatusTab
-              historico={historico}
-              sessoes={sessoesFiltradas}
-              loadingHistorico={loadHistorico}
-              loadingSessoes={loadSessoes}
-            />
+            <ProntuarioHistoricoStatusTab onOpenDocumentos={() => handleTabChange("documentos")} />
           )}
         </TabsContent>
       </Tabs>
