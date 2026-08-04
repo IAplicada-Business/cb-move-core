@@ -25,6 +25,7 @@ export type Paciente = {
   convenioId: string | null;
   convenioNome: string | null;
   fisioterapeutaId: string | null;
+  fisioterapeutaNome: string | null;
   numeroProcesso: string | null;
   advogadoNome: string | null;
   advogadoEmail: string | null;
@@ -87,6 +88,7 @@ type Row = {
   plano_total_sessoes: number | null;
   created_at: string;
   convenios?: { nome: string } | null;
+  fisioterapeutas?: { nome: string } | null;
   consulta_experimental_fisio?: { nome: string } | null;
   endereco: string | null;
   numero_endereco: string | null;
@@ -114,6 +116,7 @@ const map = (r: Row): Paciente => ({
   convenioId: r.convenio_id,
   convenioNome: r.convenios?.nome ?? null,
   fisioterapeutaId: r.fisioterapeuta_id,
+  fisioterapeutaNome: r.fisioterapeutas?.nome ?? null,
   numeroProcesso: r.numero_processo,
   advogadoNome: r.advogado_nome,
   advogadoEmail: r.advogado_email,
@@ -150,7 +153,7 @@ export async function fetchPacientes(filters?: {
 }): Promise<Paciente[]> {
   let query = supabase
     .from("pacientes")
-    .select("*, convenios(nome)")
+    .select("*, convenios(nome), fisioterapeutas!fisioterapeuta_id(nome)")
     .order("nome", { ascending: true });
 
   if (filters?.tipo) query = query.eq("tipo", filters.tipo);
@@ -170,7 +173,7 @@ export async function fetchPacientes(filters?: {
 export async function fetchPaciente(id: string): Promise<Paciente | null> {
   const { data, error } = await supabase
     .from("pacientes")
-    .select("*, convenios(nome)")
+    .select("*, convenios(nome), fisioterapeutas!fisioterapeuta_id(nome)")
     .eq("id", id)
     .single();
   if (error) throw error;

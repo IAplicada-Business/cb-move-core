@@ -17,8 +17,7 @@ export type AdminAuthContext = {
 const FINANCE_ROLES = new Set(["admin", "gestao", "recepcao", "membro"]);
 const RELATORIO_STAFF_ROLES = new Set(["admin", "gestao", "recepcao", "membro", "fisio"]);
 const FULL_PATIENT_ACCESS_ROLES = new Set(["admin", "gestao", "recepcao"]);
-/** TEMP TEST MODE — reverter junto com migration 20260727150100_revert_fisio_full_access_test_mode.sql */
-const FISIO_FULL_ACCESS_TEST_MODE = true;
+const FISIO_FULL_ACCESS_TEST_MODE = false;
 
 export function resolveAnonKey(): string | undefined {
   const direct = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");

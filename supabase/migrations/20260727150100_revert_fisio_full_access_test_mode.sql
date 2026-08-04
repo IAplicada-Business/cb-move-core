@@ -2,6 +2,26 @@
 
 DROP FUNCTION IF EXISTS public.fisio_full_access_test_mode();
 
+CREATE OR REPLACE FUNCTION public.staff_has_full_agenda_access()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    public.staff_has_full_patient_access()
+    OR (
+      EXISTS (
+        SELECT 1
+        FROM public.user_roles ur
+        WHERE ur.user_id = auth.uid()
+          AND ur.role = 'membro'::public.app_role
+      )
+      AND public.current_fisioterapeuta_id() IS NULL
+    );
+$$;
+
 CREATE OR REPLACE FUNCTION public.fisio_can_access_paciente(p_paciente_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql

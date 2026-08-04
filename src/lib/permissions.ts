@@ -1,10 +1,7 @@
 import type { AppRole } from "./types";
 
-/**
- * TEMP TEST MODE: fisio vê todos os pacientes (UI + queries filtradas).
- * Reverter para false junto com migration 20260727150100_revert_fisio_full_access_test_mode.sql
- */
-export const FISIO_FULL_ACCESS_TEST_MODE = true;
+/** Desligado — fisio clínico vê apenas pacientes vinculados (1º agendamento). */
+export const FISIO_FULL_ACCESS_TEST_MODE = false;
 
 /** Papéis legados ainda presentes no banco — tratados como membro na UI. */
 export const LEGACY_MEMBRO_ROLES = ["gestao", "recepcao", "fisio"] as const;

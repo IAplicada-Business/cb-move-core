@@ -146,6 +146,9 @@ function PacienteDetalhe() {
               <PacienteInfoField label="Frequência">
                 {paciente.frequenciaAtendimento ?? "—"}
               </PacienteInfoField>
+              <PacienteInfoField label="Fisio responsável">
+                {paciente.fisioterapeutaNome ?? "—"}
+              </PacienteInfoField>
               <PacienteInfoField label="Dias da semana" className="sm:col-span-2">
                 {paciente.diasSemana ?? "—"}
               </PacienteInfoField>
