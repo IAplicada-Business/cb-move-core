@@ -9,13 +9,11 @@ const corsHeaders = {
 type CreateBody = {
   email?: string;
   nome?: string;
-  role?: string;
+  role?: "admin" | "membro" | "cliente";
   paciente_id?: string | null;
-  fisioterapeuta_id?: string | null;
 };
 
-const ALLOWED_ROLES = new Set(["admin", "membro", "cliente", "recepcao", "gestao", "fisio"]);
-
+const STAFF_ROLES = new Set(["admin", "membro", "cliente"]);
 const DEFAULT_INITIAL_PASSWORD = Deno.env.get("DEFAULT_INITIAL_PASSWORD") ?? "CB2026";
 
 async function findUserByEmail(
@@ -41,28 +39,19 @@ async function upsertRoleAndProfile(
   nome: string,
   role: string,
   pacienteId: string | null,
-  fisioterapeutaId: string | null,
 ) {
   await admin.from("user_roles").delete().eq("user_id", userId);
   const { error: roleErr } = await admin.from("user_roles").insert({ user_id: userId, role });
   if (roleErr) throw roleErr;
 
-  let linkedFisioId = fisioterapeutaId;
-  if (role === "fisio" && !linkedFisioId) {
-    const { data: fisioByEmail } = await admin
-      .from("fisioterapeutas")
-      .select("id")
-      .ilike("email", email)
-      .maybeSingle();
-    linkedFisioId = fisioByEmail?.id ?? null;
-  }
+  const { data: fisio } = await admin
+    .from("fisioterapeutas")
+    .select("id")
+    .ilike("email", email)
+    .maybeSingle();
 
-  const profile: Record<string, unknown> = {
-    id: userId,
-    nome,
-    email,
-    fisioterapeuta_id: role === "fisio" ? linkedFisioId : null,
-  };
+  const profile: Record<string, unknown> = { id: userId, nome, email };
+  if (fisio?.id) profile.fisioterapeuta_id = fisio.id;
 
   const { error: profErr } = await admin.from("profiles").upsert(profile, { onConflict: "id" });
   if (profErr) throw profErr;
@@ -83,9 +72,8 @@ serve(async (req) => {
 
     const email = body.email?.trim().toLowerCase();
     const nome = body.nome?.trim();
-    const role = body.role ?? "recepcao";
+    const role = body.role ?? "membro";
     const pacienteId = body.paciente_id?.trim() || null;
-    const fisioterapeutaId = body.fisioterapeuta_id?.trim() || null;
 
     if (!email || !nome) {
       return new Response(JSON.stringify({ error: "E-mail e nome são obrigatórios" }), {
@@ -94,7 +82,7 @@ serve(async (req) => {
       });
     }
 
-    if (!ALLOWED_ROLES.has(role)) {
+    if (!STAFF_ROLES.has(role)) {
       return new Response(JSON.stringify({ error: "Perfil inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -111,27 +99,6 @@ serve(async (req) => {
       );
     }
 
-    if (role === "fisio" && !fisioterapeutaId) {
-      const { data: fisioByEmail } = await admin
-        .from("fisioterapeutas")
-        .select("id")
-        .ilike("email", email)
-        .maybeSingle();
-      if (!fisioByEmail?.id) {
-        return new Response(
-          JSON.stringify({ error: "Fisioterapeuta precisa estar vinculado ao cadastro de fisio" }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-    }
-
-    const existing = await findUserByEmail(admin, email);
-    let userId = existing?.id ?? null;
-    const isNew = !userId;
-
     if (role === "cliente") {
       const { data: paciente, error: pacErr } = await admin
         .from("pacientes")
@@ -146,13 +113,16 @@ serve(async (req) => {
         });
       }
 
-      if (paciente.user_id && paciente.user_id !== userId) {
+      if (paciente.user_id) {
         return new Response(JSON.stringify({ error: "Paciente já possui acesso ao portal" }), {
           status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
+
+    const existing = await findUserByEmail(admin, email);
+    let userId = existing?.id ?? null;
 
     if (!userId) {
       const { data, error } = await admin.auth.admin.createUser({
@@ -183,36 +153,26 @@ serve(async (req) => {
       }
     }
 
-    await upsertRoleAndProfile(admin, userId, email, nome, role, pacienteId, fisioterapeutaId);
+    await upsertRoleAndProfile(admin, userId, email, nome, role, pacienteId);
 
-    if (isNew) {
-      await admin.auth.admin.updateUserById(userId, {
-        password: DEFAULT_INITIAL_PASSWORD,
-        user_metadata: {
-          nome,
-          role,
-          must_reset_password: true,
-          ...(pacienteId ? { paciente_id: pacienteId } : {}),
-        },
-      });
-    } else {
-      await admin.auth.admin.updateUserById(userId, {
-        user_metadata: {
-          nome,
-          role,
-          ...(pacienteId ? { paciente_id: pacienteId } : {}),
-        },
-      });
-    }
+    await admin.auth.admin.updateUserById(userId, {
+      password: DEFAULT_INITIAL_PASSWORD,
+      user_metadata: {
+        nome,
+        role,
+        must_reset_password: true,
+        ...(pacienteId ? { paciente_id: pacienteId } : {}),
+      },
+    });
 
     return new Response(
       JSON.stringify({
         ok: true,
         user_id: userId,
-        created: isNew,
-        message: isNew
-          ? `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`
-          : "Usuário atualizado. Senha atual mantida.",
+        created: !existing,
+        message: existing
+          ? `Usuário atualizado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`
+          : `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`,
       }),
       {
         status: 200,

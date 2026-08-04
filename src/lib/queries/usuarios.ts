@@ -12,8 +12,6 @@ export type UserRow = {
   role: AppRole | null;
   paciente_id: string | null;
   paciente_nome: string | null;
-  fisioterapeuta_id: string | null;
-  fisioterapeuta_nome: string | null;
 };
 
 export async function fetchUsers(): Promise<UserRow[]> {
@@ -32,10 +30,7 @@ export async function fetchUsers(): Promise<UserRow[]> {
   }
 
   const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, nome, email, created_at, fisioterapeuta_id, fisioterapeutas(nome)")
-      .order("nome"),
+    supabase.from("profiles").select("id, nome, email, created_at").order("nome"),
     supabase.from("user_roles").select("user_id, role, created_at"),
   ]);
 
@@ -52,24 +47,11 @@ export async function fetchUsers(): Promise<UserRow[]> {
 
   const byId = new Map<string, UserRow>();
   for (const p of profiles ?? []) {
-    const row = p as {
-      id: string;
-      nome: string | null;
-      email: string | null;
-      created_at: string;
-      fisioterapeuta_id: string | null;
-      fisioterapeutas: { nome: string } | null;
-    };
-    byId.set(row.id, {
-      id: row.id,
-      nome: row.nome,
-      email: row.email,
-      created_at: row.created_at,
-      role: roleMap.get(row.id) ?? null,
+    byId.set(p.id, {
+      ...p,
+      role: roleMap.get(p.id) ?? null,
       paciente_id: null,
       paciente_nome: null,
-      fisioterapeuta_id: row.fisioterapeuta_id,
-      fisioterapeuta_nome: row.fisioterapeutas?.nome ?? null,
     });
   }
 
@@ -83,8 +65,6 @@ export async function fetchUsers(): Promise<UserRow[]> {
         role: r.role as AppRole,
         paciente_id: null,
         paciente_nome: null,
-        fisioterapeuta_id: null,
-        fisioterapeuta_nome: null,
       });
     }
   }
@@ -111,9 +91,8 @@ export async function updateUserRole(userId: string, role: PrimaryRole) {
 export type CreateUserInput = {
   email: string;
   nome: string;
-  role: AppRole;
+  role: PrimaryRole;
   paciente_id?: string | null;
-  fisioterapeuta_id?: string | null;
 };
 
 export async function createUser(input: CreateUserInput) {

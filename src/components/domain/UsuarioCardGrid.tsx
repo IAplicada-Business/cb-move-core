@@ -11,18 +11,20 @@ import {
 } from "@/components/brand/BrandTable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { operationalRoleLabel, operationalRoleFromUser } from "@/lib/user-access";
+import { normalizeRole, ROLE_LABELS, type PrimaryRole } from "@/lib/permissions";
+import type { AppRole } from "@/lib/types";
 import type { UserRow } from "@/lib/queries/usuarios";
 
-function RoleBadge({ user }: { user: UserRow | undefined }) {
-  if (!user?.role) {
-    return <BrandBadge tone="neutral">Não cadastrado</BrandBadge>;
-  }
-  const label = operationalRoleLabel(user.role, user.fisioterapeuta_id, user.fisioterapeuta_nome);
-  const ui = operationalRoleFromUser(user.role, user.fisioterapeuta_id);
-  const tone =
-    ui === "admin" ? "info" : ui === "cliente" ? "neutral" : ui === "fisio" ? "success" : "success";
-  return <BrandBadge tone={tone}>{label}</BrandBadge>;
+const ROLE_BADGE_TONE: Record<PrimaryRole, "info" | "success" | "neutral"> = {
+  admin: "info",
+  membro: "success",
+  cliente: "neutral",
+};
+
+function RoleBadge({ role }: { role: AppRole | null }) {
+  const primary = normalizeRole(role);
+  if (!primary) return <span className="text-xs text-cb-muted">—</span>;
+  return <BrandBadge tone={ROLE_BADGE_TONE[primary]}>{ROLE_LABELS[primary]}</BrandBadge>;
 }
 
 function statusLabel(user: UserRow | undefined): string {
@@ -34,6 +36,7 @@ export type UsuarioCardRow = {
   key: string;
   nome: string;
   email: string;
+  perfil: PrimaryRole;
   registered: UserRow | undefined;
   isReference: boolean;
 };
@@ -52,13 +55,14 @@ export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: Usuar
         <BrandTableRow>
           <BrandTableHead>Nome</BrandTableHead>
           <BrandTableHead className="hidden sm:table-cell">E-mail</BrandTableHead>
-          <BrandTableHead className="min-w-[160px]">Perfil</BrandTableHead>
+          <BrandTableHead className="w-[120px]">Perfil</BrandTableHead>
           <BrandTableHead className="hidden md:table-cell w-[140px]">Status</BrandTableHead>
           <BrandTableHead className="min-w-[120px] text-right">Ações</BrandTableHead>
         </BrandTableRow>
       </BrandTableHeader>
       <BrandTableBody>
         {rows.map((row) => {
+          const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
           const isSelf = row.registered?.id === currentUserId;
           const cadastrado = !!row.registered;
 
@@ -77,7 +81,7 @@ export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: Usuar
                 {row.email}
               </BrandTableCell>
               <BrandTableCell className="py-2.5">
-                <RoleBadge user={row.registered} />
+                <RoleBadge role={displayRole} />
               </BrandTableCell>
               <BrandTableCell className="hidden py-2.5 text-xs text-cb-muted md:table-cell">
                 {statusLabel(row.registered)}
