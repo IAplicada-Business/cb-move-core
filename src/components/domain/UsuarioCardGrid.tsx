@@ -11,20 +11,13 @@ import {
 } from "@/components/brand/BrandTable";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { normalizeRole, ROLE_LABELS, type PrimaryRole } from "@/lib/permissions";
-import type { AppRole } from "@/lib/types";
+import type { PrimaryRole } from "@/lib/permissions";
 import type { UserRow } from "@/lib/queries/usuarios";
+import { resolveUsuarioEquipeBadge, equipeInputFromUsuarioRow } from "@/lib/usuario-equipe";
 
-const ROLE_BADGE_TONE: Record<PrimaryRole, "info" | "success" | "neutral"> = {
-  admin: "info",
-  membro: "success",
-  cliente: "neutral",
-};
-
-function RoleBadge({ role }: { role: AppRole | null }) {
-  const primary = normalizeRole(role);
-  if (!primary) return <span className="text-xs text-cb-muted">—</span>;
-  return <BrandBadge tone={ROLE_BADGE_TONE[primary]}>{ROLE_LABELS[primary]}</BrandBadge>;
+function EquipeBadge({ row }: { row: UsuarioCardRow }) {
+  const badge = resolveUsuarioEquipeBadge(equipeInputFromUsuarioRow(row));
+  return <BrandBadge tone={badge.tone}>{badge.label}</BrandBadge>;
 }
 
 function statusLabel(user: UserRow | undefined): string {
@@ -39,6 +32,8 @@ export type UsuarioCardRow = {
   perfil: PrimaryRole;
   registered: UserRow | undefined;
   isReference: boolean;
+  tipoEquipeReferencia?: "fisio" | "secretaria";
+  observacaoReferencia?: string;
 };
 
 type UsuarioCardGridProps = {
@@ -62,7 +57,6 @@ export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: Usuar
       </BrandTableHeader>
       <BrandTableBody>
         {rows.map((row) => {
-          const displayRole = (row.registered?.role ?? row.perfil) as AppRole;
           const isSelf = row.registered?.id === currentUserId;
           const cadastrado = !!row.registered;
 
@@ -81,7 +75,7 @@ export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: Usuar
                 {row.email}
               </BrandTableCell>
               <BrandTableCell className="py-2.5">
-                <RoleBadge role={displayRole} />
+                <EquipeBadge row={row} />
               </BrandTableCell>
               <BrandTableCell className="hidden py-2.5 text-xs text-cb-muted md:table-cell">
                 {statusLabel(row.registered)}

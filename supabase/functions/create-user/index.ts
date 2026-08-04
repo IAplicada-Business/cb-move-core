@@ -9,12 +9,56 @@ const corsHeaders = {
 type CreateBody = {
   email?: string;
   nome?: string;
+  /** @deprecated use perfil */
   role?: "admin" | "membro" | "cliente";
+  perfil?: "admin" | "fisio" | "secretaria" | "gestao" | "membro" | "cliente";
   paciente_id?: string | null;
 };
 
-const STAFF_ROLES = new Set(["admin", "membro", "cliente"]);
+type CadastroPerfil = NonNullable<CreateBody["perfil"]>;
+
+const VALID_PERFIS = new Set<CadastroPerfil>([
+  "admin",
+  "fisio",
+  "secretaria",
+  "gestao",
+  "membro",
+  "cliente",
+]);
+
+function resolvePerfil(body: CreateBody): CadastroPerfil {
+  if (body.perfil && VALID_PERFIS.has(body.perfil)) return body.perfil;
+  const legacy = body.role ?? "membro";
+  if (legacy === "admin") return "admin";
+  if (legacy === "cliente") return "cliente";
+  return "membro";
+}
+
+function perfilToRole(perfil: CadastroPerfil): string {
+  switch (perfil) {
+    case "admin":
+      return "admin";
+    case "cliente":
+      return "cliente";
+    case "secretaria":
+      return "recepcao";
+    case "gestao":
+      return "gestao";
+    case "fisio":
+    case "membro":
+      return "membro";
+  }
+}
 const DEFAULT_INITIAL_PASSWORD = Deno.env.get("DEFAULT_INITIAL_PASSWORD") ?? "CB2026";
+
+class CreateUserError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.name = "CreateUserError";
+    this.status = status;
+  }
+}
 
 async function findUserByEmail(
   admin: Awaited<ReturnType<typeof requireAdminUser>>["admin"],
@@ -37,9 +81,10 @@ async function upsertRoleAndProfile(
   userId: string,
   email: string,
   nome: string,
-  role: string,
+  perfil: CadastroPerfil,
   pacienteId: string | null,
 ) {
+  const role = perfilToRole(perfil);
   await admin.from("user_roles").delete().eq("user_id", userId);
   const { error: roleErr } = await admin.from("user_roles").insert({ user_id: userId, role });
   if (roleErr) throw roleErr;
@@ -51,7 +96,24 @@ async function upsertRoleAndProfile(
     .maybeSingle();
 
   const profile: Record<string, unknown> = { id: userId, nome, email };
-  if (fisio?.id) profile.fisioterapeuta_id = fisio.id;
+
+  if (perfil === "fisio") {
+    if (!fisio?.id) {
+      throw new CreateUserError(
+        "E-mail não encontrado no cadastro de Fisioterapeutas. Cadastre o profissional em Equipe → Fisioterapeutas antes de criar o acesso.",
+      );
+    }
+    profile.fisioterapeuta_id = fisio.id;
+  } else if (
+    perfil === "secretaria" ||
+    perfil === "gestao" ||
+    perfil === "admin" ||
+    perfil === "cliente"
+  ) {
+    profile.fisioterapeuta_id = null;
+  } else if (perfil === "membro" && fisio?.id) {
+    profile.fisioterapeuta_id = fisio.id;
+  }
 
   const { error: profErr } = await admin.from("profiles").upsert(profile, { onConflict: "id" });
   if (profErr) throw profErr;
@@ -72,7 +134,8 @@ serve(async (req) => {
 
     const email = body.email?.trim().toLowerCase();
     const nome = body.nome?.trim();
-    const role = body.role ?? "membro";
+    const perfil = resolvePerfil(body);
+    const role = perfilToRole(perfil);
     const pacienteId = body.paciente_id?.trim() || null;
 
     if (!email || !nome) {
@@ -82,14 +145,7 @@ serve(async (req) => {
       });
     }
 
-    if (!STAFF_ROLES.has(role)) {
-      return new Response(JSON.stringify({ error: "Perfil inválido" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (role === "cliente" && !pacienteId) {
+    if (perfil === "cliente" && !pacienteId) {
       return new Response(
         JSON.stringify({ error: "Cliente precisa estar vinculado a um paciente" }),
         {
@@ -99,7 +155,7 @@ serve(async (req) => {
       );
     }
 
-    if (role === "cliente") {
+    if (perfil === "cliente") {
       const { data: paciente, error: pacErr } = await admin
         .from("pacientes")
         .select("id, user_id")
@@ -153,17 +209,20 @@ serve(async (req) => {
       }
     }
 
-    await upsertRoleAndProfile(admin, userId, email, nome, role, pacienteId);
+    await upsertRoleAndProfile(admin, userId, email, nome, perfil, pacienteId);
 
-    await admin.auth.admin.updateUserById(userId, {
-      password: DEFAULT_INITIAL_PASSWORD,
-      user_metadata: {
-        nome,
-        role,
-        must_reset_password: true,
-        ...(pacienteId ? { paciente_id: pacienteId } : {}),
-      },
-    });
+    const userMetadata: Record<string, unknown> = { nome, role };
+    if (pacienteId) userMetadata.paciente_id = pacienteId;
+    if (!existing) userMetadata.must_reset_password = true;
+
+    if (existing) {
+      await admin.auth.admin.updateUserById(userId, { user_metadata: userMetadata });
+    } else {
+      await admin.auth.admin.updateUserById(userId, {
+        password: DEFAULT_INITIAL_PASSWORD,
+        user_metadata: userMetadata,
+      });
+    }
 
     return new Response(
       JSON.stringify({
@@ -171,7 +230,7 @@ serve(async (req) => {
         user_id: userId,
         created: !existing,
         message: existing
-          ? `Usuário atualizado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`
+          ? "Usuário atualizado."
           : `Usuário cadastrado. Senha inicial: ${DEFAULT_INITIAL_PASSWORD} — redefinir no 1º login.`,
       }),
       {
@@ -182,6 +241,13 @@ serve(async (req) => {
   } catch (err) {
     const authResp = authErrorResponse(err, corsHeaders);
     if (authResp) return authResp;
+
+    if (err instanceof CreateUserError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: err.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     console.error("create-user", err);
     return new Response(JSON.stringify({ error: "Erro interno ao cadastrar usuário" }), {

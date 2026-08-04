@@ -3,6 +3,8 @@ export type ColaboradorReferencia = {
   email: string;
   perfil: "admin" | "membro" | "cliente";
   status: "cadastrado" | "aguardando_primeiro_acesso";
+  /** Fisio clínico ou secretária — membros da equipe CB Move. */
+  tipoEquipe?: "fisio" | "secretaria";
   observacao?: string;
 };
 
@@ -25,9 +27,9 @@ export const COLABORADORES_REFERENCIA: ColaboradorReferencia[] = [
   {
     nome: "Diego Silveira de Paula Xavier",
     email: "diegoxavier.fisio@gmail.com",
-    perfil: "admin",
+    perfil: "membro",
     status: "aguardando_primeiro_acesso",
-    observacao: "Administrador",
+    observacao: "Fisioterapeuta / administrador clínico",
   },
   {
     nome: "Adriano de Lima Cezar",
@@ -160,6 +162,7 @@ export const COLABORADORES_REFERENCIA: ColaboradorReferencia[] = [
     email: "vicenzavitoria@gmail.com",
     perfil: "membro",
     status: "aguardando_primeiro_acesso",
+    tipoEquipe: "secretaria",
     observacao: "Secretaria — acesso operacional (não fisio)",
   },
   {

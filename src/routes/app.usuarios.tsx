@@ -33,9 +33,19 @@ import {
   saveMenuPermissions,
   type UserRow,
 } from "@/lib/queries/usuarios";
-import { normalizeRole, PRIMARY_ROLES, ROLE_LABELS, type PrimaryRole } from "@/lib/permissions";
+import { normalizeRole, type PrimaryRole } from "@/lib/permissions";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
+import {
+  cadastroPerfilFromUsuarioRow,
+  cadastroPerfilHasMenuAccess,
+  equipeInputFromUsuarioRow,
+  USUARIO_CADASTRO_PERFIL_OPTIONS,
+  USUARIO_PERFIL_FILTER_OPTIONS,
+  usuarioEquipeTag,
+  type UsuarioCadastroPerfil,
+  type UsuarioPerfilFilter,
+} from "@/lib/usuario-equipe";
 
 import {
   AlertDialog,
@@ -88,6 +98,8 @@ function buildUsuarioRows(users: UserRow[]): UsuarioCardRow[] {
     perfil: c.perfil,
     registered: findUserByEmail(users, c.email),
     isReference: true,
+    tipoEquipeReferencia: c.tipoEquipe ?? (c.perfil === "membro" ? "fisio" : undefined),
+    observacaoReferencia: c.observacao,
   }));
 
   const extras = users
@@ -164,12 +176,13 @@ function UsuariosPage() {
   const [cadastroForm, setCadastroForm] = useState({
     nome: "",
     email: "",
-    role: "membro" as PrimaryRole,
+    perfil: "fisio" as UsuarioCadastroPerfil,
     paciente_id: "",
   });
   const [pacienteQuery, setPacienteQuery] = useState("");
   const [menuDraft, setMenuDraft] = useState<Partial<Record<MenuKey, boolean>>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterPerfil, setFilterPerfil] = useState<UsuarioPerfilFilter>("todos");
   const [userToDelete, setUserToDelete] = useState<UsuarioCardRow | null>(null);
 
   const {
@@ -187,10 +200,12 @@ function UsuariosPage() {
     retry: 1,
   });
 
+  const cadastroComMenu = cadastroPerfilHasMenuAccess(cadastroForm.perfil);
+
   const { data: menuPerms, isLoading: loadingMenu } = useQuery({
     queryKey: queryKeys.usuarios.menuPermissions("membro"),
     queryFn: () => fetchMenuPermissions("membro"),
-    enabled: isAdmin && cadastroOpen && cadastroForm.role === "membro",
+    enabled: isAdmin && cadastroOpen && cadastroComMenu,
   });
 
   useEffect(() => {
@@ -216,16 +231,15 @@ function UsuariosPage() {
       if (error) throw error;
       return data ?? [];
     },
-    enabled: isAdmin && cadastroOpen && cadastroForm.role === "cliente",
+    enabled: isAdmin && cadastroOpen && cadastroForm.perfil === "cliente",
   });
 
   const cadastroMutation = useMutation({
     mutationFn: async (input: Parameters<typeof createUser>[0]) => {
-      const result = await createUser(input);
-      if (input.role === "membro") {
+      if (cadastroPerfilHasMenuAccess(input.perfil)) {
         await saveMenuPermissions("membro", menuDraft);
       }
-      return result;
+      return createUser(input);
     },
     onSuccess: async (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
@@ -236,7 +250,7 @@ function UsuariosPage() {
       }
       toast.success(res.message ?? "Usuário salvo");
       setCadastroOpen(false);
-      setCadastroForm({ nome: "", email: "", role: "membro", paciente_id: "" });
+      setCadastroForm({ nome: "", email: "", perfil: "fisio", paciente_id: "" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -261,40 +275,56 @@ function UsuariosPage() {
   const usuarioRows = useMemo(() => buildUsuarioRows(users), [users]);
 
   const filteredUsuarioRows = useMemo(() => {
+    let rows = usuarioRows;
+    if (filterPerfil !== "todos") {
+      rows = rows.filter(
+        (row) => usuarioEquipeTag(equipeInputFromUsuarioRow(row)) === filterPerfil,
+      );
+    }
     const term = searchQuery.trim().toLowerCase();
-    if (!term) return usuarioRows;
-    return usuarioRows.filter(
-      (row) => row.nome.toLowerCase().includes(term) || row.email.toLowerCase().includes(term),
-    );
-  }, [usuarioRows, searchQuery]);
+    if (term) {
+      rows = rows.filter(
+        (row) => row.nome.toLowerCase().includes(term) || row.email.toLowerCase().includes(term),
+      );
+    }
+    return rows;
+  }, [usuarioRows, searchQuery, filterPerfil]);
 
-  const nAdmin = useMemo(
-    () => users.filter((u) => normalizeRole(u.role) === "admin").length,
-    [users],
-  );
-  const nMembro = useMemo(
-    () => users.filter((u) => normalizeRole(u.role) === "membro").length,
-    [users],
-  );
-  const nCliente = useMemo(
-    () => users.filter((u) => normalizeRole(u.role) === "cliente").length,
-    [users],
-  );
+  const perfilCounts = useMemo(() => {
+    const counts: Record<Exclude<UsuarioPerfilFilter, "todos">, number> = {
+      admin: 0,
+      fisio: 0,
+      secretaria: 0,
+      gestao: 0,
+      cliente: 0,
+      membro: 0,
+    };
+    for (const row of usuarioRows) {
+      const tag = usuarioEquipeTag(equipeInputFromUsuarioRow(row));
+      counts[tag] += 1;
+    }
+    return counts;
+  }, [usuarioRows]);
+
+  const nAdmin = perfilCounts.admin;
+  const nFisio = perfilCounts.fisio;
+  const nSecretaria = perfilCounts.secretaria;
+  const nCliente = perfilCounts.cliente;
   const nPendentes = useMemo(() => usuarioRows.filter((r) => !r.registered).length, [usuarioRows]);
 
   function openCadastroFromRow(row: UsuarioCardRow) {
     openCadastro({
       nome: row.nome,
       email: row.email,
-      role: normalizeRole(row.registered?.role) ?? row.perfil,
+      perfil: cadastroPerfilFromUsuarioRow(row),
     });
   }
 
-  function openCadastro(prefill?: { nome: string; email: string; role: PrimaryRole }) {
+  function openCadastro(prefill?: { nome: string; email: string; perfil: UsuarioCadastroPerfil }) {
     setCadastroForm({
       nome: prefill?.nome ?? "",
       email: prefill?.email ?? "",
-      role: prefill?.role ?? "membro",
+      perfil: prefill?.perfil ?? "fisio",
       paciente_id: "",
     });
     setPacienteQuery("");
@@ -322,7 +352,7 @@ function UsuariosPage() {
       <PageHeader
         crumbs={[{ label: "Equipe" }, { label: "Usuários" }]}
         title="Usuários do sistema"
-        description={`Cadastre a equipe com senha inicial ${DEFAULT_INITIAL_PASSWORD}. Para perfil Membro, defina os acessos ao menu no mesmo fluxo.`}
+        description={`Cadastre a equipe com senha inicial ${DEFAULT_INITIAL_PASSWORD}. Para perfis operacionais, defina os acessos ao menu no mesmo fluxo.`}
         actions={
           <Button
             onClick={() => openCadastro()}
@@ -366,15 +396,16 @@ function UsuariosPage() {
         />
       </KpiGrid>
 
-      {users.length > 0 && (
+      {usuarioRows.length > 0 && (
         <StatusDistributionBar
-          totalLabel="Usuários por perfil"
+          totalLabel="Equipe por perfil"
           formatValue={(n) => String(n)}
           segments={[
-            { label: "Admin", value: nAdmin, colorClass: "bg-cb-cyan-600" },
-            { label: "Membro", value: nMembro, colorClass: "bg-cb-lime" },
-            { label: "Cliente", value: nCliente, colorClass: "bg-cb-purple" },
-          ]}
+            { label: "Fisioterapeuta", value: nFisio, colorClass: "bg-cb-cyan-600" },
+            { label: "Admin", value: nAdmin, colorClass: "bg-cb-lime" },
+            { label: "Secretária", value: nSecretaria, colorClass: "bg-cb-purple" },
+            { label: "Cliente", value: nCliente, colorClass: "bg-muted-foreground" },
+          ].filter((s) => s.value > 0)}
         />
       )}
 
@@ -388,6 +419,21 @@ function UsuariosPage() {
             className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
           />
         </DataToolbarSearch>
+        <Select
+          value={filterPerfil}
+          onValueChange={(v) => setFilterPerfil(v as UsuarioPerfilFilter)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Perfil" />
+          </SelectTrigger>
+          <SelectContent>
+            {USUARIO_PERFIL_FILTER_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="ml-auto text-xs font-medium text-cb-muted">
           {usuarioRows.length} na lista · {users.length} cadastrados
         </p>
@@ -410,7 +456,11 @@ function UsuariosPage() {
         <EmptyState
           icon={<Search className="h-8 w-8" />}
           title="Nenhum usuário encontrado"
-          description="Tente buscar por outro nome ou e-mail."
+          description={
+            searchQuery.trim() || filterPerfil !== "todos"
+              ? "Tente buscar por outro nome, e-mail ou ajuste o filtro de perfil."
+              : "Nenhum usuário na lista."
+          }
         />
       ) : (
         <DashboardSection
@@ -436,10 +486,7 @@ function UsuariosPage() {
 
       <Dialog open={cadastroOpen} onOpenChange={setCadastroOpen}>
         <DialogContent
-          className={cn(
-            "max-h-[85vh] overflow-y-auto",
-            cadastroForm.role === "membro" ? "max-w-2xl" : "max-w-md",
-          )}
+          className={cn("max-h-[85vh] overflow-y-auto", cadastroComMenu ? "max-w-2xl" : "max-w-md")}
         >
           <DialogHeader>
             <DialogTitle>
@@ -469,25 +516,50 @@ function UsuariosPage() {
             <div className="space-y-1.5">
               <Label>Perfil</Label>
               <Select
-                value={cadastroForm.role}
+                value={cadastroForm.perfil}
                 onValueChange={(v) =>
-                  setCadastroForm((f) => ({ ...f, role: v as PrimaryRole, paciente_id: "" }))
+                  setCadastroForm((f) => ({
+                    ...f,
+                    perfil: v as UsuarioCadastroPerfil,
+                    paciente_id: "",
+                  }))
                 }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PRIMARY_ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {ROLE_LABELS[r]}
+                  {USUARIO_CADASTRO_PERFIL_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {cadastroForm.role === "membro" && (
+            {cadastroForm.perfil === "fisio" && (
+              <p className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Acesso clínico filtrado: pacientes vinculados ao profissional. O e-mail precisa
+                existir no cadastro de <strong>Fisioterapeutas</strong> (Equipe → Fisioterapeutas).
+                O menu lateral é fixo (Meus pacientes, Minha agenda, Prontuário).
+              </p>
+            )}
+
+            {cadastroForm.perfil === "secretaria" && (
+              <p className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Acesso operacional amplo — agenda, pacientes e rotinas de recepção, sem visão
+                financeira restrita ao perfil fisio.
+              </p>
+            )}
+
+            {cadastroForm.perfil === "gestao" && (
+              <p className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Perfil de gestão com visão operacional e financeira, sem escopo clínico de fisio.
+              </p>
+            )}
+
+            {cadastroComMenu && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
@@ -506,7 +578,7 @@ function UsuariosPage() {
               </div>
             )}
 
-            {cadastroForm.role === "cliente" && (
+            {cadastroForm.perfil === "cliente" && (
               <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
                 <Label>Paciente vinculado</Label>
                 <Input
@@ -547,14 +619,14 @@ function UsuariosPage() {
                 cadastroMutation.mutate({
                   nome: cadastroForm.nome.trim(),
                   email: cadastroForm.email.trim(),
-                  role: cadastroForm.role,
-                  paciente_id: cadastroForm.role === "cliente" ? cadastroForm.paciente_id : null,
+                  perfil: cadastroForm.perfil,
+                  paciente_id: cadastroForm.perfil === "cliente" ? cadastroForm.paciente_id : null,
                 })
               }
             >
               {cadastroMutation.isPending
                 ? "Salvando…"
-                : cadastroForm.role === "membro"
+                : cadastroComMenu
                   ? "Salvar usuário e acessos"
                   : "Salvar"}
             </Button>

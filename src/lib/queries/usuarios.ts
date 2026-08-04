@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { MenuKey } from "@/lib/menu-access";
 import type { PrimaryRole } from "@/lib/permissions";
 import type { AppRole } from "@/lib/types";
+import type { UsuarioCadastroPerfil } from "@/lib/usuario-equipe";
 
 export type UserRow = {
   id: string;
@@ -12,6 +13,7 @@ export type UserRow = {
   role: AppRole | null;
   paciente_id: string | null;
   paciente_nome: string | null;
+  fisioterapeuta_id: string | null;
 };
 
 export async function fetchUsers(): Promise<UserRow[]> {
@@ -30,7 +32,10 @@ export async function fetchUsers(): Promise<UserRow[]> {
   }
 
   const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
-    supabase.from("profiles").select("id, nome, email, created_at").order("nome"),
+    supabase
+      .from("profiles")
+      .select("id, nome, email, created_at, fisioterapeuta_id")
+      .order("nome"),
     supabase.from("user_roles").select("user_id, role, created_at"),
   ]);
 
@@ -52,6 +57,7 @@ export async function fetchUsers(): Promise<UserRow[]> {
       role: roleMap.get(p.id) ?? null,
       paciente_id: null,
       paciente_nome: null,
+      fisioterapeuta_id: p.fisioterapeuta_id ?? null,
     });
   }
 
@@ -65,6 +71,7 @@ export async function fetchUsers(): Promise<UserRow[]> {
         role: r.role as AppRole,
         paciente_id: null,
         paciente_nome: null,
+        fisioterapeuta_id: null,
       });
     }
   }
@@ -91,7 +98,7 @@ export async function updateUserRole(userId: string, role: PrimaryRole) {
 export type CreateUserInput = {
   email: string;
   nome: string;
-  role: PrimaryRole;
+  perfil: UsuarioCadastroPerfil;
   paciente_id?: string | null;
 };
 
