@@ -210,7 +210,6 @@ export function PacientePeriodizacaoTab({
   const temAvaliacao = avaliacoesCount > 0;
   const temFrequencia = Boolean(paciente?.frequenciaAtendimento?.trim());
   const temObjetivos = itens.length > 0;
-  const temPdf = Boolean(periodizacaoPdfUrl);
 
   if (isLoading) return <LoadingState />;
 
@@ -251,7 +250,6 @@ export function PacientePeriodizacaoTab({
             }
           />
           <ChecklistItem done={temObjetivos} label="3. Objetivos por sessão cadastrados" />
-          <ChecklistItem done={temPdf} label="4. PDF de periodização anexado" />
         </ul>
       </div>
 
