@@ -131,7 +131,7 @@ def main() -> int:
 
     print(json.dumps(results, ensure_ascii=False, indent=2))
 
-    # cleanup agendamento de teste
+    # cleanup agendamento de teste + vínculo experimental deixado pelo trigger
     if agend_id:
         req_del = urllib.request.Request(
             f"{m.base_url()}/rest/v1/agendamentos?id=eq.{agend_id}",
@@ -141,6 +141,18 @@ def main() -> int:
         with urllib.request.urlopen(req_del, timeout=60):
             pass
         print(f"\nCleanup: agendamento {agend_id} removido")
+
+    req_unlink = urllib.request.Request(
+        f"{m.base_url()}/rest/v1/pacientes?id=eq.{PACIENTE_LIVRE}",
+        data=json.dumps(
+            {"consulta_experimental_fisio_id": None, "consulta_experimental_em": None},
+        ).encode(),
+        headers={**svc_headers(), "Prefer": "return=minimal"},
+        method="PATCH",
+    )
+    with urllib.request.urlopen(req_unlink, timeout=60):
+        pass
+    print(f"Cleanup: vínculo experimental removido do paciente {PACIENTE_LIVRE}")
 
     return 0 if results["tudo_ok"] else 1
 

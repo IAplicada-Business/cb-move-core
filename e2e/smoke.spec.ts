@@ -21,6 +21,19 @@ const APP_ROUTES = {
 } as const;
 
 async function loginAsAppUser(page: Page, email: string, password: string) {
+  await loginWithCredentials(page, email, password, "app");
+}
+
+async function loginAsPortalUser(page: Page, email: string, password: string) {
+  await loginWithCredentials(page, email, password, "portal");
+}
+
+async function loginWithCredentials(
+  page: Page,
+  email: string,
+  password: string,
+  destination: "app" | "portal",
+) {
   await page.goto("/login");
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha").fill(password);
@@ -30,11 +43,22 @@ async function loginAsAppUser(page: Page, email: string, password: string) {
     await page.getByLabel("Nova senha").fill(password);
     await page.getByLabel("Confirmar senha").fill(password);
     await page.getByRole("button", { name: /salvar e entrar/i }).click();
-    await page.waitForURL((url) => url.pathname.startsWith("/app"), { timeout: AUTH_TIMEOUT });
+    await page.waitForURL(
+      (url) => url.pathname.startsWith(destination === "app" ? "/app" : "/portal"),
+      { timeout: AUTH_TIMEOUT },
+    );
   }
-  await expect(page.locator('a[data-sidebar="menu-button"][href="/app"]')).toBeVisible({
-    timeout: AUTH_TIMEOUT,
-  });
+  if (destination === "app") {
+    await page.waitForURL(/\/app/, { timeout: AUTH_TIMEOUT });
+    await expect(page.locator('a[data-sidebar="menu-button"]').first()).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
+  } else {
+    await expect(page).toHaveURL(/\/portal/, { timeout: AUTH_TIMEOUT });
+    await expect(page.getByRole("link", { name: "Sessões" })).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
+  }
 }
 
 async function openAppRoute(page: Page, route: (typeof APP_ROUTES)[keyof typeof APP_ROUTES]) {
@@ -120,5 +144,79 @@ test.describe("smoke autenticado", () => {
 
   test("agenda", async ({ page }) => {
     await openAppRoute(page, APP_ROUTES.agenda);
+  });
+});
+
+const TEST_PASSWORD = process.env.E2E_PASSWORD ?? "CB2026";
+
+test.describe("smoke admin (Charlene)", () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test.beforeEach(async ({ page }) => {
+    await loginAsAppUser(page, "cbmoveneuro@gmail.com", TEST_PASSWORD);
+  });
+
+  test("menu Usuários visível", async ({ page }) => {
+    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/usuarios"]')).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
+  });
+
+  test("Usuários carrega", async ({ page }) => {
+    await page.goto("/app/usuarios", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1, name: /usuários/i })).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
+  });
+});
+
+test.describe("smoke fisio clínico", () => {
+  test.describe.configure({ timeout: 60_000, mode: "serial" });
+
+  test.beforeEach(async ({ page }) => {
+    await loginAsAppUser(page, "fisio.teste@iaplicada.com", TEST_PASSWORD);
+  });
+
+  test("operação básica visível", async ({ page }) => {
+    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/pacientes"]')).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
+    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/agenda"]')).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
+  });
+
+  test("financeiro oculto no menu", async ({ page }) => {
+    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/cobrancas"]')).toHaveCount(
+      0,
+    );
+    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/usuarios"]')).toHaveCount(
+      0,
+    );
+  });
+});
+
+test.describe("smoke portal cliente", () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test.beforeEach(async ({ page }) => {
+    await loginAsPortalUser(page, "cliente.teste@iaplicada.com", TEST_PASSWORD);
+  });
+
+  test("início do portal", async ({ page }) => {
+    await expect(page.getByText(/Bem-vinda de volta/i)).toBeVisible({ timeout: AUTH_TIMEOUT });
+    await expect(page.getByText(/Suas sessões este mês/i)).toBeVisible({ timeout: AUTH_TIMEOUT });
+  });
+
+  test("navegação sessões e contato", async ({ page }) => {
+    await page.getByRole("link", { name: "Sessões" }).click();
+    await expect(page).toHaveURL(/\/portal\/sessoes/, { timeout: AUTH_TIMEOUT });
+    await page.getByRole("link", { name: "Contato" }).click();
+    await expect(page).toHaveURL(/\/portal\/contato/, { timeout: AUTH_TIMEOUT });
+  });
+
+  test("/app redireciona para portal", async ({ page }) => {
+    await page.goto("/app/pacientes", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/portal/, { timeout: AUTH_TIMEOUT });
   });
 });
