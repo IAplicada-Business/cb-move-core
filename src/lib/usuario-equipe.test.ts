@@ -4,7 +4,6 @@ import type { UserRow } from "@/lib/queries/usuarios";
 
 import {
   cadastroPerfilFromUsuarioRow,
-  cadastroPerfilHasMenuAccess,
   equipeInputFromUsuarioRow,
   resolveUsuarioEquipeBadge,
   usuarioEquipeTag,
@@ -96,19 +95,5 @@ describe("cadastroPerfilFromUsuarioRow", () => {
         registered: registeredSecretaria,
       }),
     ).toBe("secretaria");
-  });
-});
-
-describe("cadastroPerfilHasMenuAccess", () => {
-  it("inclui perfis operacionais que usam menu_permissions", () => {
-    expect(cadastroPerfilHasMenuAccess("secretaria")).toBe(true);
-    expect(cadastroPerfilHasMenuAccess("gestao")).toBe(true);
-    expect(cadastroPerfilHasMenuAccess("membro")).toBe(true);
-  });
-
-  it("exclui fisio, admin e cliente", () => {
-    expect(cadastroPerfilHasMenuAccess("fisio")).toBe(false);
-    expect(cadastroPerfilHasMenuAccess("admin")).toBe(false);
-    expect(cadastroPerfilHasMenuAccess("cliente")).toBe(false);
   });
 });

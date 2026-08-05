@@ -45,12 +45,11 @@ export type UsuarioEquipeRowInput = {
 export type UsuarioCadastroPerfil =
   "admin" | "fisio" | "secretaria" | "gestao" | "membro" | "cliente";
 
+/** Perfis disponíveis no cadastro — fisio e secretária cobrem a equipe CB Move. */
 export const USUARIO_CADASTRO_PERFIL_OPTIONS: { value: UsuarioCadastroPerfil; label: string }[] = [
-  { value: "admin", label: "Administrador" },
   { value: "fisio", label: "Fisioterapeuta" },
   { value: "secretaria", label: "Secretária" },
-  { value: "gestao", label: "Gestão" },
-  { value: "membro", label: "Membro" },
+  { value: "admin", label: "Administrador" },
   { value: "cliente", label: "Cliente" },
 ];
 
@@ -66,10 +65,6 @@ export function cadastroPerfilFromUsuarioRow(row: {
   observacaoReferencia?: string;
 }): UsuarioCadastroPerfil {
   return cadastroPerfilFromEquipeTag(usuarioEquipeTag(equipeInputFromUsuarioRow(row)));
-}
-
-export function cadastroPerfilHasMenuAccess(perfil: UsuarioCadastroPerfil): boolean {
-  return perfil === "secretaria" || perfil === "gestao" || perfil === "membro";
 }
 
 export type UsuarioPerfilFilter = "todos" | UsuarioEquipeTag;
