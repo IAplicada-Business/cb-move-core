@@ -11,27 +11,25 @@ type CreateBody = {
   nome?: string;
   /** @deprecated use perfil */
   role?: "admin" | "membro" | "cliente";
-  perfil?: "admin" | "fisio" | "secretaria" | "gestao" | "membro" | "cliente";
+  perfil?: "admin" | "fisio" | "cliente";
   paciente_id?: string | null;
+  fisio?: {
+    registro_profissional?: string | null;
+    ativo?: boolean;
+  };
 };
 
 type CadastroPerfil = NonNullable<CreateBody["perfil"]>;
 
-const VALID_PERFIS = new Set<CadastroPerfil>([
-  "admin",
-  "fisio",
-  "secretaria",
-  "gestao",
-  "membro",
-  "cliente",
-]);
+const VALID_PERFIS = new Set<CadastroPerfil>(["admin", "fisio", "cliente"]);
 
 function resolvePerfil(body: CreateBody): CadastroPerfil {
   if (body.perfil && VALID_PERFIS.has(body.perfil)) return body.perfil;
-  const legacy = body.role ?? "membro";
+  const legacy = body.role ?? null;
   if (legacy === "admin") return "admin";
   if (legacy === "cliente") return "cliente";
-  return "membro";
+  if (legacy === "membro") return "fisio";
+  throw new CreateUserError("Perfil inválido. Use administrador, fisioterapeuta ou cliente.");
 }
 
 function perfilToRole(perfil: CadastroPerfil): string {
@@ -40,15 +38,11 @@ function perfilToRole(perfil: CadastroPerfil): string {
       return "admin";
     case "cliente":
       return "cliente";
-    case "secretaria":
-      return "recepcao";
-    case "gestao":
-      return "gestao";
     case "fisio":
-    case "membro":
       return "membro";
   }
 }
+
 const DEFAULT_INITIAL_PASSWORD = Deno.env.get("DEFAULT_INITIAL_PASSWORD") ?? "CB2026";
 
 class CreateUserError extends Error {
@@ -76,6 +70,60 @@ async function findUserByEmail(
   return null;
 }
 
+async function ensureFisioRecord(
+  admin: Awaited<ReturnType<typeof requireAdminUser>>["admin"],
+  email: string,
+  nome: string,
+  fisioFields?: CreateBody["fisio"],
+): Promise<string> {
+  const registro = fisioFields?.registro_profissional?.trim() || null;
+  const ativo = fisioFields?.ativo ?? true;
+
+  const { data: existing, error: findErr } = await admin
+    .from("fisioterapeutas")
+    .select("id")
+    .ilike("email", email)
+    .limit(1)
+    .maybeSingle();
+  if (findErr) throw findErr;
+
+  if (existing?.id) {
+    const { error: updErr } = await admin
+      .from("fisioterapeutas")
+      .update({ nome, email, registro_profissional: registro, ativo })
+      .eq("id", existing.id);
+    if (updErr) throw updErr;
+    return existing.id;
+  }
+
+  const { data: inserted, error: insErr } = await admin
+    .from("fisioterapeutas")
+    .insert({ nome, email, registro_profissional: registro, ativo })
+    .select("id")
+    .single();
+  if (insErr) throw insErr;
+  if (!inserted?.id) {
+    throw new CreateUserError("Não foi possível criar o registro clínico do fisioterapeuta.");
+  }
+  return inserted.id;
+}
+
+async function syncPacienteLink(
+  admin: Awaited<ReturnType<typeof requireAdminUser>>["admin"],
+  userId: string,
+  perfil: CadastroPerfil,
+  pacienteId: string | null,
+) {
+  await admin.from("pacientes").update({ user_id: null }).eq("user_id", userId);
+  if (perfil === "cliente" && pacienteId) {
+    const { error } = await admin
+      .from("pacientes")
+      .update({ user_id: userId })
+      .eq("id", pacienteId);
+    if (error) throw error;
+  }
+}
+
 async function upsertRoleAndProfile(
   admin: Awaited<ReturnType<typeof requireAdminUser>>["admin"],
   userId: string,
@@ -83,44 +131,55 @@ async function upsertRoleAndProfile(
   nome: string,
   perfil: CadastroPerfil,
   pacienteId: string | null,
+  fisioId: string | null,
 ) {
   const role = perfilToRole(perfil);
   await admin.from("user_roles").delete().eq("user_id", userId);
   const { error: roleErr } = await admin.from("user_roles").insert({ user_id: userId, role });
   if (roleErr) throw roleErr;
 
-  const { data: fisio } = await admin
-    .from("fisioterapeutas")
-    .select("id")
-    .ilike("email", email)
-    .maybeSingle();
-
   const profile: Record<string, unknown> = { id: userId, nome, email };
 
   if (perfil === "fisio") {
-    if (!fisio?.id) {
-      throw new CreateUserError(
-        "E-mail não encontrado no cadastro de Fisioterapeutas. Cadastre o profissional em Equipe → Fisioterapeutas antes de criar o acesso.",
-      );
+    if (!fisioId) {
+      throw new CreateUserError("Registro clínico do fisioterapeuta não encontrado.");
     }
-    profile.fisioterapeuta_id = fisio.id;
-  } else if (
-    perfil === "secretaria" ||
-    perfil === "gestao" ||
-    perfil === "admin" ||
-    perfil === "cliente"
-  ) {
+    profile.fisioterapeuta_id = fisioId;
+  } else {
     profile.fisioterapeuta_id = null;
-  } else if (perfil === "membro" && fisio?.id) {
-    profile.fisioterapeuta_id = fisio.id;
   }
 
   const { error: profErr } = await admin.from("profiles").upsert(profile, { onConflict: "id" });
   if (profErr) throw profErr;
 
-  if (role === "cliente" && pacienteId) {
-    await admin.from("pacientes").update({ user_id: userId }).eq("id", pacienteId);
+  await syncPacienteLink(admin, userId, perfil, pacienteId);
+}
+
+function buildUserMetadata(
+  existingMeta: Record<string, unknown> | undefined,
+  nome: string,
+  role: string,
+  perfil: CadastroPerfil,
+  pacienteId: string | null,
+  isNewUser: boolean,
+): Record<string, unknown> {
+  const userMetadata: Record<string, unknown> = {
+    ...(existingMeta ?? {}),
+    nome,
+    role,
+  };
+
+  if (perfil === "cliente" && pacienteId) {
+    userMetadata.paciente_id = pacienteId;
+  } else {
+    userMetadata.paciente_id = null;
   }
+
+  if (isNewUser) {
+    userMetadata.must_reset_password = true;
+  }
+
+  return userMetadata;
 }
 
 serve(async (req) => {
@@ -155,6 +214,9 @@ serve(async (req) => {
       );
     }
 
+    const existing = await findUserByEmail(admin, email);
+    const existingUserId = existing?.id ?? null;
+
     if (perfil === "cliente") {
       const { data: paciente, error: pacErr } = await admin
         .from("pacientes")
@@ -169,7 +231,7 @@ serve(async (req) => {
         });
       }
 
-      if (paciente.user_id) {
+      if (paciente.user_id && paciente.user_id !== existingUserId) {
         return new Response(JSON.stringify({ error: "Paciente já possui acesso ao portal" }), {
           status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -177,8 +239,12 @@ serve(async (req) => {
       }
     }
 
-    const existing = await findUserByEmail(admin, email);
-    let userId = existing?.id ?? null;
+    let fisioId: string | null = null;
+    if (perfil === "fisio") {
+      fisioId = await ensureFisioRecord(admin, email, nome, body.fisio);
+    }
+
+    let userId = existingUserId;
 
     if (!userId) {
       const { data, error } = await admin.auth.admin.createUser({
@@ -209,11 +275,16 @@ serve(async (req) => {
       }
     }
 
-    await upsertRoleAndProfile(admin, userId, email, nome, perfil, pacienteId);
+    await upsertRoleAndProfile(admin, userId, email, nome, perfil, pacienteId, fisioId);
 
-    const userMetadata: Record<string, unknown> = { nome, role };
-    if (pacienteId) userMetadata.paciente_id = pacienteId;
-    if (!existing) userMetadata.must_reset_password = true;
+    const userMetadata = buildUserMetadata(
+      existing?.user_metadata as Record<string, unknown> | undefined,
+      nome,
+      role,
+      perfil,
+      pacienteId,
+      !existing,
+    );
 
     if (existing) {
       await admin.auth.admin.updateUserById(userId, { user_metadata: userMetadata });

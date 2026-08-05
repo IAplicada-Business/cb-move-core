@@ -14,21 +14,57 @@ export type UserRow = {
   paciente_id: string | null;
   paciente_nome: string | null;
   fisioterapeuta_id: string | null;
+  must_reset_password?: boolean;
+  last_sign_in_at?: string | null;
+  /** false quando fetchUsers usou RPC/fallback sem metadados de auth. */
+  auth_meta_loaded?: boolean;
 };
+
+async function enrichUsersWithProfiles(users: UserRow[]): Promise<UserRow[]> {
+  if (users.length === 0) return users;
+  const ids = users.map((u) => u.id);
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, fisioterapeuta_id")
+    .in("id", ids);
+  if (error) return users;
+
+  const fisioById = new Map(
+    (profiles ?? []).map((p) => [p.id, p.fisioterapeuta_id as string | null]),
+  );
+  return users.map((u) => ({
+    ...u,
+    fisioterapeuta_id: fisioById.get(u.id) ?? u.fisioterapeuta_id ?? null,
+  }));
+}
 
 export async function fetchUsers(): Promise<UserRow[]> {
   try {
-    const { data, error } = await supabase.rpc("list_users");
-    if (!error && Array.isArray(data)) return sortUsers(data as UserRow[]);
+    const edge = await invokeEdgeFunction<{ users: UserRow[] }>("list-users", {});
+    if (Array.isArray(edge.users)) {
+      return sortUsers(
+        edge.users.map((u) => ({
+          ...u,
+          auth_meta_loaded: u.auth_meta_loaded ?? true,
+        })),
+      );
+    }
   } catch {
-    /* RPC ainda não migrada */
+    /* edge function indisponível */
   }
 
   try {
-    const edge = await invokeEdgeFunction<{ users: UserRow[] }>("list-users", {});
-    if (Array.isArray(edge.users)) return sortUsers(edge.users);
+    const { data, error } = await supabase.rpc("list_users");
+    if (!error && Array.isArray(data)) {
+      return sortUsers(
+        (await enrichUsersWithProfiles(data as UserRow[])).map((u) => ({
+          ...u,
+          auth_meta_loaded: false,
+        })),
+      );
+    }
   } catch {
-    /* edge function indisponível ou lenta */
+    /* RPC ainda não migrada */
   }
 
   const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
@@ -76,7 +112,12 @@ export async function fetchUsers(): Promise<UserRow[]> {
     }
   }
 
-  return sortUsers(Array.from(byId.values()));
+  return sortUsers(
+    Array.from(byId.values()).map((u) => ({
+      ...u,
+      auth_meta_loaded: false,
+    })),
+  );
 }
 
 function sortUsers(users: UserRow[]): UserRow[] {
@@ -100,6 +141,10 @@ export type CreateUserInput = {
   nome: string;
   perfil: UsuarioCadastroPerfil;
   paciente_id?: string | null;
+  fisio?: {
+    registro_profissional?: string | null;
+    ativo?: boolean;
+  };
 };
 
 export async function createUser(input: CreateUserInput) {

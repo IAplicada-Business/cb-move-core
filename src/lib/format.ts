@@ -88,6 +88,30 @@ export const formatDateTime = (d: string | Date | null | undefined) => {
   return dt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 };
 
+/** Último login — Hoje, Ontem ou dd/mm/yy (mockup Usuários). Comparação em fuso America/Sao_Paulo. */
+const LAST_SIGN_IN_TZ = "America/Sao_Paulo";
+
+function localDateKeyInTimeZone(d: Date, timeZone: string): string {
+  return d.toLocaleDateString("en-CA", { timeZone });
+}
+
+export const formatLastSignIn = (d: string | Date | null | undefined) => {
+  if (!d) return "—";
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (Number.isNaN(dt.getTime())) return "—";
+
+  const todayKey = localDateKeyInTimeZone(new Date(), LAST_SIGN_IN_TZ);
+  const signInKey = localDateKeyInTimeZone(dt, LAST_SIGN_IN_TZ);
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = localDateKeyInTimeZone(yesterday, LAST_SIGN_IN_TZ);
+
+  if (signInKey === todayKey) return "Hoje";
+  if (signInKey === yesterdayKey) return "Ontem";
+  return formatDateDDMMYY(dt);
+};
+
 export const formatCPF = (cpf: string | null | undefined) => {
   if (!cpf) return "";
   const v = cpf.replace(/\D/g, "").padStart(11, "0").slice(0, 11);

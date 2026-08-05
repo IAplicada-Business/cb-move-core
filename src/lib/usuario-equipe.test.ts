@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { UserRow } from "@/lib/queries/usuarios";
 
 import {
+  cadastroPerfilFromEquipeTag,
   cadastroPerfilFromUsuarioRow,
   equipeInputFromUsuarioRow,
   resolveUsuarioEquipeBadge,
+  usuarioDisplayPerfilFromRow,
   usuarioEquipeTag,
+  usuarioFilterTag,
 } from "./usuario-equipe";
 
 const registeredFisio: UserRow = {
@@ -18,6 +21,17 @@ const registeredFisio: UserRow = {
   paciente_id: null,
   paciente_nome: null,
   fisioterapeuta_id: "fisio-1",
+};
+
+const registeredMembroSemFisio: UserRow = {
+  id: "u3",
+  nome: "Brenda",
+  email: "brenda@test.com",
+  created_at: "",
+  role: "membro",
+  paciente_id: null,
+  paciente_nome: null,
+  fisioterapeuta_id: null,
 };
 
 const registeredSecretaria: UserRow = {
@@ -47,8 +61,7 @@ describe("usuarioEquipeTag", () => {
     expect(
       usuarioEquipeTag(
         equipeInputFromUsuarioRow({
-          perfil: "membro",
-          tipoEquipeReferencia: "fisio",
+          perfil: "fisio",
         }),
       ),
     ).toBe("fisio");
@@ -56,11 +69,10 @@ describe("usuarioEquipeTag", () => {
     expect(
       usuarioEquipeTag(
         equipeInputFromUsuarioRow({
-          perfil: "membro",
-          tipoEquipeReferencia: "secretaria",
+          perfil: "admin",
         }),
       ),
-    ).toBe("secretaria");
+    ).toBe("admin");
   });
 
   it("identifica gestão e admin no banco", () => {
@@ -77,23 +89,71 @@ describe("usuarioEquipeTag", () => {
     ).toBe("admin");
   });
 
-  it("membro sem vínculo de fisio permanece membro", () => {
+  it("usa referência fisio quando cadastro no banco é membro genérico", () => {
     expect(
-      usuarioEquipeTag({
-        role: "membro",
-        fisioterapeutaId: null,
+      usuarioDisplayPerfilFromRow({
+        perfil: "fisio",
+        registered: registeredMembroSemFisio,
       }),
-    ).toBe("membro");
+    ).toBe("fisio");
+  });
+
+  it("membro legado sem referência mapeia para admin", () => {
+    expect(
+      usuarioDisplayPerfilFromRow({
+        perfil: "membro",
+        registered: registeredMembroSemFisio,
+      }),
+    ).toBe("admin");
+  });
+
+  it("prioriza role cadastrada para KPI e tags", () => {
+    expect(
+      usuarioDisplayPerfilFromRow({
+        perfil: "fisio",
+        registered: {
+          ...registeredFisio,
+          role: "admin",
+        },
+      }),
+    ).toBe("admin");
   });
 });
 
 describe("cadastroPerfilFromUsuarioRow", () => {
-  it("mapeia secretária cadastrada", () => {
+  it("mapeia secretária cadastrada para admin quando referência é admin", () => {
     expect(
       cadastroPerfilFromUsuarioRow({
-        perfil: "membro",
+        perfil: "admin",
         registered: registeredSecretaria,
       }),
-    ).toBe("secretaria");
+    ).toBe("admin");
+  });
+
+  it("mapeia fisio cadastrado", () => {
+    expect(
+      cadastroPerfilFromUsuarioRow({
+        perfil: "fisio",
+        registered: registeredFisio,
+      }),
+    ).toBe("fisio");
+  });
+});
+
+describe("usuarioFilterTag", () => {
+  it("agrupa tags legadas em admin, fisio ou cliente", () => {
+    expect(usuarioFilterTag("secretaria")).toBe("admin");
+    expect(usuarioFilterTag("gestao")).toBe("admin");
+    expect(usuarioFilterTag("membro")).toBe("admin");
+    expect(usuarioFilterTag("fisio")).toBe("fisio");
+    expect(usuarioFilterTag("cliente")).toBe("cliente");
+  });
+});
+
+describe("cadastroPerfilFromEquipeTag", () => {
+  it("reduz tags legadas aos três perfis de cadastro", () => {
+    expect(cadastroPerfilFromEquipeTag("secretaria")).toBe("admin");
+    expect(cadastroPerfilFromEquipeTag("gestao")).toBe("admin");
+    expect(cadastroPerfilFromEquipeTag("membro")).toBe("fisio");
   });
 });

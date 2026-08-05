@@ -13,6 +13,7 @@ type BrandBadgeTone =
   | "info"
   | "neutral";
 
+/** Tags de exibição — legado (secretaria/gestao/membro) mantido para usuários existentes. */
 export type UsuarioEquipeTag = "admin" | "fisio" | "secretaria" | "gestao" | "cliente" | "membro";
 
 export type UsuarioEquipeBadge = {
@@ -34,70 +35,140 @@ export function isSecretariaReferencia(observacao?: string): boolean {
   return !!observacao?.toLowerCase().includes("secretaria");
 }
 
+/** Perfis disponíveis no cadastro (3 atores). */
+export type UsuarioCadastroPerfil = "admin" | "fisio" | "cliente";
+
+export type UsuarioDisplayPerfil = UsuarioCadastroPerfil;
+
+export type UsuarioDisplayBadge = {
+  tag: UsuarioDisplayPerfil;
+  label: string;
+  tone: BrandBadgeTone;
+};
+
 export type UsuarioEquipeRowInput = {
   role: AppRole | null | undefined;
   fisioterapeutaId?: string | null;
-  perfilReferencia?: PrimaryRole;
+  perfilReferencia?: PrimaryRole | "fisio";
   tipoEquipeReferencia?: "fisio" | "secretaria";
   observacaoReferencia?: string;
 };
 
-export type UsuarioCadastroPerfil =
-  "admin" | "fisio" | "secretaria" | "gestao" | "membro" | "cliente";
+const DISPLAY_BADGE: Record<UsuarioDisplayPerfil, Omit<UsuarioDisplayBadge, "tag">> = {
+  admin: { label: "Administrador", tone: "info" },
+  fisio: { label: "Fisioterapeuta", tone: "particular" },
+  cliente: { label: "Cliente", tone: "neutral" },
+};
 
-/** Perfis disponíveis no cadastro — fisio e secretária cobrem a equipe CB Move. */
+function refPerfilFromRow(
+  perfil: PrimaryRole | "fisio" | "cliente",
+): PrimaryRole | "fisio" | undefined {
+  if (perfil === "fisio") return "fisio";
+  if (perfil === "admin" || perfil === "cliente") return perfil;
+  return undefined;
+}
+
 export const USUARIO_CADASTRO_PERFIL_OPTIONS: { value: UsuarioCadastroPerfil; label: string }[] = [
-  { value: "fisio", label: "Fisioterapeuta" },
-  { value: "secretaria", label: "Secretária" },
   { value: "admin", label: "Administrador" },
+  { value: "fisio", label: "Fisioterapeuta" },
   { value: "cliente", label: "Cliente" },
 ];
 
 export function cadastroPerfilFromEquipeTag(tag: UsuarioEquipeTag): UsuarioCadastroPerfil {
-  if (tag === "membro") return "membro";
-  return tag;
+  if (tag === "cliente") return "cliente";
+  if (tag === "fisio") return "fisio";
+  if (tag === "admin") return "admin";
+  if (tag === "secretaria" || tag === "gestao") return "admin";
+  return "fisio";
 }
 
 export function cadastroPerfilFromUsuarioRow(row: {
-  perfil: PrimaryRole;
+  perfil: PrimaryRole | "fisio" | "cliente";
   registered?: UserRow | undefined;
   tipoEquipeReferencia?: "fisio" | "secretaria";
   observacaoReferencia?: string;
 }): UsuarioCadastroPerfil {
-  return cadastroPerfilFromEquipeTag(usuarioEquipeTag(equipeInputFromUsuarioRow(row)));
+  return usuarioDisplayPerfilFromRow(row);
 }
 
-export type UsuarioPerfilFilter = "todos" | UsuarioEquipeTag;
+export type UsuarioPerfilFilter = "todos" | "admin" | "fisio" | "cliente";
 
 export const USUARIO_PERFIL_FILTER_OPTIONS: { value: UsuarioPerfilFilter; label: string }[] = [
   { value: "todos", label: "Todos os perfis" },
   { value: "admin", label: "Administrador" },
   { value: "fisio", label: "Fisioterapeuta" },
-  { value: "secretaria", label: "Secretária" },
-  { value: "gestao", label: "Gestão" },
   { value: "cliente", label: "Cliente" },
-  { value: "membro", label: "Membro" },
 ];
 
 export function equipeInputFromUsuarioRow(row: {
-  perfil: PrimaryRole;
+  perfil: PrimaryRole | "fisio" | "cliente";
   registered?: UserRow | undefined;
   tipoEquipeReferencia?: "fisio" | "secretaria";
   observacaoReferencia?: string;
 }): UsuarioEquipeRowInput {
-  if (row.registered) {
-    return {
-      role: row.registered.role,
-      fisioterapeutaId: row.registered.fisioterapeuta_id,
-    };
-  }
-  return {
-    role: row.perfil as AppRole,
+  const refInput: UsuarioEquipeRowInput = {
+    role: row.perfil === "fisio" ? "membro" : (row.perfil as AppRole),
     fisioterapeutaId: null,
-    perfilReferencia: row.perfil,
+    perfilReferencia: refPerfilFromRow(row.perfil),
     tipoEquipeReferencia: row.tipoEquipeReferencia,
     observacaoReferencia: row.observacaoReferencia,
   };
+
+  if (!row.registered) return refInput;
+
+  const regInput: UsuarioEquipeRowInput = {
+    role: row.registered.role,
+    fisioterapeutaId: row.registered.fisioterapeuta_id,
+  };
+
+  const regTag = usuarioEquipeTag(regInput);
+  if (regTag === "membro" || regTag === "secretaria" || regTag === "gestao") {
+    return {
+      ...regInput,
+      perfilReferencia: refInput.perfilReferencia,
+      tipoEquipeReferencia: refInput.tipoEquipeReferencia,
+      observacaoReferencia: refInput.observacaoReferencia,
+    };
+  }
+
+  return regInput;
+}
+
+export function usuarioDisplayPerfilFromRow(row: {
+  perfil: PrimaryRole | "fisio" | "cliente";
+  registered?: UserRow | undefined;
+  tipoEquipeReferencia?: "fisio" | "secretaria";
+  observacaoReferencia?: string;
+}): UsuarioDisplayPerfil {
+  if (row.registered) {
+    const role = row.registered.role;
+    if (role === "admin") return "admin";
+    if (role === "cliente" || role === "paciente") return "cliente";
+    if (row.registered.fisioterapeuta_id || role === "fisio") return "fisio";
+    if (role === "recepcao" || role === "gestao") return "admin";
+    if (role === "membro") {
+      if (row.perfil === "admin" || row.perfil === "fisio" || row.perfil === "cliente") {
+        return row.perfil;
+      }
+      return "admin";
+    }
+  }
+
+  if (row.perfil === "admin" || row.perfil === "fisio" || row.perfil === "cliente") {
+    return row.perfil;
+  }
+
+  return usuarioFilterTag(usuarioEquipeTag(equipeInputFromUsuarioRow(row)));
+}
+
+export function resolveUsuarioDisplayBadge(row: {
+  perfil: PrimaryRole | "fisio" | "cliente";
+  registered?: UserRow | undefined;
+  tipoEquipeReferencia?: "fisio" | "secretaria";
+  observacaoReferencia?: string;
+}): UsuarioDisplayBadge {
+  const display = usuarioDisplayPerfilFromRow(row);
+  return { tag: display, ...DISPLAY_BADGE[display] };
 }
 
 export function usuarioEquipeTag(input: UsuarioEquipeRowInput): UsuarioEquipeTag {
@@ -123,7 +194,12 @@ export function resolveUsuarioEquipeBadge(input: UsuarioEquipeRowInput): Usuario
   if (role === "gestao") {
     return { tag: "gestao", ...BADGE.gestao };
   }
-  if (role === "fisio" || !!input.fisioterapeutaId || input.tipoEquipeReferencia === "fisio") {
+  if (
+    role === "fisio" ||
+    !!input.fisioterapeutaId ||
+    input.tipoEquipeReferencia === "fisio" ||
+    input.perfilReferencia === "fisio"
+  ) {
     return { tag: "fisio", ...BADGE.fisio };
   }
   return { tag: "membro", ...BADGE.membro };
@@ -135,4 +211,11 @@ export function equipeBadgeFromUserRow(user: UserRow | undefined): UsuarioEquipe
     role: user.role,
     fisioterapeutaId: user.fisioterapeuta_id,
   });
+}
+
+/** Mapeia tag legada ou atual para filtro simplificado (admin/fisio/cliente). */
+export function usuarioFilterTag(tag: UsuarioEquipeTag): Exclude<UsuarioPerfilFilter, "todos"> {
+  if (tag === "cliente") return "cliente";
+  if (tag === "fisio") return "fisio";
+  return "admin";
 }

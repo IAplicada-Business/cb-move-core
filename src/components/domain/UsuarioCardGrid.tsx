@@ -12,24 +12,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PrimaryRole } from "@/lib/permissions";
+import { formatLastSignIn } from "@/lib/format";
 import type { UserRow } from "@/lib/queries/usuarios";
-import { resolveUsuarioEquipeBadge, equipeInputFromUsuarioRow } from "@/lib/usuario-equipe";
+import { usuarioStatusLabel } from "@/lib/usuario-status";
+import { resolveUsuarioDisplayBadge } from "@/lib/usuario-equipe";
 
 function EquipeBadge({ row }: { row: UsuarioCardRow }) {
-  const badge = resolveUsuarioEquipeBadge(equipeInputFromUsuarioRow(row));
+  const badge = resolveUsuarioDisplayBadge(row);
   return <BrandBadge tone={badge.tone}>{badge.label}</BrandBadge>;
-}
-
-function statusLabel(user: UserRow | undefined): string {
-  if (!user) return "Não cadastrado";
-  return "Aguardando 1º acesso";
 }
 
 export type UsuarioCardRow = {
   key: string;
   nome: string;
   email: string;
-  perfil: PrimaryRole;
+  perfil: PrimaryRole | "fisio" | "cliente";
   registered: UserRow | undefined;
   isReference: boolean;
   tipoEquipeReferencia?: "fisio" | "secretaria";
@@ -45,13 +42,14 @@ type UsuarioCardGridProps = {
 
 export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: UsuarioCardGridProps) {
   return (
-    <BrandTable>
+    <BrandTable className="min-w-[760px]">
       <BrandTableHeader>
         <BrandTableRow>
           <BrandTableHead>Nome</BrandTableHead>
           <BrandTableHead className="hidden sm:table-cell">E-mail</BrandTableHead>
-          <BrandTableHead className="w-[120px]">Perfil</BrandTableHead>
-          <BrandTableHead className="hidden md:table-cell w-[140px]">Status</BrandTableHead>
+          <BrandTableHead className="w-[130px]">Perfil</BrandTableHead>
+          <BrandTableHead className="hidden md:table-cell w-[120px]">Último login</BrandTableHead>
+          <BrandTableHead className="w-[150px]">Status</BrandTableHead>
           <BrandTableHead className="min-w-[120px] text-right">Ações</BrandTableHead>
         </BrandTableRow>
       </BrandTableHeader>
@@ -66,9 +64,6 @@ export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: Usuar
                 <div className="min-w-0">
                   <p className="truncate font-medium text-cb-ink">{row.nome}</p>
                   <p className="truncate text-xs text-cb-muted sm:hidden">{row.email}</p>
-                  <p className="truncate text-xs text-cb-muted md:hidden">
-                    {statusLabel(row.registered)}
-                  </p>
                 </div>
               </BrandTableCell>
               <BrandTableCell className="hidden max-w-[240px] truncate py-2.5 text-sm text-cb-muted sm:table-cell">
@@ -78,7 +73,10 @@ export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: Usuar
                 <EquipeBadge row={row} />
               </BrandTableCell>
               <BrandTableCell className="hidden py-2.5 text-xs text-cb-muted md:table-cell">
-                {statusLabel(row.registered)}
+                {formatLastSignIn(row.registered?.last_sign_in_at)}
+              </BrandTableCell>
+              <BrandTableCell className="py-2.5 text-xs text-cb-muted">
+                {usuarioStatusLabel(row.registered)}
               </BrandTableCell>
               <BrandTableCell className="py-2.5">
                 <div className="flex items-center justify-end gap-1">

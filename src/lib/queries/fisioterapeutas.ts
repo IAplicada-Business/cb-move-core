@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queries/keys";
 import {
   mapFisioUsoLogRows,
   clampFisioUsoLogsLimit,
@@ -49,6 +50,26 @@ export async function fetchFisios(opts?: { ativosOnly?: boolean }): Promise<Fisi
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as Fisio[];
+}
+
+export async function fetchFisioByEmail(email: string): Promise<Fisio | null> {
+  const trimmed = email.trim();
+  if (!trimmed) return null;
+  const { data, error } = await supabase
+    .from("fisioterapeutas")
+    .select("*")
+    .ilike("email", trimmed)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as Fisio | null;
+}
+
+export function invalidateFisioListQueries(qc: {
+  invalidateQueries: (opts: { queryKey: readonly unknown[] }) => void;
+}) {
+  void qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.all });
+  void qc.invalidateQueries({ queryKey: queryKeys.fisioterapeutas.ativos });
 }
 
 export async function upsertFisio(id: string | null, vals: FisioFormValues): Promise<void> {
