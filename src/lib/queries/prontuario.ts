@@ -23,6 +23,8 @@ export type Evolucao = {
   fonte: "manual" | "audio_ia" | "sites_import";
   criado_por?: string | null;
   created_at: string;
+  assinado_em?: string | null;
+  assinado_por?: string | null;
 };
 
 export type FisioterapeutaOption = { id: string; nome: string };
@@ -53,6 +55,9 @@ export type RelatorioAtendimento = {
   formato_arquivo: string | null;
   assinado: boolean;
   assinado_em: string | null;
+  status?: string | null;
+  assinatura_link?: string | null;
+  clicksign_document_key?: string | null;
   modelo_pdf: string | null;
   created_at: string;
 };
@@ -249,7 +254,7 @@ export async function fetchRelatoriosPaciente(pacienteId: string): Promise<Relat
   const { data, error } = await supabase
     .from("relatorios_atendimento")
     .select(
-      "id, paciente_id, modelo, competencia_mes, competencia_ano, pdf_url, xlsx_url, formato_arquivo, assinado, assinado_em, modelo_pdf, created_at",
+      "id, paciente_id, modelo, competencia_mes, competencia_ano, pdf_url, xlsx_url, formato_arquivo, assinado, assinado_em, status, assinatura_link, clicksign_document_key, modelo_pdf, created_at",
     )
     .eq("paciente_id", pacienteId)
     .order("competencia_ano", { ascending: false })
@@ -362,6 +367,58 @@ export async function updateEvolucao(id: string, ev: Partial<Evolucao>): Promise
     .single();
   if (error) throw error;
   return data as Evolucao;
+}
+
+export async function assinarEvolucao(evolucaoId: string): Promise<Evolucao> {
+  const { data, error } = await supabase.rpc("assinar_evolucao", {
+    p_evolucao_id: evolucaoId,
+  });
+  if (error) throw error;
+  return data as Evolucao;
+}
+
+const ASSINATURA_BUCKET = "assinaturas-usuarios";
+
+export function assinaturaStoragePath(userId: string): string {
+  return `${userId}/assinatura.png`;
+}
+
+export async function fetchProfileAssinaturaPath(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("assinatura_storage_path")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  const path = data?.assinatura_storage_path;
+  return path?.trim() ? path : null;
+}
+
+export async function uploadProfileAssinatura(userId: string, file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Envie uma imagem PNG, JPEG ou WebP.");
+  }
+  const path = assinaturaStoragePath(userId);
+  const { error: uploadError } = await supabase.storage
+    .from(ASSINATURA_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ assinatura_storage_path: path })
+    .eq("id", userId);
+  if (profileError) throw profileError;
+
+  return path;
+}
+
+export async function getProfileAssinaturaSignedUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from(ASSINATURA_BUCKET)
+    .createSignedUrl(path, 3600);
+  if (error) return null;
+  return data.signedUrl;
 }
 
 /** Espelha Primeira Consulta Experimental (pacientes) como evolução S/O/P no prontuário. */

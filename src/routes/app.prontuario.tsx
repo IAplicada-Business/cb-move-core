@@ -17,17 +17,20 @@ import { ProntuarioPatientHero } from "@/components/domain/prontuario/Prontuario
 import { ProntuarioVisaoGeralTab } from "@/components/domain/prontuario/ProntuarioVisaoGeralTab";
 import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { ProntuarioToolbar } from "@/components/domain/prontuario/ProntuarioToolbar";
+import { AssinaturaPerfilDialog } from "@/components/domain/AssinaturaPerfilDialog";
 import { countSessoesRealizadas } from "@/components/domain/prontuario/utils";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { queryKeys } from "@/lib/queries";
 import { fetchPacientes } from "@/lib/queries/pacientes";
 import {
+  assinarEvolucao,
   createEvolucao,
   fetchEvolucoes,
   fetchInstrumentosAplicados,
   fetchInstrumentosAtivos,
   fetchPacienteProntuario,
+  fetchProfileAssinaturaPath,
   fetchRelatoriosPaciente,
   fetchSessoesProntuario,
   fetchFisioterapeutasAtivos,
@@ -54,6 +57,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 const prontuarioTabSchema = z.enum([
@@ -93,7 +106,7 @@ function ProntuarioPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { pacienteId: pacienteIdFromUrl, tab: tabFromUrl } = Route.useSearch();
-  const { roles, user } = useAuth();
+  const { roles, user, fisioterapeutaId } = useAuth();
   const canEdit = can.editProntuario(roles);
 
   const now = new Date();
@@ -108,6 +121,9 @@ function ProntuarioPage() {
   const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
   const [finalizandoRelatorioId, setFinalizandoRelatorioId] = useState<string | null>(null);
+  const [assinandoEvolucaoId, setAssinandoEvolucaoId] = useState<string | null>(null);
+  const [evolucaoParaAssinar, setEvolucaoParaAssinar] = useState<Evolucao | null>(null);
+  const [assinaturaPerfilOpen, setAssinaturaPerfilOpen] = useState(false);
 
   const { data: pacientesLista = [], isLoading: loadPacientesLista } = useQuery({
     queryKey: queryKeys.pacientes.list({ ativo: true }),
@@ -159,6 +175,23 @@ function ProntuarioPage() {
     queryKey: [...queryKeys.instrumentos.all, "ativos"],
     queryFn: fetchInstrumentosAtivos,
     enabled: !!selectedId && activeTab === "avaliacoes",
+  });
+
+  const { data: profileAssinaturaPath } = useQuery({
+    queryKey: ["profile-assinatura", user?.id ?? ""],
+    queryFn: () => fetchProfileAssinaturaPath(user!.id),
+    enabled: !!user?.id && canEdit,
+  });
+
+  const assinarEvolucaoMutation = useMutation({
+    mutationFn: assinarEvolucao,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.prontuario.evolucoes(selectedId!) });
+      toast.success("Evolução assinada");
+      setEvolucaoParaAssinar(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setAssinandoEvolucaoId(null),
   });
 
   useEffect(() => {
@@ -286,6 +319,21 @@ function ProntuarioPage() {
     }
   }
 
+  function handleAssinarEvolucao(ev: Evolucao) {
+    if (!profileAssinaturaPath) {
+      setAssinaturaPerfilOpen(true);
+      toast.info("Cadastre sua assinatura no menu do usuário antes de assinar.");
+      return;
+    }
+    setEvolucaoParaAssinar(ev);
+  }
+
+  function confirmarAssinaturaEvolucao() {
+    if (!evolucaoParaAssinar) return;
+    setAssinandoEvolucaoId(evolucaoParaAssinar.id);
+    assinarEvolucaoMutation.mutate(evolucaoParaAssinar.id);
+  }
+
   async function handleFinalizarRelatorio(relatorioId: string) {
     if (!selectedId) return;
     setFinalizandoRelatorioId(relatorioId);
@@ -293,7 +341,9 @@ function ProntuarioPage() {
       const res = await solicitarAssinaturaRelatorio(relatorioId);
       qc.invalidateQueries({ queryKey: queryKeys.prontuario.relatorios(selectedId) });
       if (res.aviso) toast.info(res.aviso);
-      else toast.success("Solicitação de assinatura enviada");
+      else if (res.status === "aguardando_assinatura")
+        toast.success("Solicitação de assinatura enviada");
+      else toast.success("Relatório atualizado");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao finalizar relatório");
     } finally {
@@ -431,14 +481,21 @@ function ProntuarioPage() {
               evolucoes={evolucoes}
               loading={loadEvolucoes}
               canEdit={canEdit}
+              fisioAuthorId={fisioterapeutaId}
               pacienteId={selectedId}
               mesFiltro={competenciaMes}
               anoFiltro={competenciaAno}
+              assinandoId={assinandoEvolucaoId}
               onEdit={(e) => {
+                if (e.assinado_em) {
+                  toast.info("Evolução assinada não pode ser editada.");
+                  return;
+                }
                 setEditingEvolucao(e);
                 setDraftEvolucao(null);
                 setEvolucaoDialogOpen(true);
               }}
+              onAssinar={handleAssinarEvolucao}
               onTranscricao={handleTranscricao}
             />
           )}
@@ -546,6 +603,30 @@ function ProntuarioPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!evolucaoParaAssinar}
+        onOpenChange={(open) => {
+          if (!open) setEvolucaoParaAssinar(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar assinatura</AlertDialogTitle>
+            <AlertDialogDescription>
+              Assinar esta evolução? Após assinar, o conteúdo não poderá ser editado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarAssinaturaEvolucao}>
+              Confirmar assinatura
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AssinaturaPerfilDialog open={assinaturaPerfilOpen} onOpenChange={setAssinaturaPerfilOpen} />
     </div>
   );
 }

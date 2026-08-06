@@ -19,17 +19,36 @@ function SoapRow({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+function statusBadgeClass(status: ReturnType<typeof evolucaoStatus>): string {
+  if (status === "assinada") return "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]";
+  if (status === "registrada") return "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]";
+  return "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]";
+}
+
+function statusBadgeLabel(status: ReturnType<typeof evolucaoStatus>): string {
+  if (status === "assinada") return "Assinada";
+  if (status === "registrada") return "Registrada";
+  return "Rascunho · revisar";
+}
+
 export function ProntuarioEvolucaoFeedItem({
   evolucao,
   canEdit,
+  isAuthor,
   onEdit,
+  onAssinar,
+  assinando,
 }: {
   evolucao: EvolucaoComRelacoes;
   canEdit: boolean;
+  isAuthor: boolean;
   onEdit: (ev: EvolucaoComRelacoes) => void;
+  onAssinar?: (ev: EvolucaoComRelacoes) => void;
+  assinando?: boolean;
 }) {
   const status = evolucaoStatus(evolucao);
   const isRascunho = status === "rascunho";
+  const isAssinada = status === "assinada";
   const hora = evolucao.created_at
     ? new Date(evolucao.created_at).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
@@ -46,6 +65,8 @@ export function ProntuarioEvolucaoFeedItem({
     !evolucao.subjetivo?.trim() &&
     !evolucao.objetivo?.trim() &&
     !evolucao.plano?.trim();
+
+  const canEditItem = canEdit && isAuthor && !isAssinada;
 
   return (
     <article className="border-b border-border py-5 last:border-b-0">
@@ -77,22 +98,33 @@ export function ProntuarioEvolucaoFeedItem({
           <span
             className={cn(
               "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-              status === "registrada"
-                ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]"
-                : "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]",
+              statusBadgeClass(status),
             )}
           >
-            {status === "registrada" ? "Registrada" : "Rascunho · revisar"}
+            {statusBadgeLabel(status)}
           </span>
-          {canEdit && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => onEdit(evolucao)}
-            >
-              {isRascunho ? "Estruturar e revisar" : "Editar"}
-            </Button>
+          {canEditItem && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => onEdit(evolucao)}
+              >
+                {isRascunho ? "Estruturar e revisar" : "Editar"}
+              </Button>
+              {status === "registrada" && onAssinar && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs border-cb-cyan-600 text-cb-cyan-800"
+                  disabled={assinando}
+                  onClick={() => onAssinar(evolucao)}
+                >
+                  {assinando ? "Assinando…" : "Assinar"}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

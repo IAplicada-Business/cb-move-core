@@ -1177,6 +1177,7 @@ export type Database = {
       };
       profiles: {
         Row: {
+          assinatura_storage_path: string | null;
           created_at: string;
           email: string | null;
           fisioterapeuta_id: string | null;
@@ -1184,6 +1185,7 @@ export type Database = {
           nome: string | null;
         };
         Insert: {
+          assinatura_storage_path?: string | null;
           created_at?: string;
           email?: string | null;
           fisioterapeuta_id?: string | null;
@@ -1191,6 +1193,7 @@ export type Database = {
           nome?: string | null;
         };
         Update: {
+          assinatura_storage_path?: string | null;
           created_at?: string;
           email?: string | null;
           fisioterapeuta_id?: string | null;
@@ -1209,6 +1212,8 @@ export type Database = {
       };
       prontuario_evolucoes: {
         Row: {
+          assinado_em: string | null;
+          assinado_por: string | null;
           created_at: string | null;
           criado_por: string | null;
           data: string;
@@ -1224,6 +1229,8 @@ export type Database = {
           updated_at: string | null;
         };
         Insert: {
+          assinado_em?: string | null;
+          assinado_por?: string | null;
           created_at?: string | null;
           criado_por?: string | null;
           data?: string;
@@ -1239,6 +1246,8 @@ export type Database = {
           updated_at?: string | null;
         };
         Update: {
+          assinado_em?: string | null;
+          assinado_por?: string | null;
           created_at?: string | null;
           criado_por?: string | null;
           data?: string;
@@ -1572,6 +1581,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      assinar_evolucao: {
+        Args: { p_evolucao_id: string };
+        Returns: Database["public"]["Tables"]["prontuario_evolucoes"]["Row"];
+      };
       atualizar_cobrancas_vencidas: { Args: never; Returns: number };
       cobrancas_sem_nf: {
         Args: { p_ano: number; p_mes: number };

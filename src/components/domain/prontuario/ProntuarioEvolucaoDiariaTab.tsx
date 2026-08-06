@@ -11,10 +11,13 @@ type Props = {
   evolucoes: EvolucaoComRelacoes[];
   loading: boolean;
   canEdit: boolean;
+  fisioAuthorId: string | null;
   pacienteId: string;
   mesFiltro: number;
   anoFiltro: number;
+  assinandoId?: string | null;
   onEdit: (ev: EvolucaoComRelacoes) => void;
+  onAssinar?: (ev: EvolucaoComRelacoes) => void;
   onTranscricao: (result: TranscricaoResult) => void;
 };
 
@@ -22,10 +25,13 @@ export function ProntuarioEvolucaoDiariaTab({
   evolucoes,
   loading,
   canEdit,
+  fisioAuthorId,
   pacienteId,
   mesFiltro,
   anoFiltro,
+  assinandoId,
   onEdit,
+  onAssinar,
   onTranscricao,
 }: Props) {
   const entradasMes = countEvolucoesMes(evolucoes, mesFiltro, anoFiltro);
@@ -64,7 +70,10 @@ export function ProntuarioEvolucaoDiariaTab({
                 key={ev.id}
                 evolucao={ev}
                 canEdit={canEdit}
+                isAuthor={!!fisioAuthorId && ev.fisioterapeuta_id === fisioAuthorId}
                 onEdit={onEdit}
+                onAssinar={onAssinar}
+                assinando={assinandoId === ev.id}
               />
             ))}
           </div>

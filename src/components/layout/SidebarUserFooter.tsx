@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Pencil } from "lucide-react";
+import { LogOut, PenLine, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AssinaturaPerfilDialog } from "@/components/domain/AssinaturaPerfilDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { initials } from "@/lib/format";
-import { ROLE_LABELS } from "@/lib/permissions";
 import { useMenuAccess } from "@/lib/hooks/use-menu-access";
-import { supabase } from "@/integrations/supabase/client";
+import { ROLE_LABELS, can } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type SidebarUserFooterProps = {
@@ -35,14 +36,17 @@ type SidebarUserFooterProps = {
 };
 
 export function SidebarUserFooter({ className, compact }: SidebarUserFooterProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, roles } = useAuth();
   const { primary } = useMenuAccess();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const [editOpen, setEditOpen] = React.useState(false);
+  const [assinaturaOpen, setAssinaturaOpen] = React.useState(false);
   const [nome, setNome] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+
+  const podeAssinaturaPerfil = can.editProntuario(roles);
 
   const userName =
     (user?.user_metadata?.nome as string | undefined) ??
@@ -106,6 +110,12 @@ export function SidebarUserFooter({ className, compact }: SidebarUserFooterProps
             <Pencil className="mr-2 h-4 w-4" />
             Editar nome de exibição
           </DropdownMenuItem>
+          {podeAssinaturaPerfil && (
+            <DropdownMenuItem onClick={() => setAssinaturaOpen(true)}>
+              <PenLine className="mr-2 h-4 w-4" />
+              Minha assinatura
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onClick={() => signOut().then(() => navigate({ to: "/login" }))}
@@ -135,6 +145,8 @@ export function SidebarUserFooter({ className, compact }: SidebarUserFooterProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AssinaturaPerfilDialog open={assinaturaOpen} onOpenChange={setAssinaturaOpen} />
     </>
   );
 }

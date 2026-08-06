@@ -12,6 +12,18 @@ function sessao(
 }
 
 describe("evolucaoStatus", () => {
+  it("retorna assinada quando assinado_em preenchido", () => {
+    expect(
+      evolucaoStatus({
+        subjetivo: "Relato",
+        objetivo: "Medidas",
+        plano: "Conduta",
+        transcricao_raw: null,
+        assinado_em: "2026-08-06T12:00:00Z",
+      }),
+    ).toBe("assinada");
+  });
+
   it("retorna registrada quando S/O/P completos", () => {
     expect(
       evolucaoStatus({

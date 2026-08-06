@@ -24,6 +24,13 @@ const RPC_SAMPLES: FisioUsoLogRow[] = [
     detalhe: "João Silva · 07/2026",
   },
   {
+    id: "evolucao-assinada-xyz",
+    ts: "2026-08-06T16:00:00Z",
+    categoria: "evolucao",
+    titulo: "Evolução assinada",
+    detalhe: "João Silva · 06/08/2026",
+  },
+  {
     id: "agenda-ghi",
     ts: "2026-08-01T10:00:00Z",
     categoria: "agenda",
@@ -67,6 +74,7 @@ describe("mapFisioUsoLogRows", () => {
       detalhe: "João Silva · P · 01/08/2026",
     });
     expect(rows[1].titulo).toBe("Relatório assinado");
-    expect(rows[2].detalhe).toBeUndefined();
+    expect(rows[2].titulo).toBe("Evolução assinada");
+    expect(rows[3].detalhe).toBeUndefined();
   });
 });

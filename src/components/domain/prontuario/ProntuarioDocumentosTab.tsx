@@ -42,6 +42,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+
+function relatorioStatusBadge(r: RelatorioAtendimento): { label: string; className: string } {
+  if (r.assinado) {
+    return {
+      label: "Assinado",
+      className: "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]",
+    };
+  }
+  if (r.status === "aguardando_assinatura") {
+    return {
+      label: "Aguardando assinatura",
+      className: "bg-cb-cyan-050 text-cb-cyan-800 border-cb-cyan-200",
+    };
+  }
+  if (r.status === "aguardando_credencial_clicksign") {
+    return {
+      label: "Aguardando credencial",
+      className: "bg-muted text-muted-foreground border-border",
+    };
+  }
+  return {
+    label: "Não assinado",
+    className: "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]",
+  };
+}
 
 type Props = {
   pacienteId: string;
@@ -284,7 +310,7 @@ export function ProntuarioDocumentosTab({
                 <TableHead>Competência</TableHead>
                 <TableHead>Modelo</TableHead>
                 <TableHead>Gerado em</TableHead>
-                <TableHead>Assinado</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -300,7 +326,16 @@ export function ProntuarioDocumentosTab({
                   <TableCell className="text-muted-foreground">
                     {formatDate(r.created_at)}
                   </TableCell>
-                  <TableCell>{r.assinado ? "Sim" : "Não"}</TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                        relatorioStatusBadge(r).className,
+                      )}
+                    >
+                      {relatorioStatusBadge(r).label}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       {canEdit && onFinalizar && r.pdf_url && !r.assinado && (
@@ -308,10 +343,21 @@ export function ProntuarioDocumentosTab({
                           variant="outline"
                           size="sm"
                           className="h-8"
-                          disabled={finalizandoId === r.id}
+                          disabled={finalizandoId === r.id || r.status === "aguardando_assinatura"}
                           onClick={() => onFinalizar(r.id)}
                         >
                           {finalizandoId === r.id ? "Enviando…" : "Finalizar / assinar"}
+                        </Button>
+                      )}
+                      {r.assinatura_link && !r.assinado && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1"
+                          onClick={() => window.open(r.assinatura_link!, "_blank", "noopener")}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Link
                         </Button>
                       )}
                       {r.pdf_url || r.xlsx_url ? (
