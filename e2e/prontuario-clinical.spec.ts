@@ -3,14 +3,10 @@ import { expect, test, type Page } from "@playwright/test";
 const AUTH_TIMEOUT = 30_000;
 const TEST_PASSWORD = process.env.E2E_PASSWORD ?? "CB2026";
 const FISIO_EMAIL = "fisio.teste@iaplicada.com";
-const HOMOLOG_DEPLOY = process.env.PLAYWRIGHT_BASE_URL?.includes("lovable.app") ?? false;
 /** Paciente vinculado ao fisio teste — ver scripts/setup-fisio-teste-e2e.py */
 const DEFAULT_PACIENTE_ID = process.env.E2E_PACIENTE_ID ?? "f4da1fb0-40f0-49e7-91d5-575ea865cbe0";
 
 function patientProntuarioUrl(pacienteId: string, tab: string): string {
-  if (HOMOLOG_DEPLOY) {
-    return `/app/prontuario?pacienteId=${pacienteId}&tab=${tab}`;
-  }
   return `/app/prontuario/${pacienteId}?tab=${tab}`;
 }
 
@@ -37,8 +33,6 @@ test.describe("prontuário — rota dedicada", () => {
   });
 
   test("legacy ?pacienteId= redireciona para /app/prontuario/$pacienteId", async ({ page }) => {
-    test.skip(HOMOLOG_DEPLOY, "Rota dedicada ainda não publicada em homologação Lovable");
-
     await page.goto(`/app/prontuario?pacienteId=${DEFAULT_PACIENTE_ID}&tab=documentos`, {
       waitUntil: "domcontentloaded",
     });
@@ -46,15 +40,13 @@ test.describe("prontuário — rota dedicada", () => {
       new RegExp(`/app/prontuario/${DEFAULT_PACIENTE_ID}(\\?tab=documentos)?`),
       { timeout: AUTH_TIMEOUT },
     );
-    await expect(page.getByRole("tab", { name: /Documentos/i })).toHaveAttribute(
+    await expect(page.getByRole("tab", { name: "Documentos", exact: true })).toHaveAttribute(
       "data-state",
       "active",
     );
   });
 
   test("deep link abre paciente na evolução diária", async ({ page }) => {
-    test.skip(HOMOLOG_DEPLOY, "Rota dedicada ainda não publicada em homologação Lovable");
-
     await page.goto(`/app/prontuario/${DEFAULT_PACIENTE_ID}`, {
       waitUntil: "domcontentloaded",
     });
