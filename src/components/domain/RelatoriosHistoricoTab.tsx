@@ -223,8 +223,9 @@ export function RelatoriosHistoricoTab() {
               <TableRow key={r.id}>
                 <TableCell>
                   <Link
-                    to="/app/prontuario"
-                    search={{ pacienteId: r.paciente_id, tab: "documentos" }}
+                    to="/app/prontuario/$pacienteId"
+                    params={{ pacienteId: r.paciente_id }}
+                    search={{ tab: "documentos" }}
                     className="font-medium text-cb-cyan-800 hover:underline"
                   >
                     {r.paciente_nome}

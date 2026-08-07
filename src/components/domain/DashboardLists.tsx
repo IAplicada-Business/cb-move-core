@@ -101,7 +101,7 @@ export function DivergenciaPreviewList({ items }: { items: DivergenciaItem[] }) 
               <p className="text-xs text-[#92400E]">Sem evolução no prontuário</p>
             </div>
             <Button variant="outline" size="sm" className="shrink-0 h-8 text-xs" asChild>
-              <Link to="/app/prontuario" search={{ pacienteId: d.pacienteId }}>
+              <Link to="/app/prontuario/$pacienteId" params={{ pacienteId: d.pacienteId }}>
                 Abrir
               </Link>
             </Button>

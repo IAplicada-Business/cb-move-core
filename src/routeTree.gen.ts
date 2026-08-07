@@ -42,6 +42,8 @@ import { Route as AppConfiguracoesInstrumentosRouteImport } from './routes/app.c
 import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
 import { Route as AppPacientesIndexRouteImport } from './routes/app.pacientes.index'
 import { Route as AppPacientesPacienteIdRouteImport } from './routes/app.pacientes.$pacienteId'
+import { Route as AppProntuarioIndexRouteImport } from './routes/app.prontuario.index'
+import { Route as AppProntuarioPacienteIdRouteImport } from './routes/app.prontuario.$pacienteId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -212,6 +214,16 @@ const AppPacientesPacienteIdRoute = AppPacientesPacienteIdRouteImport.update({
   path: '/$pacienteId',
   getParentRoute: () => AppPacientesRoute,
 } as any)
+const AppProntuarioIndexRoute = AppProntuarioIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppProntuarioRoute,
+} as any)
+const AppProntuarioPacienteIdRoute = AppProntuarioPacienteIdRouteImport.update({
+  id: '/$pacienteId',
+  path: '/$pacienteId',
+  getParentRoute: () => AppProntuarioRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -228,7 +240,7 @@ export interface FileRoutesByFullPath {
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
-  '/app/prontuario': typeof AppProntuarioRoute
+  '/app/prontuario': typeof AppProntuarioRouteWithChildren
   '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
@@ -245,8 +257,10 @@ export interface FileRoutesByFullPath {
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
+  '/app/prontuario/$pacienteId': typeof AppProntuarioPacienteIdRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/pacientes/': typeof AppPacientesIndexRoute
+  '/app/prontuario/': typeof AppProntuarioIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -259,7 +273,6 @@ export interface FileRoutesByTo {
   '/app/financeiro': typeof AppFinanceiroRoute
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
-  '/app/prontuario': typeof AppProntuarioRoute
   '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
@@ -276,8 +289,10 @@ export interface FileRoutesByTo {
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
+  '/app/prontuario/$pacienteId': typeof AppProntuarioPacienteIdRoute
   '/app/configuracoes': typeof AppConfiguracoesIndexRoute
   '/app/pacientes': typeof AppPacientesIndexRoute
+  '/app/prontuario': typeof AppProntuarioIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -295,7 +310,7 @@ export interface FileRoutesById {
   '/app/fisios': typeof AppFisiosRoute
   '/app/notas-fiscais': typeof AppNotasFiscaisRoute
   '/app/pacientes': typeof AppPacientesRouteWithChildren
-  '/app/prontuario': typeof AppProntuarioRoute
+  '/app/prontuario': typeof AppProntuarioRouteWithChildren
   '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
@@ -312,8 +327,10 @@ export interface FileRoutesById {
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
   '/app/configuracoes/templates': typeof AppConfiguracoesTemplatesRoute
   '/app/pacientes/$pacienteId': typeof AppPacientesPacienteIdRoute
+  '/app/prontuario/$pacienteId': typeof AppProntuarioPacienteIdRoute
   '/app/configuracoes/': typeof AppConfiguracoesIndexRoute
   '/app/pacientes/': typeof AppPacientesIndexRoute
+  '/app/prontuario/': typeof AppProntuarioIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -349,8 +366,10 @@ export interface FileRouteTypes {
     | '/app/configuracoes/instrumentos'
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
+    | '/app/prontuario/$pacienteId'
     | '/app/configuracoes/'
     | '/app/pacientes/'
+    | '/app/prontuario/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -363,7 +382,6 @@ export interface FileRouteTypes {
     | '/app/financeiro'
     | '/app/fisios'
     | '/app/notas-fiscais'
-    | '/app/prontuario'
     | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
@@ -380,8 +398,10 @@ export interface FileRouteTypes {
     | '/app/configuracoes/instrumentos'
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
+    | '/app/prontuario/$pacienteId'
     | '/app/configuracoes'
     | '/app/pacientes'
+    | '/app/prontuario'
   id:
     | '__root__'
     | '/'
@@ -415,8 +435,10 @@ export interface FileRouteTypes {
     | '/app/configuracoes/instrumentos'
     | '/app/configuracoes/templates'
     | '/app/pacientes/$pacienteId'
+    | '/app/prontuario/$pacienteId'
     | '/app/configuracoes/'
     | '/app/pacientes/'
+    | '/app/prontuario/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -661,6 +683,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPacientesPacienteIdRouteImport
       parentRoute: typeof AppPacientesRoute
     }
+    '/app/prontuario/': {
+      id: '/app/prontuario/'
+      path: '/'
+      fullPath: '/app/prontuario/'
+      preLoaderRoute: typeof AppProntuarioIndexRouteImport
+      parentRoute: typeof AppProntuarioRoute
+    }
+    '/app/prontuario/$pacienteId': {
+      id: '/app/prontuario/$pacienteId'
+      path: '/$pacienteId'
+      fullPath: '/app/prontuario/$pacienteId'
+      preLoaderRoute: typeof AppProntuarioPacienteIdRouteImport
+      parentRoute: typeof AppProntuarioRoute
+    }
   }
 }
 
@@ -697,6 +733,20 @@ const AppPacientesRouteWithChildren = AppPacientesRoute._addFileChildren(
   AppPacientesRouteChildren,
 )
 
+interface AppProntuarioRouteChildren {
+  AppProntuarioPacienteIdRoute: typeof AppProntuarioPacienteIdRoute
+  AppProntuarioIndexRoute: typeof AppProntuarioIndexRoute
+}
+
+const AppProntuarioRouteChildren: AppProntuarioRouteChildren = {
+  AppProntuarioPacienteIdRoute: AppProntuarioPacienteIdRoute,
+  AppProntuarioIndexRoute: AppProntuarioIndexRoute,
+}
+
+const AppProntuarioRouteWithChildren = AppProntuarioRoute._addFileChildren(
+  AppProntuarioRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAjudaRoute: typeof AppAjudaRoute
@@ -706,7 +756,7 @@ interface AppRouteChildren {
   AppFisiosRoute: typeof AppFisiosRoute
   AppNotasFiscaisRoute: typeof AppNotasFiscaisRoute
   AppPacientesRoute: typeof AppPacientesRouteWithChildren
-  AppProntuarioRoute: typeof AppProntuarioRoute
+  AppProntuarioRoute: typeof AppProntuarioRouteWithChildren
   AppProntuariosRoute: typeof AppProntuariosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
@@ -722,7 +772,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFisiosRoute: AppFisiosRoute,
   AppNotasFiscaisRoute: AppNotasFiscaisRoute,
   AppPacientesRoute: AppPacientesRouteWithChildren,
-  AppProntuarioRoute: AppProntuarioRoute,
+  AppProntuarioRoute: AppProntuarioRouteWithChildren,
   AppProntuariosRoute: AppProntuariosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppUsuariosRoute: AppUsuariosRoute,

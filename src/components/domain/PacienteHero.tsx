@@ -99,7 +99,7 @@ export function PacienteHero({
           <div className="flex flex-wrap items-center gap-2">
             {actions}
             <Button size="sm" className="gap-1.5 bg-cb-cyan-600 hover:bg-cb-cyan-700" asChild>
-              <Link to="/app/prontuario" search={{ pacienteId }}>
+              <Link to="/app/prontuario/$pacienteId" params={{ pacienteId }}>
                 <FileText className="h-4 w-4" />
                 Prontuário
               </Link>
