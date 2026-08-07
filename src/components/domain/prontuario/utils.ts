@@ -1,5 +1,11 @@
 import type { PacienteTipo, FrequenciaSigla } from "@/lib/types";
-import type { SessaoProntuario } from "@/lib/queries/prontuario";
+import type {
+  EvolucaoComRelacoes,
+  RelatorioAtendimento,
+  SessaoProntuario,
+} from "@/lib/queries/prontuario";
+
+import { mesLabel } from "./constants";
 
 const DIAS_SEMANA = [
   "domingo",
@@ -103,4 +109,62 @@ export function sessaoOptionLabel(s: SessaoProntuario): string {
   const hora = formatHoraSessao(s.hora);
   const fisio = s.fisioterapeutas?.nome ? ` · ${s.fisioterapeutas.nome}` : "";
   return `${hora} · ${s.sigla}${fisio}`;
+}
+
+export type HistoricoDocumentoKind = "evolucao_diaria" | "relatorio_mensal" | "documento_fisico";
+
+export type HistoricoDocumentoAssinado = {
+  id: string;
+  kind: HistoricoDocumentoKind;
+  label: string;
+  referencia: string;
+  assinadoEm: string;
+  assinadoPor: string | null;
+  pdfUrl: string | null;
+  xlsxUrl: string | null;
+  formatoArquivo: string | null;
+};
+
+export function buildHistoricoDocumentosAssinados(
+  evolucoes: EvolucaoComRelacoes[],
+  relatorios: RelatorioAtendimento[],
+  mes: number,
+  ano: number,
+): HistoricoDocumentoAssinado[] {
+  const rows: HistoricoDocumentoAssinado[] = [];
+
+  for (const ev of filterPorCompetencia(evolucoes, mes, ano)) {
+    if (!ev.assinado_em) continue;
+    rows.push({
+      id: `ev-${ev.id}`,
+      kind: "evolucao_diaria",
+      label: "Evolução diária",
+      referencia: formatDataEvolucao(ev.data),
+      assinadoEm: ev.assinado_em,
+      assinadoPor: ev.fisioterapeutas?.nome ?? null,
+      pdfUrl: null,
+      xlsxUrl: null,
+      formatoArquivo: null,
+    });
+  }
+
+  for (const relatorio of relatorios) {
+    if (!relatorio.assinado) continue;
+    if (relatorio.competencia_mes !== mes || relatorio.competencia_ano !== ano) continue;
+
+    const isFisico = relatorio.modelo_pdf === "documento_fisico";
+    rows.push({
+      id: `rel-${relatorio.id}`,
+      kind: isFisico ? "documento_fisico" : "relatorio_mensal",
+      label: isFisico ? "Relatório de atendimento (papel)" : "Relatório mensal",
+      referencia: mesLabel(relatorio.competencia_mes, relatorio.competencia_ano),
+      assinadoEm: relatorio.assinado_em ?? relatorio.created_at,
+      assinadoPor: isFisico ? null : "Assinatura digital",
+      pdfUrl: relatorio.pdf_url,
+      xlsxUrl: relatorio.xlsx_url,
+      formatoArquivo: relatorio.formato_arquivo,
+    });
+  }
+
+  return rows.sort((a, b) => new Date(b.assinadoEm).getTime() - new Date(a.assinadoEm).getTime());
 }

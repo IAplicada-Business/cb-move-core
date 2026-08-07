@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { evolucaoStatus, resolveSessaoId, sessaoOptionLabel } from "./utils";
-import type { SessaoProntuario } from "../../../lib/queries/prontuario";
+import {
+  evolucaoStatus,
+  resolveSessaoId,
+  sessaoOptionLabel,
+  buildHistoricoDocumentosAssinados,
+} from "./utils";
+import type {
+  SessaoProntuario,
+  EvolucaoComRelacoes,
+  RelatorioAtendimento,
+} from "../../../lib/queries/prontuario";
 
 function sessao(
   id: string,
@@ -90,5 +99,81 @@ describe("resolveSessaoId", () => {
 describe("sessaoOptionLabel", () => {
   it("formata hora e sigla", () => {
     expect(sessaoOptionLabel(sessao("x", "P", "09:30:00"))).toBe("09:30 · P");
+  });
+});
+
+describe("buildHistoricoDocumentosAssinados", () => {
+  const evolucoes: EvolucaoComRelacoes[] = [
+    {
+      id: "ev1",
+      paciente_id: "p1",
+      fisioterapeuta_id: "f1",
+      sessao_id: null,
+      data: "2026-08-05",
+      subjetivo: "S",
+      objetivo: "O",
+      plano: "P",
+      transcricao_raw: null,
+      fonte: "manual",
+      created_at: "2026-08-05T10:00:00Z",
+      assinado_em: "2026-08-05T11:00:00Z",
+      fisioterapeutas: { nome: "Dr. Teste" },
+    },
+    {
+      id: "ev2",
+      paciente_id: "p1",
+      fisioterapeuta_id: "f1",
+      sessao_id: null,
+      data: "2026-08-06",
+      subjetivo: "S",
+      objetivo: "O",
+      plano: "P",
+      transcricao_raw: null,
+      fonte: "manual",
+      created_at: "2026-08-06T10:00:00Z",
+    },
+  ];
+
+  const relatorios: RelatorioAtendimento[] = [
+    {
+      id: "rel1",
+      paciente_id: "p1",
+      modelo: "padrao",
+      competencia_mes: 8,
+      competencia_ano: 2026,
+      pdf_url: "https://example.com/r.pdf",
+      xlsx_url: null,
+      formato_arquivo: null,
+      assinado: true,
+      assinado_em: "2026-08-07T09:00:00Z",
+      modelo_pdf: null,
+      created_at: "2026-08-07T08:00:00Z",
+    },
+    {
+      id: "rel2",
+      paciente_id: "p1",
+      modelo: "padrao",
+      competencia_mes: 7,
+      competencia_ano: 2026,
+      pdf_url: null,
+      xlsx_url: null,
+      formato_arquivo: null,
+      assinado: true,
+      assinado_em: "2026-07-01T09:00:00Z",
+      modelo_pdf: null,
+      created_at: "2026-07-01T08:00:00Z",
+    },
+  ];
+
+  it("filtra por competência e inclui só assinados", () => {
+    const rows = buildHistoricoDocumentosAssinados(evolucoes, relatorios, 8, 2026);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.kind)).toEqual(["relatorio_mensal", "evolucao_diaria"]);
+  });
+
+  it("ordena por data de assinatura decrescente", () => {
+    const rows = buildHistoricoDocumentosAssinados(evolucoes, relatorios, 8, 2026);
+    expect(rows[0]?.id).toBe("rel-rel1");
+    expect(rows[1]?.id).toBe("ev-ev1");
   });
 });

@@ -109,13 +109,13 @@ export function ProntuarioPacienteView({
   const { data: evolucoes = [], isLoading: loadEvolucoes } = useQuery({
     queryKey: queryKeys.prontuario.evolucoes(pacienteId),
     queryFn: () => fetchEvolucoes(pacienteId),
-    enabled: activeTab === "evolucao-diaria",
+    enabled: activeTab === "evolucao-diaria" || activeTab === "historico",
   });
 
   const { data: relatorios = [], isLoading: loadRelatorios } = useQuery({
     queryKey: queryKeys.prontuario.relatorios(pacienteId),
     queryFn: () => fetchRelatoriosPaciente(pacienteId),
-    enabled: activeTab === "documentos",
+    enabled: activeTab === "documentos" || activeTab === "historico",
   });
 
   const { data: instrumentosAplicados = [], isLoading: loadAvaliacoes } = useQuery({
@@ -404,7 +404,15 @@ export function ProntuarioPacienteView({
         </TabsContent>
 
         <TabsContent value="historico" className="mt-0">
-          <ProntuarioHistoricoStatusTab onOpenDocumentos={() => handleTabChange("documentos")} />
+          <ProntuarioHistoricoStatusTab
+            evolucoes={evolucoes}
+            relatorios={relatorios}
+            loading={loadEvolucoes || loadRelatorios}
+            competenciaMes={competenciaMes}
+            competenciaAno={competenciaAno}
+            onOpenDocumentos={() => handleTabChange("documentos")}
+            onOpenEvolucao={() => handleTabChange("evolucao-diaria")}
+          />
         </TabsContent>
       </Tabs>
 
