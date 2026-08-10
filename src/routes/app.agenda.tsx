@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,10 +15,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AgendaDayStrip, AgendaWeekGrid } from "@/components/domain/agenda";
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
 import {
+  ACCENT_HEADER_BG,
   DashboardPage,
   DashboardSection,
   DashboardSectionBadge,
@@ -160,10 +162,10 @@ const MESES = [
 type VisaoAgenda = "semana" | "dia" | "frequencia" | "mes";
 
 const TIPO_SLOT: Record<PacienteTipo, string> = {
-  particular: "bg-cb-cyan-600/10 text-cb-cyan-800 border-l-[3px] border-l-cb-cyan-600",
-  judicial: "bg-cb-magenta/10 text-cb-magenta border-l-[3px] border-l-cb-magenta",
-  convenio: "bg-cb-purple/10 text-cb-purple border-l-[3px] border-l-cb-purple",
-  puc: "bg-cb-orange/10 text-cb-orange border-l-[3px] border-l-cb-orange",
+  particular: "bg-cb-cyan-600/12 text-cb-cyan-800 ring-1 ring-cb-cyan-600/25",
+  judicial: "bg-cb-magenta/12 text-cb-magenta ring-1 ring-cb-magenta/25",
+  convenio: "bg-cb-purple/12 text-cb-purple ring-1 ring-cb-purple/25",
+  puc: "bg-cb-orange/12 text-cb-orange ring-1 ring-cb-orange/25",
 };
 
 const STATUS_LABEL: Record<StatusAgendamento, string> = {
@@ -413,7 +415,7 @@ function AgendaSlot({
     ag.status === "ferias" ||
     ag.status === "horario_extra";
   const cls = cn(
-    "w-full rounded-md px-2 py-1 text-left text-[11.5px] leading-tight",
+    "w-full rounded-xl px-2.5 py-1.5 text-left text-[11.5px] leading-tight shadow-sm",
     TIPO_SLOT[tipo],
     dimmed && "opacity-55",
     interactive && "transition-all hover:-translate-y-px hover:shadow-sm",
@@ -1180,32 +1182,21 @@ function AgendaPage() {
           eyebrow="Grade"
           accent="cyan"
           title="Semana padrão"
+          badge={
+            <DashboardSectionBadge accent="cyan">
+              {DIAS_SEMANA_LABEL[diaSemanaIdx]} · {formatDateDDMMYY(diaSelecionado)}
+            </DashboardSectionBadge>
+          }
           noPadding
           bodyClassName="space-y-4 p-4"
         >
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-1.5 rounded-[10px] border border-border bg-muted/30 p-1.5">
-              {weekDays.map((day, i) => (
-                <button
-                  key={toDateStr(day)}
-                  type="button"
-                  onClick={() => setDiaSemanaIdx(i)}
-                  className={cn(
-                    "min-w-[108px] rounded-lg px-3 py-2.5 text-center transition-all",
-                    diaSemanaIdx === i
-                      ? "bg-card text-cb-ink shadow-sm ring-1 ring-cb-cyan-100"
-                      : "text-cb-muted hover:bg-card/70 hover:text-cb-ink",
-                  )}
-                >
-                  <span className="block text-[11px] font-bold uppercase tracking-wide">
-                    {DIAS_SEMANA_LABEL[i]}
-                  </span>
-                  <span className="block text-xs font-semibold tabular-nums">
-                    {formatDateDDMMYY(day)}
-                  </span>
-                </button>
-              ))}
-            </div>
+          <div className="space-y-4">
+            <AgendaDayStrip
+              days={weekDays}
+              labels={DIAS_SEMANA_LABEL}
+              selectedIdx={diaSemanaIdx}
+              onSelect={setDiaSemanaIdx}
+            />
 
             {fisiosVisiveis.length === 0 ? (
               <EmptyState
@@ -1247,55 +1238,60 @@ function AgendaPage() {
                 </p>
               )}
             </div>
-
-            <section className="space-y-3">
-              {podeGerir && (
-                <div className="overflow-hidden rounded-[10px] border border-cb-orange/35 bg-card shadow-[0_1px_2px_rgba(245,138,31,0.1)]">
-                  <DashboardSectionHeader
-                    eyebrow="Agenda"
-                    accent="orange"
-                    title="Avisos do dia"
-                    description={`${DIAS_SEMANA_LABEL[diaSemanaIdx]} ${formatDateDDMMYY(diaSelecionado)} — um aviso por linha`}
-                  />
-                  <div className="space-y-3 border-t border-cb-orange/15 bg-[#FFFBEB]/40 p-5">
-                    <Textarea
-                      id="aviso-dia"
-                      value={avisoDraft}
-                      onChange={(e) => setAvisoDraft(e.target.value)}
-                      placeholder={"Ex.: Dani não virá hoje\nHelena não fará às 14h"}
-                      rows={3}
-                      className="resize-y border-cb-orange/30 bg-background text-sm text-cb-ink placeholder:text-cb-muted focus-visible:ring-cb-orange/40"
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="bg-cb-orange text-white hover:bg-cb-orange/90 disabled:opacity-50"
-                        disabled={avisoMutation.isPending || avisoDraft === avisoSalvo}
-                        onClick={() => avisoMutation.mutate()}
-                      >
-                        {avisoMutation.isPending ? "Salvando…" : "Salvar avisos"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(avisoSalvo || (podeGerir && avisoDraft.trim())) && (
-                <div className="overflow-hidden rounded-[10px] border border-cb-orange/40 shadow-[0_1px_2px_rgba(245,138,31,0.08)]">
-                  <div className="border-b border-cb-orange/20 bg-gradient-to-r from-[#FFF7ED] via-[#FFF7ED]/80 to-[#FFFBEB]/40 px-5 py-3">
-                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-cb-orange">
-                      Publicado
-                    </p>
-                    <p className="mt-0.5 text-sm font-bold text-cb-ink">Avisos do dia</p>
-                  </div>
-                  <p className="px-5 py-4 text-sm leading-relaxed text-cb-ink whitespace-pre-wrap">
-                    {formatAvisoDisplay(podeGerir ? avisoDraft : avisoSalvo) || "—"}
-                  </p>
-                </div>
-              )}
-            </section>
           </div>
+
+          <section className="space-y-3">
+            {podeGerir && (
+              <div className="overflow-hidden rounded-2xl border border-cb-orange/35 bg-card shadow-sm">
+                <DashboardSectionHeader
+                  eyebrow="Agenda"
+                  accent="orange"
+                  title="Avisos do dia"
+                  description={`${DIAS_SEMANA_LABEL[diaSemanaIdx]} ${formatDateDDMMYY(diaSelecionado)} — um aviso por linha`}
+                />
+                <div className="space-y-3 border-t border-cb-orange/15 bg-[#FFFBEB]/40 p-5">
+                  <Textarea
+                    id="aviso-dia"
+                    value={avisoDraft}
+                    onChange={(e) => setAvisoDraft(e.target.value)}
+                    placeholder={"Ex.: Dani não virá hoje\nHelena não fará às 14h"}
+                    rows={3}
+                    className="resize-y border-cb-orange/30 bg-background text-sm text-cb-ink placeholder:text-cb-muted focus-visible:ring-cb-orange/40"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-cb-orange text-white hover:bg-cb-orange/90 disabled:opacity-50"
+                      disabled={avisoMutation.isPending || avisoDraft === avisoSalvo}
+                      onClick={() => avisoMutation.mutate()}
+                    >
+                      {avisoMutation.isPending ? "Salvando…" : "Salvar avisos"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(avisoSalvo || (podeGerir && avisoDraft.trim())) && (
+              <div className="overflow-hidden rounded-2xl border border-cb-orange/40 shadow-sm">
+                <div
+                  className={cn(
+                    "border-b border-cb-orange/20 px-5 py-3 dark:border-cb-orange/30",
+                    ACCENT_HEADER_BG.orange,
+                  )}
+                >
+                  <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-cb-orange">
+                    Publicado
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold text-cb-ink">Avisos do dia</p>
+                </div>
+                <p className="px-5 py-4 text-sm leading-relaxed text-cb-ink whitespace-pre-wrap">
+                  {formatAvisoDisplay(podeGerir ? avisoDraft : avisoSalvo) || "—"}
+                </p>
+              </div>
+            )}
+          </section>
         </DashboardSection>
       ) : visao === "dia" ? (
         <DashboardSection
@@ -1306,53 +1302,17 @@ function AgendaPage() {
           noPadding
           bodyClassName="p-4 space-y-3"
         >
-          <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-[0_1px_2px_rgba(15,75,80,0.06)]">
-            <div
-              className="grid min-w-[720px] gap-px bg-border"
-              style={{ gridTemplateColumns: "64px repeat(5, minmax(0, 1fr))" }}
-            >
-              <div className="bg-cb-cyan-050 px-2 py-3.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-cb-muted" />
-              {weekDays.map((day, i) => (
-                <div
-                  key={toDateStr(day)}
-                  className="bg-cb-cyan-050 px-2 py-3.5 text-center text-[11px] font-bold uppercase tracking-wide text-cb-ink"
-                >
-                  {DIAS_PT[day.getDay()]} {day.getDate()}
-                  <span className="sr-only"> {DIAS_SEMANA_LABEL[i]}</span>
-                </div>
-              ))}
-
-              {HOURS.map((hour) => (
-                <Fragment key={hour}>
-                  <div className="bg-background px-2 py-2 text-right text-[11px] font-semibold tabular-nums text-cb-muted">
-                    {String(hour).padStart(2, "0")}:00
-                  </div>
-                  {weekDays.map((day) => {
-                    const items = getAgendamentosForDayHour(day, hour);
-                    return (
-                      <div
-                        key={`${toDateStr(day)}-${hour}`}
-                        className={cn(
-                          "min-h-[60px] space-y-1 bg-card p-1.5",
-                          podeGerir &&
-                            items.length === 0 &&
-                            "cursor-pointer hover:bg-cb-cyan-050/40",
-                        )}
-                        onClick={() => {
-                          if (!podeGerir || items.length > 0) return;
-                          abrirNovoSlot(day, `${String(hour).padStart(2, "0")}:00`);
-                        }}
-                      >
-                        {items.map((a) => (
-                          <AgendaSlot key={a.id} ag={a} onClick={() => setSelectedAgend(a)} />
-                        ))}
-                      </div>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </div>
-          </div>
+          <AgendaWeekGrid
+            weekDays={weekDays}
+            dayLabels={DIAS_SEMANA_LABEL}
+            hours={HOURS}
+            getItems={getAgendamentosForDayHour}
+            onSlotClick={setSelectedAgend}
+            onEmptyClick={abrirNovoSlot}
+            podeGerir={podeGerir}
+            toDateStr={toDateStr}
+            diasPt={DIAS_PT}
+          />
           <TipoLegend />
         </DashboardSection>
       ) : filtered.length === 0 ? (
@@ -1386,10 +1346,15 @@ function AgendaPage() {
                     return (
                       <div
                         key={toDateStr(day)}
-                        className="overflow-hidden rounded-[10px] border border-border bg-background/40"
+                        className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm"
                       >
-                        <header className="border-b border-border bg-cb-cyan-050/60 px-4 py-3">
-                          <h3 className="text-sm font-bold capitalize text-cb-ink">
+                        <header
+                          className={cn(
+                            "border-b border-border/60 px-4 py-3.5",
+                            ACCENT_HEADER_BG.cyan,
+                          )}
+                        >
+                          <h3 className="text-sm font-extrabold capitalize text-cb-ink">
                             {day.toLocaleDateString("pt-BR", {
                               weekday: "long",
                               day: "2-digit",
@@ -1401,10 +1366,10 @@ function AgendaPage() {
                           {items.map((a) => (
                             <li
                               key={a.id}
-                              className="flex cursor-pointer items-center gap-4 px-4 py-3.5 transition-colors hover:bg-cb-cyan-050/50"
+                              className="flex cursor-pointer items-center gap-4 px-4 py-3.5 transition-colors hover:bg-cb-cyan-050/60"
                               onClick={() => setSelectedAgend(a)}
                             >
-                              <div className="grid min-h-[52px] min-w-[52px] shrink-0 place-items-center rounded-xl bg-cb-cyan-050 px-1 py-1.5 text-center ring-1 ring-cb-cyan-100">
+                              <div className="grid min-h-[52px] min-w-[52px] shrink-0 place-items-center rounded-2xl bg-cb-cyan-050 px-1 py-1.5 text-center ring-1 ring-cb-cyan-100">
                                 <span className="block text-[10px] font-bold tabular-nums text-cb-cyan-800">
                                   {formatHHMM(new Date(a.inicio))}
                                 </span>

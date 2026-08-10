@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Stethoscope, CalendarClock, AlertOctagon, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { Users, Stethoscope, CalendarClock, TrendingUp, Activity } from "lucide-react";
 
 import { KpiCard } from "@/components/domain/KpiCard";
 import {
@@ -9,24 +10,26 @@ import {
   DashboardSectionBadge,
   KpiGrid,
 } from "@/components/domain/DashboardSection";
-import { AgendaPreviewList, DivergenciaPreviewList } from "@/components/domain/DashboardLists";
+import { DivergenciaPreviewList } from "@/components/domain/DashboardLists";
+import { DashboardInsightBanner } from "@/components/domain/DashboardInsightBanner";
+import { DashboardRecentActivity } from "@/components/domain/DashboardRecentActivity";
+import { MonthPicker, monthPickerLabel } from "@/components/domain/MonthPicker";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
-import { ReceitaMensalChart, ReceitaMensalLegend } from "@/components/domain/ReceitaMensalChart";
+import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
+import { GaugeChart } from "@/components/domain/charts/GaugeChart";
+import { AtividadeSemanalAreaChart } from "@/components/domain/charts/AtividadeSemanalAreaChart";
+import { PacientesPorTipoBarChart } from "@/components/domain/charts/PacientesPorTipoBarChart";
+import { DivergenciaTrendLineChart } from "@/components/domain/charts/TrendLineCharts";
 import { PageHeader } from "@/components/brand/PageHeader";
-import { dashboardHomeOptions, receitaMensalOptions } from "@/lib/queries/options";
+import { DataToolbar } from "@/components/brand/DataToolbar";
+import { dashboardHomeOptions } from "@/lib/queries/options";
 import { useAuth } from "@/lib/auth";
 import { can, isFisioScopedUser } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/")({
   head: () => ({ meta: [{ title: "Dashboard · CB MOVE" }] }),
-  loader: ({ context }) => {
-    const now = new Date();
-    const ano = now.getFullYear();
-    const mes = now.getMonth() + 1;
-    return context.queryClient.ensureQueryData(dashboardHomeOptions(ano, mes));
-  },
   pendingComponent: () => <LoadingState />,
   pendingMs: 200,
   component: Dashboard,
@@ -36,20 +39,28 @@ function Dashboard() {
   const { roles, fisioterapeutaId } = useAuth();
   const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
   const podeVerFinanceiro = can.viewFinance(roles, fisioterapeutaId);
-  const now = new Date();
-  const ano = now.getFullYear();
-  const mes = now.getMonth() + 1;
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1;
+  const anoAtual = hoje.getFullYear();
+  const [mes, setMes] = useState(mesAtual);
+  const [ano, setAno] = useState(anoAtual);
+  const isMesAtual = mes === mesAtual && ano === anoAtual;
+  const periodoLabel = monthPickerLabel(mes, ano);
+  const fisioScope = isFisioScoped ? fisioterapeutaId : null;
 
-  const { data, isLoading } = useQuery(dashboardHomeOptions(ano, mes));
-  const receitaMensalQuery = useQuery({
-    ...receitaMensalOptions(ano),
-    enabled: podeVerFinanceiro,
-  });
+  const { data, isLoading, isFetching } = useQuery(dashboardHomeOptions(ano, mes, fisioScope));
 
   const kpis = data?.kpis;
   const proximas = data?.proximasAgendas ?? [];
   const divergencias = data?.divergencias ?? [];
   const divergenciaCount = kpis?.divergenciaProntuario ?? 0;
+  const sessoesRealizadas = kpis?.sessoesRealizadasMes ?? 0;
+  const conformidadePct =
+    sessoesRealizadas > 0
+      ? Math.round(((sessoesRealizadas - divergenciaCount) / sessoesRealizadas) * 100)
+      : 100;
+  const conformidadeTone =
+    conformidadePct >= 85 ? "success" : conformidadePct >= 60 ? "warning" : "danger";
 
   return (
     <DashboardPage>
@@ -66,12 +77,45 @@ function Dashboard() {
             <Button variant="outline" size="sm" asChild className="gap-2">
               <Link to="/app/financeiro">
                 <TrendingUp className="h-4 w-4" />
-                Dashboard Financeiro
+                Financeiro
               </Link>
             </Button>
           ) : undefined
         }
       />
+
+      <DataToolbar className="justify-between gap-3">
+        <p className="text-sm text-cb-muted">
+          Competência · <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
+          {isFetching && !isLoading && (
+            <span className="ml-2 text-xs font-normal text-cb-muted">Atualizando…</span>
+          )}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {!isMesAtual && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 text-xs"
+              onClick={() => {
+                setMes(mesAtual);
+                setAno(anoAtual);
+              }}
+            >
+              Mês atual
+            </Button>
+          )}
+          <MonthPicker
+            mes={mes}
+            ano={ano}
+            onChange={(nextMes, nextAno) => {
+              setMes(nextMes);
+              setAno(nextAno);
+            }}
+          />
+        </div>
+      </DataToolbar>
 
       <KpiGrid columns={isFisioScoped ? 3 : 4}>
         <KpiCard
@@ -79,6 +123,7 @@ function Dashboard() {
           value={kpis?.totalPacientesAtivos ?? 0}
           accent="cyan"
           icon={<Users className="h-5 w-5" />}
+          hint="Carteira ativa"
         />
         {!isFisioScoped && (
           <KpiCard
@@ -86,6 +131,7 @@ function Dashboard() {
             value={kpis?.totalFisiosAtivos ?? 0}
             accent="purple"
             icon={<Stethoscope className="h-5 w-5" />}
+            hint="Equipe clínica"
           />
         )}
         <KpiCard
@@ -93,107 +139,168 @@ function Dashboard() {
           value={kpis?.agendasProximas ?? 0}
           accent="orange"
           icon={<CalendarClock className="h-5 w-5" />}
-          hint="Agendado ou confirmado"
+          delta={
+            (kpis?.agendasProximas ?? 0) > 0
+              ? { text: "Confirmadas ou pendentes", tone: "neutral" }
+              : undefined
+          }
+          hint={(kpis?.agendasProximas ?? 0) === 0 ? "Sem agendamentos próximos" : undefined}
         />
         <KpiCard
-          label="Divergências"
-          value={divergenciaCount}
-          accent="magenta"
-          icon={<AlertOctagon className="h-5 w-5" />}
-          hint="Sessões sem evolução no mês"
-          share={
-            (kpis?.agendasProximas ?? 0) > 0
-              ? Math.min(100, (divergenciaCount / (kpis?.agendasProximas ?? 1)) * 100)
-              : undefined
+          label="Sessões realizadas"
+          value={sessoesRealizadas}
+          accent="lime"
+          icon={<Activity className="h-5 w-5" />}
+          delta={
+            sessoesRealizadas > 0
+              ? {
+                  text: `${conformidadePct}% com evolução`,
+                  tone: conformidadePct >= 85 ? "up" : conformidadePct >= 60 ? "neutral" : "down",
+                }
+              : { text: isMesAtual ? "Mês atual" : periodoLabel, tone: "neutral" }
           }
         />
       </KpiGrid>
 
-      {podeVerFinanceiro && (
+      {/* Hero analytics + sidebar — referência Behance SaaS */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
         <DashboardSection
-          eyebrow="Financeiro"
+          eyebrow="Analytics"
+          accent="cyan"
+          title="Atividade da semana"
+          badge={<DashboardSectionBadge accent="cyan">7 dias</DashboardSectionBadge>}
+          description="Volume de sessões realizadas por dia"
+          noPadding
+          bodyClassName="px-4 pb-4 pt-2 sm:px-6 min-h-[320px]"
+          className="min-h-[380px]"
+        >
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <AtividadeSemanalAreaChart data={data?.atividadeSemanal ?? []} />
+          )}
+        </DashboardSection>
+
+        <aside className="flex flex-col gap-6">
+          <DashboardInsightBanner
+            conformidadePct={conformidadePct}
+            divergenciaCount={divergenciaCount}
+            sessoesRealizadas={sessoesRealizadas}
+            periodoLabel={periodoLabel}
+          />
+
+          <DashboardSection
+            eyebrow="Conformidade"
+            accent="lime"
+            title="Prontuário × agenda"
+            badge={<DashboardSectionBadge accent="lime">{periodoLabel}</DashboardSectionBadge>}
+            noPadding
+            bodyClassName="p-5"
+          >
+            {isLoading ? (
+              <LoadingState />
+            ) : sessoesRealizadas === 0 ? (
+              <EmptyState
+                title="Sem sessões"
+                description={`Nenhuma sessão realizada em ${periodoLabel}.`}
+              />
+            ) : (
+              <GaugeChart
+                value={conformidadePct}
+                max={100}
+                label="conformes"
+                sublabel={`${sessoesRealizadas - divergenciaCount} de ${sessoesRealizadas}`}
+                tone={conformidadeTone}
+              />
+            )}
+          </DashboardSection>
+
+          {!isLoading && sessoesRealizadas > 0 && (
+            <StatusDistributionBar
+              totalLabel="Conformidade prontuário"
+              formatValue={(n) => String(n)}
+              segments={[
+                {
+                  label: "Conformes",
+                  value: Math.max(0, sessoesRealizadas - divergenciaCount),
+                  colorClass: "bg-cb-lime",
+                },
+                {
+                  label: "Divergências",
+                  value: divergenciaCount,
+                  colorClass: "bg-cb-magenta",
+                },
+              ]}
+            />
+          )}
+
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <DashboardRecentActivity
+              items={proximas}
+              showFisio={!isFisioScoped}
+              agendaHref={isFisioScoped ? "/app/agenda" : "/app/agenda"}
+            />
+          )}
+        </aside>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DashboardSection
+          eyebrow="Pacientes"
           accent="purple"
-          title="Receita por mês · por tipo de paciente"
-          description="Últimos 6 meses — cobranças por competência (exceto canceladas)"
-          actions={<ReceitaMensalLegend />}
+          title="Ativos por tipo"
+          description="Composição da carteira clínica"
           noPadding
           bodyClassName="px-4 pb-4 pt-2 sm:px-6"
         >
-          {receitaMensalQuery.isLoading ? (
+          {isLoading ? (
             <LoadingState />
           ) : (
-            <ReceitaMensalChart data={receitaMensalQuery.data ?? []} />
+            <PacientesPorTipoBarChart data={data?.pacientesPorTipo ?? []} />
           )}
         </DashboardSection>
-      )}
+
+        <DashboardSection
+          eyebrow="Prontuário"
+          accent="orange"
+          title="Divergências vs agendas"
+          badge={<DashboardSectionBadge accent="orange">4 semanas</DashboardSectionBadge>}
+          description="Sessões realizadas e pendências por semana"
+          noPadding
+          bodyClassName="px-4 pb-4 pt-2 sm:px-6"
+        >
+          {isLoading ? (
+            <LoadingState />
+          ) : (
+            <DivergenciaTrendLineChart data={data?.divergenciaTrend ?? []} />
+          )}
+        </DashboardSection>
+      </div>
 
       {divergenciaCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[#FDE68A] bg-[#FFFBEB] px-5 py-4 text-sm text-[#92400E]">
-          <AlertOctagon className="h-5 w-5 shrink-0" />
-          <p className="flex-1 min-w-[200px]">
-            <strong>{divergenciaCount}</strong> sessão(ões) realizada(s) neste mês ainda não têm
-            evolução no prontuário.
-          </p>
-          <Button variant="outline" size="sm" className="border-[#FDE68A] bg-white" asChild>
-            <Link to="/app/prontuario" search={{ tab: "visao-geral" }}>
-              Ver prontuários
-            </Link>
-          </Button>
-        </div>
+        <DashboardSection
+          eyebrow="Atenção"
+          accent="magenta"
+          title="Divergências prontuário × agenda"
+          badge={
+            <DashboardSectionBadge accent="magenta">{divergencias.length}</DashboardSectionBadge>
+          }
+          description={`Sessões realizadas em ${periodoLabel} sem evolução registrada no mesmo dia`}
+          actions={
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/app/prontuario" search={{ tab: "visao-geral" }}>
+                Ver todos
+              </Link>
+            </Button>
+          }
+          noPadding
+          bodyClassName="p-6"
+        >
+          {isLoading ? <LoadingState /> : <DivergenciaPreviewList items={divergencias} />}
+        </DashboardSection>
       )}
-
-      <DashboardSection
-        eyebrow="Agenda"
-        accent="lime"
-        title="Próximas agendas"
-        badge={<DashboardSectionBadge accent="lime">7 dias</DashboardSectionBadge>}
-        description="Agendamentos confirmados ou pendentes nos próximos 7 dias"
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/app/agenda">{isFisioScoped ? "Minha agenda" : "Agenda completa"}</Link>
-          </Button>
-        }
-        noPadding
-        bodyClassName="px-6 pb-2"
-      >
-        {isLoading ? (
-          <LoadingState />
-        ) : proximas.length === 0 ? (
-          <div className="py-6">
-            <EmptyState
-              title="Nenhuma agenda nos próximos 7 dias"
-              description="Novos agendamentos aparecerão aqui."
-            />
-          </div>
-        ) : (
-          <AgendaPreviewList items={proximas} showFisio={!isFisioScoped} />
-        )}
-      </DashboardSection>
-
-      <DashboardSection
-        eyebrow="Prontuário"
-        accent="orange"
-        title="Divergências prontuário × agenda"
-        badge={
-          divergencias.length > 0 ? (
-            <DashboardSectionBadge accent="orange">{divergencias.length}</DashboardSectionBadge>
-          ) : undefined
-        }
-        description="Sessões realizadas no mês sem evolução registrada no mesmo dia"
-        noPadding
-        bodyClassName="p-6"
-      >
-        {isLoading ? (
-          <LoadingState />
-        ) : divergencias.length === 0 ? (
-          <EmptyState
-            title="Nenhuma divergência no mês"
-            description="Todas as sessões realizadas têm evolução correspondente."
-          />
-        ) : (
-          <DivergenciaPreviewList items={divergencias} />
-        )}
-      </DashboardSection>
     </DashboardPage>
   );
 }

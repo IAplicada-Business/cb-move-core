@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { competenciaLabelFromDate } from "@/lib/competencia";
 import type { CobrancaStatus, PacienteTipo } from "../types";
 
 export type FinanceiroKpis = {
@@ -99,6 +100,53 @@ export async function fetchFinanceiroKpisPorTipo(mes: number, ano: number): Prom
       pacientes: Number(r.pacientes) || 0,
     }),
   );
+}
+
+export async function fetchFinanceiroKpisHistorico(): Promise<
+  { mes: string; pago: number; pendente: number }[]
+> {
+  const now = new Date();
+  const buckets: Map<string, { mes: string; pago: number; pendente: number }> = new Map();
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    buckets.set(key, {
+      mes: competenciaLabelFromDate(d, true),
+      pago: 0,
+      pendente: 0,
+    });
+  }
+
+  const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const { data, error } = await supabase
+    .from("cobrancas")
+    .select("valor, status, competencia_mes, competencia_ano")
+    .gte("competencia_ano", start.getFullYear())
+    .neq("status", "cancelado");
+
+  if (error) throw error;
+
+  const PENDENTE_STATUSES = new Set([
+    "pendente",
+    "vencido",
+    "atrasado",
+    "aguardando_convenio",
+    "aguardando_alvara",
+    "regularizar_retroativa",
+  ]);
+
+  for (const row of data ?? []) {
+    if (!row.competencia_mes || !row.competencia_ano) continue;
+    const key = `${row.competencia_ano}-${String(row.competencia_mes).padStart(2, "0")}`;
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    const val = Number(row.valor) || 0;
+    if (row.status === "pago") bucket.pago += val;
+    else if (PENDENTE_STATUSES.has(row.status)) bucket.pendente += val;
+  }
+
+  return Array.from(buckets.values());
 }
 
 export async function fetchRelatorioReceitaConvenio(

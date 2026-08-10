@@ -28,6 +28,7 @@ import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
 import { Route as AppProntuariosRouteImport } from './routes/app.prontuarios'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppUsuariosRouteImport } from './routes/app.usuarios'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as PortalIndexRouteImport } from './routes/portal.index'
 import { Route as PortalContatoRouteImport } from './routes/portal.contato'
 import { Route as PortalExerciciosRouteImport } from './routes/portal.exercicios'
@@ -140,6 +141,11 @@ const AppUsuariosRoute = AppUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AppRoute,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PortalIndexRoute = PortalIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/portal/contato': typeof PortalContatoRoute
   '/portal/exercicios': typeof PortalExerciciosRoute
   '/portal/historico': typeof PortalHistoricoRoute
@@ -276,6 +283,7 @@ export interface FileRoutesByTo {
   '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/portal/contato': typeof PortalContatoRoute
   '/portal/exercicios': typeof PortalExerciciosRoute
   '/portal/historico': typeof PortalHistoricoRoute
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/app/prontuarios': typeof AppProntuariosRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/usuarios': typeof AppUsuariosRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/portal/contato': typeof PortalContatoRoute
   '/portal/exercicios': typeof PortalExerciciosRoute
   '/portal/historico': typeof PortalHistoricoRoute
@@ -353,6 +362,7 @@ export interface FileRouteTypes {
     | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
+    | '/auth/callback'
     | '/portal/contato'
     | '/portal/exercicios'
     | '/portal/historico'
@@ -385,6 +395,7 @@ export interface FileRouteTypes {
     | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
+    | '/auth/callback'
     | '/portal/contato'
     | '/portal/exercicios'
     | '/portal/historico'
@@ -422,6 +433,7 @@ export interface FileRouteTypes {
     | '/app/prontuarios'
     | '/app/relatorios'
     | '/app/usuarios'
+    | '/auth/callback'
     | '/portal/contato'
     | '/portal/exercicios'
     | '/portal/historico'
@@ -448,6 +460,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PortalRoute: typeof PortalRouteWithChildren
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -584,6 +597,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/usuarios'
       preLoaderRoute: typeof AppUsuariosRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/portal/': {
       id: '/portal/'
@@ -811,6 +831,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PortalRoute: PortalRouteWithChildren,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

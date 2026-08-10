@@ -183,21 +183,21 @@ export function SemanaPadraoGridShell({
   podeGerir: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-[0_1px_2px_rgba(15,75,80,0.06)]">
-      <div className="overflow-x-auto">
+    <div className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-muted/15 to-card shadow-sm">
+      <div className="overflow-x-auto p-3">
         <div
-          className="grid min-w-max gap-px bg-border"
+          className="grid min-w-max gap-2"
           style={{
             gridTemplateColumns: `80px repeat(${fisios.length}, minmax(108px, 1fr))`,
           }}
         >
-          <div className="sticky left-0 z-20 bg-cb-cyan-050 px-2 py-3.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-cb-muted">
+          <div className="sticky left-0 z-20 rounded-xl bg-cb-cyan-050/90 px-2 py-3.5 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-cb-muted ring-1 ring-cb-cyan-100">
             Horário
           </div>
           {fisios.map((f, i) => (
             <div
               key={f.id}
-              className="bg-cb-cyan-050 px-1.5 py-3.5 text-center text-[10px] font-bold uppercase tracking-wide text-cb-ink"
+              className="rounded-xl bg-cb-cyan-050/90 px-1.5 py-3.5 text-center text-[10px] font-bold uppercase tracking-wide text-cb-ink ring-1 ring-cb-cyan-100"
               title={f.nome}
             >
               {fisioHeaders[i]}
@@ -217,7 +217,7 @@ export function SemanaPadraoGridShell({
 
             return (
               <Fragment key={`blk-${row.inicio}`}>
-                <div className="sticky left-0 z-10 flex flex-col items-end justify-center border-r border-border/60 bg-background px-2.5 py-2.5 text-right tabular-nums">
+                <div className="sticky left-0 z-10 flex flex-col items-end justify-center rounded-xl bg-background/95 px-2.5 py-2.5 text-right tabular-nums ring-1 ring-border/50">
                   <span className="text-[11px] font-bold text-cb-ink">{row.labelInicio}</span>
                   <span className="my-0.5 text-[9px] font-semibold uppercase tracking-wide text-cb-cyan-700">
                     {duracaoSessaoLabel(blocoMin)}
@@ -271,10 +271,10 @@ export function SemanaPadraoGridShell({
                           : `${row.labelInicio}–${row.labelFim} · ${duracaoSessaoLabel(blocoDuracaoDefault(row.inicio))}`
                       }
                       className={cn(
-                        "flex min-h-[54px] items-center justify-center px-1.5 py-2 transition-all",
+                        "flex min-h-[54px] items-center justify-center rounded-xl px-1.5 py-2 transition-all",
                         SLOT_STATUS_STYLE[status].cell,
                         (clickable || first) &&
-                          "cursor-pointer hover:brightness-[0.98] hover:shadow-sm",
+                          "cursor-pointer hover:-translate-y-px hover:shadow-md",
                         !clickable && !first && "cursor-default",
                       )}
                       onClick={() => {

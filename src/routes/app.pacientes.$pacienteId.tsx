@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Pencil, Receipt, User } from "lucide-react";
 
@@ -11,9 +11,10 @@ import { PacienteComparecimentoCard } from "@/components/domain/PacienteComparec
 import { PacienteFinanceiroTab } from "@/components/domain/PacienteFinanceiroTab";
 import {
   PacienteHero,
-  PacienteInfoField,
-  PacienteInfoGrid,
+  PacienteProfileList,
+  PacienteProfileRow,
 } from "@/components/domain/PacienteHero";
+import { BrandBadgeTipo } from "@/components/brand/BrandBadge";
 import {
   DashboardPage,
   DashboardSection,
@@ -84,14 +85,12 @@ function PacienteDetalhe() {
         tipo={paciente.tipo}
         convenioNome={paciente.convenioNome}
         numeroProcesso={paciente.numeroProcesso}
-        telefone={formatPhone(paciente.telefone)}
-        email={paciente.email}
         ativo={paciente.ativo}
         actions={
           podeGerirPacientes ? (
-            <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditOpen(true)}>
               <Pencil className="h-4 w-4" />
-              Editar
+              Editar cadastro
             </Button>
           ) : undefined
         }
@@ -106,18 +105,27 @@ function PacienteDetalhe() {
         }}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dados">
-        <TabsList className="h-auto flex-wrap gap-1 bg-cb-cyan-050/60 p-1">
-          <TabsTrigger value="dados" className="gap-1.5 data-[state=active]:bg-white">
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dados" className="mt-2">
+        <TabsList className="h-auto w-full justify-start gap-1 rounded-2xl border border-border/70 bg-muted/30 p-1.5">
+          <TabsTrigger
+            value="dados"
+            className="gap-1.5 rounded-xl px-4 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
             <User className="h-3.5 w-3.5" />
             Dados
           </TabsTrigger>
-          <TabsTrigger value="comparecimento" className="gap-1.5 data-[state=active]:bg-white">
+          <TabsTrigger
+            value="comparecimento"
+            className="gap-1.5 rounded-xl px-4 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
+          >
             <ClipboardCheck className="h-3.5 w-3.5" />
             Comparecimento
           </TabsTrigger>
           {podeVerFinanceiro && (
-            <TabsTrigger value="financeiro" className="gap-1.5 data-[state=active]:bg-white">
+            <TabsTrigger
+              value="financeiro"
+              className="gap-1.5 rounded-xl px-4 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
               <Receipt className="h-3.5 w-3.5" />
               Financeiro
             </TabsTrigger>
@@ -128,36 +136,38 @@ function PacienteDetalhe() {
           <DashboardSection
             eyebrow="Paciente"
             accent="cyan"
-            title="Cadastro clínico"
-            description="Informações principais do paciente"
+            title="Perfil do paciente"
+            description="Informações de cadastro e acompanhamento"
+            noPadding
+            bodyClassName="p-0"
           >
-            <PacienteInfoGrid>
-              <PacienteInfoField label="Nome">{paciente.nome}</PacienteInfoField>
-              <PacienteInfoField label="Tipo">
-                <span className="capitalize">{paciente.tipo}</span>
-              </PacienteInfoField>
-              <PacienteInfoField label="Telefone">
+            <PacienteProfileList>
+              <PacienteProfileRow label="Nome">{paciente.nome}</PacienteProfileRow>
+              <PacienteProfileRow label="Tipo">
+                <BrandBadgeTipo value={paciente.tipo} />
+              </PacienteProfileRow>
+              <PacienteProfileRow label="Telefone">
                 {formatPhone(paciente.telefone) || "—"}
-              </PacienteInfoField>
-              <PacienteInfoField label="E-mail">{paciente.email ?? "—"}</PacienteInfoField>
-              <PacienteInfoField label="Convênio / processo">
+              </PacienteProfileRow>
+              <PacienteProfileRow label="E-mail">{paciente.email ?? "—"}</PacienteProfileRow>
+              <PacienteProfileRow label="Convênio / processo">
                 {paciente.convenioNome ?? paciente.numeroProcesso ?? "—"}
-              </PacienteInfoField>
-              <PacienteInfoField label="Frequência">
+              </PacienteProfileRow>
+              <PacienteProfileRow label="Frequência">
                 {paciente.frequenciaAtendimento ?? "—"}
-              </PacienteInfoField>
-              <PacienteInfoField label="Fisio responsável">
+              </PacienteProfileRow>
+              <PacienteProfileRow label="Fisio responsável">
                 {paciente.fisioterapeutaNome ?? "—"}
-              </PacienteInfoField>
-              <PacienteInfoField label="Dias da semana" className="sm:col-span-2">
+              </PacienteProfileRow>
+              <PacienteProfileRow label="Dias da semana">
                 {paciente.diasSemana ?? "—"}
-              </PacienteInfoField>
-              <PacienteInfoField label="Motivo do acompanhamento" className="sm:col-span-2">
+              </PacienteProfileRow>
+              <PacienteProfileRow label="Motivo do acompanhamento" stacked>
                 <span className="whitespace-pre-wrap font-normal text-cb-muted">
                   {paciente.motivoAcompanhamento ?? "—"}
                 </span>
-              </PacienteInfoField>
-            </PacienteInfoGrid>
+              </PacienteProfileRow>
+            </PacienteProfileList>
           </DashboardSection>
         </TabsContent>
 

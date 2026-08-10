@@ -1,24 +1,12 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { CHART_TIPO_CONFIG, formatChartAxisValue, STACK_KEYS } from "@/lib/chart-brand";
 import { brl } from "@/lib/format";
 import type { ReceitaMensalItem } from "@/lib/queries/dashboard";
 import { cn } from "@/lib/utils";
 
-const CHART_CONFIG = {
-  particular: { label: "Particular", color: "#3FB5BC" },
-  judicial: { label: "Judicial", color: "#D946A0" },
-  convenio: { label: "Convênio", color: "#7B4FB5" },
-  puc: { label: "PUC", color: "#F58A1F" },
-} as const;
-
-const STACK_KEYS = ["puc", "convenio", "judicial", "particular"] as const;
-
-function formatAxisValue(value: number) {
-  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `R$ ${Math.round(value / 1_000)}k`;
-  return brl(value);
-}
+const CHART_CONFIG = CHART_TIPO_CONFIG;
 
 export function ReceitaMensalLegend({ className }: { className?: string }) {
   return (
@@ -54,7 +42,13 @@ export function ReceitaMensalChart({ data, className }: ReceitaMensalChartProps)
   }
 
   return (
-    <ChartContainer config={CHART_CONFIG} className={cn("h-[240px] w-full aspect-auto", className)}>
+    <ChartContainer
+      config={CHART_CONFIG}
+      className={cn(
+        "flex aspect-auto h-[260px] w-full min-h-0 justify-center [&_.recharts-responsive-container]:!h-full [&_.recharts-responsive-container]:!w-full",
+        className,
+      )}
+    >
       <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border/60" />
         <XAxis
@@ -67,7 +61,7 @@ export function ReceitaMensalChart({ data, className }: ReceitaMensalChartProps)
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={formatAxisValue}
+          tickFormatter={(value) => formatChartAxisValue(value, { withCurrencyPrefix: true })}
           width={56}
           className="text-[11px]"
         />

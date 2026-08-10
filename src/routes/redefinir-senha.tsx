@@ -1,11 +1,12 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
+import { AuthPageShell } from "@/components/layout/AuthLayout";
+import { AuthBrandMark, AuthField } from "@/components/ui/auth-switch";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/redefinir-senha")({
@@ -27,6 +28,50 @@ async function bootstrapSessionFromHash() {
 
   window.history.replaceState({}, document.title, window.location.pathname);
   return true;
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [show, setShow] = React.useState(false);
+
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-cb-ink">
+        {label}
+      </label>
+      <div className="relative">
+        <AuthField
+          id={id}
+          icon={Lock}
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          minLength={6}
+          required
+          className="pr-12"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          onClick={() => setShow((v) => !v)}
+          aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function RedefinirSenhaPage() {
@@ -100,46 +145,39 @@ function RedefinirSenhaPage() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <AuthPageShell>
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-card shadow-xl">
         <div className="cb-rainbow-strip h-[3px]" />
-        <div className="p-8 space-y-4">
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Definir sua senha</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Primeiro acesso — escolha uma senha pessoal para entrar no sistema.
-            </p>
-          </div>
+        <div className="p-6 sm:p-8">
+          <AuthBrandMark className="mb-6" />
+          <h1 className="text-2xl font-bold text-foreground">Definir sua senha</h1>
+          <p className="mt-1 mb-6 text-sm text-muted-foreground">
+            Primeiro acesso — escolha uma senha pessoal para entrar no sistema.
+          </p>
 
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Nova senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm">Confirmar senha</Label>
-              <Input
-                id="confirm"
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                minLength={6}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <PasswordField
+              id="password"
+              label="Nova senha"
+              value={password}
+              onChange={setPassword}
+            />
+            <PasswordField
+              id="confirm"
+              label="Confirmar senha"
+              value={confirm}
+              onChange={setConfirm}
+            />
+            <Button
+              type="submit"
+              className="mt-2 h-11 w-full rounded-full bg-cb-cyan-600 font-semibold hover:bg-cb-cyan-700"
+              disabled={loading}
+            >
               {loading ? "Salvando…" : "Salvar e entrar"}
             </Button>
           </form>
         </div>
       </div>
-    </div>
+    </AuthPageShell>
   );
 }

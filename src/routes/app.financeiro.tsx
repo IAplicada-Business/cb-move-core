@@ -5,7 +5,11 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage } from "@/components/domain/DashboardSection";
 import { assertFinanceAccess } from "@/lib/route-access";
-import { financeiroKpisPorTipoOptions } from "@/lib/queries/options";
+import {
+  financeiroKpisHistoricoOptions,
+  financeiroKpisPorTipoOptions,
+  receitaMensalOptions,
+} from "@/lib/queries/options";
 
 export const Route = createFileRoute("/app/financeiro")({
   head: () => ({ meta: [{ title: "Dashboard Financeiro · CB MOVE" }] }),
@@ -14,7 +18,11 @@ export const Route = createFileRoute("/app/financeiro")({
     const now = new Date();
     const mes = now.getMonth() + 1;
     const ano = now.getFullYear();
-    return context.queryClient.ensureQueryData(financeiroKpisPorTipoOptions(mes, ano));
+    return Promise.all([
+      context.queryClient.ensureQueryData(financeiroKpisPorTipoOptions(mes, ano)),
+      context.queryClient.ensureQueryData(receitaMensalOptions(ano)),
+      context.queryClient.ensureQueryData(financeiroKpisHistoricoOptions()),
+    ]);
   },
   pendingComponent: () => <LoadingState />,
   pendingMs: 200,
@@ -27,7 +35,7 @@ function FinanceiroPage() {
       <PageHeader
         crumbs={[{ label: "Financeiro" }, { label: "Dashboard" }]}
         title="Dashboard Financeiro"
-        description="Receita por tipo e convênio, extrato filtrado e exportações CSV, XLSX e PDF."
+        description="Visão analítica de receita, recebimentos e extrato por competência."
       />
       <DashboardFinanceiro />
     </DashboardPage>

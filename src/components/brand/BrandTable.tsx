@@ -79,7 +79,10 @@ export function BrandTableHeader({
   ...props
 }: React.ComponentProps<typeof TableHeader>) {
   return (
-    <TableHeader className={cn("[&_tr]:border-b [&_tr]:bg-cb-cyan-050", className)} {...props} />
+    <TableHeader
+      className={cn("[&_tr]:border-b [&_tr]:bg-cb-cyan-050 dark:[&_tr]:bg-secondary", className)}
+      {...props}
+    />
   );
 }
 
@@ -103,7 +106,7 @@ export function BrandTableRow({ className, ...props }: React.ComponentProps<type
   return (
     <TableRow
       className={cn(
-        "border-b hover:bg-cb-cyan-050/80 data-[state=selected]:bg-cb-cyan-050",
+        "border-b hover:bg-cb-cyan-050/80 data-[state=selected]:bg-cb-cyan-050 dark:hover:bg-secondary/80 dark:data-[state=selected]:bg-secondary",
         className,
       )}
       {...props}

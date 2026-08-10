@@ -133,3 +133,30 @@ export const initials = (name: string | null | undefined) =>
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase() ?? "")
     .join("") || "?";
+
+/** Foto do usuário — Google OAuth, avatar_url ou picture no metadata. */
+export function resolveUserAvatarUrl(
+  user:
+    | {
+        user_metadata?: Record<string, unknown>;
+        identities?: Array<{ identity_data?: Record<string, unknown> }>;
+      }
+    | null
+    | undefined,
+): string | null {
+  if (!user) return null;
+  const meta = user.user_metadata ?? {};
+  const fromMeta =
+    (meta.avatar_url as string | undefined) ??
+    (meta.picture as string | undefined) ??
+    (meta.photoURL as string | undefined);
+  if (typeof fromMeta === "string" && fromMeta.trim()) return fromMeta.trim();
+
+  for (const identity of user.identities ?? []) {
+    const data = identity.identity_data ?? {};
+    const url = (data.picture as string | undefined) ?? (data.avatar_url as string | undefined);
+    if (typeof url === "string" && url.trim()) return url.trim();
+  }
+
+  return null;
+}

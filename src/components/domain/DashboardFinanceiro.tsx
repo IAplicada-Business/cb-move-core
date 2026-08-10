@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, X } from "lucide-react";
+import {
+  Download,
+  FileSpreadsheet,
+  X,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -10,8 +18,20 @@ import {
 } from "@/components/domain/DashboardSection";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
-import { HorizontalMetricBars, TIPO_BAR_COLORS } from "@/components/domain/MetricVisuals";
+import {
+  HorizontalMetricBars,
+  StatusDistributionBar,
+  TIPO_BAR_COLORS,
+} from "@/components/domain/MetricVisuals";
 import { LoadingState } from "@/components/domain/LoadingState";
+import { CompetenciaFilterChip } from "@/components/domain/CompetenciaFilterChip";
+import { ReceitaMensalChart, ReceitaMensalLegend } from "@/components/domain/ReceitaMensalChart";
+import {
+  RecebimentoGaugeChart,
+  RecebimentoPorConvenioPie,
+} from "@/components/domain/charts/RecebimentoCharts";
+import { TopConveniosBarChart } from "@/components/domain/charts/TopConveniosBarChart";
+import { CobrancaTrendLineChart } from "@/components/domain/charts/TrendLineCharts";
 import { DataToolbar } from "@/components/brand/DataToolbar";
 import {
   BrandTable,
@@ -33,14 +53,21 @@ import {
   receitaConvenioToXlsxBlob,
 } from "@/lib/domain/extrato-financeiro";
 import { brl } from "@/lib/format";
+import {
+  competenciaAtual,
+  competenciaLabel as competenciaCurta,
+  mesAbrev,
+  parseCompetencia,
+} from "@/lib/competencia";
+import { financeiroKpisHistoricoOptions, receitaMensalOptions } from "@/lib/queries/options";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
 import {
+  fetchFinanceiroKpis,
   fetchFinanceiroKpisPorTipo,
   fetchRelatorioReceitaConvenio,
 } from "@/lib/queries/financeiro";
 import type { PacienteTipo } from "@/lib/types";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -61,21 +88,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-
-const MESES_ABREV = [
-  "Jan",
-  "Fev",
-  "Mar",
-  "Abr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Set",
-  "Out",
-  "Nov",
-  "Dez",
-];
+import { Button } from "@/components/ui/button";
 
 // Anel de 5 arcos sólidos da marca CB MOVE — mesma geometria usada no PDF de
 // "Relatórios por tipo". SVG puro porque drivers de impressão (Microsoft Print
@@ -211,20 +224,6 @@ function imprimirDocumentoHtml(docTitulo: string, docSubtitulo: string, conteudo
   window.setTimeout(cleanup, 60_000);
 }
 
-function competenciaOpcoes() {
-  const now = new Date();
-  const opts: { label: string; mes: number; ano: number }[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
-      mes: d.getMonth() + 1,
-      ano: d.getFullYear(),
-    });
-  }
-  return opts;
-}
-
 function slugArquivo(nome: string) {
   return nome
     .normalize("NFD")
@@ -249,6 +248,8 @@ function recebimentoPct(faturado: number, recebido: number) {
   if (faturado <= 0) return 0;
   return Math.min(100, Math.round((recebido / faturado) * 100));
 }
+
+const FINANCE_WIDGET_BODY = "flex h-[220px] w-full items-center justify-center px-4 pb-4 pt-3";
 
 type ReceitaConvenioRow = {
   convenio: string;
@@ -391,17 +392,24 @@ function ReceitaConvenioPanel({
 
 export function DashboardFinanceiro() {
   const now = new Date();
-  const [mes, setMes] = useState(now.getMonth() + 1);
-  const [ano, setAno] = useState(now.getFullYear());
+  const [competencia, setCompetencia] = useState(competenciaAtual());
+  const parsedComp = parseCompetencia(competencia);
+  const mes = parsedComp?.mes ?? now.getMonth() + 1;
+  const ano = parsedComp?.ano ?? now.getFullYear();
   const [filtroConvenio, setFiltroConvenio] = useState<string | null>(null);
   const [exportSelectKey, setExportSelectKey] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
-  const compOpts = competenciaOpcoes();
 
   const kpisQuery = useQuery({
     queryKey: queryKeys.financeiro.kpisPorTipo(ano, mes),
     queryFn: () => fetchFinanceiroKpisPorTipo(mes, ano),
   });
+  const statusKpisQuery = useQuery({
+    queryKey: queryKeys.financeiro.kpis(ano, mes),
+    queryFn: () => fetchFinanceiroKpis(mes, ano),
+  });
+  const receitaMensalQuery = useQuery(receitaMensalOptions(now.getFullYear()));
+  const historicoQuery = useQuery(financeiroKpisHistoricoOptions());
   const receitaQuery = useQuery({
     queryKey: queryKeys.financeiro.receitaConvenio(ano, mes),
     queryFn: () => fetchRelatorioReceitaConvenio(mes, ano),
@@ -412,6 +420,7 @@ export function DashboardFinanceiro() {
   });
 
   const kpis = kpisQuery.data ?? [];
+  const statusKpis = statusKpisQuery.data;
   const receita = receitaQuery.data ?? [];
   const extrato = extratoQuery.data;
   const extratoVisivel = useMemo(
@@ -428,7 +437,7 @@ export function DashboardFinanceiro() {
   const receitaSelecionada = filtroConvenio
     ? receita.find((r) => r.convenio === filtroConvenio)
     : null;
-  const mesNome = MESES_ABREV[mes - 1] ?? String(mes);
+  const mesSlug = mesAbrev(mes);
   const sufixoArquivo = filtroConvenio ? slugArquivo(filtroConvenio) : "todos";
 
   const totalFaturadoConvenio = receitaVisivel.reduce((s, r) => s + r.faturado, 0);
@@ -468,7 +477,7 @@ export function DashboardFinanceiro() {
   function exportarCsvExtrato() {
     if (!extratoVisivel || linhas.length === 0) return;
     downloadCSV(
-      `extrato-financeiro-${mesNome}-${ano}-${sufixoArquivo}.csv`,
+      `extrato-financeiro-${mesSlug}-${ano}-${sufixoArquivo}.csv`,
       extratoToCsvRows(extratoVisivel),
     );
     toast.success(
@@ -482,7 +491,7 @@ export function DashboardFinanceiro() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `extrato-financeiro-${mesNome}-${ano}-${sufixoArquivo}.xlsx`;
+    a.download = `extrato-financeiro-${mesSlug}-${ano}-${sufixoArquivo}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(
@@ -495,7 +504,7 @@ export function DashboardFinanceiro() {
   function exportarCsvReceita() {
     if (receitaVisivel.length === 0) return;
     downloadCSV(
-      `receita-convenio-${mesNome}-${ano}-${sufixoArquivo}.csv`,
+      `receita-convenio-${mesSlug}-${ano}-${sufixoArquivo}.csv`,
       receitaConvenioToCsvRows(receitaVisivel),
     );
     toast.success(
@@ -511,7 +520,7 @@ export function DashboardFinanceiro() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `receita-convenio-${mesNome}-${ano}-${sufixoArquivo}.xlsx`;
+    a.download = `receita-convenio-${mesSlug}-${ano}-${sufixoArquivo}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(
@@ -585,7 +594,8 @@ export function DashboardFinanceiro() {
     imprimirDocumentoHtml("Extrato Financeiro", subtitulo, printRef.current.innerHTML);
   }
 
-  const loadingKpis = kpisQuery.isLoading;
+  const loadingKpis = kpisQuery.isLoading || statusKpisQuery.isLoading;
+  const kpisError = kpisQuery.isError || statusKpisQuery.isError;
   const loadingReceita = receitaQuery.isLoading;
   const loadingExtrato = extratoQuery.isLoading;
 
@@ -597,38 +607,44 @@ export function DashboardFinanceiro() {
     }),
   );
 
-  const convenioBarItems = [...receita]
-    .sort((a, b) => b.faturado - a.faturado)
-    .slice(0, 6)
-    .map((r) => ({
-      label: r.convenio,
-      value: r.faturado,
-      colorClass: "bg-cb-cyan-600",
-    }));
+  const recebimentoPctMeta =
+    totalFaturadoConvenio > 0
+      ? Math.min(100, Math.round((totalRecebidoConvenio / totalFaturadoConvenio) * 100))
+      : 0;
 
   return (
-    <div className="space-y-8">
-      <DataToolbar className="justify-end">
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={`${mes}-${ano}`}
-            onValueChange={(v) => {
-              const [m, a] = v.split("-");
-              setMes(Number(m));
-              setAno(Number(a));
-            }}
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {compOpts.map((o) => (
-                <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="space-y-6">
+      <DataToolbar className="justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm text-cb-muted">
+            Competência ·{" "}
+            <span className="font-semibold capitalize text-cb-ink">
+              {competenciaLabel(mes, ano)}
+            </span>
+          </p>
+          {filtroConvenio && receitaSelecionada && (
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <Badge variant="secondary" className="font-normal">
+                Convênio · {filtroConvenio}
+              </Badge>
+              <span className="text-xs text-cb-muted">
+                {brl(receitaSelecionada.faturado)} faturado · {brl(receitaSelecionada.recebido)}{" "}
+                recebido
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-xs"
+                onClick={() => setFiltroConvenio(null)}
+              >
+                <X className="h-3.5 w-3.5" />
+                Limpar
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <CompetenciaFilterChip value={competencia} onChange={setCompetencia} />
           <Select
             key={exportSelectKey}
             onValueChange={(v) => executarExportacao(v as ExportOpcao)}
@@ -669,98 +685,209 @@ export function DashboardFinanceiro() {
         </div>
       </DataToolbar>
 
-      {filtroConvenio && receitaSelecionada && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
-          <Badge variant="secondary" className="font-normal">
-            Filtro: {filtroConvenio}
-          </Badge>
-          <span className="text-sm text-muted-foreground">
-            Faturado {brl(receitaSelecionada.faturado)} · Recebido{" "}
-            {brl(receitaSelecionada.recebido)} · {receitaSelecionada.pacientes} paciente(s)
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-7 gap-1"
-            onClick={() => setFiltroConvenio(null)}
-          >
-            <X className="h-3.5 w-3.5" />
-            Ver receita total
-          </Button>
-        </div>
-      )}
-
       {loadingKpis ? (
         <LoadingState />
+      ) : kpisError ? (
+        <EmptyState
+          title="Não foi possível carregar os KPIs"
+          description="Tente recarregar a página ou alterar a competência."
+        />
       ) : (
-        <KpiGrid columns={5}>
-          <KpiCard
-            label="Receita total"
-            value={brl(totalReceita)}
-            accent="lime"
-            hint={competenciaLabel(mes, ano)}
-            share={100}
-          />
-          {(["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map((tipo) => {
-            const cfg = TIPO_KPI[tipo];
-            const k = kpiMap[tipo];
-            const valor = k?.valor ?? 0;
-            return (
-              <KpiCard
-                key={tipo}
-                label={cfg.label}
-                value={brl(valor)}
-                accent={cfg.accent}
-                hint={`${k?.pacientes ?? 0} paciente(s)`}
-                share={totalReceita > 0 ? (valor / totalReceita) * 100 : 0}
-              />
-            );
-          })}
-        </KpiGrid>
+        <>
+          <KpiGrid columns={4}>
+            <KpiCard
+              label="Total faturado"
+              value={brl(statusKpis?.total ?? totalReceita)}
+              accent="cyan"
+              icon={<TrendingUp className="h-5 w-5" />}
+              hint={competenciaLabel(mes, ano)}
+              share={100}
+            />
+            <KpiCard
+              label="Pago"
+              value={brl(statusKpis?.pago ?? 0)}
+              accent="lime"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              hint={`${statusKpis?.qtdPago ?? 0} cobrança(s)`}
+              share={
+                (statusKpis?.total ?? 0) > 0
+                  ? ((statusKpis?.pago ?? 0) / (statusKpis?.total ?? 1)) * 100
+                  : 0
+              }
+            />
+            <KpiCard
+              label="Pendente"
+              value={brl(statusKpis?.pendente ?? 0)}
+              accent="orange"
+              icon={<Clock className="h-5 w-5" />}
+              hint={`${statusKpis?.qtdPendente ?? 0} cobrança(s)`}
+              share={
+                (statusKpis?.total ?? 0) > 0
+                  ? ((statusKpis?.pendente ?? 0) / (statusKpis?.total ?? 1)) * 100
+                  : 0
+              }
+            />
+            <KpiCard
+              label="Vencido"
+              value={brl(statusKpis?.vencido ?? 0)}
+              accent="magenta"
+              icon={<AlertTriangle className="h-5 w-5" />}
+              hint={`${statusKpis?.qtdVencido ?? 0} cobrança(s)`}
+              share={
+                (statusKpis?.total ?? 0) > 0
+                  ? ((statusKpis?.vencido ?? 0) / (statusKpis?.total ?? 1)) * 100
+                  : 0
+              }
+            />
+          </KpiGrid>
+
+          {(statusKpis?.total ?? 0) > 0 && (
+            <StatusDistributionBar
+              totalLabel={`Status cobrança · ${competenciaLabel(mes, ano)}`}
+              segments={[
+                { label: "Pago", value: statusKpis?.pago ?? 0, colorClass: "bg-cb-lime" },
+                { label: "Pendente", value: statusKpis?.pendente ?? 0, colorClass: "bg-cb-orange" },
+                { label: "Vencido", value: statusKpis?.vencido ?? 0, colorClass: "bg-cb-magenta" },
+              ]}
+            />
+          )}
+        </>
       )}
 
-      {!loadingKpis && totalReceita > 0 && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <DashboardSection
-            eyebrow="Composição"
-            title="Receita por tipo"
-            badge={
-              <DashboardSectionBadge accent="orange">
-                {mesNome}/{ano}
-              </DashboardSectionBadge>
-            }
-            accent="orange"
-            noPadding
-            bodyClassName="p-6"
-          >
-            <HorizontalMetricBars title="" items={tipoBarItems} formatValue={brl} />
-          </DashboardSection>
-          {convenioBarItems.length > 0 && (
-            <DashboardSection
-              eyebrow="Ranking"
-              title="Top convênios (faturado)"
-              badge={
-                <DashboardSectionBadge accent="cyan">
-                  {mesNome}/{ano}
-                </DashboardSectionBadge>
-              }
-              accent="cyan"
-              noPadding
-              bodyClassName="p-6"
-            >
-              <HorizontalMetricBars title="" items={convenioBarItems} formatValue={brl} />
-            </DashboardSection>
+      <DashboardSection
+        eyebrow="Financeiro"
+        accent="purple"
+        title="Receita mensal por tipo"
+        description="Últimos 6 meses — janela rolling, independente da competência selecionada"
+        actions={<ReceitaMensalLegend />}
+        noPadding
+        bodyClassName="px-4 pb-4 pt-2 sm:px-6"
+      >
+        {receitaMensalQuery.isLoading ? (
+          <LoadingState />
+        ) : (
+          <ReceitaMensalChart data={receitaMensalQuery.data ?? []} />
+        )}
+      </DashboardSection>
+
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardSection
+          eyebrow="Recebimento"
+          accent="lime"
+          title="Meta de recebimento"
+          badge={
+            <DashboardSectionBadge accent="lime">
+              {competenciaCurta(mes, ano)}
+            </DashboardSectionBadge>
+          }
+          compact
+          noPadding
+          bodyClassName={FINANCE_WIDGET_BODY}
+        >
+          {loadingReceita ? (
+            <LoadingState compact />
+          ) : (
+            <RecebimentoGaugeChart
+              recebido={totalRecebidoConvenio}
+              faturado={totalFaturadoConvenio}
+              className="h-full w-full"
+            />
           )}
-        </div>
-      )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Share"
+          title="Recebimento por convênio"
+          badge={
+            <DashboardSectionBadge accent="purple">
+              {recebimentoPctMeta}% recebido
+            </DashboardSectionBadge>
+          }
+          accent="purple"
+          compact
+          noPadding
+          bodyClassName={FINANCE_WIDGET_BODY}
+        >
+          {loadingReceita ? (
+            <LoadingState compact />
+          ) : (
+            <RecebimentoPorConvenioPie
+              className="h-[200px] w-full"
+              rows={receitaVisivel.map((r) => ({ convenio: r.convenio, recebido: r.recebido }))}
+            />
+          )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Convênios"
+          accent="cyan"
+          title="Top convênios (faturado)"
+          badge={
+            <DashboardSectionBadge accent="cyan">
+              {competenciaCurta(mes, ano)}
+            </DashboardSectionBadge>
+          }
+          compact
+          noPadding
+          bodyClassName={FINANCE_WIDGET_BODY}
+        >
+          {loadingReceita ? (
+            <LoadingState compact />
+          ) : (
+            <TopConveniosBarChart className="h-[200px] w-full" rows={receitaVisivel} />
+          )}
+        </DashboardSection>
+
+        <DashboardSection
+          eyebrow="Histórico"
+          accent="orange"
+          title="Pago vs pendente"
+          badge={<DashboardSectionBadge accent="orange">6 meses</DashboardSectionBadge>}
+          compact
+          noPadding
+          bodyClassName={FINANCE_WIDGET_BODY}
+        >
+          {historicoQuery.isLoading ? (
+            <LoadingState compact />
+          ) : (
+            <CobrancaTrendLineChart className="h-[220px] w-full" data={historicoQuery.data ?? []} />
+          )}
+        </DashboardSection>
+      </div>
+
+      {!loadingKpis && totalReceita > 0 ? (
+        <DashboardSection
+          eyebrow="Composição"
+          title="Receita por tipo"
+          badge={<DashboardSectionBadge accent="orange">{brl(totalReceita)}</DashboardSectionBadge>}
+          accent="orange"
+          noPadding
+          bodyClassName="p-6"
+        >
+          <HorizontalMetricBars title="" items={tipoBarItems} formatValue={brl} />
+        </DashboardSection>
+      ) : !loadingKpis ? (
+        <DashboardSection
+          eyebrow="Composição"
+          accent="orange"
+          title="Receita por tipo"
+          badge={
+            <DashboardSectionBadge accent="orange">
+              {competenciaCurta(mes, ano)}
+            </DashboardSectionBadge>
+          }
+          noPadding
+          bodyClassName="flex min-h-[120px] items-center justify-center p-6"
+        >
+          <p className="text-sm text-cb-muted">Sem receita na competência selecionada.</p>
+        </DashboardSection>
+      ) : null}
 
       <DashboardSection
         eyebrow="Financeiro"
         title="Receita por convênio"
         badge={
-          <DashboardSectionBadge accent="cyan">
-            {mesNome}/{ano}
-          </DashboardSectionBadge>
+          <DashboardSectionBadge accent="cyan">{competenciaCurta(mes, ano)}</DashboardSectionBadge>
         }
         description="Clique em uma linha para filtrar o extrato e exportar só aquele convênio ou tipo."
         accent="cyan"
@@ -864,7 +991,7 @@ export function DashboardFinanceiro() {
               </p>
             </div>
             <Table>
-              <TableHeader className="bg-cb-cyan-050">
+              <TableHeader className="bg-cb-cyan-050 dark:bg-secondary">
                 <TableRow>
                   <TableHead className="text-[10.5px] font-bold uppercase tracking-wide text-cb-muted">
                     Nome do Paciente

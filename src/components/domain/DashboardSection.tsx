@@ -22,12 +22,15 @@ const ACCENT_STRIP: Record<DashboardSectionAccent, string> = {
   magenta: "bg-cb-magenta",
 };
 
-const ACCENT_HEADER_BG: Record<DashboardSectionAccent, string> = {
-  cyan: "bg-gradient-to-r from-cb-cyan-050/90 via-cb-cyan-050/35 to-transparent",
-  purple: "bg-gradient-to-r from-[#F5F3FF]/90 via-[#F5F3FF]/35 to-transparent",
-  lime: "bg-gradient-to-r from-[#F7FEE7]/90 via-[#F7FEE7]/35 to-transparent",
-  orange: "bg-gradient-to-r from-[#FFF7ED]/90 via-[#FFF7ED]/35 to-transparent",
-  magenta: "bg-gradient-to-r from-[#FDF2F8]/90 via-[#FDF2F8]/35 to-transparent",
+export const ACCENT_HEADER_BG: Record<DashboardSectionAccent, string> = {
+  cyan: "bg-gradient-to-r from-cb-cyan-050/90 via-cb-cyan-050/35 to-transparent dark:from-cb-cyan-900/70 dark:via-cb-cyan-800/35 dark:to-transparent",
+  purple:
+    "bg-gradient-to-r from-[#F5F3FF]/90 via-[#F5F3FF]/35 to-transparent dark:from-cb-purple/35 dark:via-cb-purple/16 dark:to-transparent",
+  lime: "bg-gradient-to-r from-[#F7FEE7]/90 via-[#F7FEE7]/35 to-transparent dark:from-cb-lime/28 dark:via-cb-lime/12 dark:to-transparent",
+  orange:
+    "bg-gradient-to-r from-[#FFF7ED]/90 via-[#FFF7ED]/35 to-transparent dark:from-cb-orange/32 dark:via-cb-orange/14 dark:to-transparent",
+  magenta:
+    "bg-gradient-to-r from-[#FDF2F8]/90 via-[#FDF2F8]/35 to-transparent dark:from-cb-magenta/32 dark:via-cb-magenta/14 dark:to-transparent",
 };
 
 type DashboardSectionProps = {
@@ -44,6 +47,8 @@ type DashboardSectionProps = {
   className?: string;
   bodyClassName?: string;
   noPadding?: boolean;
+  /** Cabeçalho compacto — widgets em grid. */
+  compact?: boolean;
 };
 
 /** Chip compacto para competência ou metadado no cabeçalho de seção. */
@@ -57,11 +62,11 @@ export function DashboardSectionBadge({
   className?: string;
 }) {
   const ring: Record<DashboardSectionAccent, string> = {
-    cyan: "ring-cb-cyan-100 text-cb-cyan-800",
-    purple: "ring-[#DDD6FE] text-cb-purple",
-    lime: "ring-[#BEF264] text-[#3F6212]",
-    orange: "ring-[#FED7AA] text-cb-orange",
-    magenta: "ring-[#FBCFE8] text-cb-magenta",
+    cyan: "ring-cb-cyan-100 text-cb-cyan-800 dark:ring-cb-cyan-700/40 dark:text-cb-cyan-300",
+    purple: "ring-[#DDD6FE] text-cb-purple dark:ring-cb-purple/30 dark:text-[#c4b5fd]",
+    lime: "ring-[#BEF264] text-[#3F6212] dark:ring-cb-lime/25 dark:text-cb-lime",
+    orange: "ring-[#FED7AA] text-cb-orange dark:ring-cb-orange/30 dark:text-[#fdba74]",
+    magenta: "ring-[#FBCFE8] text-cb-magenta dark:ring-cb-magenta/30 dark:text-[#f9a8d4]",
   };
 
   return (
@@ -85,6 +90,7 @@ export type DashboardSectionHeaderProps = {
   accent?: DashboardSectionAccent;
   badge?: ReactNode;
   actions?: ReactNode;
+  compact?: boolean;
 };
 
 /** Cabeçalho padrão de painéis — faixa lateral, eyebrow e chip de contexto. */
@@ -95,11 +101,13 @@ export function DashboardSectionHeader({
   accent = "cyan",
   badge,
   actions,
+  compact = false,
 }: DashboardSectionHeaderProps) {
   return (
     <header
       className={cn(
-        "relative flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5",
+        "relative flex flex-wrap items-start justify-between gap-3 border-b border-border",
+        compact ? "px-4 py-4" : "px-6 py-5",
         ACCENT_HEADER_BG[accent],
       )}
     >
@@ -111,10 +119,19 @@ export function DashboardSectionHeader({
           </p>
         )}
         <div className={cn("flex flex-wrap items-center gap-2.5", eyebrow && "mt-1")}>
-          <h2 className="text-lg font-bold tracking-tight text-cb-ink">{title}</h2>
+          <h2
+            className={cn(
+              "font-bold tracking-tight text-cb-ink",
+              compact ? "text-base" : "text-lg",
+            )}
+          >
+            {title}
+          </h2>
           {badge}
         </div>
-        {description && <p className="mt-2 text-sm leading-relaxed text-cb-muted">{description}</p>}
+        {!compact && description && (
+          <p className="mt-2 text-sm leading-relaxed text-cb-muted">{description}</p>
+        )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -133,6 +150,7 @@ export function DashboardSection({
   className,
   bodyClassName,
   noPadding,
+  compact = false,
 }: DashboardSectionProps) {
   return (
     <section
@@ -149,6 +167,7 @@ export function DashboardSection({
         accent={accent}
         badge={badge}
         actions={actions}
+        compact={compact}
       />
       <div className={cn(!noPadding && "p-6", bodyClassName)}>{children}</div>
     </section>

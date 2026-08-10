@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Sidebar } from "./Sidebar";
+import { AppTopbar } from "./AppTopbar";
 import { cn } from "@/lib/utils";
 
 function NavigationProgress() {
@@ -21,17 +22,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const isPending = useRouterState({ select: (s) => s.status === "pending" });
 
   return (
-    <SidebarProvider className="h-svh overflow-hidden bg-background">
+    <SidebarProvider className="h-svh overflow-hidden bg-cb-bg dark:bg-background">
       <Sidebar />
-      <SidebarInset className="relative min-h-0 overflow-hidden">
+      <SidebarInset className="relative min-h-0 overflow-hidden bg-cb-bg dark:bg-background">
+        <div className="cb-rainbow-strip h-[3px] shrink-0" aria-hidden />
         <NavigationProgress />
-        <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:hidden">
-          <SidebarTrigger />
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <AppTopbar />
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-cb-bg dark:bg-background">
           <div
             className={cn(
-              "mx-auto w-full max-w-[1320px] px-6 py-8 transition-opacity duration-150 md:px-9",
+              "mx-auto w-full max-w-none px-6 py-8 transition-opacity duration-150 md:px-8 lg:px-10",
               isPending && "opacity-70",
             )}
           >

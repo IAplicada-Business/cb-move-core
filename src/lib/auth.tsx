@@ -21,10 +21,13 @@ type AuthContextValue = {
   pacienteId: string | null;
   isPaciente: boolean;
   signIn: (email: string, password: string) => Promise<PostAuthPath>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Recarrega papéis/perfil do usuário logado (menu + guards). */
   refreshRoles: () => Promise<void>;
+  /** Sincroniza sessão OAuth/callback no provider antes de navegar. */
+  completeSignIn: (session: Session) => Promise<PostAuthPath>;
 };
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -256,6 +259,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadRoles(uid, { force: true });
   }, [session?.user?.id]);
 
+  const completeSignIn = React.useCallback(async (nextSession: Session): Promise<PostAuthPath> => {
+    await applySession(nextSession, { awaitRoles: true });
+    if (mustResetPassword(nextSession.user)) return "/redefinir-senha";
+    return resolvePostAuthPath(nextSession.user.id);
+  }, []);
+
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
@@ -265,15 +274,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     pacienteId,
     isPaciente,
     refreshRoles,
+    completeSignIn,
     signIn: async (email, password) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      if (data.session) {
-        await applySession(data.session, { awaitRoles: true });
-        if (mustResetPassword(data.session.user)) return "/redefinir-senha";
-        return resolvePostAuthPath(data.session.user.id);
-      }
+      if (data.session) return completeSignIn(data.session);
       return "/app";
+    },
+    signInWithGoogle: async () => {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) throw error;
     },
     signUp: async (email, password, fullName) => {
       const { error } = await supabase.auth.signUp({

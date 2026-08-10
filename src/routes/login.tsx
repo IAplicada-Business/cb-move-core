@@ -1,14 +1,21 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
 import { mustResetPassword } from "@/lib/password-reset";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthPageShell } from "@/components/layout/AuthLayout";
+import { AuthField, AuthSwitchShell, type AuthContext } from "@/components/ui/auth-switch";
+import { AuthGoogleButton, AuthSocialDivider } from "@/components/ui/auth-social-login";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { LoadingState } from "@/components/domain/LoadingState";
+
+const FOOTNOTES: Record<AuthContext, string> = {
+  admin: "Acesso restrito a usuários cadastrados pela administração.",
+  paciente: "Primeiro acesso? Use a senha informada pela administração.",
+};
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Entrar · CB MOVE Neuroscience" }] }),
@@ -16,10 +23,13 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn, session, loading: authLoading } = useAuth();
+  const { signIn, signInWithGoogle, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
+  const [googleLoading, setGoogleLoading] = React.useState(false);
   const [resetLoading, setResetLoading] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [authContext, setAuthContext] = React.useState<AuthContext>("admin");
   const [form, setForm] = React.useState({ email: "", password: "" });
 
   React.useEffect(() => {
@@ -33,9 +43,9 @@ function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-background">
+      <AuthPageShell>
         <LoadingState />
-      </div>
+      </AuthPageShell>
     );
   }
 
@@ -50,6 +60,17 @@ function LoginPage() {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onGoogleSignIn() {
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Não foi possível entrar com Google";
+      toast.error(msg);
+      setGoogleLoading(false);
     }
   }
 
@@ -74,69 +95,70 @@ function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="cb-rainbow-strip h-[3px]" />
-        <div className="p-8">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="cb-pin-halo grid h-12 w-12 place-items-center rounded-full p-[2px]">
-              <div className="grid h-full w-full place-items-center rounded-full bg-white text-cb-cyan-600">
-                <span className="text-2xl font-bold leading-none">∞</span>
-              </div>
-            </div>
-            <div className="leading-tight">
-              <div className="text-base font-extrabold tracking-wide text-cb-cyan-900">CB MOVE</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cb-cyan-700">
-                Neuroscience
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                required
-                minLength={6}
-              />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Aguarde…" : "Entrar"}
-            </Button>
+    <AuthPageShell>
+      <AuthSwitchShell mode={authContext} onModeChange={setAuthContext}>
+        <form onSubmit={onSubmit} className="w-full">
+          <AuthField
+            id="email"
+            icon={Mail}
+            type="email"
+            autoComplete="email"
+            placeholder="E-mail"
+            aria-label="E-mail"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            required
+          />
+          <div className="relative">
+            <AuthField
+              id="password"
+              icon={Lock}
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Senha"
+              aria-label="Senha"
+              value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              required
+              minLength={6}
+              className="pr-12"
+            />
             <Button
               type="button"
-              variant="link"
-              className="w-full text-xs"
-              disabled={resetLoading}
-              onClick={onForgotPassword}
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
             >
-              {resetLoading ? "Enviando link…" : "Esqueci minha senha"}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
-          </form>
+          </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Acesso restrito a usuários cadastrados pela administração.
-            <br />
-            Primeiro acesso? Use a senha informada pela administração.
-          </p>
-        </div>
-      </div>
-    </div>
+          <Button
+            type="submit"
+            disabled={loading || googleLoading}
+            className="mt-4 h-11 w-full rounded-full bg-cb-cyan-600 text-sm font-semibold uppercase tracking-wide hover:bg-cb-cyan-700"
+          >
+            {loading ? "Aguarde…" : "Entrar"}
+          </Button>
+
+          <AuthSocialDivider />
+          <AuthGoogleButton onClick={onGoogleSignIn} loading={googleLoading} disabled={loading} />
+
+          <Button
+            type="button"
+            variant="link"
+            className="mt-2 w-full text-xs text-cb-muted"
+            disabled={resetLoading}
+            onClick={onForgotPassword}
+          >
+            {resetLoading ? "Enviando link…" : "Esqueci minha senha"}
+          </Button>
+
+          <p className="mt-4 text-center text-xs text-cb-muted">{FOOTNOTES[authContext]}</p>
+        </form>
+      </AuthSwitchShell>
+    </AuthPageShell>
   );
 }

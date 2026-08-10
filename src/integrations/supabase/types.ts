@@ -1178,6 +1178,7 @@ export type Database = {
       profiles: {
         Row: {
           assinatura_storage_path: string | null;
+          avatar_storage_path: string | null;
           created_at: string;
           email: string | null;
           fisioterapeuta_id: string | null;
@@ -1186,6 +1187,7 @@ export type Database = {
         };
         Insert: {
           assinatura_storage_path?: string | null;
+          avatar_storage_path?: string | null;
           created_at?: string;
           email?: string | null;
           fisioterapeuta_id?: string | null;
@@ -1194,6 +1196,7 @@ export type Database = {
         };
         Update: {
           assinatura_storage_path?: string | null;
+          avatar_storage_path?: string | null;
           created_at?: string;
           email?: string | null;
           fisioterapeuta_id?: string | null;

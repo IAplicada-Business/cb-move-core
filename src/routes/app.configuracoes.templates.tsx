@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DashboardPage } from "@/components/domain/DashboardSection";
 import { TemplatePreviewPanel } from "@/components/domain/TemplatePreviewPanel";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -217,11 +219,16 @@ function TemplatesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Templates versionados</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{TEMPLATES_PAGE_DESCRICAO}</p>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[
+          { label: "Sistema" },
+          { label: "Configurações", to: "/app/configuracoes" },
+          { label: "Templates" },
+        ]}
+        title="Templates versionados"
+        description={TEMPLATES_PAGE_DESCRICAO}
+      />
 
       {isLoading ? (
         <LoadingState />
@@ -325,6 +332,6 @@ function TemplatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </DashboardPage>
   );
 }

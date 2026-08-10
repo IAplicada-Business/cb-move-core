@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { StatusAgendamento } from "@/lib/types";
+import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
 
 function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -17,6 +17,7 @@ export type OperacionalKpis = {
   totalFisiosAtivos: number;
   agendasProximas: number;
   divergenciaProntuario: number;
+  sessoesRealizadasMes: number;
 };
 
 export type ProximaAgenda = {
@@ -46,53 +47,110 @@ export type DashboardHomeData = {
   kpis: OperacionalKpis;
   divergencias: DivergenciaProntuario[];
   proximasAgendas: ProximaAgenda[];
+  atividadeSemanal: { dia: string; sessoes: number }[];
+  pacientesPorTipo: { tipo: PacienteTipo; count: number }[];
+  divergenciaTrend: { semana: string; agendas: number; divergencias: number }[];
 };
 
-export async function fetchDashboardHome(ano: number, mes: number): Promise<DashboardHomeData> {
+const TIPOS: PacienteTipo[] = ["particular", "judicial", "convenio", "puc"];
+
+function weekLabel(date: Date): string {
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+export async function fetchDashboardHome(
+  ano: number,
+  mes: number,
+  fisioterapeutaId?: string | null,
+): Promise<DashboardHomeData> {
   const mesInicio = new Date(ano, mes - 1, 1);
   const mesFim = new Date(ano, mes, 1);
   const now = new Date();
   const proximosSeteDias = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+  const isCurrentMonth = ano === now.getFullYear() && mes === now.getMonth() + 1;
+  const atividadeFim = isCurrentMonth
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    : mesFim;
+  const atividadeInicio = new Date(atividadeFim.getTime() - 7 * 24 * 60 * 60 * 1000);
+  if (atividadeInicio < mesInicio) atividadeInicio.setTime(mesInicio.getTime());
+  atividadeInicio.setHours(0, 0, 0, 0);
+
+  let pacientesQuery = supabase.from("pacientes").select("id, tipo").eq("ativo", true);
+  if (fisioterapeutaId) pacientesQuery = pacientesQuery.eq("fisioterapeuta_id", fisioterapeutaId);
+
+  const pacientesCountQuery = fisioterapeutaId
+    ? Promise.resolve({ count: 0, error: null })
+    : supabase.from("pacientes").select("id", { count: "exact", head: true }).eq("ativo", true);
+
+  let realizadosQuery = supabase
+    .from("agendamentos")
+    .select("paciente_id, inicio, pacientes(nome)")
+    .eq("status", "realizado")
+    .gte("inicio", mesInicio.toISOString())
+    .lt("inicio", mesFim.toISOString())
+    .order("inicio", { ascending: false });
+  if (fisioterapeutaId) realizadosQuery = realizadosQuery.eq("fisioterapeuta_id", fisioterapeutaId);
+
+  let semanaQuery = supabase
+    .from("agendamentos")
+    .select("inicio")
+    .eq("status", "realizado")
+    .gte("inicio", atividadeInicio.toISOString())
+    .lt("inicio", atividadeFim.toISOString());
+  if (fisioterapeutaId) semanaQuery = semanaQuery.eq("fisioterapeuta_id", fisioterapeutaId);
+
+  let proximasCountQuery = supabase
+    .from("agendamentos")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["agendado", "confirmado"])
+    .gte("inicio", now.toISOString())
+    .lt("inicio", proximosSeteDias.toISOString());
+  if (fisioterapeutaId)
+    proximasCountQuery = proximasCountQuery.eq("fisioterapeuta_id", fisioterapeutaId);
+
+  let proximasListQuery = supabase
+    .from("agendamentos")
+    .select("id, inicio, status, pacientes(nome), fisioterapeutas(nome)")
+    .in("status", ["agendado", "confirmado"])
+    .gte("inicio", now.toISOString())
+    .lt("inicio", proximosSeteDias.toISOString())
+    .order("inicio", { ascending: true })
+    .limit(15);
+  if (fisioterapeutaId)
+    proximasListQuery = proximasListQuery.eq("fisioterapeuta_id", fisioterapeutaId);
+
   const [
     pacientesResult,
+    pacientesCountResult,
     fisiosResult,
     agendasProximasResult,
     realizadosResult,
     evolucoesResult,
     proximasListResult,
+    semanaResult,
   ] = await Promise.all([
-    supabase.from("pacientes").select("id", { count: "exact", head: true }).eq("ativo", true),
-    supabase.from("fisioterapeutas").select("id", { count: "exact", head: true }).eq("ativo", true),
-    supabase
-      .from("agendamentos")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["agendado", "confirmado"])
-      .gte("inicio", now.toISOString())
-      .lt("inicio", proximosSeteDias.toISOString()),
-    supabase
-      .from("agendamentos")
-      .select("paciente_id, inicio, pacientes(nome)")
-      .eq("status", "realizado")
-      .gte("inicio", mesInicio.toISOString())
-      .lt("inicio", mesFim.toISOString())
-      .order("inicio", { ascending: false }),
+    pacientesQuery,
+    pacientesCountQuery,
+    fisioterapeutaId
+      ? Promise.resolve({ data: null, error: null, count: 0 })
+      : supabase
+          .from("fisioterapeutas")
+          .select("id", { count: "exact", head: true })
+          .eq("ativo", true),
+    proximasCountQuery,
+    realizadosQuery,
     supabase
       .from("prontuario_evolucoes")
       .select("paciente_id, data")
       .gte("data", toIsoDate(mesInicio))
       .lt("data", toIsoDate(mesFim)),
-    supabase
-      .from("agendamentos")
-      .select("id, inicio, status, pacientes(nome), fisioterapeutas(nome)")
-      .in("status", ["agendado", "confirmado"])
-      .gte("inicio", now.toISOString())
-      .lt("inicio", proximosSeteDias.toISOString())
-      .order("inicio", { ascending: true })
-      .limit(15),
+    proximasListQuery,
+    semanaQuery,
   ]);
 
   if (pacientesResult.error) throw pacientesResult.error;
+  if (pacientesCountResult.error) throw pacientesCountResult.error;
   if (fisiosResult.error) throw fisiosResult.error;
   if (agendasProximasResult.error) throw agendasProximasResult.error;
   if (realizadosResult.error) throw realizadosResult.error;
@@ -116,6 +174,7 @@ export async function fetchDashboardHome(ano: number, mes: number): Promise<Dash
     });
   }
   const divergencias = divergenciasAll.slice(0, 20);
+  const sessoesRealizadasMes = (realizadosResult.data ?? []).length;
 
   const proximasAgendas: ProximaAgenda[] = (proximasListResult.data ?? []).map((row) => {
     const pac = row.pacientes as { nome: string } | null;
@@ -129,15 +188,73 @@ export async function fetchDashboardHome(ano: number, mes: number): Promise<Dash
     };
   });
 
+  if (semanaResult.error) throw semanaResult.error;
+
+  const pacientesRows = pacientesResult.data ?? [];
+  const pacientesPorTipo = TIPOS.map((tipo) => ({
+    tipo,
+    count: pacientesRows.filter((p) => p.tipo === tipo).length,
+  }));
+
+  const atividadeBuckets = new Map<string, number>();
+  const atividadeDays = Math.max(
+    1,
+    Math.round((atividadeFim.getTime() - atividadeInicio.getTime()) / (24 * 60 * 60 * 1000)),
+  );
+  for (let i = 0; i < atividadeDays; i++) {
+    const d = new Date(atividadeInicio.getTime() + i * 24 * 60 * 60 * 1000);
+    atividadeBuckets.set(toIsoDate(d), 0);
+  }
+  for (const row of semanaResult.data ?? []) {
+    const key = row.inicio.slice(0, 10);
+    if (atividadeBuckets.has(key)) {
+      atividadeBuckets.set(key, (atividadeBuckets.get(key) ?? 0) + 1);
+    }
+  }
+  const atividadeSemanal = Array.from(atividadeBuckets.entries()).map(([iso, sessoes]) => ({
+    dia: new Date(iso + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" }),
+    sessoes,
+  }));
+
+  const divergenciaTrend: { semana: string; agendas: number; divergencias: number }[] = [];
+  for (let w = 0; w < 4; w++) {
+    const start = new Date(ano, mes - 1, 1 + w * 7);
+    if (start >= mesFim) break;
+    const end = new Date(Math.min(start.getTime() + 7 * 24 * 60 * 60 * 1000, mesFim.getTime()));
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
+    let agendasSemana = 0;
+    let divergSemana = 0;
+    for (const a of realizadosResult.data ?? []) {
+      if (a.inicio >= startIso && a.inicio < endIso) {
+        agendasSemana++;
+        const data = a.inicio.slice(0, 10);
+        if (!a.paciente_id || evolucoesChaves.has(`${a.paciente_id}_${data}`)) continue;
+        divergSemana++;
+      }
+    }
+    divergenciaTrend.push({
+      semana: weekLabel(start),
+      agendas: agendasSemana,
+      divergencias: divergSemana,
+    });
+  }
+
   return {
     kpis: {
-      totalPacientesAtivos: pacientesResult.count ?? 0,
-      totalFisiosAtivos: fisiosResult.count ?? 0,
+      totalPacientesAtivos: fisioterapeutaId
+        ? pacientesRows.length
+        : (pacientesCountResult.count ?? pacientesRows.length),
+      totalFisiosAtivos: fisioterapeutaId ? 0 : (fisiosResult.count ?? 0),
       agendasProximas: agendasProximasResult.count ?? 0,
       divergenciaProntuario: divergenciasAll.length,
+      sessoesRealizadasMes,
     },
     divergencias,
     proximasAgendas,
+    atividadeSemanal,
+    pacientesPorTipo,
+    divergenciaTrend,
   };
 }
 

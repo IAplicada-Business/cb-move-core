@@ -1,5 +1,8 @@
 import { cn } from "@/lib/utils";
 import { brl } from "@/lib/format";
+import { TIPO_BAR_COLORS } from "@/lib/chart-brand";
+
+export { TIPO_BAR_COLORS };
 
 type Segment = {
   label: string;
@@ -119,10 +122,3 @@ export function HorizontalMetricBars({
     </div>
   );
 }
-
-export const TIPO_BAR_COLORS = {
-  particular: "bg-cb-cyan-600",
-  judicial: "bg-cb-magenta",
-  convenio: "bg-cb-purple",
-  puc: "bg-cb-orange",
-} as const;

@@ -26,6 +26,7 @@ import {
   KpiGrid,
 } from "@/components/domain/DashboardSection";
 import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
+import { CompetenciaFilterChip } from "@/components/domain/CompetenciaFilterChip";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -72,6 +73,7 @@ import {
 } from "@/lib/extrato-parser";
 import { cn } from "@/lib/utils";
 import { assertFinanceAccess } from "@/lib/route-access";
+import { competenciaAtual } from "@/lib/competencia";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,20 +151,6 @@ const MESES_ABREV = [
   "Nov",
   "Dez",
 ];
-
-function competenciaOpcoes() {
-  const now = new Date();
-  const opts: { label: string; mes: number; ano: number }[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
-      mes: d.getMonth() + 1,
-      ano: d.getFullYear(),
-    });
-  }
-  return opts;
-}
 
 // ─── schemas ────────────────────────────────────────────────────────────────
 
@@ -1158,7 +1146,7 @@ function CobrancasPage() {
   const now = new Date();
   const mesAtual = now.getMonth() + 1;
   const anoAtual = now.getFullYear();
-  const compDefault = `${mesAtual}-${anoAtual}`;
+  const compDefault = competenciaAtual();
 
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<CobrancaStatus | "">("");
@@ -1171,7 +1159,6 @@ function CobrancasPage() {
   const [pacienteSheetId, setPacienteSheetId] = useState<string | null>(null);
   const [pacienteSheetNome, setPacienteSheetNome] = useState<string | null>(null);
 
-  const compOpts = competenciaOpcoes();
   const todosMeses = filtroComp === "";
   const compMes = filtroComp ? Number(filtroComp.split("-")[0]) : undefined;
   const compAno = filtroComp ? Number(filtroComp.split("-")[1]) : undefined;
@@ -1317,22 +1304,11 @@ function CobrancasPage() {
           />
         </DataToolbarSearch>
 
-        <Select
+        <CompetenciaFilterChip
           value={filtroComp || FILTRO_TODOS}
-          onValueChange={(v) => setFiltroComp(v === FILTRO_TODOS ? "" : v)}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Competência" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={FILTRO_TODOS}>Todos os meses</SelectItem>
-            {compOpts.map((o) => (
-              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(v) => setFiltroComp(v === FILTRO_TODOS ? "" : v)}
+          extraOptions={[{ value: FILTRO_TODOS, label: "Todos os meses" }]}
+        />
 
         <Select
           value={filtroStatus || FILTRO_TODOS}

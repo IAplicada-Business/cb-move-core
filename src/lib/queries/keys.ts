@@ -85,6 +85,7 @@ export const queryKeys = {
   },
   financeiro: {
     kpis: (year: number, month: number) => ["financeiro", "kpis", year, month] as const,
+    kpisHistorico: () => ["financeiro", "kpisHistorico"] as const,
     kpisPorTipo: (year: number, month: number) =>
       ["financeiro", "kpisPorTipo", year, month] as const,
     receitaConvenio: (year: number, month: number) =>
@@ -103,7 +104,8 @@ export const queryKeys = {
     list: (search?: string) => ["prontuarios_consolidados", search ?? ""] as const,
   },
   dashboard: {
-    home: (year: number, month: number) => ["dashboard", "home", year, month] as const,
+    home: (year: number, month: number, fisioId?: string | null) =>
+      ["dashboard", "home", year, month, fisioId ?? "all"] as const,
     operacional: (year: number, month: number) =>
       ["dashboard", "operacional", year, month] as const,
     proximasAgendas: () => ["dashboard", "proximasAgendas"] as const,

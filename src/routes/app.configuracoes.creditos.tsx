@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { DashboardSection } from "@/components/domain/DashboardSection";
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DashboardPage, DashboardSection } from "@/components/domain/DashboardSection";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { EmptyState } from "@/components/domain/EmptyState";
 import {
@@ -70,15 +71,21 @@ function CreditosIAPage() {
 
   if (!isAdmin) {
     return (
-      <div className="space-y-4">
-        <header>
-          <h1 className="text-2xl font-bold">Créditos IA</h1>
-        </header>
+      <DashboardPage>
+        <PageHeader
+          crumbs={[
+            { label: "Sistema" },
+            { label: "Configurações", to: "/app/configuracoes" },
+            { label: "Créditos IA" },
+          ]}
+          title="Créditos IA"
+          description="Consumo de tokens Anthropic Claude (admin)."
+        />
         <EmptyState
           title="Acesso restrito"
           description="Apenas administradores podem ver o uso de IA."
         />
-      </div>
+      </DashboardPage>
     );
   }
 
@@ -86,23 +93,26 @@ function CreditosIAPage() {
   const totalTokens = (data ?? []).reduce((s, c) => s + (c.tokens_entrada + c.tokens_saida), 0);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Créditos IA</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Consumo de tokens Anthropic Claude para estruturação S/O/P.
-        </p>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[
+          { label: "Sistema" },
+          { label: "Configurações", to: "/app/configuracoes" },
+          { label: "Créditos IA" },
+        ]}
+        title="Créditos IA"
+        description="Consumo de tokens Anthropic Claude para estruturação S/O/P."
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Chamadas totais
           </p>
           <p className="text-2xl font-bold text-foreground">{(data ?? []).length}</p>
         </div>
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Tokens totais
           </p>
           <p className="text-2xl font-bold text-foreground">
@@ -110,11 +120,11 @@ function CreditosIAPage() {
           </p>
         </div>
         <div className="rounded-xl border bg-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Custo estimado
           </p>
           <p className="text-2xl font-bold text-foreground">US$ {totalUsd.toFixed(4)}</p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="mt-1 text-xs text-muted-foreground">
             Haiku: $0,25/MTok in · $1,25/MTok out
           </p>
         </div>
@@ -153,13 +163,13 @@ function CreditosIAPage() {
                 <TableRow key={c.id}>
                   <TableCell className="text-sm">{fmtDate(c.created_at)}</TableCell>
                   <TableCell className="text-sm">{TIPO_LABEL[c.tipo] ?? c.tipo}</TableCell>
-                  <TableCell className="text-right text-sm font-mono">
+                  <TableCell className="text-right font-mono text-sm">
                     {c.tokens_entrada.toLocaleString("pt-BR")}
                   </TableCell>
-                  <TableCell className="text-right text-sm font-mono">
+                  <TableCell className="text-right font-mono text-sm">
                     {c.tokens_saida.toLocaleString("pt-BR")}
                   </TableCell>
-                  <TableCell className="text-right text-sm font-mono text-muted-foreground">
+                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
                     {brlUsd(c.custo_estimado_usd)}
                   </TableCell>
                 </TableRow>
@@ -168,6 +178,6 @@ function CreditosIAPage() {
           </Table>
         )}
       </DashboardSection>
-    </div>
+    </DashboardPage>
   );
 }

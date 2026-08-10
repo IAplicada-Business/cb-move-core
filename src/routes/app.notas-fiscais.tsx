@@ -29,6 +29,7 @@ import {
   KpiGrid,
 } from "@/components/domain/DashboardSection";
 import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
+import { CompetenciaFilterChip } from "@/components/domain/CompetenciaFilterChip";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -57,6 +58,7 @@ import {
 } from "@/lib/queries/financeiro";
 import type { NfStatus, PacienteTipo } from "@/lib/types";
 import { assertFinanceAccess } from "@/lib/route-access";
+import { competenciaAtual, competenciaOpcoes } from "@/lib/competencia";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,20 +155,6 @@ function errorMessage(error: unknown): string {
     return String((error as { message: unknown }).message);
   }
   return "Erro desconhecido";
-}
-
-function competenciaOpcoes() {
-  const now = new Date();
-  const opts: { label: string; mes: number; ano: number }[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      label: `${MESES_ABREV[d.getMonth()]}/${d.getFullYear()}`,
-      mes: d.getMonth() + 1,
-      ano: d.getFullYear(),
-    });
-  }
-  return opts;
 }
 
 const emitirNFSchema = z.object({
@@ -800,11 +788,11 @@ function LinhaAEmitir({
 
 function NotasFiscaisPage() {
   const qc = useQueryClient();
-  const now = new Date();
+  const compDefault = competenciaAtual();
   const [search, setSearch] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<NfStatus | "">("");
   const [filtroTipo, setFiltroTipo] = useState<PacienteTipo | "">("");
-  const [filtroComp, setFiltroComp] = useState(`${now.getMonth() + 1}-${now.getFullYear()}`);
+  const [filtroComp, setFiltroComp] = useState(compDefault);
   const [modalEmitir, setModalEmitir] = useState(false);
   const [prefill, setPrefill] = useState<CobrancaSemNf | null>(null);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
@@ -819,7 +807,8 @@ function NotasFiscaisPage() {
   const selectAllRef = useRef<HTMLInputElement>(null);
   const selectAllNfRef = useRef<HTMLInputElement>(null);
 
-  const compOpts = competenciaOpcoes();
+  const compSugestoes = useMemo(() => competenciaOpcoes(), []);
+  const now = new Date();
   const compMes =
     filtroComp && filtroComp !== FILTRO_TODAS_COMP ? Number(filtroComp.split("-")[0]) : undefined;
   const compAno =
@@ -856,7 +845,7 @@ function NotasFiscaisPage() {
     else setDetailNf(null);
   }, [nfs, detailNf]);
   const aEmitir = semNfQuery.data ?? [];
-  const temFiltro = !!(search || filtroStatus || filtroTipo);
+  const temFiltro = !!(search || filtroStatus || filtroTipo || filtroComp !== compDefault);
   const grupos = useMemo(() => agruparPorCliente(nfs), [nfs]);
   const aEmitirElegiveis = useMemo(
     () => aEmitir.filter((row) => documentoElegivelCobranca(row)),
@@ -1185,19 +1174,11 @@ function NotasFiscaisPage() {
             <SelectItem value="erro">Erro</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filtroComp} onValueChange={setFiltroComp}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Competência" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={FILTRO_TODAS_COMP}>Todas</SelectItem>
-            {compOpts.map((o) => (
-              <SelectItem key={`${o.mes}-${o.ano}`} value={`${o.mes}-${o.ano}`}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CompetenciaFilterChip
+          value={filtroComp}
+          onChange={setFiltroComp}
+          extraOptions={[{ value: FILTRO_TODAS_COMP, label: "Todas" }]}
+        />
         <Select
           value={filtroTipo || FILTRO_TODOS}
           onValueChange={(v) => setFiltroTipo(v === FILTRO_TODOS ? "" : (v as PacienteTipo))}
@@ -1221,6 +1202,7 @@ function NotasFiscaisPage() {
               setSearch("");
               setFiltroStatus("");
               setFiltroTipo("");
+              setFiltroComp(compDefault);
             }}
           >
             <X className="h-4 w-4 mr-1" />
@@ -1333,15 +1315,15 @@ function NotasFiscaisPage() {
             ) : aEmitir.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
                 Nenhuma linha para selecionar nesta competência.
-                {compOpts
-                  .filter((o) => `${o.mes}-${o.ano}` !== filtroComp)
+                {compSugestoes
+                  .filter((o) => o.value !== filtroComp)
                   .slice(0, 1)
                   .map((o) => (
                     <Button
-                      key={`${o.mes}-${o.ano}`}
+                      key={o.value}
                       variant="link"
                       className="h-auto p-0 ml-1 text-sm"
-                      onClick={() => setFiltroComp(`${o.mes}-${o.ano}`)}
+                      onClick={() => setFiltroComp(o.value)}
                     >
                       Ver {o.label}
                     </Button>

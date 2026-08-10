@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
-import { DashboardSectionBadge } from "@/components/domain/DashboardSection";
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DashboardPage, DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -290,18 +291,21 @@ function ConveniosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Convênios</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Cadastro fiscal para NFS-e (tomador) e envio de documentação
-          </p>
-        </div>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo convênio
-        </Button>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[
+          { label: "Sistema" },
+          { label: "Configurações", to: "/app/configuracoes" },
+          { label: "Convênios" },
+        ]}
+        title="Convênios"
+        description="Cadastro fiscal para NFS-e (tomador) e envio de documentação"
+        actions={
+          <Button onClick={openNew} className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700">
+            <Plus className="h-4 w-4" /> Novo convênio
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <LoadingState />
@@ -655,6 +659,6 @@ function ConveniosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </DashboardPage>
   );
 }

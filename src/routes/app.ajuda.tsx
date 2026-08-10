@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { PageHeader } from "@/components/brand/PageHeader";
+import { DashboardPage } from "@/components/domain/DashboardSection";
+
 export const Route = createFileRoute("/app/ajuda")({
   head: () => ({ meta: [{ title: "Ajuda · CB MOVE" }] }),
   component: AjudaPage,
@@ -16,33 +19,33 @@ const TUTORIAIS = [
 
 function AjudaPage() {
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Central de ajuda</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Tutoriais em vídeo para usar o CB MOVE com facilidade.
-        </p>
-      </header>
+    <DashboardPage>
+      <PageHeader
+        crumbs={[{ label: "Ajuda" }]}
+        title="Central de ajuda"
+        description="Tutoriais em vídeo para usar o CB MOVE com facilidade."
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
         {TUTORIAIS.map((t) => (
-          <div key={t.num} className="rounded-xl border bg-card p-5 flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-cb-cyan-050 text-cb-cyan-600 flex items-center justify-center font-bold text-sm">
+          <div key={t.num} className="flex gap-4 rounded-xl border bg-card p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cb-cyan-050 text-sm font-bold text-cb-cyan-600">
               {t.num}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-foreground leading-tight">{t.titulo}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t.duracao}</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold leading-tight text-foreground">{t.titulo}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t.duracao}</p>
               {t.ytUrl ? (
                 <a
                   href={t.ytUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block mt-2 text-xs font-medium text-cb-cyan-600 hover:underline"
+                  className="mt-2 inline-block text-xs font-medium text-cb-cyan-600 hover:underline"
                 >
                   Assistir →
                 </a>
               ) : (
-                <span className="inline-block mt-2 text-xs text-muted-foreground italic">
+                <span className="mt-2 inline-block text-xs italic text-muted-foreground">
                   Em breve
                 </span>
               )}
@@ -50,12 +53,13 @@ function AjudaPage() {
           </div>
         ))}
       </div>
-      <div className="rounded-xl border bg-amber-50 border-amber-200 p-4 text-sm text-amber-800">
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
         Dúvidas técnicas? Fale com a <strong>IAplicada Business</strong> pelo e-mail{" "}
         <a href="mailto:mariana@iaplicada.com" className="underline">
           mariana@iaplicada.com
         </a>
       </div>
-    </div>
+    </DashboardPage>
   );
 }
