@@ -322,6 +322,7 @@
     border-radius: 999px;
     background: #f3f4f6;
     padding-inline: 0.35rem;
+    overflow: hidden;
     transition:
       box-shadow 0.2s ease,
       background 0.2s ease;
@@ -555,6 +556,8 @@
       padding: 2rem clamp(1.5rem, 3vw, 2.75rem);
       pointer-events: auto;
       min-height: min(560px, calc(100svh - 2rem));
+      background: #ffffff;
+      color: #2c2c2c;
     }
 
     .auth-switch-card.auth-switch--paciente .auth-switch-forms {
@@ -570,11 +573,22 @@
       transform: none;
       transition: none;
       pointer-events: auto;
-      padding: 0.25rem 0;
-      background: #ffffff;
-      border-radius: 1rem;
-      box-shadow: 0 12px 40px rgb(15 75 80 / 18%);
-      color: #2c2c2c;
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+      color: inherit;
+    }
+
+    /* Equipe: coluna direita só formulário — sem foto escura por baixo */
+    .auth-switch-card:not(.auth-switch--paciente)
+      .auth-switch-panel--right
+      .auth-switch-panel-backdrop {
+      display: none;
+    }
+
+    .auth-switch-card:not(.auth-switch--paciente) .auth-switch-panel--right {
+      background: transparent;
     }
 
     .auth-switch-desktop-heading h1 {
