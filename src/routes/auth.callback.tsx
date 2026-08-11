@@ -11,6 +11,18 @@ export const Route = createFileRoute("/auth/callback")({
   component: AuthCallbackPage,
 });
 
+function formatOAuthError(raw: string): string {
+  const msg = decodeURIComponent(raw.replace(/\+/g, " "));
+  const lower = msg.toLowerCase();
+  if (lower.includes("access_denied") || lower.includes("denied access")) {
+    return "Login com Google cancelado ou bloqueado. Se o app Google ainda estiver em Testing, publique em produção ou adicione seu e-mail em Usuários de teste no Google Cloud.";
+  }
+  if (lower.includes("redirect") && lower.includes("not allowed")) {
+    return "URL de retorno não autorizada no Supabase. Avise o suporte técnico.";
+  }
+  return msg;
+}
+
 function AuthCallbackPage() {
   const navigate = useNavigate();
   const { completeSignIn } = useAuth();
@@ -21,7 +33,7 @@ function AuthCallbackPage() {
       try {
         const params = new URLSearchParams(window.location.search);
         const oauthError = params.get("error_description") ?? params.get("error");
-        if (oauthError) throw new Error(oauthError);
+        if (oauthError) throw new Error(formatOAuthError(oauthError));
 
         const code = params.get("code");
         if (code) {

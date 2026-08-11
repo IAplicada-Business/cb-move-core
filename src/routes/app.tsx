@@ -6,6 +6,7 @@ import { can, isCliente } from "@/lib/permissions";
 import { diag } from "@/lib/client-diagnostics";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RoutePending } from "@/components/layout/RoutePending";
+import { AuthRolesError } from "@/components/domain/AuthRolesError";
 import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/app")({
@@ -14,12 +15,21 @@ export const Route = createFileRoute("/app")({
 });
 
 function AppShell() {
-  const { session, loading, roles, isPaciente, user } = useAuth();
+  const { session, loading, roles, rolesReady, rolesError, isPaciente, user, refreshRoles } =
+    useAuth();
   const navigate = useNavigate();
 
+  const awaitingRoles = Boolean(session && !rolesReady && !rolesError);
+  const mustRedirect =
+    !loading &&
+    session &&
+    rolesReady &&
+    !rolesError &&
+    (mustResetPassword(user) || isCliente(roles) || isPaciente || !can.accessApp(roles));
+
   React.useEffect(() => {
-    if (loading) {
-      diag.info("guard:app", "aguardando auth");
+    if (loading || awaitingRoles || rolesError) {
+      if (loading) diag.info("guard:app", "aguardando auth");
       return;
     }
     if (!session) {
@@ -41,9 +51,21 @@ function AppShell() {
       diag.info("guard:app", "sem papel de equipe → /sem-acesso", { roles });
       navigate({ to: "/sem-acesso" });
     }
-  }, [loading, session, roles, isPaciente, user, navigate]);
+  }, [loading, awaitingRoles, rolesError, session, roles, rolesReady, isPaciente, user, navigate]);
 
-  if (loading || !session) {
+  if (loading || !session || awaitingRoles) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <LoadingState />
+      </div>
+    );
+  }
+
+  if (rolesError) {
+    return <AuthRolesError onRetry={() => void refreshRoles()} />;
+  }
+
+  if (mustRedirect || !can.accessApp(roles)) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <LoadingState />

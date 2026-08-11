@@ -14,10 +14,46 @@ export type AdminAuthContext = {
   admin: SupabaseClient;
 };
 
-const FINANCE_ROLES = new Set(["admin", "gestao", "recepcao", "membro"]);
 const RELATORIO_STAFF_ROLES = new Set(["admin", "gestao", "recepcao", "membro", "fisio"]);
 const FULL_PATIENT_ACCESS_ROLES = new Set(["admin", "gestao", "recepcao"]);
+const FINANCE_VIEW_ROLES = new Set(["admin", "gestao", "recepcao"]);
 const FISIO_FULL_ACCESS_TEST_MODE = false;
+
+type UserAccess = {
+  roleList: string[];
+  fisioId: string | null;
+};
+
+async function loadUserAccess(admin: SupabaseClient, userId: string): Promise<UserAccess> {
+  const [{ data: roles, error: rolesErr }, { data: profile, error: profileErr }] =
+    await Promise.all([
+      admin.from("user_roles").select("role").eq("user_id", userId),
+      admin.from("profiles").select("fisioterapeuta_id").eq("id", userId).maybeSingle(),
+    ]);
+
+  if (rolesErr) throw new AuthError("Erro ao verificar permissões", 500);
+  if (profileErr) throw new AuthError("Erro ao verificar perfil", 500);
+
+  return {
+    roleList: (roles ?? []).map((r) => r.role as string),
+    fisioId: (profile?.fisioterapeuta_id as string | null | undefined) ?? null,
+  };
+}
+
+/** Mesma regra que `can.viewFinance` / `isFisioScopedUser` no front. */
+function isFisioScopedUser(roleList: string[], fisioId: string | null): boolean {
+  if (FISIO_FULL_ACCESS_TEST_MODE) return false;
+  if (roleList.includes("admin") || roleList.includes("gestao") || roleList.includes("recepcao")) {
+    return false;
+  }
+  if (roleList.includes("fisio")) return true;
+  return roleList.includes("membro") && !!fisioId;
+}
+
+function canViewFinance(roleList: string[], fisioId: string | null): boolean {
+  if (isFisioScopedUser(roleList, fisioId)) return false;
+  return roleList.some((r) => FINANCE_VIEW_ROLES.has(r));
+}
 
 export function resolveAnonKey(): string | undefined {
   const direct = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
@@ -101,15 +137,11 @@ export async function requireFinanceUser(req: Request): Promise<FinanceAuthConte
   const user = await resolveUserFromRequest(req, supabaseUrl, supabaseAnon);
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const { data: roles, error: rolesErr } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id);
+  const { roleList, fisioId } = await loadUserAccess(admin, user.id);
 
-  if (rolesErr) throw new AuthError("Erro ao verificar permissões", 500);
-
-  const allowed = roles?.some((r) => FINANCE_ROLES.has(r.role));
-  if (!allowed) throw new AuthError("Sem permissão financeira", 403);
+  if (!canViewFinance(roleList, fisioId)) {
+    throw new AuthError("Sem permissão financeira", 403);
+  }
 
   return { userId: user.id, admin };
 }
@@ -152,35 +184,13 @@ export async function requireRelatorioLoteUser(req: Request): Promise<FinanceAut
 
   const user = await resolveUserFromRequest(req, supabaseUrl, supabaseAnon);
   const admin = createClient(supabaseUrl, serviceKey);
+  const { roleList, fisioId } = await loadUserAccess(admin, user.id);
 
-  const { data: roles, error: rolesErr } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id);
-  if (rolesErr) throw new AuthError("Erro ao verificar permissões", 500);
-
-  const roleList = (roles ?? []).map((r) => r.role as string);
-  const hasFullAccess = roleList.some((r) => FULL_PATIENT_ACCESS_ROLES.has(r));
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("fisioterapeuta_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  const fisioId = profile?.fisioterapeuta_id ?? null;
-  const isOperationalMembro = roleList.includes("membro") && !fisioId && !hasFullAccess;
-  const isClinicalFisio =
-    !FISIO_FULL_ACCESS_TEST_MODE &&
-    (roleList.includes("fisio") || (roleList.includes("membro") && !!fisioId));
-
-  if (isClinicalFisio) {
+  if (!canViewFinance(roleList, fisioId)) {
     throw new AuthError("Sem permissão para lote de relatórios", 403);
   }
 
-  if (hasFullAccess || isOperationalMembro || roleList.includes("admin")) {
-    return { userId: user.id, admin };
-  }
-
-  throw new AuthError("Sem permissão para lote de relatórios", 403);
+  return { userId: user.id, admin };
 }
 
 export function authErrorResponse(err: unknown, corsHeaders: Record<string, string>) {
@@ -209,26 +219,13 @@ export async function requireRelatorioStaffUser(
   const user = await resolveUserFromRequest(req, supabaseUrl, supabaseAnon);
   const admin = createClient(supabaseUrl, serviceKey);
 
-  const { data: roles, error: rolesErr } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id);
-  if (rolesErr) throw new AuthError("Erro ao verificar permissões", 500);
-
-  const roleList = (roles ?? []).map((r) => r.role as string);
+  const { roleList, fisioId } = await loadUserAccess(admin, user.id);
   const allowedRole = roleList.some((r) => RELATORIO_STAFF_ROLES.has(r));
   if (!allowedRole) throw new AuthError("Sem permissão para relatórios", 403);
 
   const hasFullAccess = roleList.some((r) => FULL_PATIENT_ACCESS_ROLES.has(r));
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("fisioterapeuta_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  const fisioId = profile?.fisioterapeuta_id ?? null;
-  const isOperationalMembro = roleList.includes("membro") && !fisioId && !hasFullAccess;
 
-  if (hasFullAccess || isOperationalMembro) {
+  if (hasFullAccess || roleList.includes("admin")) {
     return { userId: user.id, admin };
   }
 

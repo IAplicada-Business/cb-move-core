@@ -2,6 +2,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { diag } from "@/lib/client-diagnostics";
 import type { PostAuthPath } from "@/lib/password-reset";
 import { isStaff } from "@/lib/permissions";
+import type { AppRole } from "@/lib/types";
+
+/** Destino pós-login a partir de papéis já carregados (testável sem Supabase). */
+export function resolvePostAuthPathFromRoles(
+  roleList: AppRole[],
+  hasPacienteLink: boolean,
+): PostAuthPath {
+  if (roleList.includes("cliente")) return "/portal";
+  if (isStaff(roleList)) return "/app";
+  if (hasPacienteLink) return "/portal";
+  return "/sem-acesso";
+}
 
 /** Destino após login ou refresh na raiz (`/`). */
 export async function resolvePostAuthPath(userId: string): Promise<PostAuthPath> {
@@ -40,14 +52,14 @@ export async function resolvePostAuthPath(userId: string): Promise<PostAuthPath>
     throw pacError;
   }
 
-  if (pac) {
+  const path = resolvePostAuthPathFromRoles(roleList, Boolean(pac));
+  if (path === "/portal" && pac) {
     diag.info("routing", "redirect → /portal (paciente vinculado)", {
       pacienteId: pac.id,
       roles: roleList,
     });
-    return "/portal";
+  } else if (path === "/sem-acesso") {
+    diag.info("routing", "redirect → /sem-acesso (sem papel)", { roles: roleList });
   }
-
-  diag.info("routing", "redirect → /sem-acesso (sem papel)", { roles: roleList });
-  return "/sem-acesso";
+  return path;
 }

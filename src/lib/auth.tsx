@@ -18,6 +18,10 @@ type AuthContextValue = {
   fisioterapeutaId: string | null;
   /** true até restaurar sessão do storage e carregar papéis do usuário */
   loading: boolean;
+  /** Papéis carregados com sucesso para o usuário da sessão atual */
+  rolesReady: boolean;
+  /** Falha ao buscar papéis — não tratar como “sem acesso” */
+  rolesError: boolean;
   pacienteId: string | null;
   isPaciente: boolean;
   signIn: (email: string, password: string) => Promise<PostAuthPath>;
@@ -39,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pacienteId, setPacienteId] = React.useState<string | null>(null);
   const [isPaciente, setIsPaciente] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [rolesReady, setRolesReady] = React.useState(false);
+  const [rolesError, setRolesError] = React.useState(false);
   const rolesUserIdRef = React.useRef<string | null>(null);
   const rolesLoadingUserIdRef = React.useRef<string | null>(null);
   const loadRolesEpochRef = React.useRef(0);
@@ -56,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const epoch = ++loadRolesEpochRef.current;
     rolesLoadingUserIdRef.current = userId;
+    setRolesReady(false);
+    setRolesError(false);
     diag.info("auth", "carregando papéis", { userId, force: Boolean(options?.force) });
 
     try {
@@ -72,6 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (rolesResult.error) {
         diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
+        setRolesError(true);
+        setRolesReady(false);
         return;
       }
       if (profileResult.error) {
@@ -100,6 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
       rolesUserIdRef.current = userId;
+      setRolesReady(true);
+      setRolesError(false);
       syncAccessContext({
         roles: fetchedRoles,
         fisioterapeutaId: fetchedFisioId,
@@ -114,6 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       diag.error("auth", "loadRoles falhou ou expirou", error);
+      if (epoch === loadRolesEpochRef.current) {
+        setRolesError(true);
+        setRolesReady(false);
+      }
     } finally {
       if (rolesLoadingUserIdRef.current === userId && epoch === loadRolesEpochRef.current) {
         rolesLoadingUserIdRef.current = null;
@@ -126,6 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFisioterapeutaId(null);
     setPacienteId(null);
     setIsPaciente(false);
+    setRolesReady(false);
+    setRolesError(false);
     rolesUserIdRef.current = null;
     rolesLoadingUserIdRef.current = null;
     loadRolesEpochRef.current += 1;
@@ -271,6 +289,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     roles,
     fisioterapeutaId,
     loading,
+    rolesReady,
+    rolesError,
     pacienteId,
     isPaciente,
     refreshRoles,

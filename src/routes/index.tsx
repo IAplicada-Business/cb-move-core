@@ -2,7 +2,9 @@ import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
+import { mustResetPassword } from "@/lib/password-reset";
 import { diag } from "@/lib/client-diagnostics";
+import { AuthRolesError } from "@/components/domain/AuthRolesError";
 import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/")({
@@ -11,7 +13,7 @@ export const Route = createFileRoute("/")({
 
 function Splash() {
   const navigate = useNavigate();
-  const { session, loading } = useAuth();
+  const { session, loading, rolesReady, rolesError, user, refreshRoles } = useAuth();
 
   useEffect(() => {
     if (loading) {
@@ -25,6 +27,14 @@ function Splash() {
       return;
     }
 
+    if (!rolesReady) return;
+
+    if (mustResetPassword(user)) {
+      diag.info("splash", "must_reset_password → /redefinir-senha");
+      navigate({ to: "/redefinir-senha", replace: true });
+      return;
+    }
+
     diag.info("splash", "sessão ok, resolvendo destino", { userId: session.user.id });
     void resolvePostAuthPath(session.user.id)
       .then((path) => {
@@ -34,7 +44,11 @@ function Splash() {
       .catch((error) => {
         diag.error("splash", "falha ao resolver destino pós-auth", error);
       });
-  }, [loading, session, navigate]);
+  }, [loading, session, rolesReady, user, navigate]);
+
+  if (rolesError) {
+    return <AuthRolesError onRetry={() => void refreshRoles()} />;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

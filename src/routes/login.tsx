@@ -73,7 +73,10 @@ function LoginPage() {
       setGoogleLoading(false);
       return;
     }
-    window.setTimeout(() => setGoogleLoading(false), 8_000);
+    window.setTimeout(() => {
+      setGoogleLoading(false);
+      toast.error("Não redirecionou para o Google. Recarregue a página (Ctrl+F5) e tente de novo.");
+    }, 8_000);
   }
 
   async function onForgotPassword() {

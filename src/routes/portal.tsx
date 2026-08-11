@@ -3,6 +3,7 @@ import { createFileRoute, Outlet, useNavigate, Link } from "@tanstack/react-rout
 import { useAuth } from "@/lib/auth";
 import { mustResetPassword } from "@/lib/password-reset";
 import { diag } from "@/lib/client-diagnostics";
+import { AuthRolesError } from "@/components/domain/AuthRolesError";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
 
@@ -11,12 +12,24 @@ export const Route = createFileRoute("/portal")({
 });
 
 function PortalShell() {
-  const { session, loading, isPaciente, roles, signOut, user } = useAuth();
+  const {
+    session,
+    loading,
+    rolesReady,
+    rolesError,
+    isPaciente,
+    roles,
+    signOut,
+    user,
+    refreshRoles,
+  } = useAuth();
   const navigate = useNavigate();
 
+  const awaitingRoles = Boolean(session && !rolesReady && !rolesError);
+
   React.useEffect(() => {
-    if (loading) {
-      diag.info("guard:portal", "aguardando auth");
+    if (loading || awaitingRoles || rolesError) {
+      if (loading) diag.info("guard:portal", "aguardando auth");
       return;
     }
     if (!session) {
@@ -33,9 +46,21 @@ function PortalShell() {
       diag.info("guard:portal", "usuário equipe → /app", { roles, isPaciente });
       navigate({ to: "/app" });
     }
-  }, [loading, session, isPaciente, roles, user, navigate]);
+  }, [loading, awaitingRoles, rolesError, session, isPaciente, roles, user, navigate]);
 
-  if (loading || !session || (!isPaciente && !roles.includes("cliente"))) {
+  if (loading || !session || awaitingRoles) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <LoadingState />
+      </div>
+    );
+  }
+
+  if (rolesError) {
+    return <AuthRolesError onRetry={() => void refreshRoles()} />;
+  }
+
+  if (mustResetPassword(user) || (!isPaciente && !roles.includes("cliente"))) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <LoadingState />
