@@ -229,6 +229,18 @@
     overflow-x: hidden;
     overflow-y: auto;
     box-sizing: border-box;
+    /* Login/auth sempre em tema claro — independente do dark mode global */
+    --cb-ink: #2c2c2c;
+    --cb-paper: #ffffff;
+    --cb-bg: #fafbfc;
+    --cb-muted: #6b7280;
+    --cb-line: #e5e7eb;
+    --foreground: #2c2c2c;
+    --muted-foreground: #6b7280;
+    --background: #fafbfc;
+    --card: #ffffff;
+    --card-foreground: #2c2c2c;
+    color: #2c2c2c;
     background:
       radial-gradient(
         circle at 20% 20%,
@@ -325,13 +337,22 @@
     background: transparent;
     outline: none;
     font-size: 1rem;
-    color: var(--cb-ink);
+    color: #2c2c2c;
     width: 100%;
     height: 100%;
   }
 
   .auth-switch-field input::placeholder {
     color: #9ca3af;
+  }
+
+  .auth-switch-field input:-webkit-autofill,
+  .auth-switch-field input:-webkit-autofill:hover,
+  .auth-switch-field input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #f3f4f6 inset;
+    -webkit-text-fill-color: #2c2c2c;
+    caret-color: #2c2c2c;
+    transition: background-color 9999s ease-out 0s;
   }
 
   .auth-switch-panel-btn {
@@ -388,7 +409,7 @@
     background: #fff;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--cb-ink);
+    color: #2c2c2c;
     cursor: pointer;
     transition:
       background 0.2s ease,
@@ -405,6 +426,7 @@
   .auth-social-google:disabled {
     cursor: not-allowed;
     opacity: 0.65;
+    color: #2c2c2c;
   }
 
   /* ── Desktop: grid split layout ── */
@@ -548,7 +570,19 @@
       transform: none;
       transition: none;
       pointer-events: auto;
-      padding: 0;
+      padding: 0.25rem 0;
+      background: #ffffff;
+      border-radius: 1rem;
+      box-shadow: 0 12px 40px rgb(15 75 80 / 18%);
+      color: #2c2c2c;
+    }
+
+    .auth-switch-desktop-heading h1 {
+      color: #2c2c2c;
+    }
+
+    .auth-switch-desktop-heading p {
+      color: #6b7280;
     }
 
     .auth-switch-panel--right .auth-switch-panel-content {
