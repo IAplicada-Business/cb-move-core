@@ -73,7 +73,9 @@ function LoginPage() {
       setGoogleLoading(false);
       return;
     }
+    // signInWithGoogle navega para fora; só avisar se ainda estivermos em /login.
     window.setTimeout(() => {
+      if (window.location.pathname !== "/login") return;
       setGoogleLoading(false);
       toast.error("Não redirecionou para o Google. Recarregue a página (Ctrl+F5) e tente de novo.");
     }, 8_000);

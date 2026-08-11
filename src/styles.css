@@ -531,7 +531,7 @@
       align-items: center;
       justify-content: center;
       padding: 2rem clamp(1.5rem, 3vw, 2.75rem);
-      pointer-events: none;
+      pointer-events: auto;
       min-height: min(560px, calc(100svh - 2rem));
     }
 

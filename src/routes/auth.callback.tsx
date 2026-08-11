@@ -20,6 +20,15 @@ function formatOAuthError(raw: string): string {
   if (lower.includes("redirect") && lower.includes("not allowed")) {
     return "URL de retorno não autorizada no Supabase. Avise o suporte técnico.";
   }
+  if (
+    lower.includes("invalid flow state") ||
+    lower.includes("code challenge") ||
+    lower.includes("code verifier") ||
+    lower.includes("auth code") ||
+    lower.includes("pkce")
+  ) {
+    return "Sessão de login expirou ou foi interrompida. Volte ao login e tente novamente (use Ctrl+F5 se persistir).";
+  }
   return msg;
 }
 
@@ -27,8 +36,12 @@ function AuthCallbackPage() {
   const navigate = useNavigate();
   const { completeSignIn } = useAuth();
   const [error, setError] = React.useState<string | null>(null);
+  const handledRef = React.useRef(false);
 
   React.useEffect(() => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+
     void (async () => {
       try {
         const params = new URLSearchParams(window.location.search);
@@ -37,14 +50,19 @@ function AuthCallbackPage() {
 
         const code = params.get("code");
         if (code) {
+          // Evita reutilizar o code se o usuário recarregar a página.
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete("code");
+          window.history.replaceState(window.history.state, "", cleanUrl.toString());
+
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
+          if (exchangeError) throw new Error(formatOAuthError(exchangeError.message));
 
           const session = data.session;
           if (!session?.user) throw new Error("Não foi possível concluir o login com Google.");
 
           const path = await completeSignIn(session);
-          navigate({ to: path });
+          navigate({ to: path, replace: true });
           return;
         }
 
@@ -53,12 +71,12 @@ function AuthCallbackPage() {
 
         const session = data.session;
         if (!session?.user) {
-          navigate({ to: "/login" });
+          navigate({ to: "/login", replace: true });
           return;
         }
 
         const path = await completeSignIn(session);
-        navigate({ to: path });
+        navigate({ to: path, replace: true });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Falha ao entrar com Google";
         setError(message);
