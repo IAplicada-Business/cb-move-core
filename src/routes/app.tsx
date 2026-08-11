@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { mustResetPassword } from "@/lib/password-reset";
-import { isCliente } from "@/lib/permissions";
+import { can, isCliente } from "@/lib/permissions";
 import { diag } from "@/lib/client-diagnostics";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { RoutePending } from "@/components/layout/RoutePending";
@@ -35,6 +35,11 @@ function AppShell() {
     if (isCliente(roles) || isPaciente) {
       diag.info("guard:app", "usuário portal → /portal", { roles, isPaciente });
       navigate({ to: "/portal" });
+      return;
+    }
+    if (!can.accessApp(roles)) {
+      diag.info("guard:app", "sem papel de equipe → /sem-acesso", { roles });
+      navigate({ to: "/sem-acesso" });
     }
   }, [loading, session, roles, isPaciente, user, navigate]);
 

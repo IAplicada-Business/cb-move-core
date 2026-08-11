@@ -289,16 +289,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) throw error;
     },
-    signUp: async (email, password, fullName) => {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/app`,
-          data: fullName ? { full_name: fullName } : undefined,
-        },
-      });
-      if (error) throw error;
+    signUp: async () => {
+      throw new Error(
+        "Cadastro disponível apenas pela administração. Peça acesso em Equipe → Usuários.",
+      );
     },
     signOut: async () => {
       await supabase.auth.signOut();

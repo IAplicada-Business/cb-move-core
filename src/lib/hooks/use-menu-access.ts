@@ -12,7 +12,7 @@ import {
   type MenuGroupDef,
   type MenuItemDef,
 } from "@/lib/menu-access";
-import { isFisioScopedUser, normalizeRole, type PrimaryRole } from "@/lib/permissions";
+import { isFisioScopedUser, normalizeRole, type PrimaryRole, can } from "@/lib/permissions";
 import { fetchMenuPermissions } from "@/lib/queries/usuarios";
 import { queryKeys } from "@/lib/queries";
 import type { LucideIcon } from "lucide-react";
@@ -87,13 +87,14 @@ export function useMenuAccess() {
       label: isFisioScoped ? (FISIO_MENU_GROUP_LABELS[group.id] ?? group.label) : group.label,
       items: group.items
         .filter((item) => allowedKeys.has(item.key))
+        .filter((item) => item.key !== "team.usuarios" || can.manageUsers(roles))
         .map((item) => ({
           ...item,
           label: isFisioScoped ? (FISIO_MENU_LABELS[item.key] ?? item.label) : item.label,
           icon: ICONS[item.to] ?? HelpCircle,
         })),
     })).filter((group) => group.items.length > 0);
-  }, [allowedKeys, isFisioScoped]);
+  }, [allowedKeys, isFisioScoped, roles]);
 
   return {
     groups,

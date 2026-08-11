@@ -150,7 +150,7 @@ export function usuarioDisplayPerfilFromRow(row: {
       if (row.perfil === "admin" || row.perfil === "fisio" || row.perfil === "cliente") {
         return row.perfil;
       }
-      return "admin";
+      return "fisio";
     }
   }
 
@@ -217,5 +217,6 @@ export function equipeBadgeFromUserRow(user: UserRow | undefined): UsuarioEquipe
 export function usuarioFilterTag(tag: UsuarioEquipeTag): Exclude<UsuarioPerfilFilter, "todos"> {
   if (tag === "cliente") return "cliente";
   if (tag === "fisio") return "fisio";
+  if (tag === "membro") return "fisio";
   return "admin";
 }

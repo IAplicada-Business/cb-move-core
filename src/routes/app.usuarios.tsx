@@ -25,7 +25,7 @@ import {
 import { queryKeys } from "@/lib/queries";
 import { useAuth } from "@/lib/auth";
 import { createUser, deleteUser, fetchUsers, type UserRow } from "@/lib/queries/usuarios";
-import { normalizeRole } from "@/lib/permissions";
+import { can } from "@/lib/permissions";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
 import {
@@ -100,18 +100,17 @@ function buildUsuarioRows(users: UserRow[]): UsuarioCardRow[] {
     .sort((a, b) => (a.nome ?? a.email ?? "").localeCompare(b.nome ?? b.email ?? "", "pt-BR"));
 
   for (const u of extras) {
-    const role = normalizeRole(u.role);
     rows.push({
       key: u.id,
       nome: u.nome ?? u.email ?? "—",
       email: u.email ?? "—",
       perfil: u.fisioterapeuta_id
         ? "fisio"
-        : role === "admin"
+        : u.role === "admin"
           ? "admin"
-          : role === "cliente"
+          : u.role === "cliente"
             ? "cliente"
-            : "membro",
+            : "fisio",
       registered: u,
       isReference: false,
     });
@@ -125,7 +124,7 @@ function UsuariosPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { edit: editEmailParam } = Route.useSearch();
-  const isAdmin = roles.includes("admin");
+  const isAdmin = can.manageUsers(roles);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
   const [cadastroTipo, setCadastroTipo] = useState<UsuarioCadastroPerfil>("fisio");

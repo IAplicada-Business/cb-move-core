@@ -98,13 +98,22 @@ describe("usuarioEquipeTag", () => {
     ).toBe("fisio");
   });
 
-  it("membro legado sem referência mapeia para admin", () => {
+  it("membro sem fisio usa referência admin quando cadastro ainda não reflete admin", () => {
+    expect(
+      usuarioDisplayPerfilFromRow({
+        perfil: "admin",
+        registered: registeredMembroSemFisio,
+      }),
+    ).toBe("admin");
+  });
+
+  it("membro sem referência clara assume perfil clínico", () => {
     expect(
       usuarioDisplayPerfilFromRow({
         perfil: "membro",
         registered: registeredMembroSemFisio,
       }),
-    ).toBe("admin");
+    ).toBe("fisio");
   });
 
   it("prioriza role cadastrada para KPI e tags", () => {
@@ -144,7 +153,7 @@ describe("usuarioFilterTag", () => {
   it("agrupa tags legadas em admin, fisio ou cliente", () => {
     expect(usuarioFilterTag("secretaria")).toBe("admin");
     expect(usuarioFilterTag("gestao")).toBe("admin");
-    expect(usuarioFilterTag("membro")).toBe("admin");
+    expect(usuarioFilterTag("membro")).toBe("fisio");
     expect(usuarioFilterTag("fisio")).toBe("fisio");
     expect(usuarioFilterTag("cliente")).toBe("cliente");
   });

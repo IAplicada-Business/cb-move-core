@@ -47,13 +47,13 @@ ACTORS = [
         "max_pacientes": 5,
     },
     {
-        "id": "recepcao_vitoria",
-        "label": "Secretária / recepcao (Vitória)",
+        "id": "admin_vitoria",
+        "label": "Administrador operacional (Vitória)",
         "email": "vicenzavitoria@gmail.com",
         "expect_app": True,
         "expect_portal": False,
         "can_finance": True,
-        "can_usuarios": False,
+        "can_usuarios": True,
         "can_manage_pacientes": True,
     },
 ]

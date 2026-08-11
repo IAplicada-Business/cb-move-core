@@ -1,8 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { diag } from "@/lib/client-diagnostics";
+import type { PostAuthPath } from "@/lib/password-reset";
+import { isStaff } from "@/lib/permissions";
 
 /** Destino após login ou refresh na raiz (`/`). */
-export async function resolvePostAuthPath(userId: string): Promise<"/app" | "/portal"> {
+export async function resolvePostAuthPath(userId: string): Promise<PostAuthPath> {
   diag.info("routing", "resolvendo destino pós-auth", { userId });
 
   const { data: roles, error: rolesError } = await supabase
@@ -22,8 +24,7 @@ export async function resolvePostAuthPath(userId: string): Promise<"/app" | "/po
     return "/portal";
   }
 
-  const staffRoles = new Set(["admin", "membro", "gestao", "recepcao", "fisio"]);
-  if (roleList.some((r) => staffRoles.has(r))) {
+  if (isStaff(roleList)) {
     diag.info("routing", "redirect → /app (equipe)", { roles: roleList });
     return "/app";
   }
@@ -39,7 +40,14 @@ export async function resolvePostAuthPath(userId: string): Promise<"/app" | "/po
     throw pacError;
   }
 
-  const path = pac ? "/portal" : "/app";
-  diag.info("routing", `redirect → ${path}`, { pacienteId: pac?.id ?? null, roles: roleList });
-  return path;
+  if (pac) {
+    diag.info("routing", "redirect → /portal (paciente vinculado)", {
+      pacienteId: pac.id,
+      roles: roleList,
+    });
+    return "/portal";
+  }
+
+  diag.info("routing", "redirect → /sem-acesso (sem papel)", { roles: roleList });
+  return "/sem-acesso";
 }
