@@ -283,11 +283,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     signInWithGoogle: async () => {
       const redirectTo = `${window.location.origin}/auth/callback`;
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
       });
       if (error) throw error;
+      if (data.url) {
+        window.location.assign(data.url);
+        return;
+      }
+      throw new Error("Não foi possível iniciar o login com Google.");
     },
     signUp: async () => {
       throw new Error(

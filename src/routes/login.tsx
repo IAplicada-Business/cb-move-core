@@ -71,7 +71,9 @@ function LoginPage() {
       const msg = err instanceof Error ? err.message : "Não foi possível entrar com Google";
       toast.error(msg);
       setGoogleLoading(false);
+      return;
     }
+    window.setTimeout(() => setGoogleLoading(false), 8_000);
   }
 
   async function onForgotPassword() {
