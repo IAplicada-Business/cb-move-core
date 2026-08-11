@@ -303,17 +303,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     signInWithGoogle: async () => {
       const redirectTo = `${window.location.origin}/auth/callback`;
+      diag.info("auth", "iniciando OAuth Google", { redirectTo });
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo, skipBrowserRedirect: true },
+        options: { redirectTo },
       });
-      if (error) throw error;
+      if (error) {
+        diag.error("auth", "signInWithOAuth falhou", error);
+        throw error;
+      }
+
       const url = data.url?.trim();
       if (!url) {
         throw new Error("Não foi possível iniciar o login com Google.");
       }
-      // Um único redirect controlado (evita corrida com redirect interno do Supabase).
-      window.location.href = url;
+
+      // Supabase também redireciona quando skipBrowserRedirect é false; reforçamos
+      // aqui porque em alguns browsers o redirect interno não dispara.
+      window.location.assign(url);
     },
     signUp: async () => {
       throw new Error(

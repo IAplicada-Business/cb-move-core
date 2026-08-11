@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { AuthPageShell } from "@/components/layout/AuthLayout";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { useAuth } from "@/lib/auth";
+import { diag } from "@/lib/client-diagnostics";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth/callback")({
@@ -32,15 +33,36 @@ function formatOAuthError(raw: string): string {
   return msg;
 }
 
+const SESSION_POLL_MS = 150;
+const SESSION_POLL_MAX = 80;
+
 function AuthCallbackPage() {
   const navigate = useNavigate();
   const { completeSignIn } = useAuth();
   const [error, setError] = React.useState<string | null>(null);
   const handledRef = React.useRef(false);
+  const completedRef = React.useRef(false);
 
   React.useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
+
+    let cancelled = false;
+
+    const finishSignIn = async (
+      session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>,
+    ) => {
+      if (completedRef.current || cancelled) return;
+      completedRef.current = true;
+
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("code");
+      cleanUrl.searchParams.delete("state");
+      window.history.replaceState(window.history.state, "", cleanUrl.toString());
+
+      const path = await completeSignIn(session);
+      if (!cancelled) navigate({ to: path, replace: true });
+    };
 
     void (async () => {
       try {
@@ -49,40 +71,60 @@ function AuthCallbackPage() {
         if (oauthError) throw new Error(formatOAuthError(oauthError));
 
         const code = params.get("code");
-        if (code) {
-          // Evita reutilizar o code se o usuário recarregar a página.
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete("code");
-          window.history.replaceState(window.history.state, "", cleanUrl.toString());
-
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw new Error(formatOAuthError(exchangeError.message));
-
-          const session = data.session;
-          if (!session?.user) throw new Error("Não foi possível concluir o login com Google.");
-
-          const path = await completeSignIn(session);
-          navigate({ to: path, replace: true });
+        if (!code) {
+          diag.warn("auth", "callback OAuth sem code — redirecionando ao login");
+          if (!cancelled) navigate({ to: "/login", replace: true });
           return;
         }
 
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        diag.info("auth", "callback OAuth: aguardando sessão (detectSessionInUrl)");
 
-        const session = data.session;
-        if (!session?.user) {
-          navigate({ to: "/login", replace: true });
-          return;
+        const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
+          if (cancelled || !session?.user) return;
+          if (event !== "SIGNED_IN" && event !== "INITIAL_SESSION") return;
+
+          diag.info("auth", "callback OAuth: sessão via onAuthStateChange", { event });
+          void finishSignIn(session).catch((err) => {
+            handledRef.current = false;
+            const message = err instanceof Error ? err.message : "Falha ao entrar com Google";
+            setError(message);
+            toast.error(message);
+          });
+        });
+
+        for (let attempt = 0; attempt < SESSION_POLL_MAX; attempt += 1) {
+          if (cancelled) break;
+
+          const { data, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) throw sessionError;
+
+          if (data.session?.user) {
+            diag.info("auth", "callback OAuth: sessão detectada", {
+              attempt,
+              userId: data.session.user.id,
+            });
+            authSub.subscription.unsubscribe();
+            await finishSignIn(data.session);
+            return;
+          }
+
+          await new Promise((resolve) => window.setTimeout(resolve, SESSION_POLL_MS));
         }
 
-        const path = await completeSignIn(session);
-        navigate({ to: path, replace: true });
+        authSub.subscription.unsubscribe();
+        diag.warn("auth", "callback OAuth: sessão não encontrada após polling");
+        if (!cancelled) navigate({ to: "/login", replace: true });
       } catch (err) {
+        handledRef.current = false;
         const message = err instanceof Error ? err.message : "Falha ao entrar com Google";
         setError(message);
         toast.error(message);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate, completeSignIn]);
 
   if (error) {

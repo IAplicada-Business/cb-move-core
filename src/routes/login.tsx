@@ -150,9 +150,6 @@ function LoginPage() {
             {loading ? "Aguarde…" : "Entrar"}
           </Button>
 
-          <AuthSocialDivider />
-          <AuthGoogleButton onClick={onGoogleSignIn} loading={googleLoading} disabled={loading} />
-
           <Button
             type="button"
             variant="link"
@@ -162,9 +159,12 @@ function LoginPage() {
           >
             {resetLoading ? "Enviando link…" : "Esqueci minha senha"}
           </Button>
-
-          <p className="mt-4 text-center text-xs text-cb-muted">{FOOTNOTES[authContext]}</p>
         </form>
+
+        <AuthSocialDivider />
+        <AuthGoogleButton onClick={onGoogleSignIn} loading={googleLoading} disabled={loading} />
+
+        <p className="mt-4 text-center text-xs text-cb-muted">{FOOTNOTES[authContext]}</p>
       </AuthSwitchShell>
     </AuthPageShell>
   );
