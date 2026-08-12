@@ -13,10 +13,10 @@ function patientProntuarioUrl(pacienteId: string, tab: string): string {
 async function loginAsFisio(page: Page) {
   await page.goto("/login");
   await page.getByLabel("E-mail").fill(FISIO_EMAIL);
-  await page.getByLabel("Senha").fill(TEST_PASSWORD);
-  await page.getByRole("button", { name: /entrar/i }).click();
+  await page.getByLabel("Senha", { exact: true }).fill(TEST_PASSWORD);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL(/\/app/, { timeout: AUTH_TIMEOUT });
-  await expect(page.locator('a[data-sidebar="menu-button"]').first()).toBeVisible({
+  await expect(page.locator('a[data-sidebar="menu-sub-button"]').first()).toBeVisible({
     timeout: AUTH_TIMEOUT,
   });
 }

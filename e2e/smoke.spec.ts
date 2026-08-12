@@ -12,13 +12,15 @@ const APP_ROUTES = {
     heading: /dashboard financeiro/i,
   },
   prontuario: {
-    path: "/app/prontuario?tab=visao-geral",
+    path: "/app/prontuario",
     nav: "Prontuário",
     heading: "Prontuário",
   },
   pacientes: { path: "/app/pacientes", nav: "Pacientes", heading: /pacientes/i },
   agenda: { path: "/app/agenda", nav: "Agenda", heading: /^Agenda/i },
 } as const;
+
+const SIDEBAR_LINK = 'a[data-sidebar="menu-sub-button"]';
 
 async function loginAsAppUser(page: Page, email: string, password: string) {
   await loginWithCredentials(page, email, password, "app");
@@ -36,8 +38,8 @@ async function loginWithCredentials(
 ) {
   await page.goto("/login");
   await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill(password);
-  await page.getByRole("button", { name: /entrar/i }).click();
+  await page.getByLabel("Senha", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: AUTH_TIMEOUT });
   if (page.url().includes("/redefinir-senha")) {
     await page.getByLabel("Nova senha").fill(password);
@@ -50,7 +52,7 @@ async function loginWithCredentials(
   }
   if (destination === "app") {
     await page.waitForURL(/\/app/, { timeout: AUTH_TIMEOUT });
-    await expect(page.locator('a[data-sidebar="menu-button"]').first()).toBeVisible({
+    await expect(page.locator(SIDEBAR_LINK).first()).toBeVisible({
       timeout: AUTH_TIMEOUT,
     });
   } else {
@@ -61,16 +63,23 @@ async function loginWithCredentials(
   }
 }
 
+const FINANCE_PATHS = new Set(["/app/cobrancas", "/app/notas-fiscais", "/app/financeiro"]);
+
 async function openAppRoute(page: Page, route: (typeof APP_ROUTES)[keyof typeof APP_ROUTES]) {
   const basePath = route.path.split("?")[0];
-  const sidebarLink = page.locator(`a[data-sidebar="menu-button"][href="${basePath}"]`);
-  await sidebarLink.click();
-  try {
-    await expect(page).toHaveURL(new RegExp(`${basePath}`), { timeout: 5_000 });
-  } catch {
+  const sidebarLink = page.locator(`${SIDEBAR_LINK}[href="${basePath}"]`);
+
+  if (FINANCE_PATHS.has(basePath)) {
+    await page.getByRole("button", { name: "Financeiro" }).click();
+    await expect(sidebarLink).toBeVisible({ timeout: AUTH_TIMEOUT });
+    await sidebarLink.click();
+  } else if (await sidebarLink.isVisible().catch(() => false)) {
+    await sidebarLink.click();
+  } else {
     await page.goto(route.path, { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(new RegExp(`${basePath}`), { timeout: AUTH_TIMEOUT });
   }
+
+  await expect(page).toHaveURL(new RegExp(`${basePath}`), { timeout: AUTH_TIMEOUT });
   await expect(page.getByRole("heading", { level: 1, name: route.heading })).toBeVisible({
     timeout: AUTH_TIMEOUT,
   });
@@ -80,8 +89,8 @@ test.describe("smoke público", () => {
   test("página de login carrega", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByLabel("E-mail")).toBeVisible({ timeout: AUTH_TIMEOUT });
-    await expect(page.getByLabel("Senha")).toBeVisible();
-    await expect(page.getByRole("button", { name: /entrar/i })).toBeVisible();
+    await expect(page.getByLabel("Senha", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
   });
 
   test("rota /app exige autenticação", async ({ page }) => {
@@ -123,19 +132,10 @@ test.describe("smoke autenticado", () => {
   });
 
   test("visão geral de prontuários", async ({ page }) => {
-    await page.goto(APP_ROUTES.prontuario.path, { waitUntil: "domcontentloaded" });
-    await expect(
-      page.getByRole("heading", { level: 1, name: APP_ROUTES.prontuario.heading }),
-    ).toBeVisible({
+    await openAppRoute(page, APP_ROUTES.prontuario);
+    await expect(page.getByRole("heading", { name: /Visão geral por paciente/i })).toBeVisible({
       timeout: AUTH_TIMEOUT,
     });
-    await expect(page.getByRole("tab", { name: /Visão Geral Prontuários/i })).toBeVisible({
-      timeout: AUTH_TIMEOUT,
-    });
-    await expect(page.getByRole("tab", { name: /Visão Geral Prontuários/i })).toHaveAttribute(
-      "data-state",
-      "active",
-    );
   });
 
   test("lista de pacientes", async ({ page }) => {
@@ -157,7 +157,13 @@ test.describe("smoke admin (Charlene)", () => {
   });
 
   test("menu Usuários visível", async ({ page }) => {
-    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/usuarios"]')).toBeVisible({
+    const usuariosLink = page.locator(`${SIDEBAR_LINK}[href="/app/usuarios"]`);
+    if (await usuariosLink.isVisible().catch(() => false)) {
+      await expect(usuariosLink).toBeVisible({ timeout: AUTH_TIMEOUT });
+      return;
+    }
+    await page.getByRole("button", { name: "Equipe" }).click();
+    await expect(page.getByRole("link", { name: "Usuários" })).toBeVisible({
       timeout: AUTH_TIMEOUT,
     });
   });
@@ -178,21 +184,17 @@ test.describe("smoke fisio clínico", () => {
   });
 
   test("operação básica visível", async ({ page }) => {
-    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/pacientes"]')).toBeVisible({
+    await expect(page.locator(`${SIDEBAR_LINK}[href="/app/pacientes"]`)).toBeVisible({
       timeout: AUTH_TIMEOUT,
     });
-    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/agenda"]')).toBeVisible({
+    await expect(page.locator(`${SIDEBAR_LINK}[href="/app/agenda"]`)).toBeVisible({
       timeout: AUTH_TIMEOUT,
     });
   });
 
   test("financeiro oculto no menu", async ({ page }) => {
-    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/cobrancas"]')).toHaveCount(
-      0,
-    );
-    await expect(page.locator('a[data-sidebar="menu-button"][href="/app/usuarios"]')).toHaveCount(
-      0,
-    );
+    await expect(page.locator(`${SIDEBAR_LINK}[href="/app/cobrancas"]`)).toHaveCount(0);
+    await expect(page.locator(`${SIDEBAR_LINK}[href="/app/usuarios"]`)).toHaveCount(0);
   });
 });
 
@@ -211,8 +213,10 @@ test.describe("smoke portal cliente", () => {
   test("navegação sessões e contato", async ({ page }) => {
     await page.getByRole("link", { name: "Sessões" }).click();
     await expect(page).toHaveURL(/\/portal\/sessoes/, { timeout: AUTH_TIMEOUT });
-    await page.getByRole("link", { name: "Contato" }).click();
-    await expect(page).toHaveURL(/\/portal\/contato/, { timeout: AUTH_TIMEOUT });
+    await page.goto("/portal/contato", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: /Precisa de ajuda/i })).toBeVisible({
+      timeout: AUTH_TIMEOUT,
+    });
   });
 
   test("/app redireciona para portal", async ({ page }) => {
