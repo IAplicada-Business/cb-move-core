@@ -513,6 +513,8 @@ function AgendaPage() {
   const [selectedAgend, setSelectedAgend] = useState<Agendamento | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [confirmSerieOpen, setConfirmSerieOpen] = useState(false);
+  const [pendingFormValues, setPendingFormValues] = useState<FormValues | null>(null);
   const [horariosOpen, setHorariosOpen] = useState(false);
   const [remarcarOpen, setRemarcarOpen] = useState(false);
   const [remarcarTarget, setRemarcarTarget] = useState<Agendamento | null>(null);
@@ -655,7 +657,38 @@ function AgendaPage() {
     });
   }, [planoNovoAg, dataWatch, horaInicioWatch, duracaoWatch]);
 
-  const podeAgendarSerie = !isMarcacaoSlot && propostasSeriePlano.length > 1;
+  const podeAgendarSerie = !isMarcacaoSlot && propostasSeriePlano.length > 0;
+
+  function submeterNovoAgendamento(vals: FormValues) {
+    const isSlot = STATUS_SLOT.includes(vals.statusSlot);
+    const precisaConfirmarSerie =
+      !isSlot &&
+      !vals.agendarSerieMesmoDia &&
+      propostasSeriePlano.length > 0 &&
+      (planoNovoAg?.faltantes ?? 0) > 0;
+
+    if (precisaConfirmarSerie) {
+      setPendingFormValues(vals);
+      setConfirmSerieOpen(true);
+      return;
+    }
+
+    createMutation.mutate(vals);
+  }
+
+  function confirmarAgendamentoSerie() {
+    if (!pendingFormValues) return;
+    createMutation.mutate({ ...pendingFormValues, agendarSerieMesmoDia: true });
+    setConfirmSerieOpen(false);
+    setPendingFormValues(null);
+  }
+
+  function confirmarAgendamentoUnico() {
+    if (!pendingFormValues) return;
+    createMutation.mutate(pendingFormValues);
+    setConfirmSerieOpen(false);
+    setPendingFormValues(null);
+  }
 
   const invalidateAgenda = () => {
     qc.invalidateQueries({ queryKey: queryKeys.agendamentos.all });
@@ -1685,6 +1718,92 @@ function AgendaPage() {
         }}
       />
 
+      <AlertDialog
+        open={confirmSerieOpen}
+        onOpenChange={(open) => {
+          setConfirmSerieOpen(open);
+          if (!open) setPendingFormValues(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Agendar sessões do plano?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Este paciente tem{" "}
+                  <span className="font-medium text-foreground">
+                    {(() => {
+                      const n = planoNovoAg?.faltantes ?? propostasSeriePlano.length;
+                      return n === 1 ? "1 sessão faltante" : `${n} sessões faltantes`;
+                    })()}
+                  </span>{" "}
+                  no plano de {planoNovoAg?.quantidadeExibicao ?? "—"} em{" "}
+                  {competenciaNovoAg
+                    ? `${String(competenciaNovoAg.mes).padStart(2, "0")}/${competenciaNovoAg.ano}`
+                    : "—"}
+                  .
+                </p>
+                {pendingFormValues && parseDDMMYYToISO(pendingFormValues.data) && (
+                  <p>
+                    Deseja criar só o agendamento em{" "}
+                    <span className="font-medium text-foreground">
+                      {pendingFormValues.data} {pendingFormValues.horaInicio}
+                    </span>
+                    {propostasSeriePlano.some(
+                      (p) => p.dataIso === parseDDMMYYToISO(pendingFormValues.data),
+                    )
+                      ? "?"
+                      : planoNovoAg?.diasSemanaLabel
+                        ? ` (fora do padrão ${planoNovoAg.diasSemanaLabel})?`
+                        : "?"}
+                  </p>
+                )}
+                <p>
+                  Ou agendar as{" "}
+                  <span className="font-medium text-foreground">
+                    {propostasSeriePlano.length} sessões faltantes
+                  </span>{" "}
+                  nos dias do plano
+                  {planoNovoAg?.diasSemanaLabel ? ` (${planoNovoAg.diasSemanaLabel})` : ""}?
+                </p>
+                <p className="text-xs">
+                  {propostasSeriePlano
+                    .slice(0, 4)
+                    .map((p) => `${formatDateDDMMYY(p.dataIso)} ${p.horaInicio}`)
+                    .join(" · ")}
+                  {propostasSeriePlano.length > 4
+                    ? ` · +${propostasSeriePlano.length - 4} horários`
+                    : ""}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel disabled={createMutation.isPending}>Voltar</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={createMutation.isPending}
+              onClick={confirmarAgendamentoUnico}
+            >
+              Só este agendamento
+            </Button>
+            <AlertDialogAction
+              disabled={createMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmarAgendamentoSerie();
+              }}
+            >
+              {createMutation.isPending
+                ? "Salvando…"
+                : `Agendar ${propostasSeriePlano.length} sessões`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1693,10 +1812,7 @@ function AgendaPage() {
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit((v) => createMutation.mutate(v))}
-              className="space-y-4"
-            >
+            <form onSubmit={form.handleSubmit(submeterNovoAgendamento)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="statusSlot"
@@ -1931,8 +2047,8 @@ function AgendaPage() {
                     ? "Salvando…"
                     : isMarcacaoSlot
                       ? "Marcar slot"
-                      : agendarSerieWatch && propostasSeriePlano.length > 1
-                        ? `Criar ${propostasSeriePlano.length} agendamentos`
+                      : agendarSerieWatch && propostasSeriePlano.length > 0
+                        ? `Criar ${propostasSeriePlano.length} agendamento${propostasSeriePlano.length === 1 ? "" : "s"}`
                         : "Criar"}
                 </Button>
               </DialogFooter>
