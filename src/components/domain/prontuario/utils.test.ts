@@ -138,7 +138,7 @@ describe("buildHistoricoDocumentosAssinados", () => {
     {
       id: "rel1",
       paciente_id: "p1",
-      modelo: "padrao",
+      modelo: "convencional",
       competencia_mes: 8,
       competencia_ano: 2026,
       pdf_url: "https://example.com/r.pdf",
@@ -152,7 +152,7 @@ describe("buildHistoricoDocumentosAssinados", () => {
     {
       id: "rel2",
       paciente_id: "p1",
-      modelo: "padrao",
+      modelo: "convencional",
       competencia_mes: 7,
       competencia_ano: 2026,
       pdf_url: null,

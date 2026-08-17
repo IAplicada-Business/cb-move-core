@@ -101,7 +101,7 @@ export function CobrancaTrendLineChart({ data, className }: CobrancaTrendLineCha
           tickLine={false}
           axisLine={false}
           width={40}
-          tickFormatter={formatChartAxisValue}
+          tickFormatter={(value) => formatChartAxisValue(Number(value))}
           className="text-[10px]"
         />
         <ChartTooltip

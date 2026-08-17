@@ -1340,7 +1340,7 @@ function AgendaPage() {
             dayLabels={DIAS_SEMANA_LABEL}
             hours={HOURS}
             getItems={getAgendamentosForDayHour}
-            onSlotClick={setSelectedAgend}
+            onSlotClick={(item) => setSelectedAgend(item as Agendamento)}
             onEmptyClick={abrirNovoSlot}
             podeGerir={podeGerir}
             toDateStr={toDateStr}

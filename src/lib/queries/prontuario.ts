@@ -624,7 +624,7 @@ export async function removeRelatorioAtendimentoPdf(
 
   const { error } = await supabase.rpc("set_relatorio_atendimento_pdf_url", {
     p_relatorio_id: relatorioId,
-    p_pdf_url: null,
+    p_pdf_url: null as unknown as string,
   });
   if (error) throw error;
 }
