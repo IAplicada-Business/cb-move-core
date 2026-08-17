@@ -67,8 +67,90 @@ function isItemActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
+/** Achata o item e seus submenus, marcando o nível para indentação. */
+function flattenNavItems(
+  items: SidebarMenuItemDef[],
+  depth = 0,
+): Array<{ item: SidebarMenuItemDef; depth: number }> {
+  return items.flatMap((item) => [
+    { item, depth },
+    ...flattenNavItems(item.children ?? [], depth + 1),
+  ]);
+}
+
+function isBranchActive(pathname: string, item: SidebarMenuItemDef): boolean {
+  return (
+    isItemActive(pathname, item.to) ||
+    (item.children ?? []).some((child) => isBranchActive(pathname, child))
+  );
+}
+
 function isGroupActive(pathname: string, group: SidebarMenuGroup) {
-  return group.items.some((it) => isItemActive(pathname, it.to));
+  return group.items.some((it) => isBranchActive(pathname, it));
+}
+
+function SidebarNavItem({
+  item,
+  pathname,
+  className,
+}: {
+  item: SidebarMenuItemDef;
+  pathname: string;
+  className?: string;
+}) {
+  const active = isItemActive(pathname, item.to);
+  const children = item.children ?? [];
+  const childActive = children.some((child) => isBranchActive(pathname, child));
+  const [open, setOpen] = useState(active || childActive);
+  const Icon = item.icon;
+
+  useEffect(() => {
+    if (active || childActive) setOpen(true);
+  }, [active, childActive]);
+
+  const link = (
+    <SidebarMenuSubButton
+      asChild
+      isActive={active}
+      className={cn("h-9 flex-1 rounded-md", ACTIVE_NAV_CLS, className)}
+    >
+      <Link to={item.to} preload="intent">
+        <Icon className="h-4 w-4" />
+        <span>{item.label}</span>
+      </Link>
+    </SidebarMenuSubButton>
+  );
+
+  if (children.length === 0) {
+    return <SidebarMenuSubItem>{link}</SidebarMenuSubItem>;
+  }
+
+  return (
+    <SidebarMenuSubItem>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <div className="flex items-center gap-0.5">
+          {link}
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              aria-label={open ? `Recolher ${item.label}` : `Expandir ${item.label}`}
+              className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-cb-muted transition-colors hover:bg-cb-cyan-050 hover:text-cb-ink"
+            >
+              <ChevronRight
+                className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-90")}
+              />
+            </button>
+          </CollapsibleTrigger>
+        </div>
+
+        <CollapsibleContent>
+          <SidebarMenuSub className="mx-0 mt-1 border-l border-cb-cyan-100 pl-3">
+            <SidebarNavItems items={children} pathname={pathname} className={className} />
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarMenuSubItem>
+  );
 }
 
 function SidebarNavItems({
@@ -82,24 +164,9 @@ function SidebarNavItems({
 }) {
   return (
     <>
-      {items.map((it) => {
-        const active = isItemActive(pathname, it.to);
-        const Icon = it.icon;
-        return (
-          <SidebarMenuSubItem key={it.to}>
-            <SidebarMenuSubButton
-              asChild
-              isActive={active}
-              className={cn("h-9 rounded-md", ACTIVE_NAV_CLS, className)}
-            >
-              <Link to={it.to} preload="intent">
-                <Icon className="h-4 w-4" />
-                <span>{it.label}</span>
-              </Link>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
-        );
-      })}
+      {items.map((it) => (
+        <SidebarNavItem key={it.to} item={it} pathname={pathname} className={className} />
+      ))}
     </>
   );
 }
@@ -122,7 +189,7 @@ function SidebarNavSection({
   const GroupIcon = GROUP_ICONS[group.id] ?? LayoutDashboard;
 
   if (collapsed) {
-    if (group.items.length === 1) {
+    if (group.items.length === 1 && !group.items[0].children?.length) {
       const it = group.items[0];
       const Icon = it.icon;
       const active = isItemActive(pathname, it.to);
@@ -167,7 +234,7 @@ function SidebarNavSection({
                     {group.label}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {group.items.map((it) => {
+                  {flattenNavItems(group.items).map(({ item: it, depth }) => {
                     const active = isItemActive(pathname, it.to);
                     const Icon = it.icon;
                     return (
@@ -175,6 +242,7 @@ function SidebarNavSection({
                         <Link
                           to={it.to}
                           preload="intent"
+                          style={depth > 0 ? { paddingLeft: `${depth * 1 + 0.5}rem` } : undefined}
                           className={cn(
                             "flex cursor-pointer items-center gap-2",
                             active && "font-semibold text-cb-cyan-800",
