@@ -11,15 +11,13 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { TipoBadge } from "@/components/domain/TipoBadge";
+import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
+import { FilterChip } from "@/components/domain/FilterChip";
+import type { FilterChipOption } from "@/components/domain/FilterChip";
+import { filterChipTriggerClass } from "@/components/domain/filter-chip-style";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDate } from "@/lib/format";
 import { queryKeys } from "@/lib/queries/keys";
 import { fetchProntuariosConsolidados } from "@/lib/queries/prontuario-consolidado";
@@ -49,6 +47,65 @@ function isRecentDate(isoDate: string | null, days = 30): boolean {
   return date >= cutoff;
 }
 
+function periodoLabel(de: string, ate: string): string {
+  if (de && ate) return `${formatDate(de)} – ${formatDate(ate)}`;
+  if (de) return `desde ${formatDate(de)}`;
+  if (ate) return `até ${formatDate(ate)}`;
+  return "Todas";
+}
+
+/** Chip de intervalo de datas — mesmo gatilho do FilterChip, com campos de data no popover. */
+function PeriodoFilterChip({
+  de,
+  ate,
+  onChange,
+}: {
+  de: string;
+  ate: string;
+  onChange: (de: string, ate: string) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className={filterChipTriggerClass}>
+          Última evolução: {periodoLabel(de, ate)} <span className="text-muted-foreground">▾</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto space-y-3 p-3">
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            className="h-8 w-[150px]"
+            value={de}
+            max={ate || undefined}
+            onChange={(e) => onChange(e.target.value, ate)}
+            aria-label="Última evolução — data inicial"
+          />
+          <span className="text-xs text-muted-foreground">até</span>
+          <Input
+            type="date"
+            className="h-8 w-[150px]"
+            value={ate}
+            min={de || undefined}
+            onChange={(e) => onChange(de, e.target.value)}
+            aria-label="Última evolução — data final"
+          />
+        </div>
+        {(de || ate) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-full text-xs"
+            onClick={() => onChange("", "")}
+          >
+            Limpar período
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
   const [search, setSearch] = useState("");
   const [pacienteId, setPacienteId] = useState(ALL);
@@ -62,16 +119,36 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
     queryFn: () => fetchProntuariosConsolidados(),
   });
 
-  const fisioOptions = useMemo(() => {
+  const pacienteOptions = useMemo<FilterChipOption[]>(
+    () => [
+      { value: ALL, label: "Todos" },
+      ...rows.map((row) => ({ value: row.pacienteId, label: row.pacienteNome })),
+    ],
+    [rows],
+  );
+
+  const fisioOptions = useMemo<FilterChipOption[]>(() => {
     const nomes = new Set<string>();
     for (const row of rows) if (row.fisioPrincipal) nomes.add(row.fisioPrincipal);
-    return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return [
+      { value: ALL, label: "Todos" },
+      { value: SEM_FISIO, label: "Sem fisio principal" },
+      ...[...nomes]
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .map((nome) => ({ value: nome, label: nome })),
+    ];
   }, [rows]);
 
-  const statusOptions = useMemo(() => {
+  const statusOptions = useMemo<FilterChipOption[]>(() => {
     const valores = new Set<string>();
     for (const row of rows) if (row.ultimoRelatorioStatus) valores.add(row.ultimoRelatorioStatus);
-    return [...valores].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    return [
+      { value: ALL, label: "Todos" },
+      { value: SEM_RELATORIO, label: "Sem relatório" },
+      ...[...valores]
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .map((valor) => ({ value: valor, label: valor })),
+    ];
   }, [rows]);
 
   const temFiltro =
@@ -167,108 +244,50 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
         />
       </KpiGrid>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[220px] flex-1 space-y-1.5 sm:max-w-sm">
-          <label className="text-sm font-medium" htmlFor="prontuario-busca">
-            Buscar
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="prontuario-busca"
-              className="pl-9"
-              placeholder="Buscar paciente…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+      <DataToolbar>
+        <DataToolbarSearch>
+          <Search className="h-4 w-4 shrink-0 text-cb-muted" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar paciente"
+            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+          />
+        </DataToolbarSearch>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Paciente</label>
-          <Select value={pacienteId} onValueChange={setPacienteId}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Todos os pacientes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos os pacientes</SelectItem>
-              {rows.map((row) => (
-                <SelectItem key={row.pacienteId} value={row.pacienteId}>
-                  {row.pacienteNome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Fisioterapeuta</label>
-          <Select value={fisio} onValueChange={setFisio}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Todos os fisios" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos os fisioterapeutas</SelectItem>
-              <SelectItem value={SEM_FISIO}>Sem fisio principal</SelectItem>
-              {fisioOptions.map((nome) => (
-                <SelectItem key={nome} value={nome}>
-                  {nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="prontuario-data-de">
-            Última evolução
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="prontuario-data-de"
-              type="date"
-              className="w-[150px]"
-              value={dataDe}
-              max={dataAte || undefined}
-              onChange={(e) => setDataDe(e.target.value)}
-              aria-label="Última evolução — data inicial"
-            />
-            <span className="text-sm text-muted-foreground">até</span>
-            <Input
-              type="date"
-              className="w-[150px]"
-              value={dataAte}
-              min={dataDe || undefined}
-              onChange={(e) => setDataAte(e.target.value)}
-              aria-label="Última evolução — data final"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Status do prontuário</label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Todos os status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos os status</SelectItem>
-              <SelectItem value={SEM_RELATORIO}>Sem relatório gerado</SelectItem>
-              {statusOptions.map((valor) => (
-                <SelectItem key={valor} value={valor}>
-                  {valor}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <FilterChip
+          prefix="Paciente"
+          value={pacienteId}
+          options={pacienteOptions}
+          onChange={setPacienteId}
+        />
+        <FilterChip prefix="Fisio" value={fisio} options={fisioOptions} onChange={setFisio} />
+        <PeriodoFilterChip
+          de={dataDe}
+          ate={dataAte}
+          onChange={(de, ate) => {
+            setDataDe(de);
+            setDataAte(ate);
+          }}
+        />
+        <FilterChip prefix="Status" value={status} options={statusOptions} onChange={setStatus} />
 
         {temFiltro && (
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={limparFiltros}>
-            <X className="h-3.5 w-3.5" /> Limpar filtros
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 rounded-full px-3 text-xs"
+            onClick={limparFiltros}
+          >
+            <X className="h-3.5 w-3.5" /> Limpar
           </Button>
         )}
-      </div>
+
+        <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
+          {filteredRows.length} paciente{filteredRows.length !== 1 ? "s" : ""} ·{" "}
+          {kpis.totalEvolucoes} evoluç{kpis.totalEvolucoes === 1 ? "ão" : "ões"}
+        </p>
+      </DataToolbar>
 
       {isLoading ? (
         <LoadingState />

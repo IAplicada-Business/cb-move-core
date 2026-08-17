@@ -4,6 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { filterChipTriggerClass } from "@/components/domain/filter-chip-style";
 import { cn } from "@/lib/utils";
 
 export type FilterChipOption = { value: string; label: string };
@@ -26,14 +27,7 @@ export function FilterChip({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-3 py-1.5",
-            "text-xs font-medium text-foreground transition-colors hover:border-cb-cyan-400",
-            className,
-          )}
-        >
+        <button type="button" className={cn(filterChipTriggerClass, className)}>
           {prefix}: {current} <span className="text-muted-foreground">▾</span>
         </button>
       </DropdownMenuTrigger>
