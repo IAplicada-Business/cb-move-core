@@ -12,7 +12,7 @@ import {
 } from "@/lib/queries/options";
 
 export const Route = createFileRoute("/app/financeiro")({
-  head: () => ({ meta: [{ title: "Dashboard Financeiro · CB MOVE" }] }),
+  head: () => ({ meta: [{ title: "Análises · CB MOVE" }] }),
   beforeLoad: () => assertFinanceAccess(),
   loader: ({ context }) => {
     const now = new Date();
@@ -33,8 +33,8 @@ function FinanceiroPage() {
   return (
     <DashboardPage>
       <PageHeader
-        crumbs={[{ label: "Financeiro" }, { label: "Dashboard" }]}
-        title="Dashboard Financeiro"
+        crumbs={[{ label: "Financeiro" }, { label: "Análises" }]}
+        title="Análises"
         description="Visão analítica de receita, recebimentos e extrato por competência."
       />
       <DashboardFinanceiro />

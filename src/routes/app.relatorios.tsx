@@ -466,7 +466,7 @@ function RelatoriosPage() {
         actions={
           <Button variant="outline" asChild className="gap-2">
             <Link to="/app/financeiro">
-              <TrendingUp className="h-4 w-4" /> Dashboard Financeiro
+              <TrendingUp className="h-4 w-4" /> Análises
             </Link>
           </Button>
         }
