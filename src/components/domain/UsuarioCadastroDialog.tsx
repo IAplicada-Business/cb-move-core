@@ -3,7 +3,7 @@ import { Shield } from "lucide-react";
 
 import { LoadingState } from "@/components/domain/LoadingState";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
-import { MENU_GROUPS } from "@/lib/menu-access";
+import { MENU_GROUPS, flattenMenuItems } from "@/lib/menu-access";
 import type { UserRow } from "@/lib/queries/usuarios";
 import type { UsuarioCadastroPerfil } from "@/lib/usuario-equipe";
 
@@ -77,7 +77,7 @@ function AcessoTotalPreview() {
         individuais.
       </p>
       <ul className="grid gap-1 sm:grid-cols-2">
-        {MENU_GROUPS.flatMap((g) => g.items).map((item) => (
+        {MENU_GROUPS.flatMap((g) => flattenMenuItems(g.items)).map((item) => (
           <li key={item.key} className="text-xs text-foreground">
             {item.label}
           </li>

@@ -20,6 +20,8 @@ export type MenuItemDef = {
   key: MenuKey;
   to: string;
   label: string;
+  /** Itens exibidos como submenu deste item na sidebar. */
+  children?: MenuItemDef[];
 };
 
 export type MenuGroupDef = {
@@ -43,10 +45,14 @@ export const MENU_GROUPS: MenuGroupDef[] = [
     id: "fin",
     label: "Financeiro",
     items: [
+      {
+        key: "fin.financeiro",
+        to: "/app/financeiro",
+        label: "Dashboard Financeiro",
+        children: [{ key: "fin.relatorios", to: "/app/relatorios", label: "Relatórios" }],
+      },
       { key: "fin.cobrancas", to: "/app/cobrancas", label: "Cobranças" },
       { key: "fin.notas-fiscais", to: "/app/notas-fiscais", label: "Notas Fiscais" },
-      { key: "fin.financeiro", to: "/app/financeiro", label: "Dashboard Financeiro" },
-      { key: "fin.relatorios", to: "/app/relatorios", label: "Relatórios" },
     ],
   },
   {
@@ -69,7 +75,14 @@ export const MENU_GROUPS: MenuGroupDef[] = [
   },
 ];
 
-export const ALL_MENU_KEYS: MenuKey[] = MENU_GROUPS.flatMap((g) => g.items.map((i) => i.key));
+/** Achata itens e seus submenus preservando a ordem de exibição. */
+export function flattenMenuItems(items: MenuItemDef[]): MenuItemDef[] {
+  return items.flatMap((item) => [item, ...flattenMenuItems(item.children ?? [])]);
+}
+
+export const ALL_MENU_KEYS: MenuKey[] = MENU_GROUPS.flatMap((g) =>
+  flattenMenuItems(g.items).map((i) => i.key),
+);
 
 export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "app.dashboard": true,
@@ -113,7 +126,7 @@ export const FISIO_MENU_SCOPE_LINES = [
 
 export function menuLabel(key: MenuKey): string {
   for (const group of MENU_GROUPS) {
-    const item = group.items.find((i) => i.key === key);
+    const item = flattenMenuItems(group.items).find((i) => i.key === key);
     if (item) return `${group.label} · ${item.label}`;
   }
   return key;

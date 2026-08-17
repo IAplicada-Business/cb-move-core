@@ -52,7 +52,10 @@ const ICONS: Record<string, LucideIcon> = {
   "/app/ajuda": HelpCircle,
 };
 
-export type SidebarMenuItem = MenuItemDef & { icon: LucideIcon };
+export type SidebarMenuItem = Omit<MenuItemDef, "children"> & {
+  icon: LucideIcon;
+  children?: SidebarMenuItem[];
+};
 
 export type SidebarGroup = {
   id: MenuGroupDef["id"];
@@ -82,17 +85,29 @@ export function useMenuAccess() {
   }, [primary, permissions, menuDefaults, isFisioScoped]);
 
   const groups = useMemo<SidebarGroup[]>(() => {
+    const isVisible = (item: MenuItemDef) =>
+      allowedKeys.has(item.key) && (item.key !== "team.usuarios" || can.manageUsers(roles));
+
+    /** Itens sem permissão somem, mas seus submenus permitidos sobem um nível. */
+    const buildItems = (items: MenuItemDef[]): SidebarMenuItem[] =>
+      items.flatMap((item) => {
+        const children = buildItems(item.children ?? []);
+        if (!isVisible(item)) return children;
+        const { children: _children, ...rest } = item;
+        return [
+          {
+            ...rest,
+            label: isFisioScoped ? (FISIO_MENU_LABELS[item.key] ?? item.label) : item.label,
+            icon: ICONS[item.to] ?? HelpCircle,
+            ...(children.length > 0 ? { children } : {}),
+          },
+        ];
+      });
+
     return MENU_GROUPS.map((group) => ({
       ...group,
       label: isFisioScoped ? (FISIO_MENU_GROUP_LABELS[group.id] ?? group.label) : group.label,
-      items: group.items
-        .filter((item) => allowedKeys.has(item.key))
-        .filter((item) => item.key !== "team.usuarios" || can.manageUsers(roles))
-        .map((item) => ({
-          ...item,
-          label: isFisioScoped ? (FISIO_MENU_LABELS[item.key] ?? item.label) : item.label,
-          icon: ICONS[item.to] ?? HelpCircle,
-        })),
+      items: buildItems(group.items),
     })).filter((group) => group.items.length > 0);
   }, [allowedKeys, isFisioScoped, roles]);
 
