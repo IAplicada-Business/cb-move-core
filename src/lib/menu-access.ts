@@ -48,7 +48,7 @@ export const MENU_GROUPS: MenuGroupDef[] = [
       {
         key: "fin.financeiro",
         to: "/app/financeiro",
-        label: "Dashboard Financeiro",
+        label: "Análises",
         children: [{ key: "fin.relatorios", to: "/app/relatorios", label: "Relatórios" }],
       },
       { key: "fin.cobrancas", to: "/app/cobrancas", label: "Cobranças" },
