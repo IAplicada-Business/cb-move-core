@@ -31,7 +31,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-cb-bg dark:bg-background">
           <div
             className={cn(
-              "mx-auto w-full max-w-none px-6 py-8 transition-opacity duration-150 md:px-8 lg:px-10",
+              "mx-auto w-full max-w-none px-6 pb-8 pt-4 transition-opacity duration-150 md:px-8 lg:px-10",
               isPending && "opacity-70",
             )}
           >
