@@ -208,7 +208,7 @@ export async function updatePeriodizacaoPdfUrl(
 ): Promise<void> {
   const { error } = await supabase.rpc("set_periodizacao_pdf_url", {
     p_paciente_id: pacienteId,
-    p_url: periodizacaoPdfUrl,
+    p_url: periodizacaoPdfUrl as unknown as string,
   });
   if (error) throw error;
 }

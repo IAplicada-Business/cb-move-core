@@ -36,7 +36,7 @@ describe("mustResetPassword", () => {
         ...baseUser,
         app_metadata: { providers: ["email", "google"] },
         user_metadata: { must_reset_password: true },
-        identities: [{ provider: "google", id: "g1" }],
+        identities: [{ provider: "google", id: "g1", user_id: "u1", identity_id: "i1" }],
       }),
     ).toBe(false);
   });
@@ -53,7 +53,7 @@ describe("hasGoogleIdentity", () => {
     expect(
       hasGoogleIdentity({
         ...baseUser,
-        identities: [{ provider: "google", id: "g1" }],
+        identities: [{ provider: "google", id: "g1", user_id: "u1", identity_id: "i1" }],
       }),
     ).toBe(true);
     expect(hasGoogleIdentity({ ...baseUser, app_metadata: { providers: ["email"] } })).toBe(false);
