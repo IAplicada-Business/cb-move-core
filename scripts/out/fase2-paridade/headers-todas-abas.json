@@ -1,0 +1,234 @@
+{
+  "AGOSTO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Recebido",
+      "R$ Previsto",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "JULHO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "JUNHO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "MAIO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "ABRIL": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "MARÇO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "FEVEREIRO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "JANEIRO": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  }
+}

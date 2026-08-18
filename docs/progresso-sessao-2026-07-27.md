@@ -72,7 +72,7 @@ Diff visual vs PDFs em `scripts/out/fase1-paridade/`.
 
 - [ ] Download **ZIP** no lote de relatórios
 - [ ] Fila **assíncrona + polling** (lote server-side)
-- [ ] **Fase 2b:** paridade visual célula a célula (template XLSX master)
+- [x] **Fase 2b:** paridade visual célula a célula (template XLSX master) — `docs/fase2-paridade-relatorios-2026-08-18.md` (18/08/2026)
 - [ ] Export **LogJur** (.xlsm)
 - [x] **`FISIO_FULL_ACCESS_TEST_MODE`** revertido — fisio vê só pacientes vinculados (ago/2026)
 

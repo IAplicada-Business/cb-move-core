@@ -83,14 +83,14 @@ Legenda: 🔴 crítico · 🟡 importante · 🟢 ok / parcial
 
 ### B. Relatórios financeiros
 
-| #   | Manual (Drive)                               | Sistema                              | Gap                                         |
-| --- | -------------------------------------------- | ------------------------------------ | ------------------------------------------- |
-| B1  | **Planilha Excel master** editável mês a mês | Dashboard + extrato; sem export xlsx | 🔴 Cliente pode esperar mesma planilha      |
-| B2  | Colunas SITUAÇÃO, freq, dias, retroativas    | Extrato mapeia observações + status  | 🟢 Parcial — conferir coluna a coluna       |
-| B3  | LogJur .xlsm para convênios                  | Não exporta LogJur                   | 🔴                                          |
-| B4  | Receita por convênio (visão mensal)          | RPC `relatorio_receita_convenio`     | 🟢 In-app only                              |
-| B5  | Vínculo sessões relatório ↔ cobrança         | Tabelas independentes                | 🟡 `qtd_sessoes` pode divergir do relatório |
-| B6  | Relatório IR anual                           | `gerar-relatorio-ir` stub JSON       | 🟡 PDF não implementado                     |
+| #   | Manual (Drive)                               | Sistema                                  | Gap                                                                                           |
+| --- | -------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| B1  | **Planilha Excel master** editável mês a mês | Dashboard + extrato; **export XLSX/CSV** | 🟢 Colunas alinhadas (`EXTRATO_COLUNAS`) — ver Fase 2b 18/08                                  |
+| B2  | Colunas SITUAÇÃO, freq, dias, retroativas    | Extrato mapeia observações + status      | 🟢 Headers ok; valores amostra documentados em `docs/fase2-paridade-relatorios-2026-08-18.md` |
+| B3  | LogJur .xlsm para convênios                  | Não exporta LogJur                       | 🔴                                                                                            |
+| B4  | Receita por convênio (visão mensal)          | RPC `relatorio_receita_convenio`         | 🟢 In-app + export                                                                            |
+| B5  | Vínculo sessões relatório ↔ cobrança         | Tabelas independentes                    | 🟡 `qtd_sessoes` pode divergir do relatório                                                   |
+| B6  | Relatório IR anual                           | `gerar-relatorio-ir` **PDF pdf-lib**     | 🟢 Export PDF (18/08/2026)                                                                    |
 
 ---
 

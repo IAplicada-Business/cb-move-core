@@ -101,14 +101,18 @@ export function formatPlano(regime: RegimeCobranca | null): string {
 
 export function extrairSituacao(observacoes: string | null, status: CobrancaStatus): string {
   if (observacoes) {
-    const migrado = observacoes.match(/migrado_logjur\s*\|\s*(.+)/i);
-    if (migrado?.[1]) return migrado[1].trim();
+    const migrado = observacoes.match(/migrado_logjur\s*\|\s*(.*)/i);
+    if (migrado) {
+      const resto = migrado[1]?.trim();
+      if (resto) return resto;
+      // "migrado_logjur |" sem texto — cai no label do status
+    } else {
+      const retroativa = observacoes.match(/Retroativa detectada[^|]*\|\s*(.+)/i);
+      if (retroativa?.[1]) return retroativa[1].trim();
 
-    const retroativa = observacoes.match(/Retroativa detectada[^|]*\|\s*(.+)/i);
-    if (retroativa?.[1]) return retroativa[1].trim();
-
-    const trimmed = observacoes.trim();
-    if (trimmed && !trimmed.startsWith("migrado_logjur")) return trimmed;
+      const trimmed = observacoes.trim();
+      if (trimmed && !trimmed.startsWith("migrado_logjur")) return trimmed;
+    }
   }
 
   const labels: Record<CobrancaStatus, string> = {

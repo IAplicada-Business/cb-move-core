@@ -1,0 +1,214 @@
+{
+  "gerado_em": "2026-08-18T18:24:32.340259Z",
+  "aba": "JULHO",
+  "ano": 2026,
+  "header": {
+    "headers_drive": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "canon": [
+      "Nome do Paciente",
+      "Avaliação",
+      "Frequência",
+      "Dias da Semana",
+      "Nº Sessões",
+      "Plano",
+      "R$ Sessão/Mês",
+      "R$ Previsto",
+      "R$ Recebido",
+      "SITUAÇÃO"
+    ],
+    "missing_vs_canon": [],
+    "extra_vs_canon": [],
+    "header_parity": "ok"
+  },
+  "drive_linhas": 3,
+  "sistema_linhas": null,
+  "sistema_disponivel": false,
+  "contagem": {
+    "ok": 0,
+    "diverge": 0,
+    "ausente_sistema": 24,
+    "ausente_drive": 0
+  },
+  "somente_sistema": [],
+  "diffs": [
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "Frequência",
+      "drive": "2x semana triplo",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "Dias da Semana",
+      "drive": "2ª e 5ª (triplos)",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "Nº Sessões",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "Plano",
+      "drive": "Por Sessão",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "R$ Sessão/Mês",
+      "drive": "R$ 266,00",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "R$ Previsto",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "R$ Recebido",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Airton Tonelo",
+      "campo": "SITUAÇÃO",
+      "drive": "Vai faltar 12236,00 referente abril, 10.640,00 referente a maio.",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "Frequência",
+      "drive": "2x semana simples",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "Dias da Semana",
+      "drive": "2ª e 5ª (simples)",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "Nº Sessões",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "Plano",
+      "drive": "Por Sessão",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "R$ Sessão/Mês",
+      "drive": "R$ 266,00",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "R$ Previsto",
+      "drive": 2128.0,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "R$ Recebido",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Amanda Pavan",
+      "campo": "SITUAÇÃO",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "Frequência",
+      "drive": "2x semana duplos",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "Dias da Semana",
+      "drive": "2ª e 4ª (duplos)",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "Nº Sessões",
+      "drive": null,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "Plano",
+      "drive": "Por Sessão",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "R$ Sessão/Mês",
+      "drive": "R$ 266,00",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "R$ Previsto",
+      "drive": 15960.0,
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "R$ Recebido",
+      "drive": "Valor duplicado 42.560,00 referente 09/2025 a 01/2026",
+      "sistema": null,
+      "status": "ausente_sistema"
+    },
+    {
+      "paciente": "Kayhan Bustamante Prestes da Silveira",
+      "campo": "SITUAÇÃO",
+      "drive": "PAGAMENTO REFERENTE 052026-01/07- 9.044,00, 062026-17/07- 6.916,00",
+      "sistema": null,
+      "status": "ausente_sistema"
+    }
+  ]
+}

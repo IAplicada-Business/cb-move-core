@@ -1,0 +1,36 @@
+[
+  {
+    "id": "5af968c3-8cea-4e1c-9dd5-e3b6a10f215e",
+    "valor": "2128.00",
+    "status": "pago",
+    "regime": "por_sessao",
+    "qtd_sessoes": null,
+    "frequencia_atendimento": "2x semana simples",
+    "dias_semana": "2ª e 5ª (simples)",
+    "observacoes": "migrado_logjur |",
+    "pago_em": "2026-07-07",
+    "paciente_nome": "Amanda Pavan",
+    "valor_mensal": null,
+    "valor_sessao": "287.00",
+    "regime_cobranca": "por_sessao",
+    "p_freq": "2x semana simples",
+    "p_dias": "2ª e 5ª (simples)"
+  },
+  {
+    "id": "633b6497-ba1f-4deb-9acd-4c19010ea136",
+    "valor": "4522.00",
+    "status": "atrasado",
+    "regime": "por_sessao",
+    "qtd_sessoes": null,
+    "frequencia_atendimento": "2x semana duplos",
+    "dias_semana": "2ª e 4ª (duplos)",
+    "observacoes": "migrado_logjur | PAGAMENTO REFERENTE 052026",
+    "pago_em": null,
+    "paciente_nome": "Kayhan Bustamante Prestes da Silveira",
+    "valor_mensal": null,
+    "valor_sessao": "287.00",
+    "regime_cobranca": "por_sessao",
+    "p_freq": "2x semana duplos",
+    "p_dias": "2ª e 4ª (duplos)"
+  }
+]
