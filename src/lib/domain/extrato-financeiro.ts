@@ -285,7 +285,7 @@ export function extratoToCsvRows(resumo: ExtratoFinanceiroResumo): Record<string
   return [...linhas, totalRow];
 }
 
-const EXTRATO_COLUNAS = [
+export const EXTRATO_COLUNAS = [
   "Nome do Paciente",
   "Avaliação",
   "Frequência",
@@ -297,6 +297,9 @@ const EXTRATO_COLUNAS = [
   "R$ Recebido",
   "SITUAÇÃO",
 ] as const;
+
+/** Colunas da planilha master financeira (Drive) — referência Fase 2b. */
+export const EXTRATO_MASTER_COLUNAS_ESPERADAS = [...EXTRATO_COLUNAS];
 
 /** Planilha XLSX alinhada à master financeira (mesmas colunas do CSV). */
 export async function extratoToXlsxBlob(resumo: ExtratoFinanceiroResumo): Promise<Blob> {

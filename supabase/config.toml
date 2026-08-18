@@ -51,5 +51,8 @@ verify_jwt = true
 [functions.sign-relatorio]
 verify_jwt = true
 
+[functions.gerar-relatorio-ir]
+verify_jwt = true
+
 [functions.clicksign-webhook]
 verify_jwt = false

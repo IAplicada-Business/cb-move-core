@@ -4,6 +4,14 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { downloadPdfBase64, gerarRelatorioIrPdf } from "@/lib/queries/relatorio-ir";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/portal/notas-fiscais")({
@@ -37,6 +45,8 @@ function PortalNotasFiscais() {
   const [nfs, setNfs] = React.useState<NF[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [exportando, setExportando] = React.useState(false);
+  const anoAtual = new Date().getFullYear();
+  const [anoIr, setAnoIr] = React.useState(String(anoAtual));
 
   React.useEffect(() => {
     if (!pacienteId) return;
@@ -51,20 +61,31 @@ function PortalNotasFiscais() {
           console.error("[portal/notas-fiscais]", error);
           toast.error("Não foi possível carregar as notas fiscais.");
         }
-        setNfs((data as NF[] | null) ?? []);
+        const rows = (data as NF[] | null) ?? [];
+        setNfs(rows);
+        const anos = rows
+          .map((n) => n.competencia_ano)
+          .filter((a): a is number => typeof a === "number");
+        if (anos.length > 0) setAnoIr(String(Math.max(...anos)));
         setLoading(false);
       });
   }, [pacienteId]);
+
+  const anosDisponiveis = React.useMemo(() => {
+    const set = new Set<number>([anoAtual, anoAtual - 1]);
+    for (const n of nfs) {
+      if (n.competencia_ano) set.add(n.competencia_ano);
+    }
+    return [...set].sort((a, b) => b - a);
+  }, [nfs, anoAtual]);
 
   async function exportarIR() {
     if (!pacienteId) return;
     setExportando(true);
     try {
-      const { error } = await supabase.functions.invoke("gerar-relatorio-ir", {
-        body: { paciente_id: pacienteId },
-      });
-      if (error) throw error;
-      toast.success("Relatório de IR enviado para o seu e-mail!");
+      const result = await gerarRelatorioIrPdf(pacienteId, Number(anoIr));
+      downloadPdfBase64(result.pdf_base64, result.filename);
+      toast.success(`PDF de IR ${anoIr} baixado`);
     } catch {
       toast.error("Não foi possível gerar o relatório agora. Tente mais tarde.");
     } finally {
@@ -83,13 +104,27 @@ function PortalNotasFiscais() {
         </p>
       </div>
 
-      <Button
-        className="w-full bg-cb-cyan-600 hover:bg-cb-cyan-700"
-        onClick={exportarIR}
-        disabled={exportando}
-      >
-        {exportando ? "Gerando..." : "Exportar para declaração de IR"}
-      </Button>
+      <div className="flex gap-2">
+        <Select value={anoIr} onValueChange={setAnoIr}>
+          <SelectTrigger className="w-[110px] bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {anosDisponiveis.map((a) => (
+              <SelectItem key={a} value={String(a)}>
+                {a}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          className="flex-1 bg-cb-cyan-600 hover:bg-cb-cyan-700"
+          onClick={() => void exportarIR()}
+          disabled={exportando}
+        >
+          {exportando ? "Gerando..." : "Baixar PDF para IR"}
+        </Button>
+      </div>
 
       {nfs.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-8">
