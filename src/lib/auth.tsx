@@ -266,9 +266,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
+    // Revalidar ao voltar para a aba é útil (o admin pode ter mudado permissões),
+    // mas precisa ser invisível: `silent` mantém a tela no ar e o intervalo mínimo
+    // evita uma rodada de consultas a cada alt-tab.
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      diag.info("auth", "aba visível — revalidando sessão e papéis");
+      if (Date.now() - rolesLoadedAtRef.current < ROLES_REVALIDATE_INTERVAL_MS) return;
+      diag.info("auth", "aba visível — revalidando sessão e papéis em segundo plano");
       void supabase.auth.getSession().then(({ data, error }) => {
         if (error) {
           diag.error("auth", "getSession ao voltar à aba falhou", error);
@@ -276,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         diag.info("auth", "sessão revalidada", { hasSession: Boolean(data.session) });
         if (data.session?.user) {
-          void loadRoles(data.session.user.id, { force: true });
+          void loadRoles(data.session.user.id, { force: true, silent: true });
         }
       });
     };
