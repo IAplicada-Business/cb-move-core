@@ -15,8 +15,8 @@
 
 1. **Smoke NF produção** — 1 emissão real pós-cutover Focus
 2. **Extratos Bradesco reais** — ver `docs/EXTRATOS_BRADESCO_AMOSTRAS.md`
-3. **Fase 2b diff visual** — baixar planilha master + PDFs Drive e comparar célula a célula (`docs/handoff-relatorios-paridade-2026-07-27.md`)
-4. Deploy da edge `gerar-relatorio-ir` em produção após merge
+3. ~~**Fase 2b diff visual**~~ — feito em `docs/fase2-paridade-relatorios-2026-08-18.md` (gaps Kayhan/Airton = dados)
+4. Deploy da edge `gerar-relatorio-ir` — **publicado v33** (18/08)
 
 ## Deploy necessário
 
