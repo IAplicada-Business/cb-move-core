@@ -1,4 +1,4 @@
-# Setup n8n — Boleto Docs (e-mail + WhatsApp)
+# Setup n8n — Boleto Docs (e-mail + WhatsApp PDF)
 
 Workflow criado no n8n Cloud (iaplicada).
 
@@ -12,18 +12,41 @@ Workflow criado no n8n Cloud (iaplicada).
 | SDK fonte        | [`workflow_boleto_docs.sdk.js`](workflow_boleto_docs.sdk.js)      |
 | Export JSON      | [`workflow_boleto_docs.json`](workflow_boleto_docs.json)          |
 
-## Estado pós code-review (jul/2026)
+## Fase 2 (ago/2026) — PDF no WhatsApp
+
+O nó **Z-API WhatsApp** (`send-text` com link) foi substituído por **Z-API WhatsApp PDF** (`send-document/pdf`).
+
+| Campo no body Z-API | Origem no workflow                                      |
+| ------------------- | ------------------------------------------------------- |
+| `phone`             | `telefone_e164`                                         |
+| `document`          | `boleto_url` (URL pública do PDF Cora)                  |
+| `fileName`          | `boleto_filename` (`boleto-cbmove-{competencia}.pdf`)   |
+| `caption`           | `whatsapp_caption` (valor/vencimento/PIX, **sem** link) |
+
+Documentação Z-API: https://developer.z-api.io/message/send-document
+
+### Aplicar no n8n Cloud (obrigatório)
+
+O repositório já tem o JSON/SDK atualizados. No Cloud ainda é preciso:
+
+1. Abrir o workflow `Hj81THpuh8nflvCq` **ou** importar [`workflow_boleto_docs.json`](workflow_boleto_docs.json).
+2. Confirmar credencial `CB MOVE Z-API Client Token` + variáveis `ZAPI_INSTANCE_ID` / `ZAPI_INSTANCE_TOKEN`.
+3. Testar com pin data (Amanda) — deve chegar PDF no WhatsApp, não só texto.
+4. Publicar (`active: true`).
+
+## Estado pós code-review
 
 Itens já implementados no CBmove **antes** deste workflow:
 
-| Item                                  | Onde                                            | Status            |
-| ------------------------------------- | ----------------------------------------------- | ----------------- |
-| Split **Gerar** / **Enviar** boleto   | UI + edges                                      | Concluído         |
-| Edge `send-boleto-cobranca`           | Supabase                                        | Deployada         |
-| Dedup por `event_id`                  | `boleto-cobranca-queue.ts` + `cobrancas_envios` | Concluído na edge |
-| Canais dinâmicos `email` / `whatsapp` | Edge (telefone ≥ 10 dígitos)                    | Concluído         |
-| Notificações Cora desligadas          | `emit-boleto-cora`                              | Concluído         |
-| Auditoria `cobrancas_envios`          | Migration + insert pós-webhook 2xx              | Concluído na edge |
+| Item                                  | Onde                                            | Status                          |
+| ------------------------------------- | ----------------------------------------------- | ------------------------------- |
+| Split **Gerar** / **Enviar** boleto   | UI + edges                                      | Concluído                       |
+| Edge `send-boleto-cobranca`           | Supabase                                        | Deployada                       |
+| Dedup por `event_id`                  | `boleto-cobranca-queue.ts` + `cobrancas_envios` | Concluído na edge               |
+| Canais dinâmicos `email` / `whatsapp` | Edge (telefone ≥ 10 dígitos)                    | Concluído                       |
+| Notificações Cora desligadas          | `emit-boleto-cora`                              | Concluído                       |
+| Auditoria `cobrancas_envios`          | Migration + insert pós-webhook 2xx              | Concluído na edge               |
+| WhatsApp PDF (`send-document/pdf`)    | n8n JSON + SDK neste repo                       | **Repo OK** — publicar no Cloud |
 
 O workflow n8n **não** grava em `cobrancas_envios` — isso já é feito pela edge após resposta 200 do webhook.
 
@@ -33,7 +56,7 @@ O workflow n8n **não** grava em `cobrancas_envios` — isso já é feito pela e
 | -------------------------- | ---------------- | ------------------- | ------------------------- |
 | CB MOVE NF Webhook Secret  | `httpHeaderAuth` | Webhook Boleto Docs | Reutilizada (mesma da NF) |
 | Gmail OAuth2 API           | `gmailOAuth2`    | Enviar Gmail        | Auto-vinculada            |
-| CB MOVE Z-API Client Token | `httpHeaderAuth` | Z-API WhatsApp      | **Criar manualmente**     |
+| CB MOVE Z-API Client Token | `httpHeaderAuth` | Z-API WhatsApp PDF  | **Criar / confirmar**     |
 
 ### Webhook Secret
 
@@ -41,22 +64,25 @@ Header: `X-Webhook-Secret` — mesmo valor de `N8N_WEBHOOK_SECRET` em `integraca
 
 ### Z-API (WhatsApp)
 
-1. Criar credencial **Header Auth** `CB MOVE Z-API Client Token`:
+1. Credencial **Header Auth** `CB MOVE Z-API Client Token`:
    - Header name: `Client-Token`
    - Value: token de segurança do painel Z-API
-2. Em **Settings → Variables** do workflow (ou projeto), definir:
-   - `ZAPI_INSTANCE_ID` — ID da instância
-   - `ZAPI_INSTANCE_TOKEN` — token da instância
-3. No nó **Z-API WhatsApp**, vincular a credencial `CB MOVE Z-API Client Token`.
+2. Variables do workflow/projeto:
+   - `ZAPI_INSTANCE_ID`
+   - `ZAPI_INSTANCE_TOKEN`
+3. No nó **Z-API WhatsApp PDF**, vincular a credencial acima.
 
-Endpoint usado:
+Endpoint (Fase 2):
 
 ```
-POST https://api.z-api.io/instances/{ZAPI_INSTANCE_ID}/token/{ZAPI_INSTANCE_TOKEN}/send-text
-Body: { "phone": "5511999999999", "message": "..." }
+POST https://api.z-api.io/instances/{ZAPI_INSTANCE_ID}/token/{ZAPI_INSTANCE_TOKEN}/send-document/pdf
+Body: {
+  "phone": "5511999999999",
+  "document": "https://.../boleto.pdf",
+  "fileName": "boleto-cbmove-07-2026.pdf",
+  "caption": "CB MOVE — boleto ..."
+}
 ```
-
-Documentação: https://developer.z-api.io/en/message/send-text
 
 ## 2. Publicar workflow
 
@@ -70,7 +96,7 @@ Documentação: https://developer.z-api.io/en/message/send-text
 python scripts/apply-integracao-n8n-boleto.py
 ```
 
-Ou rodar no SQL Editor:
+Ou SQL:
 
 ```sql
 INSERT INTO public.integracao_config (chave, valor)
@@ -106,9 +132,6 @@ Enviado por [`boleto-cobranca-queue.ts`](../../supabase/functions/_shared/boleto
 }
 ```
 
-- `canais` vem só com `whatsapp` se o paciente tem telefone válido (edge).
-- `event_id` fixo por cobrança → dedup na edge evita reenvio duplicado.
-
 ## 5. Fluxo
 
 ```
@@ -116,8 +139,8 @@ send-boleto-cobranca (Edge)
   → valida boleto_url + email + dedup cobrancas_envios
   → POST webhook n8n + X-Webhook-Secret
   → n8n: Parse → Montar mensagens → Gmail
-  → IF tem_whatsapp → Z-API send-text (continue on fail)
-  → Respond 200 { ok, event_id, cobranca_id }
+  → IF tem_whatsapp → Z-API send-document/pdf (continue on fail)
+  → Respond 200 { ok, event_id, cobranca_id, whatsapp: "pdf" }
   → Edge INSERT cobrancas_envios
 ```
 
@@ -137,11 +160,11 @@ python scripts/test-send-boleto-cobranca.py
 
 1. Cobranças → paciente com boleto gerado
 2. **Enviar boleto**
-3. Verificar e-mail + WhatsApp + registro em `cobrancas_envios`
+3. Verificar e-mail + **PDF no WhatsApp** + registro em `cobrancas_envios`
 
 ## Pendências
 
-- [ ] Criar credencial `CB MOVE Z-API Client Token` e variáveis Z-API no n8n
-- [ ] Confirmar publicação ativa após configurar Z-API
-- [ ] Fase 2: `sendMedia` com PDF do `boleto_url` na Z-API
+- [ ] Confirmar credencial Z-API + variáveis no n8n Cloud
+- [ ] Reimportar/publicar workflow com nó PDF
+- [ ] Smoke: 1 envio real (telefone de teste) após publicar
 - [ ] Histórico de envios na UI (ler `cobrancas_envios`)
