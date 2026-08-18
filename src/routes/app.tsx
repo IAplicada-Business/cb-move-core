@@ -17,7 +17,9 @@ function AppShell() {
     useAuth();
   const navigate = useNavigate();
 
-  const awaitingRoles = Boolean(session && !rolesReady && !rolesError);
+  // Só esperamos os papéis quando ainda não há nenhum: revalidação com papéis em
+  // memória segue em segundo plano, sem trocar a tela por um spinner.
+  const awaitingRoles = Boolean(session && !rolesReady && !rolesError && roles.length === 0);
   const mustRedirect =
     !loading &&
     session &&
