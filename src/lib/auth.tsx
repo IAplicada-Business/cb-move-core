@@ -51,23 +51,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const rolesUserIdRef = React.useRef<string | null>(null);
   const rolesLoadingUserIdRef = React.useRef<string | null>(null);
   const loadRolesEpochRef = React.useRef(0);
+  const rolesLoadedAtRef = React.useRef(0);
 
-  async function loadRoles(userId: string, options?: { force?: boolean }) {
-    if (options?.force) {
+  /**
+   * `silent` revalida os papéis sem passar por `rolesReady: false` — os guards de
+   * /app e /portal continuam renderizando a tela em vez de trocá-la por um spinner.
+   */
+  async function loadRoles(userId: string, options?: { force?: boolean; silent?: boolean }) {
+    const alreadyLoaded = rolesUserIdRef.current === userId;
+    if (!options?.force && alreadyLoaded) return;
+
+    const silent = Boolean(options?.silent) && alreadyLoaded;
+    if (rolesLoadingUserIdRef.current === userId && (silent || !options?.force)) return;
+
+    if (options?.force && !silent) {
       invalidateAccessContext();
-    } else if (rolesUserIdRef.current === userId) {
-      return;
-    }
-
-    if (!options?.force && rolesLoadingUserIdRef.current === userId) {
-      return;
     }
 
     const epoch = ++loadRolesEpochRef.current;
     rolesLoadingUserIdRef.current = userId;
-    setRolesReady(false);
-    setRolesError(false);
-    diag.info("auth", "carregando papéis", { userId, force: Boolean(options?.force) });
+    if (!silent) {
+      setRolesReady(false);
+      setRolesError(false);
+    }
+    diag.info("auth", "carregando papéis", {
+      userId,
+      force: Boolean(options?.force),
+      silent,
+    });
 
     try {
       const [rolesResult, profileResult, pacResult] = await withTimeout(
