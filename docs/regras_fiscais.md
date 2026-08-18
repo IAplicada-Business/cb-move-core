@@ -132,7 +132,9 @@ O CSV exportado (aba "Logjur") tem as seguintes colunas:
 
 - Match por valor ± R$ 0,01
 - Match por data ± 5 dias úteis do vencimento
+- Confiança: ≤1 dia útil alta · ≤3 média · ≤5 baixa
 - Confirmação manual antes de atualizar status → pago
+- Fixtures sintéticas: `src/lib/fixtures/extrato-bradesco-exemplo.*` (ver `docs/EXTRATOS_BRADESCO_AMOSTRAS.md`)
 - ⚠️ CONFIRMAR COM DIEGO: como identificar pagador pelo extrato?
 
 ---

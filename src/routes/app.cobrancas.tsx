@@ -38,6 +38,13 @@ import {
 } from "@/components/domain/AtendimentoCadastroFields";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { PacienteCobrancaSheet } from "@/components/domain/PacienteCobrancaSheet";
+import { PainelConciliacaoInline } from "@/components/domain/PainelConciliacaoInline";
+import {
+  loadMatchesRecentes,
+  removeMatchesRecentesByCobrancaIds,
+  saveMatchesRecentes,
+  type MatchConciliacaoRecente,
+} from "@/lib/conciliacao-matches-recentes";
 import { queryKeys } from "@/lib/queries";
 import { brl, formatDate } from "@/lib/format";
 import {
@@ -896,20 +903,26 @@ function ModalExtrato({
   open,
   onClose,
   cobrancas,
+  onMatchesFound,
+  onMatchesApplied,
 }: {
   open: boolean;
   onClose: () => void;
   cobrancas: Cobranca[];
+  onMatchesFound?: (matches: MatchCobranca[], arquivoNome?: string) => void;
+  onMatchesApplied?: (cobrancaIds: string[]) => void;
 }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [matches, setMatches] = useState<MatchCobranca[]>([]);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [processando, setProcessando] = useState(false);
+  const [arquivoNome, setArquivoNome] = useState<string | undefined>();
 
   function resetExtrato() {
     setMatches([]);
     setSelecionados(new Set());
+    setArquivoNome(undefined);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -934,9 +947,11 @@ function ModalExtrato({
 
       const result = matchTransacoesComCobrancas(transacoes, cobSimples);
       setMatches(result);
+      setArquivoNome(file.name);
       setSelecionados(
         new Set(result.filter((m) => m.confianca === "alta").map((m) => m.cobrancaId)),
       );
+      onMatchesFound?.(result, file.name);
       setProcessando(false);
       if (fileRef.current) fileRef.current.value = "";
     };
@@ -947,11 +962,13 @@ function ModalExtrato({
     mutationFn: async () => {
       const sel = matches.filter((m) => selecionados.has(m.cobrancaId));
       await Promise.all(sel.map((m) => marcarComoPago(m.cobrancaId, m.transacao.data)));
+      return sel.map((m) => m.cobrancaId);
     },
-    onSuccess: () => {
+    onSuccess: (ids) => {
       qc.invalidateQueries({ queryKey: queryKeys.cobrancas.all });
       qc.invalidateQueries({ queryKey: ["financeiro", "kpis"] });
       toast.success(`${selecionados.size} cobrança(s) marcada(s) como pagas`);
+      onMatchesApplied?.(ids);
       resetExtrato();
       onClose();
     },
@@ -1009,6 +1026,7 @@ function ModalExtrato({
               {matches.length > 0 && (
                 <span className="text-xs text-muted-foreground">
                   {matches.length} match(es) encontrado(s)
+                  {arquivoNome ? ` · ${arquivoNome}` : ""}
                 </span>
               )}
             </div>
@@ -1054,7 +1072,7 @@ function ModalExtrato({
                     <TableCell>{formatDate(m.transacao.data)}</TableCell>
                     <TableCell>{brl(m.transacao.valor)}</TableCell>
                     <TableCell>{brl(m.diferenca)}</TableCell>
-                    <TableCell>{m.diasDiferenca}d</TableCell>
+                    <TableCell>{m.diasDiferenca}d úteis</TableCell>
                     <TableCell>
                       <span className={`text-xs font-semibold ${confiancaCls[m.confianca]}`}>
                         {m.confianca.charAt(0).toUpperCase() + m.confianca.slice(1)}
@@ -1156,6 +1174,9 @@ function CobrancasPage() {
   const [marcarPago, setMarcarPago] = useState<Cobranca | null>(null);
   const [parcelando, setParcelando] = useState<Cobranca | null>(null);
   const [modalExtrato, setModalExtrato] = useState(false);
+  const [matchesRecentes, setMatchesRecentes] = useState<MatchConciliacaoRecente[]>(() =>
+    loadMatchesRecentes(),
+  );
   const [pacienteSheetId, setPacienteSheetId] = useState<string | null>(null);
   const [pacienteSheetNome, setPacienteSheetNome] = useState<string | null>(null);
 
@@ -1418,6 +1439,11 @@ function CobrancasPage() {
         </DashboardSection>
       )}
 
+      <PainelConciliacaoInline
+        matches={matchesRecentes}
+        onAbrirExtrato={() => setModalExtrato(true)}
+      />
+
       <ModalNovaCobranca open={modalNova} onClose={() => setModalNova(false)} />
       <ModalMarcarPago
         cobranca={marcarPago}
@@ -1429,6 +1455,12 @@ function CobrancasPage() {
         open={modalExtrato}
         onClose={() => setModalExtrato(false)}
         cobrancas={cobrancas}
+        onMatchesFound={(matches, arquivoNome) => {
+          setMatchesRecentes(saveMatchesRecentes(matches, arquivoNome));
+        }}
+        onMatchesApplied={(ids) => {
+          setMatchesRecentes(removeMatchesRecentesByCobrancaIds(ids));
+        }}
       />
       <PacienteCobrancaSheet
         pacienteId={pacienteSheetId}
