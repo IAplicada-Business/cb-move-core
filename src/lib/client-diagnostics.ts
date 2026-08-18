@@ -90,7 +90,10 @@ export function createQueryClientWithDiagnostics() {
         // uma tela recém-carregada). 30s é suficiente para listas
         // administrativas que não mudam a cada segundo.
         staleTime: 30_000,
-        gcTime: 5 * 60_000,
+        // Com 5min, sair de uma tela e voltar depois do intervalo descartava o cache
+        // e a tela voltava do zero (spinner). 30min mantém a última leitura em mão:
+        // ela aparece na hora e o refetch acontece em segundo plano.
+        gcTime: 30 * 60_000,
       },
     },
     queryCache: new QueryCache({
