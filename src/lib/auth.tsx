@@ -11,8 +11,12 @@ import { withTimeout } from "./edge-functions";
 
 const LOAD_ROLES_TIMEOUT_MS = 8_000;
 
-/** Intervalo mínimo entre revalidações de papéis ao voltar para a aba. */
-const ROLES_REVALIDATE_INTERVAL_MS = 5 * 60_000;
+function sameRoles(a: AppRole[], b: AppRole[]) {
+  if (a.length !== b.length) return false;
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.every((role, index) => role === right[index]);
+}
 
 type AuthContextValue = {
   session: Session | null;
@@ -51,7 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const rolesUserIdRef = React.useRef<string | null>(null);
   const rolesLoadingUserIdRef = React.useRef<string | null>(null);
   const loadRolesEpochRef = React.useRef(0);
-  const rolesLoadedAtRef = React.useRef(0);
+  const rolesRef = React.useRef<AppRole[]>([]);
+  rolesRef.current = roles;
 
   /**
    * `silent` revalida os papéis sem passar por `rolesReady: false` — os guards de
@@ -109,13 +114,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         diag.error("auth", "falha ao buscar paciente vinculado", pacResult.error);
       }
 
-      const fetchedRoles = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
+      const rolesFromServer = ((rolesResult.data ?? []) as { role: AppRole }[]).map((r) => r.role);
+      // Uma revalidação que volta vazia (token expirando, RLS momentaneamente sem
+      // linhas) não pode zerar os papéis: os guards trocariam a tela por um spinner
+      // e ainda mandariam o usuário para /sem-acesso.
+      const fetchedRoles =
+        silent && rolesFromServer.length === 0 && rolesRef.current.length > 0
+          ? rolesRef.current
+          : rolesFromServer;
       const fetchedFisioId = profileResult.error
         ? fisioterapeutaId
         : ((profileResult.data as { fisioterapeuta_id: string | null } | null)?.fisioterapeuta_id ??
           null);
 
-      setRoles(fetchedRoles);
+      setRoles((current) => (sameRoles(current, fetchedRoles) ? current : fetchedRoles));
       if (!profileResult.error) {
         setFisioterapeutaId(fetchedFisioId);
       }
@@ -128,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
       rolesUserIdRef.current = userId;
-      rolesLoadedAtRef.current = Date.now();
       setRolesReady(true);
       setRolesError(false);
       syncAccessContext({
@@ -220,7 +231,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
-            setSession(nextSession);
+            setSession((current) => {
+              // O token novo já vive dentro do client do Supabase (quem precisa dele
+              // chama getSession). Trocar o objeto aqui re-renderizaria toda a árvore
+              // a cada refresh — e o refresh acontece justamente ao voltar para a aba.
+              const sameUser = Boolean(current && nextSession?.user?.id === current.user?.id);
+              if (event === "TOKEN_REFRESHED" && sameUser) return current;
+              return nextSession;
+            });
             return;
           }
 
@@ -266,38 +284,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    // Revalidar ao voltar para a aba é útil (o admin pode ter mudado permissões),
-    // mas precisa ser invisível: `silent` mantém a tela no ar e o intervalo mínimo
-    // evita uma rodada de consultas a cada alt-tab.
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      if (Date.now() - rolesLoadedAtRef.current < ROLES_REVALIDATE_INTERVAL_MS) return;
-      diag.info("auth", "aba visível — revalidando sessão e papéis em segundo plano");
-      void supabase.auth.getSession().then(({ data, error }) => {
-        if (error) {
-          diag.error("auth", "getSession ao voltar à aba falhou", error);
-          return;
-        }
-        diag.info("auth", "sessão revalidada", { hasSession: Boolean(data.session) });
-        if (data.session?.user) {
-          void loadRoles(data.session.user.id, { force: true, silent: true });
-        }
-      });
-    };
-    document.addEventListener("visibilitychange", onVisible);
-
+    // Nada de revalidar papéis ao voltar para a aba: as consultas em segundo plano
+    // faziam a tela piscar (e, quando voltavam vazias, jogavam o usuário para
+    // /sem-acesso). Mudança de permissão chega por `refreshRoles` ou no próximo load.
     return () => {
       mounted = false;
       window.clearTimeout(loadingWatchdog);
       sub.subscription.unsubscribe();
-      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
   const refreshRoles = React.useCallback(async () => {
     const uid = session?.user?.id;
     if (!uid) return;
-    await loadRoles(uid, { force: true });
+    await loadRoles(uid, { force: true, silent: true });
   }, [session?.user?.id]);
 
   const completeSignIn = React.useCallback(async (nextSession: Session): Promise<PostAuthPath> => {

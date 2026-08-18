@@ -24,6 +24,7 @@ function PortalShell() {
     refreshRoles,
   } = useAuth();
   const navigate = useNavigate();
+  const hasEnteredPortalRef = React.useRef(false);
 
   // Só esperamos os papéis quando ainda não há nenhum: revalidação com papéis em
   // memória segue em segundo plano, sem trocar a tela por um spinner.
@@ -50,19 +51,22 @@ function PortalShell() {
     }
   }, [loading, awaitingRoles, rolesError, session, isPaciente, roles, user, navigate]);
 
-  if (loading || !session || awaitingRoles) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background">
-        <LoadingState />
-      </div>
-    );
-  }
+  const canRenderPortal =
+    !loading &&
+    Boolean(session) &&
+    !rolesError &&
+    !mustResetPassword(user) &&
+    (isPaciente || roles.includes("cliente"));
+  if (canRenderPortal) hasEnteredPortalRef.current = true;
 
-  if (rolesError) {
-    return <AuthRolesError onRetry={() => void refreshRoles()} />;
-  }
+  // Depois que o portal apareceu uma vez, nenhuma revalidação em segundo plano pode
+  // trocá-lo por um spinner de tela cheia: enquanto a sessão existir, a tela fica.
+  const keepPortalMounted = hasEnteredPortalRef.current && Boolean(session) && !rolesError;
 
-  if (mustResetPassword(user) || (!isPaciente && !roles.includes("cliente"))) {
+  if (!canRenderPortal && !keepPortalMounted) {
+    if (rolesError) {
+      return <AuthRolesError onRetry={() => void refreshRoles()} />;
+    }
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <LoadingState />

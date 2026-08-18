@@ -16,6 +16,7 @@ function AppShell() {
   const { session, loading, roles, rolesReady, rolesError, isPaciente, user, refreshRoles } =
     useAuth();
   const navigate = useNavigate();
+  const hasEnteredAppRef = React.useRef(false);
 
   // Só esperamos os papéis quando ainda não há nenhum: revalidação com papéis em
   // memória segue em segundo plano, sem trocar a tela por um spinner.
@@ -53,19 +54,18 @@ function AppShell() {
     }
   }, [loading, awaitingRoles, rolesError, session, roles, rolesReady, isPaciente, user, navigate]);
 
-  if (loading || !session || awaitingRoles) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background">
-        <LoadingState />
-      </div>
-    );
-  }
+  const canRenderApp =
+    !loading && Boolean(session) && !rolesError && !mustRedirect && can.accessApp(roles);
+  if (canRenderApp) hasEnteredAppRef.current = true;
 
-  if (rolesError) {
-    return <AuthRolesError onRetry={() => void refreshRoles()} />;
-  }
+  // Depois que o app apareceu uma vez, nenhuma revalidação em segundo plano pode
+  // trocá-lo por um spinner de tela cheia: enquanto a sessão existir, a tela fica.
+  const keepAppMounted = hasEnteredAppRef.current && Boolean(session) && !rolesError;
 
-  if (mustRedirect || !can.accessApp(roles)) {
+  if (!canRenderApp && !keepAppMounted) {
+    if (rolesError) {
+      return <AuthRolesError onRetry={() => void refreshRoles()} />;
+    }
     return (
       <div className="grid min-h-screen place-items-center bg-background">
         <LoadingState />
