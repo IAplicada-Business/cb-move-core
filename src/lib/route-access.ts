@@ -35,9 +35,15 @@ async function loadAccessContext(options?: {
   return ctx;
 }
 
-/** Bloqueia fisio clínico e demais perfis sem permissão financeira. */
+/**
+ * Bloqueia fisio clínico e demais perfis sem permissão financeira.
+ *
+ * Usa o contexto em memória (o AuthProvider o mantém sincronizado a cada carga de
+ * papéis) — sem isso, cada navegação para uma tela financeira faria duas consultas
+ * ao Supabase dentro do `beforeLoad`, e o roteador trocaria a tela pelo pending.
+ */
 export async function assertFinanceAccess(): Promise<void> {
-  const ctx = await loadAccessContext({ bypassCache: true });
+  const ctx = await loadAccessContext();
   if (!ctx) throw redirect({ to: "/login" });
   if (!can.viewFinance(ctx.roles, ctx.fisioterapeutaId)) {
     throw redirect({ to: "/app" });
@@ -46,7 +52,7 @@ export async function assertFinanceAccess(): Promise<void> {
 
 /** Cadastro/gestão da equipe de fisioterapeutas. */
 export async function assertFisiosAccess(): Promise<void> {
-  const ctx = await loadAccessContext({ bypassCache: true });
+  const ctx = await loadAccessContext();
   if (!ctx) throw redirect({ to: "/login" });
   if (!can.manageFisios(ctx.roles, ctx.fisioterapeutaId)) {
     throw redirect({ to: "/app" });

@@ -11,6 +11,9 @@ import { withTimeout } from "./edge-functions";
 
 const LOAD_ROLES_TIMEOUT_MS = 8_000;
 
+/** Intervalo mínimo entre revalidações de papéis ao voltar para a aba. */
+const ROLES_REVALIDATE_INTERVAL_MS = 5 * 60_000;
+
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
@@ -48,23 +51,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const rolesUserIdRef = React.useRef<string | null>(null);
   const rolesLoadingUserIdRef = React.useRef<string | null>(null);
   const loadRolesEpochRef = React.useRef(0);
+  const rolesLoadedAtRef = React.useRef(0);
 
-  async function loadRoles(userId: string, options?: { force?: boolean }) {
-    if (options?.force) {
+  /**
+   * `silent` revalida os papéis sem passar por `rolesReady: false` — os guards de
+   * /app e /portal continuam renderizando a tela em vez de trocá-la por um spinner.
+   */
+  async function loadRoles(userId: string, options?: { force?: boolean; silent?: boolean }) {
+    const alreadyLoaded = rolesUserIdRef.current === userId;
+    if (!options?.force && alreadyLoaded) return;
+
+    const silent = Boolean(options?.silent) && alreadyLoaded;
+    if (rolesLoadingUserIdRef.current === userId && (silent || !options?.force)) return;
+
+    if (options?.force && !silent) {
       invalidateAccessContext();
-    } else if (rolesUserIdRef.current === userId) {
-      return;
-    }
-
-    if (!options?.force && rolesLoadingUserIdRef.current === userId) {
-      return;
     }
 
     const epoch = ++loadRolesEpochRef.current;
     rolesLoadingUserIdRef.current = userId;
-    setRolesReady(false);
-    setRolesError(false);
-    diag.info("auth", "carregando papéis", { userId, force: Boolean(options?.force) });
+    if (!silent) {
+      setRolesReady(false);
+      setRolesError(false);
+    }
+    diag.info("auth", "carregando papéis", {
+      userId,
+      force: Boolean(options?.force),
+      silent,
+    });
 
     try {
       const [rolesResult, profileResult, pacResult] = await withTimeout(
@@ -80,8 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (rolesResult.error) {
         diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
-        setRolesError(true);
-        setRolesReady(false);
+        // Numa revalidação em segundo plano os papéis atuais continuam valendo:
+        // derrubar a tela por uma consulta que falhou seria pior que ficar stale.
+        if (!silent) {
+          setRolesError(true);
+          setRolesReady(false);
+        }
         return;
       }
       if (profileResult.error) {
@@ -110,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
       rolesUserIdRef.current = userId;
+      rolesLoadedAtRef.current = Date.now();
       setRolesReady(true);
       setRolesError(false);
       syncAccessContext({
@@ -126,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       diag.error("auth", "loadRoles falhou ou expirou", error);
-      if (epoch === loadRolesEpochRef.current) {
+      if (epoch === loadRolesEpochRef.current && !silent) {
         setRolesError(true);
         setRolesReady(false);
       }
@@ -247,9 +266,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
+    // Revalidar ao voltar para a aba é útil (o admin pode ter mudado permissões),
+    // mas precisa ser invisível: `silent` mantém a tela no ar e o intervalo mínimo
+    // evita uma rodada de consultas a cada alt-tab.
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      diag.info("auth", "aba visível — revalidando sessão e papéis");
+      if (Date.now() - rolesLoadedAtRef.current < ROLES_REVALIDATE_INTERVAL_MS) return;
+      diag.info("auth", "aba visível — revalidando sessão e papéis em segundo plano");
       void supabase.auth.getSession().then(({ data, error }) => {
         if (error) {
           diag.error("auth", "getSession ao voltar à aba falhou", error);
@@ -257,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         diag.info("auth", "sessão revalidada", { hasSession: Boolean(data.session) });
         if (data.session?.user) {
-          void loadRoles(data.session.user.id, { force: true });
+          void loadRoles(data.session.user.id, { force: true, silent: true });
         }
       });
     };

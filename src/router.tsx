@@ -12,8 +12,10 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 60_000,
-    // Padrão do TanStack é 1000ms — deixa a tela “congelada” antes de reagir.
-    defaultPendingMs: 120,
+    // 120ms era agressivo demais: qualquer navegação um pouco mais lenta piscava o
+    // skeleton no lugar da tela. Meio segundo cobre transições instantâneas (cache
+    // quente) e só mostra o pending quando o chunk realmente demora.
+    defaultPendingMs: 500,
     defaultPendingMinMs: 0,
     defaultPendingComponent: RoutePending,
   });

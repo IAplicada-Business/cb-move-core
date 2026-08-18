@@ -1286,7 +1286,7 @@ function NotasFiscaisPage() {
             }
             noPadding
           >
-            {!semNfQuery.isPending && !semNfQuery.data && aEmitirSemDocumento > 0 && (
+            {semNfQuery.data && aEmitirSemDocumento > 0 && (
               <p className="border-b border-border/60 bg-[#FFF7ED]/50 px-6 py-2 text-xs font-medium text-destructive">
                 {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para
                 selecionar, mas só emite após completar o cadastro em Pacientes.
@@ -1298,8 +1298,7 @@ function NotasFiscaisPage() {
                 {semNfQuery.error instanceof Error ? semNfQuery.error.message : "Falha na consulta"}
               </p>
             )}
-            {!semNfQuery.isPending &&
-              !semNfQuery.data &&
+            {semNfQuery.data &&
               !semNfQuery.isError &&
               aEmitir.length === 0 &&
               compMes &&
