@@ -1298,8 +1298,7 @@ function NotasFiscaisPage() {
                 {semNfQuery.error instanceof Error ? semNfQuery.error.message : "Falha na consulta"}
               </p>
             )}
-            {!semNfQuery.isPending &&
-              !semNfQuery.data &&
+            {semNfQuery.data &&
               !semNfQuery.isError &&
               aEmitir.length === 0 &&
               compMes &&
