@@ -128,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setIsPaciente(isCliente(fetchedRoles) || (pacId !== null && !isStaff(fetchedRoles)));
       rolesUserIdRef.current = userId;
+      rolesLoadedAtRef.current = Date.now();
       setRolesReady(true);
       setRolesError(false);
       syncAccessContext({
