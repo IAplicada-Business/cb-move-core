@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       diag.error("auth", "loadRoles falhou ou expirou", error);
-      if (epoch === loadRolesEpochRef.current) {
+      if (epoch === loadRolesEpochRef.current && !silent) {
         setRolesError(true);
         setRolesReady(false);
       }
