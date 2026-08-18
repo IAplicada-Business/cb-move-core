@@ -94,6 +94,11 @@ export function createQueryClientWithDiagnostics() {
         // e a tela voltava do zero (spinner). 30min mantém a última leitura em mão:
         // ela aparece na hora e o refetch acontece em segundo plano.
         gcTime: 30 * 60_000,
+        // Trocar de aba, minimizar a janela ou voltar do bloqueio de tela disparava
+        // um refetch de todas as queries montadas — a tela inteira parecia recarregar.
+        // Os dados continuam frescos pelas invalidações das mutations e pelo refetch
+        // ao montar/navegar.
+        refetchOnWindowFocus: false,
       },
     },
     queryCache: new QueryCache({

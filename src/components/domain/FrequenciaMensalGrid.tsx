@@ -59,7 +59,7 @@ export function FrequenciaMensalGrid({ mes, ano, filterFisio, filterTipo, filtro
   const [busca, setBusca] = useState("");
   const days = daysInMonth(mes, ano);
 
-  const { data, isFetching } = useQuery({
+  const { data } = useQuery({
     queryKey: queryKeys.sessoes.gradeMes(mes, ano),
     queryFn: () => fetchSessoesGradeMensal(mes, ano),
   });
@@ -186,7 +186,6 @@ export function FrequenciaMensalGrid({ mes, ano, filterFisio, filterTipo, filtro
         <p className="text-xs text-muted-foreground">
           Consolidado da tabela <strong>sessões</strong> — registre P/F/FJ/NJ/RC/NR no painel do
           agendamento (visão Semana).
-          {isFetching ? " · atualizando…" : ""}
         </p>
         <Button
           type="button"

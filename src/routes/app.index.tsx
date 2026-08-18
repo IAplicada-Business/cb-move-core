@@ -46,7 +46,7 @@ function Dashboard() {
   const periodoLabel = monthPickerLabel(mes, ano);
   const fisioScope = isFisioScoped ? fisioterapeutaId : null;
 
-  const { data, isFetching } = useQuery(dashboardHomeOptions(ano, mes, fisioScope));
+  const { data } = useQuery(dashboardHomeOptions(ano, mes, fisioScope));
   const noData = !data;
 
   const kpis = data?.kpis;
@@ -86,9 +86,6 @@ function Dashboard() {
       <DataToolbar className="justify-between gap-3">
         <p className="text-sm text-cb-muted">
           Competência · <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
-          {isFetching && !noData && (
-            <span className="ml-2 text-xs font-normal text-cb-muted">Atualizando…</span>
-          )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {!isMesAtual && (
