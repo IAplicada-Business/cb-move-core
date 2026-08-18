@@ -57,7 +57,7 @@ function FisiosPage() {
   const [viewing, setViewing] = useState<Fisio | null>(null);
   const [showInativos, setShowInativos] = useState(false);
 
-  const { data: fisios = [], isLoading } = useQuery({
+  const { data: fisios = [], isPending: fisiosPending } = useQuery({
     queryKey: [...queryKeys.fisioterapeutas.all, showInativos ? "all" : "ativos"],
     queryFn: () => fetchFisios({ ativosOnly: !showInativos }),
   });
@@ -119,7 +119,7 @@ function FisiosPage() {
         }
       />
 
-      {isLoading ? (
+      {fisiosPending && fisios.length === 0 ? (
         <LoadingState />
       ) : fisios.length === 0 ? (
         <EmptyState

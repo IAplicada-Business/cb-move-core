@@ -278,7 +278,7 @@ export function ProntuarioPacienteView({
   const sessoesRealizadas = countSessoesRealizadas(sessoes);
   const pacientesOptions = pacientesLista.map((p) => ({ id: p.id, nome: p.nome }));
 
-  if (loadPaciente) {
+  if (loadPaciente && !paciente) {
     return <LoadingState label="Carregando prontuário do paciente…" />;
   }
 

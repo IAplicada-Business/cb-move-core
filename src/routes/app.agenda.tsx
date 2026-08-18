@@ -538,7 +538,7 @@ function AgendaPage() {
     return { inicio, fim };
   }, [visao, semanaBase, mesRef]);
 
-  const { data: agendamentos = [], isLoading } = useQuery({
+  const { data: agendamentos = [], isPending: agendaPending } = useQuery({
     queryKey: queryKeys.agendamentos.periodo(periodo.inicio, periodo.fim),
     queryFn: () => fetchAgendamentosPeriodoLocal(periodo.inicio, periodo.fim),
     enabled: visao !== "frequencia",
@@ -1200,7 +1200,7 @@ function AgendaPage() {
         </div>
       </DataToolbar>
 
-      {isLoading && visao !== "frequencia" ? (
+      {agendaPending && agendamentos.length === 0 && visao !== "frequencia" ? (
         <LoadingState />
       ) : visao === "frequencia" ? (
         <FrequenciaMensalGrid
@@ -1427,7 +1427,7 @@ function AgendaPage() {
         </div>
       )}
 
-      {!isLoading &&
+      {agendamentos.length > 0 &&
         visao !== "semana" &&
         visao !== "dia" &&
         visao !== "frequencia" &&

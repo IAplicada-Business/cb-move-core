@@ -76,7 +76,7 @@ function PortalExercicios() {
     return (semanaMap.get(exercicioId) ?? []).length;
   }
 
-  if (isLoading) return <LoadingState />;
+  if (!exercicios.length && isLoading) return <LoadingState />;
 
   return (
     <div className="space-y-5">

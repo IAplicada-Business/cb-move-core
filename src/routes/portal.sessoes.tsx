@@ -102,7 +102,7 @@ function PortalSessoes() {
         <span className="text-cb-cyan-700"> encontros realizados neste mês</span>
       </div>
 
-      {loading && <LoadingState />}
+      {loading && sessoes.length === 0 && <LoadingState />}
 
       {/* Lista */}
       {!loading && sessoes.length === 0 && (

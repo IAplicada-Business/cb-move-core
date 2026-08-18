@@ -1211,7 +1211,7 @@ function NotasFiscaisPage() {
         )}
       </DataToolbar>
 
-      {query.isLoading ? (
+      {query.isPending && !query.data ? (
         <LoadingState />
       ) : query.isError ? (
         <EmptyState
@@ -1241,7 +1241,7 @@ function NotasFiscaisPage() {
             title="A emitir"
             badge={
               <DashboardSectionBadge accent="orange">
-                {semNfQuery.isLoading
+                {semNfQuery.isPending && !semNfQuery.data
                   ? "…"
                   : compMes && compAno
                     ? `${MESES_ABREV[compMes - 1]}/${compAno}`
@@ -1286,7 +1286,7 @@ function NotasFiscaisPage() {
             }
             noPadding
           >
-            {!semNfQuery.isLoading && aEmitirSemDocumento > 0 && (
+            {!semNfQuery.isPending && !semNfQuery.data && aEmitirSemDocumento > 0 && (
               <p className="border-b border-border/60 bg-[#FFF7ED]/50 px-6 py-2 text-xs font-medium text-destructive">
                 {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para
                 selecionar, mas só emite após completar o cadastro em Pacientes.
@@ -1298,7 +1298,8 @@ function NotasFiscaisPage() {
                 {semNfQuery.error instanceof Error ? semNfQuery.error.message : "Falha na consulta"}
               </p>
             )}
-            {!semNfQuery.isLoading &&
+            {!semNfQuery.isPending &&
+              !semNfQuery.data &&
               !semNfQuery.isError &&
               aEmitir.length === 0 &&
               compMes &&
@@ -1308,7 +1309,7 @@ function NotasFiscaisPage() {
                   Jun/2026).
                 </p>
               )}
-            {semNfQuery.isLoading ? (
+            {semNfQuery.isPending && !semNfQuery.data ? (
               <div className="px-4 py-6">
                 <LoadingState />
               </div>

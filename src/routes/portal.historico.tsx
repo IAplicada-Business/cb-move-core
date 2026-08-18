@@ -58,7 +58,7 @@ function PortalHistorico() {
       });
   }, [pacienteId]);
 
-  if (loading) return <LoadingState />;
+  if (loading && grupos.length === 0) return <LoadingState />;
 
   return (
     <div className="space-y-5">

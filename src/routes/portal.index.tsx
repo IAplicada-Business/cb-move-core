@@ -105,7 +105,7 @@ function PortalInicio() {
     };
   }, [user, pacienteId]);
 
-  if (loading) return <LoadingState />;
+  if (loading && !paciente) return <LoadingState />;
 
   const firstName = paciente?.nome?.split(" ")[0] ?? "Olá";
 

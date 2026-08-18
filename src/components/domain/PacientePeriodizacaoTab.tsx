@@ -119,7 +119,7 @@ export function PacientePeriodizacaoTab({
   const pdfInputRef = React.useRef<HTMLInputElement>(null);
   const periodizacaoPdfUrl = paciente?.periodizacaoPdfUrl ?? null;
 
-  const { data: itens = [], isLoading } = useQuery({
+  const { data: itens = [], isPending: itensPending } = useQuery({
     queryKey: queryKeys.periodizacao.byPaciente(pacienteId),
     queryFn: () => fetchPeriodizacaoPaciente(pacienteId),
     enabled: !!pacienteId,
@@ -211,7 +211,7 @@ export function PacientePeriodizacaoTab({
   const temFrequencia = Boolean(paciente?.frequenciaAtendimento?.trim());
   const temObjetivos = itens.length > 0;
 
-  if (isLoading) return <LoadingState />;
+  if (itensPending && itens.length === 0) return <LoadingState />;
 
   return (
     <div className="space-y-4">

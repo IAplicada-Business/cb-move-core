@@ -594,10 +594,11 @@ export function DashboardFinanceiro() {
     imprimirDocumentoHtml("Extrato Financeiro", subtitulo, printRef.current.innerHTML);
   }
 
-  const loadingKpis = kpisQuery.isLoading || statusKpisQuery.isLoading;
+  const loadingKpis =
+    !kpisQuery.data && !statusKpisQuery.data && (kpisQuery.isPending || statusKpisQuery.isPending);
   const kpisError = kpisQuery.isError || statusKpisQuery.isError;
-  const loadingReceita = receitaQuery.isLoading;
-  const loadingExtrato = extratoQuery.isLoading;
+  const loadingReceita = !receitaQuery.data && receitaQuery.isPending;
+  const loadingExtrato = !extratoQuery.data && extratoQuery.isPending;
 
   const tipoBarItems = (["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map(
     (tipo) => ({
@@ -763,11 +764,7 @@ export function DashboardFinanceiro() {
         noPadding
         bodyClassName="px-4 pb-4 pt-2 sm:px-6"
       >
-        {receitaMensalQuery.isLoading ? (
-          <LoadingState />
-        ) : (
-          <ReceitaMensalChart data={receitaMensalQuery.data ?? []} />
-        )}
+        <ReceitaMensalChart data={receitaMensalQuery.data ?? []} />
       </DashboardSection>
 
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -847,11 +844,7 @@ export function DashboardFinanceiro() {
           noPadding
           bodyClassName={FINANCE_WIDGET_BODY}
         >
-          {historicoQuery.isLoading ? (
-            <LoadingState compact />
-          ) : (
-            <CobrancaTrendLineChart className="h-[220px] w-full" data={historicoQuery.data ?? []} />
-          )}
+          <CobrancaTrendLineChart className="h-[220px] w-full" data={historicoQuery.data ?? []} />
         </DashboardSection>
       </div>
 

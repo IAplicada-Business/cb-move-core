@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { DashboardFinanceiro } from "@/components/domain/DashboardFinanceiro";
-import { LoadingState } from "@/components/domain/LoadingState";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage } from "@/components/domain/DashboardSection";
 import { assertFinanceAccess } from "@/lib/route-access";
@@ -18,14 +17,10 @@ export const Route = createFileRoute("/app/financeiro")({
     const now = new Date();
     const mes = now.getMonth() + 1;
     const ano = now.getFullYear();
-    return Promise.all([
-      context.queryClient.ensureQueryData(financeiroKpisPorTipoOptions(mes, ano)),
-      context.queryClient.ensureQueryData(receitaMensalOptions(ano)),
-      context.queryClient.ensureQueryData(financeiroKpisHistoricoOptions()),
-    ]);
+    void context.queryClient.prefetchQuery(financeiroKpisPorTipoOptions(mes, ano));
+    void context.queryClient.prefetchQuery(receitaMensalOptions(ano));
+    void context.queryClient.prefetchQuery(financeiroKpisHistoricoOptions());
   },
-  pendingComponent: () => <LoadingState />,
-  pendingMs: 200,
   component: FinanceiroPage,
 });
 

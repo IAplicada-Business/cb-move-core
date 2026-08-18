@@ -35,7 +35,7 @@ function PortalLaudos() {
       });
   }, [pacienteId]);
 
-  if (loading) return <LoadingState />;
+  if (loading && docs.length === 0) return <LoadingState />;
 
   return (
     <div className="space-y-5">
