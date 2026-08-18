@@ -94,8 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (rolesResult.error) {
         diag.error("auth", "falha ao buscar user_roles", rolesResult.error);
-        setRolesError(true);
-        setRolesReady(false);
+        // Numa revalidação em segundo plano os papéis atuais continuam valendo:
+        // derrubar a tela por uma consulta que falhou seria pior que ficar stale.
+        if (!silent) {
+          setRolesError(true);
+          setRolesReady(false);
+        }
         return;
       }
       if (profileResult.error) {
