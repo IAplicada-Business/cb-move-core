@@ -11,6 +11,9 @@ import { withTimeout } from "./edge-functions";
 
 const LOAD_ROLES_TIMEOUT_MS = 8_000;
 
+/** Intervalo mínimo entre revalidações de papéis ao voltar para a aba. */
+const ROLES_REVALIDATE_INTERVAL_MS = 5 * 60_000;
+
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
