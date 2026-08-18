@@ -28,18 +28,23 @@ Use este checklist **somente após** Fase 1 de homologação concluída e aprova
 
 ## Cora — produção
 
+Runbook detalhado: [`docs/CUTOVER_CORA_PRODUCAO.md`](CUTOVER_CORA_PRODUCAO.md)
+
 - [ ] Credenciais mTLS **produção** (cert + key + client_id)
 - [ ] `CORA_API_BASE` apontando para API produção (não stage)
+- [ ] `python scripts/verify-cora-ambiente.py` → PRODUCTION
+- [ ] `python scripts/test-cora-token.py` OK em prod
 - [ ] Webhook produção registrado com `?secret=` (`CORA_WEBHOOK_SHARED_SECRET`)
 - [ ] `CORA_WEBHOOK_ENDPOINT_ID` atualizado
 - [ ] Teste E2E: boleto real mínimo → pagamento → NF automática
 
-## n8n / e-mail
+## n8n / e-mail / WhatsApp boleto
 
 - [ ] `N8N_WEBHOOK_NF_EMAIL` ativo
 - [ ] `N8N_WEBHOOK_SECRET` configurado
-- [ ] Workflow publicado (`docs/n8n/SETUP_NF_EMAIL.md`)
-- [ ] (Opcional Fase 2) PDF anexo + Resend
+- [ ] Workflow NF publicado (`docs/n8n/SETUP_NF_EMAIL.md`)
+- [ ] Workflow boleto docs publicado com **PDF** (`docs/n8n/SETUP_BOLETO_DOCS.md` — Fase 2 `send-document/pdf`)
+- [ ] (Opcional) PDF anexo e-mail + Resend
 
 ## Operacional
 

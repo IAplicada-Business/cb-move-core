@@ -53,6 +53,7 @@ function normalizePhone(raw) {
 
 const pac = body.paciente || {};
 const canais = Array.isArray(body.canais) ? body.canais : ['email'];
+const competenciaSlug = String(body.competencia || 'boleto').replace(/[^0-9A-Za-z_-]+/g, '-');
 
 return [{
   json: {
@@ -62,6 +63,7 @@ return [{
     telefone_e164: normalizePhone(pac.telefone),
     tem_whatsapp: canais.includes('whatsapp') && !!normalizePhone(pac.telefone),
     to_email: pac.email,
+    boleto_filename: \`boleto-cbmove-\${competenciaSlug}.pdf\`,
   },
 }];`,
     },
@@ -93,12 +95,16 @@ const html = \`
 <p>Em caso de dúvidas, responda este e-mail ou fale conosco pelo WhatsApp.</p>
 <p>CB MOVE Neuroscience</p>\`;
 
+// Texto curto (legado / fallback). PDF vai em send-document.
 let whatsapp = \`Olá \${nome}, CB MOVE — cobrança \${p.competencia || '—'}.\\n\\n\`;
-whatsapp += \`Valor: \${p.valor_fmt}\\nVencimento: \${p.vencimento_fmt}\\n\\n\`;
-whatsapp += \`Boleto: \${p.boleto_url}\\n\`;
+whatsapp += \`Valor: \${p.valor_fmt}\\nVencimento: \${p.vencimento_fmt}\\n\`;
 if (p.pix_emv) whatsapp += \`\\nPIX Copia e Cola:\\n\${p.pix_emv}\`;
 
-return [{ json: { ...p, assunto, email_html: html, whatsapp_text: whatsapp } }];`,
+// Caption do PDF (sem link — o arquivo é anexado)
+let caption = \`CB MOVE — boleto \${p.competencia || '—'}\\nValor: \${p.valor_fmt}\\nVencimento: \${p.vencimento_fmt}\`;
+if (p.pix_emv) caption += \`\\n\\nPIX Copia e Cola:\\n\${p.pix_emv}\`;
+
+return [{ json: { ...p, assunto, email_html: html, whatsapp_text: whatsapp, whatsapp_caption: caption } }];`,
     },
   },
 });
@@ -146,15 +152,17 @@ const temWhatsapp = ifElse({
   },
 });
 
-const zapiWhatsapp = node({
+const zapiWhatsappPdf = node({
   type: "n8n-nodes-base.httpRequest",
   version: 4.4,
   config: {
-    name: "Z-API WhatsApp",
+    name: "Z-API WhatsApp PDF",
     onError: "continueRegularOutput",
     parameters: {
       method: "POST",
-      url: "={{ 'https://api.z-api.io/instances/' + $env.ZAPI_INSTANCE_ID + '/token/' + $env.ZAPI_INSTANCE_TOKEN + '/send-text' }}",
+      // Fase 2: PDF via send-document/pdf (equivale ao sendMedia do board)
+      // Docs: https://developer.z-api.io/message/send-document
+      url: "={{ 'https://api.z-api.io/instances/' + $env.ZAPI_INSTANCE_ID + '/token/' + $env.ZAPI_INSTANCE_TOKEN + '/send-document/pdf' }}",
       authentication: "genericCredentialType",
       genericAuthType: "httpHeaderAuth",
       sendHeaders: true,
@@ -165,7 +173,7 @@ const zapiWhatsapp = node({
       contentType: "json",
       specifyBody: "json",
       jsonBody: expr(
-        '={{ { phone: $("Montar mensagens").item.json.telefone_e164, message: $("Montar mensagens").item.json.whatsapp_text } }}',
+        '={{ { phone: $("Montar mensagens").item.json.telefone_e164, document: $("Montar mensagens").item.json.boleto_url, fileName: $("Montar mensagens").item.json.boleto_filename, caption: $("Montar mensagens").item.json.whatsapp_caption } }}',
       ),
       options: {
         response: { response: { neverError: true } },
@@ -185,7 +193,7 @@ const respondOk = node({
     parameters: {
       respondWith: "json",
       responseBody: expr(
-        '={{ { ok: true, event_id: $("Parse payload").item.json.event_id, cobranca_id: $("Parse payload").item.json.cobranca_id } }}',
+        '={{ { ok: true, event_id: $("Parse payload").item.json.event_id, cobranca_id: $("Parse payload").item.json.cobranca_id, whatsapp: "pdf" } }}',
       ),
       options: { responseCode: 200 },
     },
@@ -197,4 +205,4 @@ export default workflow("cbmove-boleto-docs", "CB MOVE - Boleto Docs")
   .to(parsePayload)
   .to(montarMensagens)
   .to(enviarGmail)
-  .to(temWhatsapp.onTrue(zapiWhatsapp.to(respondOk)).onFalse(respondOk));
+  .to(temWhatsapp.onTrue(zapiWhatsappPdf.to(respondOk)).onFalse(respondOk));
