@@ -1364,7 +1364,7 @@ function CobrancasPage() {
         )}
       </DataToolbar>
 
-      {query.isLoading ? (
+      {query.isPending && !query.data ? (
         <LoadingState />
       ) : pacientes.length === 0 ? (
         <EmptyState

@@ -59,7 +59,7 @@ export function FrequenciaMensalGrid({ mes, ano, filterFisio, filterTipo, filtro
   const [busca, setBusca] = useState("");
   const days = daysInMonth(mes, ano);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isFetching } = useQuery({
     queryKey: queryKeys.sessoes.gradeMes(mes, ano),
     queryFn: () => fetchSessoesGradeMensal(mes, ano),
   });
@@ -172,7 +172,7 @@ export function FrequenciaMensalGrid({ mes, ano, filterFisio, filterTipo, filtro
     toast.success("CSV exportado");
   }
 
-  if (isLoading) return <LoadingState />;
+  if (!data) return <LoadingState />;
 
   return (
     <div className="space-y-3">

@@ -30,8 +30,6 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/")({
   head: () => ({ meta: [{ title: "Dashboard · CB MOVE" }] }),
-  pendingComponent: () => <LoadingState />,
-  pendingMs: 200,
   component: Dashboard,
 });
 
@@ -48,7 +46,8 @@ function Dashboard() {
   const periodoLabel = monthPickerLabel(mes, ano);
   const fisioScope = isFisioScoped ? fisioterapeutaId : null;
 
-  const { data, isLoading, isFetching } = useQuery(dashboardHomeOptions(ano, mes, fisioScope));
+  const { data, isFetching } = useQuery(dashboardHomeOptions(ano, mes, fisioScope));
+  const noData = !data;
 
   const kpis = data?.kpis;
   const proximas = data?.proximasAgendas ?? [];
@@ -87,7 +86,7 @@ function Dashboard() {
       <DataToolbar className="justify-between gap-3">
         <p className="text-sm text-cb-muted">
           Competência · <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
-          {isFetching && !isLoading && (
+          {isFetching && !noData && (
             <span className="ml-2 text-xs font-normal text-cb-muted">Atualizando…</span>
           )}
         </p>
@@ -174,7 +173,7 @@ function Dashboard() {
           bodyClassName="px-4 pb-4 pt-2 sm:px-6 min-h-[320px]"
           className="min-h-[380px]"
         >
-          {isLoading ? (
+          {noData ? (
             <LoadingState />
           ) : (
             <AtividadeSemanalAreaChart data={data?.atividadeSemanal ?? []} />
@@ -197,7 +196,7 @@ function Dashboard() {
             noPadding
             bodyClassName="p-5"
           >
-            {isLoading ? (
+            {noData ? (
               <LoadingState />
             ) : sessoesRealizadas === 0 ? (
               <EmptyState
@@ -215,7 +214,7 @@ function Dashboard() {
             )}
           </DashboardSection>
 
-          {!isLoading && sessoesRealizadas > 0 && (
+          {!noData && sessoesRealizadas > 0 && (
             <StatusDistributionBar
               totalLabel="Conformidade prontuário"
               formatValue={(n) => String(n)}
@@ -234,7 +233,7 @@ function Dashboard() {
             />
           )}
 
-          {isLoading ? (
+          {noData ? (
             <LoadingState />
           ) : (
             <DashboardRecentActivity
@@ -255,7 +254,7 @@ function Dashboard() {
           noPadding
           bodyClassName="px-4 pb-4 pt-2 sm:px-6"
         >
-          {isLoading ? (
+          {noData ? (
             <LoadingState />
           ) : (
             <PacientesPorTipoBarChart data={data?.pacientesPorTipo ?? []} />
@@ -271,7 +270,7 @@ function Dashboard() {
           noPadding
           bodyClassName="px-4 pb-4 pt-2 sm:px-6"
         >
-          {isLoading ? (
+          {noData ? (
             <LoadingState />
           ) : (
             <DivergenciaTrendLineChart data={data?.divergenciaTrend ?? []} />
@@ -298,7 +297,7 @@ function Dashboard() {
           noPadding
           bodyClassName="p-6"
         >
-          {isLoading ? <LoadingState /> : <DivergenciaPreviewList items={divergencias} />}
+          {noData ? <LoadingState /> : <DivergenciaPreviewList items={divergencias} />}
         </DashboardSection>
       )}
     </DashboardPage>

@@ -3,7 +3,6 @@ import { useRouterState } from "@tanstack/react-router";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Sidebar } from "./Sidebar";
 import { AppTopbar } from "./AppTopbar";
-import { cn } from "@/lib/utils";
 
 function NavigationProgress() {
   const isPending = useRouterState({ select: (s) => s.status === "pending" });
@@ -19,8 +18,6 @@ function NavigationProgress() {
 }
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const isPending = useRouterState({ select: (s) => s.status === "pending" });
-
   return (
     <SidebarProvider className="h-svh overflow-hidden bg-cb-bg dark:bg-background">
       <Sidebar />
@@ -29,12 +26,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <NavigationProgress />
         <AppTopbar />
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-cb-bg dark:bg-background">
-          <div
-            className={cn(
-              "mx-auto w-full max-w-none px-6 pb-8 pt-4 transition-opacity duration-150 md:px-8 lg:px-10",
-              isPending && "opacity-70",
-            )}
-          >
+          <div className="mx-auto w-full max-w-none px-6 pb-8 pt-4 md:px-8 lg:px-10">
             {children}
           </div>
         </div>

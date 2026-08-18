@@ -5,13 +5,11 @@ import { mustResetPassword } from "@/lib/password-reset";
 import { can, isCliente } from "@/lib/permissions";
 import { diag } from "@/lib/client-diagnostics";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { RoutePending } from "@/components/layout/RoutePending";
 import { AuthRolesError } from "@/components/domain/AuthRolesError";
 import { LoadingState } from "@/components/domain/LoadingState";
 
 export const Route = createFileRoute("/app")({
   component: AppShell,
-  pendingComponent: RoutePending,
 });
 
 function AppShell() {

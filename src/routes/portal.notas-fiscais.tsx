@@ -72,7 +72,7 @@ function PortalNotasFiscais() {
     }
   }
 
-  if (loading) return <LoadingState />;
+  if (loading && nfs.length === 0) return <LoadingState />;
 
   return (
     <div className="space-y-5">

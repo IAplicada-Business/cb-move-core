@@ -89,7 +89,7 @@ function PacientesPage() {
   const [editing, setEditing] = useState<Paciente | null>(null);
   const [deleting, setDeleting] = useState<Paciente | null>(null);
 
-  const { data: pacientes = [], isLoading } = useQuery({
+  const { data: pacientes = [], isPending: pacientesPending } = useQuery({
     queryKey: queryKeys.pacientes.list({
       search,
       tipo: filterTipo === "todos" ? undefined : filterTipo,
@@ -215,7 +215,7 @@ function PacientesPage() {
         </Select>
       </DataToolbar>
 
-      {isLoading ? (
+      {pacientesPending && pacientes.length === 0 ? (
         <LoadingState />
       ) : pacientes.length === 0 ? (
         <EmptyState
