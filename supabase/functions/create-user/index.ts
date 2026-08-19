@@ -11,7 +11,7 @@ type CreateBody = {
   nome?: string;
   /** @deprecated use perfil */
   role?: "admin" | "membro" | "cliente";
-  perfil?: "admin" | "fisio" | "cliente";
+  perfil?: "admin" | "fisio" | "cliente" | "operacional";
   paciente_id?: string | null;
   fisio?: {
     registro_profissional?: string | null;
@@ -21,15 +21,17 @@ type CreateBody = {
 
 type CadastroPerfil = NonNullable<CreateBody["perfil"]>;
 
-const VALID_PERFIS = new Set<CadastroPerfil>(["admin", "fisio", "cliente"]);
+const VALID_PERFIS = new Set<CadastroPerfil>(["admin", "fisio", "cliente", "operacional"]);
 
 function resolvePerfil(body: CreateBody): CadastroPerfil {
   if (body.perfil && VALID_PERFIS.has(body.perfil)) return body.perfil;
   const legacy = body.role ?? null;
   if (legacy === "admin") return "admin";
   if (legacy === "cliente") return "cliente";
-  if (legacy === "membro") return "fisio";
-  throw new CreateUserError("Perfil inválido. Use administrador, fisioterapeuta ou cliente.");
+  if (legacy === "membro") return "operacional";
+  throw new CreateUserError(
+    "Perfil inválido. Use administrador, equipe, fisioterapeuta ou cliente.",
+  );
 }
 
 function perfilToRole(perfil: CadastroPerfil): string {
@@ -39,6 +41,7 @@ function perfilToRole(perfil: CadastroPerfil): string {
     case "cliente":
       return "cliente";
     case "fisio":
+    case "operacional":
       return "membro";
   }
 }

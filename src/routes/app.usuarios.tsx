@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lock, Search, Shield, Trash2, UserCheck, Users } from "lucide-react";
+import { Lock, Search, Shield, Trash2, UserCheck, UserCog, Users } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -20,14 +20,23 @@ import { LoadingState } from "@/components/domain/LoadingState";
 import { UsuarioCardGrid, type UsuarioCardRow } from "@/components/domain/UsuarioCardGrid";
 import {
   UsuarioCadastroDialog,
+  emptyCadastroForm,
   type CadastroFormState,
 } from "@/components/domain/UsuarioCadastroDialog";
 import { queryKeys } from "@/lib/queries";
 import { useAuth } from "@/lib/auth";
-import { createUser, deleteUser, fetchUsers, type UserRow } from "@/lib/queries/usuarios";
+import {
+  createUser,
+  deleteUser,
+  fetchUserMenuPermissions,
+  fetchUsers,
+  saveUserMenuPermissions,
+  type UserRow,
+} from "@/lib/queries/usuarios";
 import { can } from "@/lib/permissions";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
+import { DEFAULT_MENU_FOR_OPERACIONAL } from "@/lib/menu-access";
 import {
   cadastroPerfilFromUsuarioRow,
   USUARIO_PERFIL_FILTER_OPTIONS,
@@ -68,18 +77,18 @@ export const Route = createFileRoute("/app/usuarios")({
   component: UsuariosPage,
 });
 
-const CADASTRO_FORM_DEFAULTS: CadastroFormState = {
-  nome: "",
-  email: "",
-  perfil: "fisio",
-  paciente_id: "",
-  registro_profissional: "",
-  ativo: true,
-};
+const CADASTRO_FORM_DEFAULTS: CadastroFormState = emptyCadastroForm("fisio");
 
 function findUserByEmail(users: UserRow[], email: string): UserRow | undefined {
   const target = email.toLowerCase();
   return users.find((u) => u.email?.toLowerCase() === target);
+}
+
+function resolvePerfilFromUser(u: UserRow): UsuarioCadastroPerfil {
+  if (u.fisioterapeuta_id) return "fisio";
+  if (u.role === "admin") return "admin";
+  if (u.role === "cliente" || u.role === "paciente") return "cliente";
+  return "operacional";
 }
 
 function buildUsuarioRows(users: UserRow[]): UsuarioCardRow[] {
@@ -104,13 +113,7 @@ function buildUsuarioRows(users: UserRow[]): UsuarioCardRow[] {
       key: u.id,
       nome: u.nome ?? u.email ?? "—",
       email: u.email ?? "—",
-      perfil: u.fisioterapeuta_id
-        ? "fisio"
-        : u.role === "admin"
-          ? "admin"
-          : u.role === "cliente"
-            ? "cliente"
-            : "fisio",
+      perfil: resolvePerfilFromUser(u),
       registered: u,
       isReference: false,
     });
@@ -150,6 +153,7 @@ function UsuariosPage() {
   });
 
   const editingExistingUser = !!findUserByEmail(users, cadastroForm.email);
+  const editingUserId = findUserByEmail(users, cadastroForm.email)?.id ?? null;
   const pacienteVinculadoId =
     cadastroOpen && cadastroTipo === "cliente" && cadastroForm.paciente_id
       ? cadastroForm.paciente_id
@@ -172,17 +176,67 @@ function UsuariosPage() {
     enabled: isAdmin && cadastroOpen && cadastroTipo === "cliente",
   });
 
+  const { isFetching: loadingMenus } = useQuery({
+    queryKey: queryKeys.usuarios.userMenuPermissions(editingUserId ?? "new"),
+    queryFn: () => fetchUserMenuPermissions(editingUserId!),
+    enabled: isAdmin && cadastroOpen && cadastroTipo === "operacional" && !!editingUserId,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (!cadastroOpen || cadastroTipo !== "operacional" || !editingUserId) return;
+    let cancelled = false;
+    void fetchUserMenuPermissions(editingUserId)
+      .then((menus) => {
+        if (cancelled) return;
+        setCadastroForm((f) => ({
+          ...f,
+          menu_permissions: { ...DEFAULT_MENU_FOR_OPERACIONAL, ...menus },
+        }));
+      })
+      .catch(() => {
+        /* mantém padrão */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cadastroOpen, cadastroTipo, editingUserId]);
+
   const cadastroMutation = useMutation({
-    mutationFn: createUser,
+    mutationFn: async (input: {
+      nome: string;
+      email: string;
+      perfil: UsuarioCadastroPerfil;
+      paciente_id: string | null;
+      fisio?: { registro_profissional: string | null; ativo: boolean };
+      menu_permissions?: CadastroFormState["menu_permissions"];
+    }) => {
+      const res = await createUser({
+        nome: input.nome,
+        email: input.email,
+        perfil: input.perfil,
+        paciente_id: input.paciente_id,
+        ...(input.fisio ? { fisio: input.fisio } : {}),
+      });
+      if (input.perfil === "operacional" && res.user_id && input.menu_permissions) {
+        await saveUserMenuPermissions(res.user_id, {
+          ...DEFAULT_MENU_FOR_OPERACIONAL,
+          ...input.menu_permissions,
+          "team.usuarios": false,
+        });
+      }
+      return res;
+    },
     onSuccess: async (res) => {
       qc.invalidateQueries({ queryKey: queryKeys.usuarios.all });
+      qc.invalidateQueries({ queryKey: ["usuarios", "user-menu-permissions"] });
       invalidateFisioListQueries(qc);
       if (!roles.includes("admin")) {
         await refreshRoles();
       }
       toast.success(res.message ?? "Usuário salvo");
       setCadastroOpen(false);
-      setCadastroForm(CADASTRO_FORM_DEFAULTS);
+      setCadastroForm(emptyCadastroForm("fisio"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -214,7 +268,7 @@ function UsuariosPage() {
   }, [usuarioRows, searchQuery, filterPerfil]);
 
   const perfilCounts = useMemo(() => {
-    const counts = { admin: 0, fisio: 0, cliente: 0 };
+    const counts = { admin: 0, fisio: 0, cliente: 0, operacional: 0 };
     for (const row of usuarioRows) {
       if (!row.registered) continue;
       counts[usuarioDisplayPerfilFromRow(row)] += 1;
@@ -223,7 +277,7 @@ function UsuariosPage() {
   }, [usuarioRows]);
 
   const perfilRosterCounts = useMemo(() => {
-    const counts = { admin: 0, fisio: 0, cliente: 0 };
+    const counts = { admin: 0, fisio: 0, cliente: 0, operacional: 0 };
     for (const row of usuarioRows) {
       counts[usuarioDisplayPerfilFromRow(row)] += 1;
     }
@@ -238,7 +292,7 @@ function UsuariosPage() {
   }) {
     const perfil = prefill?.perfil ?? "fisio";
     let form: CadastroFormState = {
-      ...CADASTRO_FORM_DEFAULTS,
+      ...emptyCadastroForm(perfil),
       nome: prefill?.nome ?? "",
       email: prefill?.email ?? "",
       perfil,
@@ -291,7 +345,10 @@ function UsuariosPage() {
       toast.error("E-mail é obrigatório.");
       return;
     }
-    if (cadastroTipo === "fisio" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (
+      (cadastroTipo === "fisio" || cadastroTipo === "operacional") &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
       toast.error("E-mail inválido.");
       return;
     }
@@ -311,6 +368,9 @@ function UsuariosPage() {
               ativo: cadastroForm.ativo,
             },
           }
+        : {}),
+      ...(cadastroTipo === "operacional"
+        ? { menu_permissions: cadastroForm.menu_permissions }
         : {}),
     });
   }
@@ -359,12 +419,20 @@ function UsuariosPage() {
       <PageHeader
         crumbs={[{ label: "Equipe" }, { label: "Usuários" }]}
         title="Usuários do sistema"
-        description={`Cadastre a equipe com senha inicial ${DEFAULT_INITIAL_PASSWORD}. Fisioterapeutas recebem cadastro clínico e acesso no mesmo fluxo.`}
+        description={`Cadastre administradores, equipe com módulos liberados, fisioterapeutas e clientes. Senha inicial ${DEFAULT_INITIAL_PASSWORD}.`}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => openCadastroNovo("admin")} className="gap-2">
               <Shield className="h-4 w-4" />
               Administrador
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => openCadastroNovo("operacional")}
+              className="gap-2"
+            >
+              <UserCog className="h-4 w-4" />
+              Equipe
             </Button>
             <Button variant="outline" onClick={() => openCadastroNovo("cliente")} className="gap-2">
               <Users className="h-4 w-4" />
@@ -396,11 +464,15 @@ function UsuariosPage() {
           share={users.length > 0 ? (perfilCounts.fisio / users.length) * 100 : 0}
         />
         <KpiCard
-          label="Administradores"
-          value={perfilCounts.admin}
+          label="Equipe / Admin"
+          value={perfilCounts.admin + perfilCounts.operacional}
           accent="lime"
           icon={<Shield className="h-5 w-5" />}
-          share={users.length > 0 ? (perfilCounts.admin / users.length) * 100 : 0}
+          share={
+            users.length > 0
+              ? ((perfilCounts.admin + perfilCounts.operacional) / users.length) * 100
+              : 0
+          }
         />
         <KpiCard
           label="Clientes"
@@ -422,6 +494,11 @@ function UsuariosPage() {
               colorClass: "bg-cb-cyan-600",
             },
             { label: "Admin", value: perfilRosterCounts.admin, colorClass: "bg-cb-lime" },
+            {
+              label: "Equipe",
+              value: perfilRosterCounts.operacional,
+              colorClass: "bg-cb-purple",
+            },
             {
               label: "Cliente",
               value: perfilRosterCounts.cliente,
@@ -518,6 +595,7 @@ function UsuariosPage() {
         setPacienteQuery={setPacienteQuery}
         pacientes={pacientes}
         loadingPacientes={loadingPacientes}
+        loadingMenus={loadingMenus && cadastroTipo === "operacional" && !!editingUserId}
         onSave={handleSaveCadastro}
         pending={cadastroMutation.isPending}
       />

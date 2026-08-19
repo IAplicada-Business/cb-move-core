@@ -66,33 +66,44 @@ export function isFisioScopedUser(roles: AppRole[], fisioterapeutaId?: string | 
   return roles.includes("membro") && !!fisioterapeutaId;
 }
 
-/** @deprecated Membro sem vínculo clínico não faz parte do modelo atual (staff operacional = admin). */
+/** Equipe operacional: membro sem vínculo clínico (secretaria/gestão com menus configuráveis). */
 export function isOperationalMembro(roles: AppRole[], fisioterapeutaId?: string | null): boolean {
-  return roles.includes("membro") && !fisioterapeutaId && !roles.includes("admin");
+  if (isAdminUser(roles)) return false;
+  if (isFisioScopedUser(roles, fisioterapeutaId)) return false;
+  return roles.includes("membro") && !fisioterapeutaId;
 }
 
 export function isAdminUser(roles: AppRole[]): boolean {
   return hasRole(roles, "admin");
 }
 
+/** Staff administrativo (admin, legado gestao/recepção ou operacional). */
+export function isOpsStaff(roles: AppRole[], fisioterapeutaId?: string | null): boolean {
+  return (
+    isAdminUser(roles) ||
+    hasRole(roles, ["gestao", "recepcao"]) ||
+    isOperationalMembro(roles, fisioterapeutaId)
+  );
+}
+
 export const can = {
   manageUsers: (roles: AppRole[]) => isAdminUser(roles),
   viewFinance: (roles: AppRole[], fisioterapeutaId?: string | null) => {
     if (isFisioScopedUser(roles, fisioterapeutaId)) return false;
-    return isAdminUser(roles) || hasRole(roles, ["gestao", "recepcao"]);
+    return isOpsStaff(roles, fisioterapeutaId);
   },
   editProntuario: (roles: AppRole[]) => hasRole(roles, ["admin", "membro", "fisio"]),
   removePeriodizacaoPdf: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
   removeRelatorioAtendimentoPdf: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
   deleteRelatorioAtendimento: (roles: AppRole[]) => hasRole(roles, ["admin", "gestao"]),
   manageAgenda: (roles: AppRole[], fisioterapeutaId?: string | null) =>
-    isAdminUser(roles) || hasRole(roles, ["gestao", "recepcao"]),
-  /** Cadastro administrativo — admin; fisio clínico não cadastra pacientes. */
+    isOpsStaff(roles, fisioterapeutaId),
+  /** Cadastro administrativo — admin/ops; fisio clínico não cadastra pacientes. */
   managePacientes: (roles: AppRole[], fisioterapeutaId?: string | null) =>
-    isAdminUser(roles) || hasRole(roles, ["gestao", "recepcao"]),
+    isOpsStaff(roles, fisioterapeutaId),
   manageFisios: (roles: AppRole[], fisioterapeutaId?: string | null) => {
     if (isFisioScopedUser(roles, fisioterapeutaId)) return false;
-    return isAdminUser(roles) || hasRole(roles, ["gestao", "recepcao"]);
+    return isOpsStaff(roles, fisioterapeutaId);
   },
   accessApp: (roles: AppRole[]) => isStaff(roles),
 };

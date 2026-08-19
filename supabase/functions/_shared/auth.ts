@@ -52,7 +52,9 @@ function isFisioScopedUser(roleList: string[], fisioId: string | null): boolean 
 
 function canViewFinance(roleList: string[], fisioId: string | null): boolean {
   if (isFisioScopedUser(roleList, fisioId)) return false;
-  return roleList.some((r) => FINANCE_VIEW_ROLES.has(r));
+  if (roleList.some((r) => FINANCE_VIEW_ROLES.has(r))) return true;
+  // Equipe operacional: membro sem vínculo clínico
+  return roleList.includes("membro") && !fisioId;
 }
 
 export function resolveAnonKey(): string | undefined {
@@ -223,9 +225,12 @@ export async function requireRelatorioStaffUser(
   const allowedRole = roleList.some((r) => RELATORIO_STAFF_ROLES.has(r));
   if (!allowedRole) throw new AuthError("Sem permissão para relatórios", 403);
 
-  const hasFullAccess = roleList.some((r) => FULL_PATIENT_ACCESS_ROLES.has(r));
+  const hasFullAccess =
+    roleList.some((r) => FULL_PATIENT_ACCESS_ROLES.has(r)) ||
+    roleList.includes("admin") ||
+    (roleList.includes("membro") && !fisioId);
 
-  if (hasFullAccess || roleList.includes("admin")) {
+  if (hasFullAccess) {
     return { userId: user.id, admin };
   }
 

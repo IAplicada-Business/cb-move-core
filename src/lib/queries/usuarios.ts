@@ -190,3 +190,38 @@ export async function saveMenuPermissions(
   });
   if (error) throw error;
 }
+
+export async function fetchUserMenuPermissions(
+  userId: string,
+): Promise<Partial<Record<MenuKey, boolean>>> {
+  const { data, error } = await supabase
+    .from("user_menu_permissions")
+    .select("menu_key, enabled")
+    .eq("user_id", userId);
+  if (error) throw error;
+
+  const map: Partial<Record<MenuKey, boolean>> = {};
+  for (const row of data ?? []) {
+    map[row.menu_key as MenuKey] = row.enabled;
+  }
+  return map;
+}
+
+export async function saveUserMenuPermissions(
+  userId: string,
+  permissions: Partial<Record<MenuKey, boolean>>,
+) {
+  const rows = Object.entries(permissions).map(([menu_key, enabled]) => ({
+    user_id: userId,
+    menu_key,
+    enabled: !!enabled,
+    updated_at: new Date().toISOString(),
+  }));
+
+  if (rows.length === 0) return;
+
+  const { error } = await supabase.from("user_menu_permissions").upsert(rows, {
+    onConflict: "user_id,menu_key",
+  });
+  if (error) throw error;
+}

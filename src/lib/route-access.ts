@@ -6,8 +6,16 @@ import {
   syncAccessContext as storeAccessContext,
   type AccessContext,
 } from "@/lib/access-context";
-import { can } from "@/lib/permissions";
+import { ALL_MENU_KEYS, DEFAULT_MENU_FOR_MEMBRO, type MenuKey } from "@/lib/menu-access";
+import { can, isOperationalMembro } from "@/lib/permissions";
 import type { AppRole } from "@/lib/types";
+
+const FINANCE_MENU_KEYS: MenuKey[] = [
+  "fin.financeiro",
+  "fin.relatorios",
+  "fin.cobrancas",
+  "fin.notas-fiscais",
+];
 
 async function loadAccessContext(options?: {
   bypassCache?: boolean;
@@ -35,18 +43,49 @@ async function loadAccessContext(options?: {
   return ctx;
 }
 
+async function loadUserMenuEnabled(userId: string): Promise<Partial<Record<MenuKey, boolean>>> {
+  const { data, error } = await supabase
+    .from("user_menu_permissions")
+    .select("menu_key, enabled")
+    .eq("user_id", userId);
+  if (error) return {};
+  const map: Partial<Record<MenuKey, boolean>> = {};
+  for (const row of data ?? []) {
+    if (ALL_MENU_KEYS.includes(row.menu_key as MenuKey)) {
+      map[row.menu_key as MenuKey] = row.enabled;
+    }
+  }
+  return map;
+}
+
+function hasAnyMenu(
+  permissions: Partial<Record<MenuKey, boolean>>,
+  keys: MenuKey[],
+  defaults: Record<MenuKey, boolean>,
+): boolean {
+  return keys.some((key) => permissions[key] ?? defaults[key] ?? false);
+}
+
 /**
  * Bloqueia fisio clínico e demais perfis sem permissão financeira.
- *
- * Usa o contexto em memória (o AuthProvider o mantém sincronizado a cada carga de
- * papéis) — sem isso, cada navegação para uma tela financeira faria duas consultas
- * ao Supabase dentro do `beforeLoad`, e o roteador trocaria a tela pelo pending.
+ * Equipe operacional só entra se tiver algum módulo fin.* liberado.
  */
 export async function assertFinanceAccess(): Promise<void> {
   const ctx = await loadAccessContext();
   if (!ctx) throw redirect({ to: "/login" });
   if (!can.viewFinance(ctx.roles, ctx.fisioterapeutaId)) {
     throw redirect({ to: "/app" });
+  }
+
+  if (isOperationalMembro(ctx.roles, ctx.fisioterapeutaId)) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw redirect({ to: "/login" });
+    const menus = await loadUserMenuEnabled(session.user.id);
+    if (!hasAnyMenu(menus, FINANCE_MENU_KEYS, DEFAULT_MENU_FOR_MEMBRO)) {
+      throw redirect({ to: "/app" });
+    }
   }
 }
 
@@ -56,5 +95,16 @@ export async function assertFisiosAccess(): Promise<void> {
   if (!ctx) throw redirect({ to: "/login" });
   if (!can.manageFisios(ctx.roles, ctx.fisioterapeutaId)) {
     throw redirect({ to: "/app" });
+  }
+
+  if (isOperationalMembro(ctx.roles, ctx.fisioterapeutaId)) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw redirect({ to: "/login" });
+    const menus = await loadUserMenuEnabled(session.user.id);
+    if (!(menus["team.fisios"] ?? DEFAULT_MENU_FOR_MEMBRO["team.fisios"])) {
+      throw redirect({ to: "/app" });
+    }
   }
 }

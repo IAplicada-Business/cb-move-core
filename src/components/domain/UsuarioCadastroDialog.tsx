@@ -3,11 +3,18 @@ import { Shield } from "lucide-react";
 
 import { LoadingState } from "@/components/domain/LoadingState";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
-import { MENU_GROUPS, flattenMenuItems } from "@/lib/menu-access";
+import {
+  ALL_MENU_KEYS,
+  DEFAULT_MENU_FOR_OPERACIONAL,
+  MENU_GROUPS,
+  flattenMenuItems,
+  type MenuKey,
+} from "@/lib/menu-access";
 import type { UserRow } from "@/lib/queries/usuarios";
 import type { UsuarioCadastroPerfil } from "@/lib/usuario-equipe";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -33,18 +40,34 @@ export type CadastroFormState = {
   paciente_id: string;
   registro_profissional: string;
   ativo: boolean;
+  /** Módulos liberados — usado no perfil operacional. */
+  menu_permissions: Partial<Record<MenuKey, boolean>>;
 };
+
+export function emptyCadastroForm(perfil: UsuarioCadastroPerfil = "fisio"): CadastroFormState {
+  return {
+    nome: "",
+    email: "",
+    perfil,
+    paciente_id: "",
+    registro_profissional: "",
+    ativo: true,
+    menu_permissions: { ...DEFAULT_MENU_FOR_OPERACIONAL },
+  };
+}
 
 const TITULO_NOVO: Record<UsuarioCadastroPerfil, string> = {
   admin: "Novo administrador",
   cliente: "Novo cliente",
   fisio: "Novo fisioterapeuta",
+  operacional: "Novo usuário da equipe",
 };
 
 const TITULO_EDITAR: Record<UsuarioCadastroPerfil, string> = {
   admin: "Atualizar administrador",
   cliente: "Atualizar cliente",
   fisio: "Atualizar fisioterapeuta",
+  operacional: "Atualizar usuário da equipe",
 };
 
 type PacienteOption = { id: string; nome: string };
@@ -61,6 +84,7 @@ type UsuarioCadastroDialogProps = {
   setPacienteQuery: (value: string) => void;
   pacientes: PacienteOption[];
   loadingPacientes?: boolean;
+  loadingMenus?: boolean;
   onSave: () => void;
   pending: boolean;
 };
@@ -87,6 +111,95 @@ function AcessoTotalPreview() {
   );
 }
 
+function ModulosAcessoEditor({
+  value,
+  onChange,
+  loading,
+}: {
+  value: Partial<Record<MenuKey, boolean>>;
+  onChange: (next: Partial<Record<MenuKey, boolean>>) => void;
+  loading?: boolean;
+}) {
+  if (loading) return <LoadingState />;
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+      <div>
+        <Label className="mb-0 font-medium">Módulos e telas</Label>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Marque o que esta pessoa pode ver no menu. Gestão de usuários continua só para
+          administradores.
+        </p>
+      </div>
+      {MENU_GROUPS.map((group) => (
+        <div key={group.id} className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {group.label}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {flattenMenuItems(group.items).map((item) => {
+              if (item.key === "team.usuarios") {
+                return (
+                  <label
+                    key={item.key}
+                    className="flex items-start gap-2 rounded-md border border-dashed p-2 text-xs text-muted-foreground"
+                  >
+                    <Checkbox checked={false} disabled className="mt-0.5" />
+                    <span>
+                      {item.label}
+                      <span className="mt-0.5 block text-[11px]">Somente administradores</span>
+                    </span>
+                  </label>
+                );
+              }
+              const checked = value[item.key] ?? DEFAULT_MENU_FOR_OPERACIONAL[item.key] ?? false;
+              return (
+                <label
+                  key={item.key}
+                  className="flex cursor-pointer items-start gap-2 rounded-md border bg-background p-2 text-xs"
+                >
+                  <Checkbox
+                    checked={checked}
+                    className="mt-0.5"
+                    onCheckedChange={(state) => {
+                      onChange({ ...value, [item.key]: state === true });
+                    }}
+                  />
+                  <span>{item.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onChange({ ...DEFAULT_MENU_FOR_OPERACIONAL })}
+        >
+          Restaurar padrão
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const all: Partial<Record<MenuKey, boolean>> = {};
+            for (const key of ALL_MENU_KEYS) {
+              all[key] = key !== "team.usuarios";
+            }
+            onChange(all);
+          }}
+        >
+          Liberar quase tudo
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function UsuarioCadastroDialog({
   open,
   onOpenChange,
@@ -99,6 +212,7 @@ export function UsuarioCadastroDialog({
   setPacienteQuery,
   pacientes,
   loadingPacientes,
+  loadingMenus,
   onSave,
   pending,
 }: UsuarioCadastroDialogProps) {
@@ -107,7 +221,7 @@ export function UsuarioCadastroDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -138,6 +252,14 @@ export function UsuarioCadastroDialog({
           </div>
 
           {tipo === "admin" && <AcessoTotalPreview />}
+
+          {tipo === "operacional" && (
+            <ModulosAcessoEditor
+              value={form.menu_permissions}
+              loading={loadingMenus}
+              onChange={(menu_permissions) => setForm((f) => ({ ...f, menu_permissions }))}
+            />
+          )}
 
           {tipo === "fisio" && (
             <>
@@ -208,7 +330,7 @@ export function UsuarioCadastroDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={pending} onClick={onSave}>
+          <Button disabled={pending || loadingMenus} onClick={onSave}>
             {pending ? "Salvando…" : "Salvar"}
           </Button>
         </DialogFooter>
