@@ -107,6 +107,24 @@ export const DEFAULT_MENU_FOR_FISIO: Record<MenuKey, boolean> = {
   "team.fisios": false,
 };
 
+/** Padrão sugerido para equipe operacional (secretaria/gestão) — admin pode ajustar. */
+export const DEFAULT_MENU_FOR_OPERACIONAL: Record<MenuKey, boolean> = {
+  "app.dashboard": true,
+  "app.pacientes": true,
+  "app.prontuario": true,
+  "app.agenda": true,
+  "fin.cobrancas": true,
+  "fin.notas-fiscais": false,
+  "fin.financeiro": false,
+  "fin.relatorios": false,
+  "team.fisios": true,
+  "team.usuarios": false,
+  "cfg.geral": false,
+  "cfg.convenios": true,
+  "cfg.instrumentos": false,
+  "cfg.templates": false,
+};
+
 /** Rótulos do menu lateral quando o usuário é fisio (dados filtrados por paciente). */
 export const FISIO_MENU_LABELS: Partial<Record<MenuKey, string>> = {
   "app.pacientes": "Meus pacientes",

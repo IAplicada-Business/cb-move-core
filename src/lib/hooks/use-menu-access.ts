@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import {
   DEFAULT_MENU_FOR_FISIO,
   DEFAULT_MENU_FOR_MEMBRO,
+  DEFAULT_MENU_FOR_OPERACIONAL,
   FISIO_MENU_GROUP_LABELS,
   FISIO_MENU_LABELS,
   FISIO_MENU_SCOPE_LINES,
@@ -12,8 +13,14 @@ import {
   type MenuGroupDef,
   type MenuItemDef,
 } from "@/lib/menu-access";
-import { isFisioScopedUser, normalizeRole, type PrimaryRole, can } from "@/lib/permissions";
-import { fetchMenuPermissions } from "@/lib/queries/usuarios";
+import {
+  isFisioScopedUser,
+  isOperationalMembro,
+  normalizeRole,
+  type PrimaryRole,
+  can,
+} from "@/lib/permissions";
+import { fetchMenuPermissions, fetchUserMenuPermissions } from "@/lib/queries/usuarios";
 import { queryKeys } from "@/lib/queries";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -64,16 +71,28 @@ export type SidebarGroup = {
 };
 
 export function useMenuAccess() {
-  const { roles, fisioterapeutaId } = useAuth();
+  const { user, roles, fisioterapeutaId } = useAuth();
   const isAdmin = roles.includes("admin");
   const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
+  const isOperacional = isOperationalMembro(roles, fisioterapeutaId);
   const primary: PrimaryRole = isAdmin ? "admin" : (normalizeRole(roles[0]) ?? "membro");
-  const menuDefaults = isFisioScoped ? DEFAULT_MENU_FOR_FISIO : DEFAULT_MENU_FOR_MEMBRO;
+  const menuDefaults = isFisioScoped
+    ? DEFAULT_MENU_FOR_FISIO
+    : isOperacional
+      ? DEFAULT_MENU_FOR_OPERACIONAL
+      : DEFAULT_MENU_FOR_MEMBRO;
 
-  const { data: permissions } = useQuery({
+  const { data: rolePermissions } = useQuery({
     queryKey: queryKeys.usuarios.menuAccess,
     queryFn: () => fetchMenuPermissions("membro"),
-    enabled: !isAdmin && primary === "membro" && !isFisioScoped,
+    enabled: !isAdmin && primary === "membro" && !isFisioScoped && !isOperacional,
+    staleTime: 60_000,
+  });
+
+  const { data: userPermissions } = useQuery({
+    queryKey: queryKeys.usuarios.userMenuPermissions(user?.id ?? ""),
+    queryFn: () => fetchUserMenuPermissions(user!.id),
+    enabled: !!user?.id && isOperacional,
     staleTime: 60_000,
   });
 
@@ -81,8 +100,11 @@ export function useMenuAccess() {
     if (isFisioScoped) {
       return resolveMenuAccess(primary, {}, DEFAULT_MENU_FOR_FISIO);
     }
-    return resolveMenuAccess(primary, permissions ?? menuDefaults, menuDefaults);
-  }, [primary, permissions, menuDefaults, isFisioScoped]);
+    if (isOperacional) {
+      return resolveMenuAccess(primary, userPermissions ?? {}, menuDefaults);
+    }
+    return resolveMenuAccess(primary, rolePermissions ?? menuDefaults, menuDefaults);
+  }, [primary, rolePermissions, userPermissions, menuDefaults, isFisioScoped, isOperacional]);
 
   const groups = useMemo<SidebarGroup[]>(() => {
     const isVisible = (item: MenuItemDef) =>
@@ -116,6 +138,7 @@ export function useMenuAccess() {
     primary,
     isAdmin,
     isFisioScoped,
+    isOperacional,
     fisioScopeLines: isFisioScoped ? [...FISIO_MENU_SCOPE_LINES] : [],
   };
 }

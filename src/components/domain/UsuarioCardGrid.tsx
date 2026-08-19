@@ -26,7 +26,7 @@ export type UsuarioCardRow = {
   key: string;
   nome: string;
   email: string;
-  perfil: PrimaryRole | "fisio" | "cliente";
+  perfil: PrimaryRole | "fisio" | "cliente" | "operacional";
   registered: UserRow | undefined;
   isReference: boolean;
   tipoEquipeReferencia?: "fisio" | "secretaria";
