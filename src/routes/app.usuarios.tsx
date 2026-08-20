@@ -204,6 +204,29 @@ function UsuariosPage() {
     };
   }, [cadastroOpen, cadastroPerfil, editingUserId]);
 
+  useEffect(() => {
+    if (!cadastroOpen || cadastroPerfil !== "fisio" || !editingExistingUser) return;
+    const email = cadastroForm.email.trim();
+    if (!email) return;
+    let cancelled = false;
+    void fetchFisioByEmail(email)
+      .then((fisio) => {
+        if (cancelled || !fisio) return;
+        setCadastroForm((f) => ({
+          ...f,
+          registro_profissional: f.registro_profissional || fisio.registro_profissional || "",
+          ativo: fisio.ativo,
+          nome: f.nome || fisio.nome,
+        }));
+      })
+      .catch(() => {
+        /* prefill opcional */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cadastroOpen, cadastroPerfil, editingExistingUser, cadastroForm.email]);
+
   const cadastroMutation = useMutation({
     mutationFn: async (input: {
       nome: string;
