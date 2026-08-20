@@ -61,8 +61,12 @@ export const MENU_GROUPS: MenuGroupDef[] = [
     id: "team",
     label: "Equipe",
     items: [
-      { key: "team.fisios", to: "/app/fisios", label: "Fisioterapeutas" },
-      { key: "team.usuarios", to: "/app/usuarios", label: "Usuários" },
+      {
+        key: "team.usuarios",
+        to: "/app/usuarios",
+        label: "Usuários",
+        children: [{ key: "team.fisios", to: "/app/fisios", label: "Fisioterapeutas" }],
+      },
     ],
   },
   {

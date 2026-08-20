@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Users } from "lucide-react";
@@ -25,7 +25,6 @@ import {
   type Fisio,
 } from "@/lib/queries/fisioterapeutas";
 
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,20 +100,15 @@ function FisiosPage() {
   return (
     <DashboardPage>
       <PageHeader
-        crumbs={[{ label: "Equipe" }, { label: "Fisioterapeutas" }]}
+        crumbs={[{ label: "Equipe" }, { label: "Usuários" }, { label: "Fisioterapeutas" }]}
         title="Fisioterapeutas"
-        description="Equipe clínica — cadastre novos profissionais em Usuários; aqui você consulta, ativa/desativa e exclui"
+        description="Equipe clínica — consulte, ative/desativa e exclua profissionais. Novos cadastros em Usuários."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Switch checked={showInativos} onCheckedChange={setShowInativos} id="show-inativos" />
-              <label htmlFor="show-inativos" className="cursor-pointer text-muted-foreground">
-                Mostrar inativos
-              </label>
-            </div>
-            <Button asChild className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700">
-              <Link to="/app/usuarios">Cadastrar em Usuários</Link>
-            </Button>
+          <div className="flex items-center gap-2 text-sm">
+            <Switch checked={showInativos} onCheckedChange={setShowInativos} id="show-inativos" />
+            <label htmlFor="show-inativos" className="cursor-pointer text-muted-foreground">
+              Mostrar inativos
+            </label>
           </div>
         }
       />
@@ -125,12 +119,7 @@ function FisiosPage() {
         <EmptyState
           icon={<Users className="h-8 w-8" />}
           title="Nenhum fisioterapeuta cadastrado"
-          description="Cadastre fisioterapeutas em Equipe → Usuários. Eles aparecerão automaticamente nesta lista."
-          action={
-            <Button asChild variant="outline">
-              <Link to="/app/usuarios">Ir para Usuários</Link>
-            </Button>
-          }
+          description="Cadastre fisioterapeutas em Equipe → Usuários (perfil Fisioterapeuta). Eles aparecerão automaticamente nesta lista."
         />
       ) : (
         <DashboardSection
