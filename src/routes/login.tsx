@@ -1,21 +1,14 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
+
+import { LoadingState } from "@/components/domain/LoadingState";
+import type { AuthContext } from "@/components/ui/auth-switch";
+import { LoginSignInCard } from "@/components/ui/login-sign-in-card";
 import { useAuth } from "@/lib/auth";
 import { resolvePostAuthPath } from "@/lib/auth-routes";
 import { mustResetPassword } from "@/lib/password-reset";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthPageShell } from "@/components/layout/AuthLayout";
-import { AuthField, AuthSwitchShell, type AuthContext } from "@/components/ui/auth-switch";
-import { AuthGoogleButton, AuthSocialDivider } from "@/components/ui/auth-social-login";
-import { Button } from "@/components/ui/button";
-import { LoadingState } from "@/components/domain/LoadingState";
-
-const FOOTNOTES: Record<AuthContext, string> = {
-  admin: "Acesso restrito a usuários cadastrados pela administração.",
-  paciente: "Primeiro acesso? Use a senha informada pela administração.",
-};
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Entrar · CB MOVE Neuroscience" }] }),
@@ -23,10 +16,9 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn, signInWithGoogle, session, loading: authLoading } = useAuth();
+  const { signIn, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
-  const [googleLoading, setGoogleLoading] = React.useState(false);
   const [resetLoading, setResetLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [authContext, setAuthContext] = React.useState<AuthContext>("admin");
@@ -43,9 +35,9 @@ function LoginPage() {
 
   if (authLoading) {
     return (
-      <AuthPageShell>
+      <div className="grid min-h-screen place-items-center bg-[#061418]">
         <LoadingState />
-      </AuthPageShell>
+      </div>
     );
   }
 
@@ -61,24 +53,6 @@ function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function onGoogleSignIn() {
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Não foi possível entrar com Google";
-      toast.error(msg);
-      setGoogleLoading(false);
-      return;
-    }
-    // signInWithGoogle navega para fora; só avisar se ainda estivermos em /login.
-    window.setTimeout(() => {
-      if (window.location.pathname !== "/login") return;
-      setGoogleLoading(false);
-      toast.error("Não redirecionou para o Google. Recarregue a página (Ctrl+F5) e tente de novo.");
-    }, 8_000);
   }
 
   async function onForgotPassword() {
@@ -102,70 +76,19 @@ function LoginPage() {
   }
 
   return (
-    <AuthPageShell>
-      <AuthSwitchShell mode={authContext} onModeChange={setAuthContext}>
-        <form onSubmit={onSubmit} className="w-full">
-          <AuthField
-            id="email"
-            icon={Mail}
-            type="email"
-            autoComplete="email"
-            placeholder="E-mail"
-            aria-label="E-mail"
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            required
-          />
-          <div className="relative">
-            <AuthField
-              id="password"
-              icon={Lock}
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              placeholder="Senha"
-              aria-label="Senha"
-              value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-              required
-              minLength={6}
-              className="pr-12"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading || googleLoading}
-            className="mt-4 h-11 w-full rounded-full bg-cb-cyan-600 text-sm font-semibold uppercase tracking-wide hover:bg-cb-cyan-700"
-          >
-            {loading ? "Aguarde…" : "Entrar"}
-          </Button>
-
-          <Button
-            type="button"
-            variant="link"
-            className="mt-2 w-full text-xs text-cb-muted"
-            disabled={resetLoading}
-            onClick={onForgotPassword}
-          >
-            {resetLoading ? "Enviando link…" : "Esqueci minha senha"}
-          </Button>
-        </form>
-
-        <AuthSocialDivider />
-        <AuthGoogleButton onClick={onGoogleSignIn} loading={googleLoading} disabled={loading} />
-
-        <p className="mt-4 text-center text-xs text-cb-muted">{FOOTNOTES[authContext]}</p>
-      </AuthSwitchShell>
-    </AuthPageShell>
+    <LoginSignInCard
+      accessType={authContext}
+      onAccessTypeChange={setAuthContext}
+      email={form.email}
+      password={form.password}
+      showPassword={showPassword}
+      loading={loading}
+      resetLoading={resetLoading}
+      onEmailChange={(email) => setForm((current) => ({ ...current, email }))}
+      onPasswordChange={(password) => setForm((current) => ({ ...current, password }))}
+      onTogglePassword={() => setShowPassword((value) => !value)}
+      onSubmit={onSubmit}
+      onForgotPassword={onForgotPassword}
+    />
   );
 }
