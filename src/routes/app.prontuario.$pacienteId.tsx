@@ -10,6 +10,7 @@ import {
 
 const prontuarioPacienteSearchSchema = z.object({
   tab: prontuarioPatientTabSchema.optional(),
+  gravar: z.boolean().optional(),
 });
 
 export const Route = createFileRoute("/app/prontuario/$pacienteId")({
@@ -26,15 +27,22 @@ export const Route = createFileRoute("/app/prontuario/$pacienteId")({
 
 function ProntuarioPacienteRoute() {
   const { pacienteId } = Route.useParams();
-  const { tab } = Route.useSearch();
+  const { tab, gravar } = Route.useSearch();
   const navigate = useNavigate();
   const activeTab = resolvePatientTab(tab);
 
-  function navigatePatient(next: { pacienteId?: string; tab?: ProntuarioPatientTab }) {
+  function navigatePatient(next: {
+    pacienteId?: string;
+    tab?: ProntuarioPatientTab;
+    gravar?: boolean;
+  }) {
     navigate({
       to: "/app/prontuario/$pacienteId",
       params: { pacienteId: next.pacienteId ?? pacienteId },
-      search: { tab: next.tab ?? activeTab },
+      search: {
+        tab: next.tab ?? activeTab,
+        gravar: next.gravar,
+      },
     });
   }
 
@@ -42,6 +50,8 @@ function ProntuarioPacienteRoute() {
     <ProntuarioPacienteView
       pacienteId={pacienteId}
       activeTab={activeTab}
+      autoGravarEvolucao={gravar}
+      onAutoGravarConsumed={() => navigatePatient({ gravar: undefined })}
       onTabChange={(nextTab) => {
         if (nextTab === "visao-geral") {
           navigate({ to: "/app/prontuario" });

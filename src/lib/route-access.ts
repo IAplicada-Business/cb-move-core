@@ -7,7 +7,13 @@ import {
   type AccessContext,
 } from "@/lib/access-context";
 import { ALL_MENU_KEYS, DEFAULT_MENU_FOR_MEMBRO, type MenuKey } from "@/lib/menu-access";
-import { can, isOperationalMembro } from "@/lib/permissions";
+import {
+  can,
+  hasRole,
+  isAdminUser,
+  isFisioScopedUser,
+  isOperationalMembro,
+} from "@/lib/permissions";
 import type { AppRole } from "@/lib/types";
 
 const FINANCE_MENU_KEYS: MenuKey[] = [
@@ -15,6 +21,13 @@ const FINANCE_MENU_KEYS: MenuKey[] = [
   "fin.relatorios",
   "fin.cobrancas",
   "fin.notas-fiscais",
+];
+
+const CONFIG_MENU_KEYS: MenuKey[] = [
+  "cfg.geral",
+  "cfg.convenios",
+  "cfg.instrumentos",
+  "cfg.templates",
 ];
 
 async function loadAccessContext(options?: {
@@ -87,6 +100,43 @@ export async function assertFinanceAccess(): Promise<void> {
       throw redirect({ to: "/app" });
     }
   }
+}
+
+/** Gestão de usuários — somente administrador. */
+export async function assertAdminAccess(): Promise<void> {
+  const ctx = await loadAccessContext();
+  if (!ctx) throw redirect({ to: "/login" });
+  if (!can.manageUsers(ctx.roles)) {
+    throw redirect({ to: "/app" });
+  }
+}
+
+/** Configurações do sistema — admin ou membro operacional com módulo cfg.* liberado. */
+export async function assertConfigAccess(): Promise<void> {
+  const ctx = await loadAccessContext();
+  if (!ctx) throw redirect({ to: "/login" });
+
+  if (isFisioScopedUser(ctx.roles, ctx.fisioterapeutaId)) {
+    throw redirect({ to: "/app" });
+  }
+
+  if (isAdminUser(ctx.roles) || hasRole(ctx.roles, ["gestao", "recepcao"])) {
+    return;
+  }
+
+  if (isOperationalMembro(ctx.roles, ctx.fisioterapeutaId)) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw redirect({ to: "/login" });
+    const menus = await loadUserMenuEnabled(session.user.id);
+    if (!hasAnyMenu(menus, CONFIG_MENU_KEYS, DEFAULT_MENU_FOR_OPERACIONAL)) {
+      throw redirect({ to: "/app" });
+    }
+    return;
+  }
+
+  throw redirect({ to: "/app" });
 }
 
 /** Cadastro/gestão da equipe de fisioterapeutas. */

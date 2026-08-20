@@ -111,7 +111,7 @@ export async function fetchDashboardHome(
 
   let proximasListQuery = supabase
     .from("agendamentos")
-    .select("id, inicio, status, pacientes(nome), fisioterapeutas(nome)")
+    .select("id, inicio, status, pacientes(nome), fisioterapeutas!fisioterapeuta_id(nome)")
     .in("status", ["agendado", "confirmado"])
     .gte("inicio", now.toISOString())
     .lt("inicio", proximosSeteDias.toISOString())

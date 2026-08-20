@@ -10,9 +10,8 @@ import {
   DashboardSectionBadge,
   KpiGrid,
 } from "@/components/domain/DashboardSection";
-import { DivergenciaPreviewList } from "@/components/domain/DashboardLists";
+import { DivergenciaPreviewList, AgendaPreviewList } from "@/components/domain/DashboardLists";
 import { DashboardInsightBanner } from "@/components/domain/DashboardInsightBanner";
-import { DashboardRecentActivity } from "@/components/domain/DashboardRecentActivity";
 import { MonthPicker, monthPickerLabel } from "@/components/domain/MonthPicker";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
@@ -233,11 +232,30 @@ function Dashboard() {
           {noData ? (
             <LoadingState />
           ) : (
-            <DashboardRecentActivity
-              items={proximas}
-              showFisio={!isFisioScoped}
-              agendaHref={isFisioScoped ? "/app/agenda" : "/app/agenda"}
-            />
+            <DashboardSection
+              eyebrow="Agenda"
+              accent="lime"
+              title="Atividade recente"
+              description="Próximos agendamentos confirmados ou pendentes"
+              noPadding
+              bodyClassName="px-4 pb-2 sm:px-6"
+              actions={
+                <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
+                  <Link to="/app/agenda">Ver todas</Link>
+                </Button>
+              }
+            >
+              {proximas.length === 0 ? (
+                <div className="px-2 py-8">
+                  <EmptyState
+                    title="Nenhuma agenda próxima"
+                    description="Novos agendamentos aparecerão aqui."
+                  />
+                </div>
+              ) : (
+                <AgendaPreviewList items={proximas} showFisio={!isFisioScoped} />
+              )}
+            </DashboardSection>
           )}
         </aside>
       </div>
