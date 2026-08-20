@@ -11,7 +11,7 @@ import {
   type MenuKey,
 } from "@/lib/menu-access";
 import type { UserRow } from "@/lib/queries/usuarios";
-import type { UsuarioCadastroPerfil } from "@/lib/usuario-equipe";
+import { USUARIO_CADASTRO_PERFIL_OPTIONS, type UsuarioCadastroPerfil } from "@/lib/usuario-equipe";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -75,7 +75,6 @@ type PacienteOption = { id: string; nome: string };
 type UsuarioCadastroDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  tipo: UsuarioCadastroPerfil;
   form: CadastroFormState;
   setForm: Dispatch<SetStateAction<CadastroFormState>>;
   editingExistingUser: boolean;
@@ -203,7 +202,6 @@ function ModulosAcessoEditor({
 export function UsuarioCadastroDialog({
   open,
   onOpenChange,
-  tipo,
   form,
   setForm,
   editingExistingUser,
@@ -216,8 +214,20 @@ export function UsuarioCadastroDialog({
   onSave,
   pending,
 }: UsuarioCadastroDialogProps) {
+  const perfil = form.perfil;
   const isEdit = !!users.find((u) => u.email?.toLowerCase() === form.email.trim().toLowerCase());
-  const title = isEdit ? TITULO_EDITAR[tipo] : TITULO_NOVO[tipo];
+  const title = isEdit ? TITULO_EDITAR[perfil] : TITULO_NOVO[perfil];
+
+  function handlePerfilChange(next: UsuarioCadastroPerfil) {
+    if (editingExistingUser) return;
+    setForm((current) => ({
+      ...emptyCadastroForm(next),
+      nome: current.nome,
+      email: current.email,
+      perfil: next,
+    }));
+    if (next !== "cliente") setPacienteQuery("");
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -226,6 +236,36 @@ export function UsuarioCadastroDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Perfil de acesso</Label>
+            {editingExistingUser ? (
+              <p className="rounded-lg border bg-muted/20 px-3 py-2 text-sm font-medium">
+                {USUARIO_CADASTRO_PERFIL_OPTIONS.find((o) => o.value === perfil)?.label ?? perfil}
+              </p>
+            ) : (
+              <Select
+                value={perfil}
+                onValueChange={(v) => handlePerfilChange(v as UsuarioCadastroPerfil)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  {USUARIO_CADASTRO_PERFIL_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {!editingExistingUser && (
+              <p className="text-xs text-muted-foreground">
+                Escolha o tipo de usuário antes de preencher os demais campos.
+              </p>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <Label>Nome</Label>
             <Input
@@ -251,9 +291,9 @@ export function UsuarioCadastroDialog({
             ) : null}
           </div>
 
-          {tipo === "admin" && <AcessoTotalPreview />}
+          {perfil === "admin" && <AcessoTotalPreview />}
 
-          {tipo === "operacional" && (
+          {perfil === "operacional" && (
             <ModulosAcessoEditor
               value={form.menu_permissions}
               loading={loadingMenus}
@@ -261,7 +301,7 @@ export function UsuarioCadastroDialog({
             />
           )}
 
-          {tipo === "fisio" && (
+          {perfil === "fisio" && (
             <>
               <div className="space-y-1.5">
                 <Label>CREFITO</Label>
@@ -291,7 +331,7 @@ export function UsuarioCadastroDialog({
             </>
           )}
 
-          {tipo === "cliente" && (
+          {perfil === "cliente" && (
             <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
               <Label>Paciente vinculado</Label>
               <Input
