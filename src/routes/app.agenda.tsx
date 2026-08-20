@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AgendaDayStrip, AgendaWeekGrid } from "@/components/domain/agenda";
+import { AgendaDayStrip, AgendaMonthCalendar, AgendaWeekGrid } from "@/components/domain/agenda";
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -257,39 +257,6 @@ function formatAvisoDisplay(texto: string) {
     .map((l) => l.trim())
     .filter(Boolean)
     .join(" · ");
-}
-
-type WeekBlock = { label: string; days: Date[] };
-
-function weeksInMonth(year: number, monthIndex: number): WeekBlock[] {
-  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-  const blocks: WeekBlock[] = [];
-  let weekNum = 1;
-  let day = 1;
-
-  while (day <= lastDay) {
-    const days: Date[] = [];
-    while (day <= lastDay && new Date(year, monthIndex, day).getDay() !== 1 && days.length === 0) {
-      day++;
-    }
-    while (day <= lastDay && days.length < 5) {
-      const d = new Date(year, monthIndex, day);
-      const dow = d.getDay();
-      if (dow >= 1 && dow <= 5) days.push(d);
-      day++;
-      if (dow === 5) break;
-    }
-    if (days.length > 0) {
-      const start = days[0];
-      const end = days[days.length - 1];
-      blocks.push({
-        label: `Semana ${weekNum} — ${start.getDate()} a ${end.getDate()} ${MESES[monthIndex].slice(0, 3)}`,
-        days,
-      });
-      weekNum++;
-    }
-  }
-  return blocks;
 }
 
 function navegarParaDataAgenda(
@@ -987,8 +954,6 @@ function AgendaPage() {
 
   const fisiosNomes = useMemo(() => fisiosVisiveis.map((f) => f.nome), [fisiosVisiveis]);
 
-  const monthWeeks = useMemo(() => weeksInMonth(mesRef.getFullYear(), mesRef.getMonth()), [mesRef]);
-
   function agendamentosNoDia(day: Date) {
     const dayStr = toDateStr(day);
     return filtered
@@ -1035,7 +1000,7 @@ function AgendaPage() {
     { value: "semana", label: "Semana padrão" },
     { value: "dia", label: "Grade Seg–Sex" },
     { value: "frequencia", label: "Frequência" },
-    { value: "mes", label: "Mês" },
+    { value: "mes", label: "Calendário" },
   ];
 
   const headerTitle =
@@ -1354,84 +1319,43 @@ function AgendaPage() {
           />
           <TipoLegend />
         </DashboardSection>
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          title="Mês sem agendamentos"
-          description="Crie um novo agendamento para preencher a agenda."
-          action={
-            <Button onClick={() => setModalOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" /> Novo agendamento
-            </Button>
-          }
-        />
-      ) : (
-        <div className="space-y-6">
-          {monthWeeks.map((week) => {
-            const weekHasItems = week.days.some((d) => agendamentosNoDia(d).length > 0);
-            if (!weekHasItems) return null;
-            return (
-              <DashboardSection
-                key={week.label}
-                eyebrow="Semana"
-                accent="cyan"
-                title={week.label}
-                noPadding
-                bodyClassName="p-4"
-              >
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {week.days.map((day) => {
-                    const items = agendamentosNoDia(day);
-                    if (items.length === 0) return null;
-                    return (
-                      <div
-                        key={toDateStr(day)}
-                        className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm"
-                      >
-                        <header
-                          className={cn(
-                            "border-b border-border/60 px-4 py-3.5",
-                            ACCENT_HEADER_BG.cyan,
-                          )}
-                        >
-                          <h3 className="text-sm font-extrabold capitalize text-cb-ink">
-                            {day.toLocaleDateString("pt-BR", {
-                              weekday: "long",
-                              day: "2-digit",
-                              month: "short",
-                            })}
-                          </h3>
-                        </header>
-                        <ul className="divide-y divide-border">
-                          {items.map((a) => (
-                            <li
-                              key={a.id}
-                              className="flex cursor-pointer items-center gap-4 px-4 py-3.5 transition-colors hover:bg-cb-cyan-050/60"
-                              onClick={() => setSelectedAgend(a)}
-                            >
-                              <div className="grid min-h-[52px] min-w-[52px] shrink-0 place-items-center rounded-2xl bg-cb-cyan-050 px-1 py-1.5 text-center ring-1 ring-cb-cyan-100">
-                                <span className="block text-[10px] font-bold tabular-nums text-cb-cyan-800">
-                                  {formatHHMM(new Date(a.inicio))}
-                                </span>
-                                <span className="block text-[9px] font-medium text-cb-muted">
-                                  {duracaoSessaoLabel(a.duracao_min)}
-                                </span>
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <AgendaSlot ag={a} interactive={false} className="max-w-md" />
-                              </div>
-                              <StatusBadge kind="agenda" value={a.status} />
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    );
-                  })}
-                </div>
-              </DashboardSection>
-            );
-          })}
-        </div>
-      )}
+      ) : visao === "mes" ? (
+        <DashboardSection
+          eyebrow="Calendário"
+          accent="cyan"
+          title={`${MESES[mesRef.getMonth()]} ${mesRef.getFullYear()}`}
+          description="Visão mensal — clique no dia para abrir a semana ou no horário para detalhes"
+          noPadding
+          bodyClassName="p-4"
+        >
+          {agendaPending && agendamentos.length === 0 ? (
+            <LoadingState />
+          ) : (
+            <>
+              <AgendaMonthCalendar
+                year={mesRef.getFullYear()}
+                month={mesRef.getMonth()}
+                getItems={agendamentosNoDia}
+                onSlotClick={(item) => setSelectedAgend(item as Agendamento)}
+                onDayClick={(day) => {
+                  navegarParaDataAgenda(
+                    `${toDateStr(day)}T12:00:00`,
+                    setSemanaBase,
+                    setDiaSemanaIdx,
+                  );
+                  setVisao("semana");
+                }}
+                toDateStr={toDateStr}
+              />
+              {filtered.length === 0 && (
+                <p className="mt-3 text-center text-sm text-muted-foreground">
+                  Nenhum agendamento neste mês com os filtros atuais.
+                </p>
+              )}
+            </>
+          )}
+        </DashboardSection>
+      ) : null}
 
       {agendamentos.length > 0 &&
         visao !== "semana" &&
