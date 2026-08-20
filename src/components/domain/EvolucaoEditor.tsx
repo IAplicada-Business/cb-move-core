@@ -216,13 +216,6 @@ export function EvolucaoEditor({
         />
       </div>
 
-      {form.transcricao_raw.trim() && (
-        <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground max-h-24 overflow-y-auto">
-          <span className="font-semibold text-foreground">Transcrição: </span>
-          {form.transcricao_raw}
-        </div>
-      )}
-
       {(["subjetivo", "objetivo", "plano"] as const).map((campo) => (
         <div key={campo} className="space-y-1.5">
           <Label className="uppercase text-xs tracking-wider text-muted-foreground font-semibold">

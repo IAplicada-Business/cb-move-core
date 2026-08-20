@@ -20,7 +20,6 @@ type Props = {
   primaryButtonClassName?: string;
 };
 
-// Minimal typing for the Web Speech API (SpeechRecognition isn't in every TS lib).
 type SpeechRecognitionResultList = {
   length: number;
   [index: number]: { isFinal: boolean; length: number; [index: number]: { transcript: string } };
@@ -40,33 +39,78 @@ type SpeechRecognitionInstance = {
 };
 type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
 
-const SpeechRecognitionClass: SpeechRecognitionCtor | null =
-  typeof window !== "undefined"
-    ? ((
-        window as unknown as {
-          SpeechRecognition?: SpeechRecognitionCtor;
-          webkitSpeechRecognition?: SpeechRecognitionCtor;
-        }
-      ).SpeechRecognition ??
-      (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionCtor })
-        .webkitSpeechRecognition ??
-      null)
-    : null;
+const MAX_RECORDING_MS = 5 * 60 * 1000;
+
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+function getSpeechRecognitionClass(): SpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/** iOS (incl. Chrome) não expõe SpeechRecognition de forma confiável — gravamos áudio e transcrevemos no backend. */
+function preferMediaRecorder(): boolean {
+  if (isMobileDevice()) return true;
+  if (typeof MediaRecorder === "undefined") return false;
+  return !getSpeechRecognitionClass();
+}
+
+function getSupportedAudioMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "audio/webm";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/aac",
+    "audio/ogg",
+  ];
+  for (const type of candidates) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return "audio/webm";
+}
 
 function speechErrorMessage(code: string): string {
   switch (code) {
     case "network":
-      return "Serviço de voz indisponível (conexão). Use Chrome/Edge com internet ou digite a evolução abaixo.";
+      return "Serviço de voz indisponível. Verifique a conexão ou use a transcrição manual.";
     case "not-allowed":
     case "service-not-allowed":
-      return "Permissão de microfone negada. Libere o microfone no navegador ou digite a evolução abaixo.";
+      return "Permissão de microfone negada. Libere o microfone nas configurações do navegador.";
     case "audio-capture":
       return "Microfone não encontrado ou em uso por outro app.";
     case "aborted":
       return "";
     default:
-      return `Erro no reconhecimento de voz (${code}). Tente digitar a evolução abaixo.`;
+      return `Erro no reconhecimento de voz (${code}). Tente novamente ou digite manualmente.`;
   }
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(",")[1] ?? "";
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler áudio gravado"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function formatElapsed(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
 }
 
 export function EvolucaoAudioRecorder({
@@ -77,81 +121,217 @@ export function EvolucaoAudioRecorder({
 }: Props) {
   const [recording, setRecording] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
-  const [liveText, setLiveText] = React.useState("");
   const [manualText, setManualText] = React.useState("");
   const [showManual, setShowManual] = React.useState(false);
   const [micHint, setMicHint] = React.useState<string | null>(null);
+  const [elapsedMs, setElapsedMs] = React.useState(0);
+
+  const modeRef = React.useRef<"speech" | "media">("media");
   const recognitionRef = React.useRef<SpeechRecognitionInstance | null>(null);
   const finalTextRef = React.useRef("");
-  const liveTextRef = React.useRef("");
   const shouldSendRef = React.useRef(false);
   const networkRetriesRef = React.useRef(0);
   const retryingRef = React.useRef(false);
 
-  if (!SpeechRecognitionClass) {
-    return (
-      <p className="text-xs text-muted-foreground italic">
-        Gravação de áudio requer Chrome ou Edge.
-      </p>
-    );
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = React.useRef<MediaStream | null>(null);
+  const audioChunksRef = React.useRef<Blob[]>([]);
+  const mimeTypeRef = React.useRef("audio/webm");
+  const timerRef = React.useRef<number | null>(null);
+  const startedAtRef = React.useRef(0);
+
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearInterval(timerRef.current);
+      recognitionRef.current?.stop();
+      mediaRecorderRef.current?.stop();
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  function stopTimer() {
+    if (timerRef.current) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   }
 
-  function finishRecording() {
-    const text = (finalTextRef.current || liveTextRef.current).trim();
+  function startTimer() {
+    startedAtRef.current = Date.now();
+    setElapsedMs(0);
+    stopTimer();
+    timerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startedAtRef.current;
+      setElapsedMs(elapsed);
+      if (elapsed >= MAX_RECORDING_MS) {
+        toast.info("Tempo máximo de gravação atingido (5 min). Processando…");
+        void stopRecording();
+      }
+    }, 500);
+  }
+
+  function cleanupMediaStream() {
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+    mediaRecorderRef.current = null;
+  }
+
+  function fallbackResult(transcricao_raw: string): TranscricaoResult {
+    return {
+      transcricao_raw,
+      subjetivo: transcricao_raw,
+      objetivo: "",
+      plano: "",
+    };
+  }
+
+  async function sendText(transcricao_raw: string) {
+    setProcessing(true);
+    try {
+      const result = await invokeEdgeFunction<TranscricaoResult>(
+        "transcribe-audio",
+        { transcricao_raw, paciente_id: pacienteId },
+        { timeoutMs: 45_000 },
+      );
+      handleTranscricaoResult(result);
+    } catch (err) {
+      toast.warning(
+        "Não foi possível estruturar com IA agora (" +
+          (err instanceof Error ? err.message : "erro desconhecido") +
+          "). Preencha S/O/P manualmente.",
+      );
+      onResult(fallbackResult(transcricao_raw));
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function sendAudio(blob: Blob, mimeType: string) {
+    if (blob.size < 800) {
+      toast.warning("Gravação muito curta ou vazia. Tente falar mais perto do microfone.");
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const audio_base64 = await blobToBase64(blob);
+      const result = await invokeEdgeFunction<TranscricaoResult>(
+        "transcribe-audio",
+        { audio_base64, mime_type: mimeType, paciente_id: pacienteId },
+        { timeoutMs: 120_000 },
+      );
+      handleTranscricaoResult(result);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Erro ao transcrever áudio. Tente novamente ou digite manualmente.",
+      );
+      setShowManual(true);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  function handleTranscricaoResult(result: TranscricaoResult) {
+    if (result.aviso) {
+      toast.info(result.aviso);
+    } else if (!result.subjetivo && !result.objetivo && !result.plano) {
+      toast.info("Transcrição concluída. Revise os campos S/O/P antes de salvar.");
+    } else {
+      toast.success("Evolução estruturada pela IA");
+    }
+    onResult(result);
+  }
+
+  function finishSpeechRecording() {
+    const text = finalTextRef.current.trim();
     if (!text) {
-      toast.warning("Nenhum áudio detectado.");
+      toast.warning("Nenhum áudio detectado na gravação.");
       return;
     }
     void sendText(text);
   }
 
-  function startRecording() {
-    shouldSendRef.current = false;
-    networkRetriesRef.current = 0;
-    finalTextRef.current = "";
-    liveTextRef.current = "";
-    setLiveText("");
-    setMicHint(null);
+  async function startMediaRecording() {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMicHint("Seu navegador não suporta gravação de áudio.");
+      setShowManual(true);
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setMicHint("Gravação de áudio não disponível neste navegador.");
+      setShowManual(true);
+      return;
+    }
 
-    void (async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        setMicHint("Permita o microfone no navegador para gravar por voz.");
-        setShowManual(true);
-        return;
-      }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: 1,
+        },
+      });
+      mediaStreamRef.current = stream;
+      mimeTypeRef.current = getSupportedAudioMimeType();
+      audioChunksRef.current = [];
 
-      startRecognition();
-    })();
+      const rec = new MediaRecorder(stream, { mimeType: mimeTypeRef.current });
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        stopTimer();
+        setRecording(false);
+        const blob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current });
+        cleanupMediaStream();
+        if (shouldSendRef.current) {
+          shouldSendRef.current = false;
+          void sendAudio(blob, mimeTypeRef.current);
+        }
+      };
+      rec.onerror = () => {
+        stopTimer();
+        setRecording(false);
+        cleanupMediaStream();
+        toast.error("Erro durante a gravação. Tente novamente.");
+      };
+
+      mediaRecorderRef.current = rec;
+      rec.start(250);
+      modeRef.current = "media";
+      shouldSendRef.current = false;
+      setMicHint(null);
+      setRecording(true);
+      startTimer();
+    } catch {
+      setMicHint("Permita o microfone no navegador para gravar por voz.");
+      setShowManual(true);
+    }
   }
 
-  function startRecognition() {
-    const rec = new SpeechRecognitionClass!();
+  function startSpeechRecognition() {
+    const SpeechRecognitionClass = getSpeechRecognitionClass();
+    if (!SpeechRecognitionClass) {
+      void startMediaRecording();
+      return;
+    }
+
+    const rec = new SpeechRecognitionClass();
     rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "pt-BR";
 
     rec.onresult = (e) => {
-      // `e.results` sempre contém o histórico completo da sessão (modo contínuo),
-      // não apenas o resultado mais recente — por isso reconstruímos o texto final
-      // e interino do zero em cada evento, em vez de acumular sobre o texto
-      // anterior (o que duplicava/"deformava" a transcrição a cada nova frase).
       let final = "";
-      let interim = "";
       for (let i = 0; i < e.results.length; i++) {
         const result = e.results[i];
-        const transcript = result[0].transcript;
         if (result.isFinal) {
-          final += transcript + " ";
-        } else {
-          interim += transcript;
+          final += result[0].transcript + " ";
         }
       }
       finalTextRef.current = final.trim();
-      const merged = (final + interim).trim();
-      liveTextRef.current = merged;
-      setLiveText(merged);
     };
 
     rec.onerror = (e) => {
@@ -173,83 +353,82 @@ export function EvolucaoAudioRecorder({
           return;
         } catch {
           retryingRef.current = false;
-          /* segue para mensagem abaixo */
         }
       }
 
+      recognitionRef.current = null;
+      setRecording(false);
+      stopTimer();
+      shouldSendRef.current = false;
+
       const msg = speechErrorMessage(e.error);
       if (msg) {
-        setMicHint(msg);
-        setShowManual(true);
         toast.error(msg);
+        void startMediaRecording();
       }
-      setRecording(false);
-      shouldSendRef.current = false;
     };
 
     rec.onend = () => {
       if (retryingRef.current) return;
+      stopTimer();
       setRecording(false);
       recognitionRef.current = null;
       if (!shouldSendRef.current) return;
       shouldSendRef.current = false;
-      finishRecording();
+      finishSpeechRecording();
     };
 
     recognitionRef.current = rec;
+    modeRef.current = "speech";
+    finalTextRef.current = "";
+    networkRetriesRef.current = 0;
+    shouldSendRef.current = false;
     rec.start();
     setRecording(true);
+    startTimer();
+  }
+
+  async function startRecording() {
+    shouldSendRef.current = false;
+    setMicHint(null);
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setMicHint("Permita o microfone no navegador para gravar por voz.");
+      setShowManual(true);
+      return;
+    }
+
+    if (preferMediaRecorder()) {
+      void startMediaRecording();
+    } else {
+      startSpeechRecognition();
+    }
   }
 
   function stopRecording() {
-    if (!recognitionRef.current) return;
     shouldSendRef.current = true;
-    setRecording(false);
-    recognitionRef.current.stop();
-  }
-
-  function fallbackResult(transcricao_raw: string): TranscricaoResult {
-    return {
-      transcricao_raw,
-      subjetivo: transcricao_raw,
-      objetivo: "",
-      plano: "",
-    };
-  }
-
-  async function sendText(transcricao_raw: string) {
-    setProcessing(true);
-    try {
-      const result = await invokeEdgeFunction<TranscricaoResult>(
-        "transcribe-audio",
-        { transcricao_raw, paciente_id: pacienteId },
-        { timeoutMs: 20_000 },
-      );
-
-      if (result.aviso) {
-        toast.info(result.aviso);
-      } else if (!result.subjetivo && !result.objetivo && !result.plano) {
-        toast.info(
-          "Transcrição salva. Configure ANTHROPIC_API_KEY para estruturação automática S/O/P.",
-        );
+    if (modeRef.current === "media") {
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
       } else {
-        toast.success("Evolução estruturada pela IA");
+        shouldSendRef.current = false;
+        setRecording(false);
+        stopTimer();
+        cleanupMediaStream();
+        toast.warning("Gravação não iniciou corretamente. Tente novamente.");
       }
-      onResult(result);
-    } catch (err) {
-      // Qualquer falha ao chamar a IA (rede, timeout, função indisponível) NUNCA
-      // deve descartar o que já foi ditado — sempre preserva a transcrição bruta
-      // e abre a evolução para revisão manual do S/O/P.
-      toast.warning(
-        "Não foi possível estruturar com IA agora (" +
-          (err instanceof Error ? err.message : "erro desconhecido") +
-          "). Transcrição mantida — preencha S/O/P manualmente.",
-      );
-      onResult(fallbackResult(transcricao_raw));
-    } finally {
-      setLiveText("");
-      liveTextRef.current = "";
-      setProcessing(false);
+      return;
+    }
+
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    } else {
+      shouldSendRef.current = false;
+      setRecording(false);
+      stopTimer();
+      toast.warning("Gravação não iniciou corretamente. Tente novamente.");
     }
   }
 
@@ -261,32 +440,37 @@ export function EvolucaoAudioRecorder({
             type="button"
             variant="outline"
             size="sm"
-            onClick={startRecording}
+            onClick={() => void startRecording()}
             disabled={processing}
             className={cn("w-full gap-2 sm:w-auto", primaryButtonClassName)}
           >
             <span>🎤</span>
-            {processing ? "Processando IA..." : buttonLabel}
+            {processing ? "Processando IA…" : buttonLabel}
           </Button>
         ) : (
           <Button
             type="button"
             variant="destructive"
             size="sm"
-            onClick={stopRecording}
+            onClick={() => void stopRecording()}
             className="gap-2 animate-pulse"
           >
             <span>⏹</span>
             Parar e estruturar
           </Button>
         )}
-        {recording && <span className="text-xs text-red-500 font-medium">● Gravando...</span>}
+        {recording && (
+          <span className="text-xs font-medium text-red-500">
+            ● Gravando {formatElapsed(elapsedMs)}
+          </span>
+        )}
       </div>
 
-      {(recording || liveText) && (
-        <div className="h-24 overflow-y-auto rounded-md border bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground break-words">
-          {liveText || "Ouvindo… fale a evolução da sessão."}
-        </div>
+      {recording && (
+        <p className="text-xs text-muted-foreground">
+          Fale a evolução da sessão. O texto não aparece aqui — ao parar, a IA estrutura S/O/P
+          automaticamente.
+        </p>
       )}
 
       {micHint && <p className="text-xs text-amber-700 dark:text-amber-400">{micHint}</p>}
