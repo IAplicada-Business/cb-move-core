@@ -24,17 +24,18 @@ type PageHeaderProps = {
   className?: string;
 };
 
-/**
- * Cabeçalho de página alinhado ao mockup CB MOVE.
- * Staged — usar nas rotas somente após autorização de produção.
- */
 export function PageHeader({ crumbs, title, description, actions, className }: PageHeaderProps) {
   return (
-    <header className={cn("flex flex-wrap items-end justify-between gap-4", className)}>
+    <header
+      className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between",
+        className,
+      )}
+    >
       <div className="min-w-0 space-y-2">
         {crumbs.length > 0 && (
           <Breadcrumb>
-            <BreadcrumbList className="text-[11px] font-medium uppercase tracking-[0.12em] text-cb-muted">
+            <BreadcrumbList className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cb-muted">
               {crumbs.map((crumb, index) => {
                 const isLast = index === crumbs.length - 1;
 
@@ -42,14 +43,16 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
                   <span key={`${crumb.label}-${index}`} className="contents">
                     <BreadcrumbItem>
                       {isLast || !crumb.to ? (
-                        <BreadcrumbPage className="text-cb-muted">{crumb.label}</BreadcrumbPage>
+                        <BreadcrumbPage className="text-cb-cyan-700 dark:text-cb-cyan-400">
+                          {crumb.label}
+                        </BreadcrumbPage>
                       ) : (
                         <BreadcrumbLink asChild className="text-cb-muted hover:text-cb-ink">
                           <Link to={crumb.to}>{crumb.label}</Link>
                         </BreadcrumbLink>
                       )}
                     </BreadcrumbItem>
-                    {!isLast && <BreadcrumbSeparator className="text-cb-muted/50 [&>svg]:size-3" />}
+                    {!isLast && <BreadcrumbSeparator className="text-cb-muted/40 [&>svg]:size-3" />}
                   </span>
                 );
               })}
@@ -58,8 +61,12 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
         )}
 
         <div>
-          <h1 className="text-[30px] font-extrabold tracking-[-0.025em] text-cb-ink">{title}</h1>
-          {description && <p className="mt-1 text-sm text-cb-muted">{description}</p>}
+          <h1 className="text-2xl font-extrabold tracking-[-0.03em] text-cb-ink sm:text-[30px]">
+            {title}
+          </h1>
+          {description && (
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-cb-muted">{description}</p>
+          )}
         </div>
       </div>
 

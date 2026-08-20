@@ -135,7 +135,7 @@ export function PacienteTipoDistribution({
   ].filter((s) => s.value > 0);
 
   return (
-    <div className="rounded-[10px] border border-border bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,75,80,0.06)]">
+    <div className="cb-glass-card px-5 py-4 sm:px-6">
       <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-cb-muted">
         Distribuição por tipo
       </p>
