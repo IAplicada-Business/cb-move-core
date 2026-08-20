@@ -30,12 +30,13 @@ Use este checklist **somente após** Fase 1 de homologação concluída e aprova
 
 Runbook detalhado: [`docs/CUTOVER_CORA_PRODUCAO.md`](CUTOVER_CORA_PRODUCAO.md)
 
-- [ ] Credenciais mTLS **produção** (cert + key + client_id)
-- [ ] `CORA_API_BASE` apontando para API produção (não stage)
-- [ ] `python scripts/verify-cora-ambiente.py` → PRODUCTION
+- [x] Credenciais mTLS **produção** (cert + key + client_id) — `integracao_config`
+- [x] `CORA_API_BASE` apontando para API produção (`matls-clients.api.cora.com.br`)
+- [ ] `python scripts/verify-cora-ambiente.py` → PRODUCTION (requer `.env.app`)
 - [ ] `python scripts/test-cora-token.py` OK em prod
-- [ ] Webhook produção registrado com `?secret=` (`CORA_WEBHOOK_SHARED_SECRET`)
-- [ ] `CORA_WEBHOOK_ENDPOINT_ID` atualizado
+- [ ] Webhook produção validado na API Cora (`python scripts/verify-cora-webhook-prod.py`)
+- [x] `CORA_WEBHOOK_SHARED_SECRET` gravado
+- [x] `CORA_WEBHOOK_ENDPOINT_ID` gravado (`end_5nRjll5XjOwCLmkXk2ClgS`) — **confirmar na Cora prod**
 - [ ] Teste E2E: boleto real mínimo → pagamento → NF automática
 
 ## n8n / e-mail / WhatsApp boleto
