@@ -60,12 +60,12 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
           </Breadcrumb>
         )}
 
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-extrabold tracking-[-0.03em] text-cb-ink sm:text-[30px]">
             {title}
           </h1>
           {description && (
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-cb-muted">{description}</p>
+            <p className="mt-1.5 max-w-4xl text-sm leading-relaxed text-cb-muted">{description}</p>
           )}
         </div>
       </div>

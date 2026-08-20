@@ -109,7 +109,7 @@ export function DashboardSectionHeader({
         className={cn("absolute inset-y-0 left-0 w-1 rounded-r-full", ACCENT_STRIP[accent])}
         aria-hidden
       />
-      <div className="min-w-0 max-w-2xl pl-2">
+      <div className="min-w-0 flex-1 pl-2">
         {eyebrow && (
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cb-muted">
             {eyebrow}

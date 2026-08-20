@@ -28,7 +28,7 @@ function AjudaPage() {
         description="Tutoriais em vídeo para usar o CB MOVE com facilidade."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-3">
         {TUTORIAIS.map((t) => (
           <div key={t.num} className="flex gap-4 rounded-xl border bg-card p-5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cb-cyan-050 text-sm font-bold text-cb-cyan-600">

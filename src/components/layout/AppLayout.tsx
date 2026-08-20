@@ -26,9 +26,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <NavigationProgress />
         <AppTopbar />
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden cb-app-bg">
-          <div className="mx-auto w-full max-w-[1600px] px-4 pb-8 pt-4 sm:px-6 md:px-8 lg:px-10">
-            {children}
-          </div>
+          <div className="w-full px-4 pb-8 pt-4 sm:px-5 md:px-6 lg:px-8">{children}</div>
         </div>
       </SidebarInset>
     </SidebarProvider>
