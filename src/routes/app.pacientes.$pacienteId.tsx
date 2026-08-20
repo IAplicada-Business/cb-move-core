@@ -1,7 +1,8 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardCheck, Pencil, Receipt, User } from "lucide-react";
+import { z } from "zod";
 
 import { LoadingState } from "@/components/domain/LoadingState";
 import { PacienteCadastroDialog } from "@/components/domain/PacienteCadastroDialog";
@@ -29,18 +30,26 @@ import {
 import { formatPhone } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { pacienteTabSchema, resolvePacienteTab, type PacienteTab } from "@/lib/navigation-search";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const pacienteSearchSchema = z.object({
+  tab: pacienteTabSchema.optional(),
+});
 
 export const Route = createFileRoute("/app/pacientes/$pacienteId")({
   head: () => ({
     meta: [{ title: "Paciente · CB MOVE" }],
   }),
+  validateSearch: pacienteSearchSchema,
   component: PacienteDetalhe,
 });
 
 function PacienteDetalhe() {
   const { pacienteId } = Route.useParams();
+  const { tab: tabSearch } = Route.useSearch();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { roles, fisioterapeutaId } = useAuth();
   const podeVerFinanceiro = can.viewFinance(roles, fisioterapeutaId);
@@ -48,8 +57,27 @@ function PacienteDetalhe() {
   const now = React.useMemo(() => new Date(), []);
   const [mesSelecionado, setMesSelecionado] = React.useState(now.getMonth() + 1);
   const [anoSelecionado, setAnoSelecionado] = React.useState(now.getFullYear());
-  const [activeTab, setActiveTab] = React.useState("dados");
+  const activeTab = resolvePacienteTab(tabSearch);
   const [editOpen, setEditOpen] = React.useState(false);
+
+  function setActiveTab(next: PacienteTab) {
+    navigate({
+      to: "/app/pacientes/$pacienteId",
+      params: { pacienteId },
+      search: { tab: next },
+    });
+  }
+
+  React.useEffect(() => {
+    if (tabSearch === "financeiro" && !podeVerFinanceiro) {
+      navigate({
+        to: "/app/pacientes/$pacienteId",
+        params: { pacienteId },
+        search: { tab: "dados" },
+        replace: true,
+      });
+    }
+  }, [tabSearch, podeVerFinanceiro, pacienteId, navigate]);
 
   function selecionarMes(mes: number, ano: number) {
     setMesSelecionado(mes);
@@ -105,7 +133,11 @@ function PacienteDetalhe() {
         }}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dados" className="mt-2">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as PacienteTab)}
+        className="mt-2"
+      >
         <TabsList className="h-auto w-full justify-start gap-1 rounded-2xl border border-border/70 bg-muted/30 p-1.5">
           <TabsTrigger
             value="dados"

@@ -57,7 +57,7 @@ import {
   type CobrancaSemNf,
 } from "@/lib/queries/financeiro";
 import type { NfStatus, PacienteTipo } from "@/lib/types";
-import { assertFinanceAccess } from "@/lib/route-access";
+import { assertMenuAccess } from "@/lib/route-access";
 import { competenciaAtual, competenciaOpcoes } from "@/lib/competencia";
 
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ import {
 
 export const Route = createFileRoute("/app/notas-fiscais")({
   head: () => ({ meta: [{ title: "Notas Fiscais · CB MOVE" }] }),
-  beforeLoad: () => assertFinanceAccess(),
+  beforeLoad: () => assertMenuAccess("fin.notas-fiscais"),
   component: NotasFiscaisPage,
 });
 

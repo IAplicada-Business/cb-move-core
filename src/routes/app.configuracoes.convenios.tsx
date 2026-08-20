@@ -8,6 +8,7 @@ import { Plus, Building2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
+import { assertMenuAccess } from "@/lib/route-access";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
 import { PageHeader } from "@/components/brand/PageHeader";
@@ -63,6 +64,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/configuracoes/convenios")({
   head: () => ({ meta: [{ title: "Convênios · CB MOVE" }] }),
+  beforeLoad: () => assertMenuAccess("cfg.convenios"),
   component: ConveniosPage,
 });
 

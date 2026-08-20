@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage } from "@/components/domain/DashboardSection";
+import { assertMenuAccess } from "@/lib/route-access";
 
 export const Route = createFileRoute("/app/ajuda")({
   head: () => ({ meta: [{ title: "Ajuda · CB MOVE" }] }),
+  beforeLoad: () => assertMenuAccess("app.ajuda"),
   component: AjudaPage,
 });
 

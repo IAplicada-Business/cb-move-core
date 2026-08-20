@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Download, Mic } from "lucide-react";
+import { Download, Mic, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -85,6 +85,12 @@ export function ProntuarioPatientHero({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" asChild>
+            <Link to="/app/pacientes/$pacienteId" params={{ pacienteId: paciente.id }}>
+              <UserRound className="h-4 w-4" />
+              Cadastro
+            </Link>
+          </Button>
           <Button
             variant="outline"
             size="sm"

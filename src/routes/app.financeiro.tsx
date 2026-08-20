@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DashboardFinanceiro } from "@/components/domain/DashboardFinanceiro";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage } from "@/components/domain/DashboardSection";
-import { assertFinanceAccess } from "@/lib/route-access";
+import { assertMenuAccess } from "@/lib/route-access";
 import {
   financeiroKpisHistoricoOptions,
   financeiroKpisPorTipoOptions,
@@ -12,7 +12,7 @@ import {
 
 export const Route = createFileRoute("/app/financeiro")({
   head: () => ({ meta: [{ title: "Análises · CB MOVE" }] }),
-  beforeLoad: () => assertFinanceAccess(),
+  beforeLoad: () => assertMenuAccess("fin.financeiro"),
   loader: ({ context }) => {
     const now = new Date();
     const mes = now.getMonth() + 1;

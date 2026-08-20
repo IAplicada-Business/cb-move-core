@@ -5,6 +5,7 @@ export type MenuKey =
   | "app.pacientes"
   | "app.prontuario"
   | "app.agenda"
+  | "app.ajuda"
   | "fin.cobrancas"
   | "fin.notas-fiscais"
   | "fin.financeiro"
@@ -39,6 +40,7 @@ export const MENU_GROUPS: MenuGroupDef[] = [
       { key: "app.pacientes", to: "/app/pacientes", label: "Pacientes" },
       { key: "app.prontuario", to: "/app/prontuario", label: "Prontuário" },
       { key: "app.agenda", to: "/app/agenda", label: "Agenda" },
+      { key: "app.ajuda", to: "/app/ajuda", label: "Ajuda" },
     ],
   },
   {
@@ -89,6 +91,7 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "app.pacientes": true,
   "app.prontuario": true,
   "app.agenda": true,
+  "app.ajuda": true,
   "fin.cobrancas": false,
   "fin.notas-fiscais": false,
   "fin.financeiro": false,
@@ -113,6 +116,7 @@ export const DEFAULT_MENU_FOR_OPERACIONAL: Record<MenuKey, boolean> = {
   "app.pacientes": true,
   "app.prontuario": true,
   "app.agenda": true,
+  "app.ajuda": true,
   "fin.cobrancas": true,
   "fin.notas-fiscais": false,
   "fin.financeiro": false,

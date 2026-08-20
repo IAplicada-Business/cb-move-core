@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -49,6 +49,8 @@ import {
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
+import { agendaVisaoSchema, resolveAgendaVisao, type AgendaVisao } from "@/lib/navigation-search";
+import { assertMenuAccess } from "@/lib/route-access";
 import {
   fetchAgendamentoHistorico,
   fetchAgendamentoPorId,
@@ -133,6 +135,8 @@ import {
 
 export const Route = createFileRoute("/app/agenda")({
   head: () => ({ meta: [{ title: "Agenda · CB MOVE" }] }),
+  validateSearch: z.object({ visao: agendaVisaoSchema.optional() }),
+  beforeLoad: () => assertMenuAccess("app.agenda"),
   component: AgendaPage,
 });
 
@@ -159,7 +163,7 @@ const MESES = [
   "Dezembro",
 ];
 
-type VisaoAgenda = "semana" | "dia" | "frequencia" | "mes";
+type VisaoAgenda = AgendaVisao;
 
 const TIPO_SLOT: Record<PacienteTipo, string> = {
   particular: "bg-cb-cyan-600/12 text-cb-cyan-800 ring-1 ring-cb-cyan-600/25",
@@ -466,6 +470,9 @@ type FormValues = z.output<typeof schema>;
 
 function AgendaPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const { visao: visaoSearch } = Route.useSearch();
+  const visao = resolveAgendaVisao(visaoSearch);
   const { user, roles, fisioterapeutaId } = useAuth();
   const podeGerir = can.manageAgenda(roles, fisioterapeutaId);
   const isFisioScoped = isFisioScopedUser(roles, fisioterapeutaId);
@@ -474,7 +481,10 @@ function AgendaPage() {
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(today));
   const [diaSemanaIdx, setDiaSemanaIdx] = useState(() => indexDiaNaSemana(startOfWeek(today)));
   const [mesRef, setMesRef] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
-  const [visao, setVisao] = useState<VisaoAgenda>("semana");
+
+  function setVisao(next: VisaoAgenda) {
+    navigate({ to: "/app/agenda", search: { visao: next } });
+  }
   const [filterFisio, setFilterFisio] = useState(FILTRO_TODOS);
   const [filterTipo, setFilterTipo] = useState(FILTRO_TODOS);
   const fisioFilterAtivo = fisioScopeId ?? (filterFisio !== FILTRO_TODOS ? filterFisio : undefined);

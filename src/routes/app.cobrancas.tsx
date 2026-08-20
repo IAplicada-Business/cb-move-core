@@ -79,7 +79,7 @@ import {
   type MatchCobranca,
 } from "@/lib/extrato-parser";
 import { cn } from "@/lib/utils";
-import { assertFinanceAccess } from "@/lib/route-access";
+import { assertMenuAccess } from "@/lib/route-access";
 import { competenciaAtual } from "@/lib/competencia";
 
 import { Button } from "@/components/ui/button";
@@ -120,7 +120,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/app/cobrancas")({
   head: () => ({ meta: [{ title: "Cobranças · CB MOVE" }] }),
-  beforeLoad: () => assertFinanceAccess(),
+  beforeLoad: () => assertMenuAccess("fin.cobrancas"),
   component: CobrancasPage,
 });
 

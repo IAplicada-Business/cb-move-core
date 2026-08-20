@@ -5,6 +5,7 @@ import {
   prontuarioPatientTabSchema,
   prontuarioTabSchema,
 } from "@/components/domain/prontuario/schemas";
+import { assertMenuAccess } from "@/lib/route-access";
 
 const prontuarioLayoutSearchSchema = z.object({
   pacienteId: z.string().uuid().optional(),
@@ -13,7 +14,8 @@ const prontuarioLayoutSearchSchema = z.object({
 
 export const Route = createFileRoute("/app/prontuario")({
   validateSearch: prontuarioLayoutSearchSchema,
-  beforeLoad: ({ search }) => {
+  beforeLoad: async ({ search }) => {
+    await assertMenuAccess("app.prontuario");
     if (!search.pacienteId) return;
     if (search.tab === "visao-geral") {
       throw redirect({ to: "/app/prontuario" });

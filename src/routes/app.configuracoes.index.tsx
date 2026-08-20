@@ -3,9 +3,11 @@ import { Building2, FilePlus2, Sparkles, Wrench } from "lucide-react";
 
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage, DashboardSection } from "@/components/domain/DashboardSection";
+import { assertMenuAccess } from "@/lib/route-access";
 
 export const Route = createFileRoute("/app/configuracoes/")({
   head: () => ({ meta: [{ title: "Configurações · CB MOVE" }] }),
+  beforeLoad: () => assertMenuAccess("cfg.geral"),
   component: ConfiguracoesPage,
 });
 

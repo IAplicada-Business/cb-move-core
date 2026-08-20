@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { MonthPicker } from "@/components/domain/MonthPicker";
 import { RelatorioArquivoMenu } from "@/components/domain/RelatorioArquivoMenu";
@@ -30,7 +31,12 @@ import { fetchPacientes } from "@/lib/queries/pacientes";
 import { gerarRelatorioMensal, gerarRelatorioMensalLote } from "@/lib/queries/prontuario";
 import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
-import { assertFinanceAccess } from "@/lib/route-access";
+import {
+  relatoriosTabSchema,
+  resolveRelatoriosTab,
+  type RelatoriosTab,
+} from "@/lib/navigation-search";
+import { assertMenuAccess } from "@/lib/route-access";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,7 +53,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/relatorios")({
   head: () => ({ meta: [{ title: "Relatórios · CB MOVE" }] }),
-  beforeLoad: () => assertFinanceAccess(),
+  validateSearch: z.object({ tab: relatoriosTabSchema.optional() }),
+  beforeLoad: () => assertMenuAccess("fin.relatorios"),
   component: RelatoriosPage,
 });
 
@@ -438,8 +445,14 @@ function GerarRelatorioDialog({ tipo, onClose }: { tipo: PacienteTipo; onClose: 
 }
 
 function RelatoriosPage() {
+  const navigate = useNavigate();
+  const { tab: tabSearch } = Route.useSearch();
+  const aba = resolveRelatoriosTab(tabSearch);
   const [tipoSelecionado, setTipoSelecionado] = useState<PacienteTipo | null>(null);
-  const [aba, setAba] = useState<"gerar" | "historico">("gerar");
+
+  function setAba(next: RelatoriosTab) {
+    navigate({ to: "/app/relatorios", search: { tab: next } });
+  }
 
   const { data: pacientes = [] } = useQuery({
     queryKey: queryKeys.pacientes.all,
@@ -499,7 +512,7 @@ function RelatoriosPage() {
         />
       </KpiGrid>
 
-      <Tabs value={aba} onValueChange={(v) => setAba(v as "gerar" | "historico")}>
+      <Tabs value={aba} onValueChange={(v) => setAba(v as RelatoriosTab)}>
         <TabsList className="h-auto bg-cb-cyan-050/60 p-1">
           <TabsTrigger value="gerar" className="data-[state=active]:bg-white">
             Gerar

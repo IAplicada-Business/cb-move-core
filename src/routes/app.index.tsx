@@ -25,10 +25,12 @@ import { DataToolbar } from "@/components/brand/DataToolbar";
 import { dashboardHomeOptions } from "@/lib/queries/options";
 import { useAuth } from "@/lib/auth";
 import { can, isFisioScopedUser } from "@/lib/permissions";
+import { assertMenuAccess } from "@/lib/route-access";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/app/")({
   head: () => ({ meta: [{ title: "Dashboard · CB MOVE" }] }),
+  beforeLoad: () => assertMenuAccess("app.dashboard"),
   component: Dashboard,
 });
 

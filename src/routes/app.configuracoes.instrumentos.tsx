@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage, DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
+import { assertMenuAccess } from "@/lib/route-access";
 
 import {
   Table,
@@ -57,6 +58,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/app/configuracoes/instrumentos")({
   head: () => ({ meta: [{ title: "Instrumentos clínicos · CB MOVE" }] }),
+  beforeLoad: () => assertMenuAccess("cfg.instrumentos"),
   component: InstrumentosPage,
 });
 

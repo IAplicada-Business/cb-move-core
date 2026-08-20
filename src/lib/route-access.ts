@@ -6,13 +6,21 @@ import {
   syncAccessContext as storeAccessContext,
   type AccessContext,
 } from "@/lib/access-context";
-import { ALL_MENU_KEYS, DEFAULT_MENU_FOR_MEMBRO, type MenuKey } from "@/lib/menu-access";
+import {
+  ALL_MENU_KEYS,
+  DEFAULT_MENU_FOR_FISIO,
+  DEFAULT_MENU_FOR_MEMBRO,
+  DEFAULT_MENU_FOR_OPERACIONAL,
+  type MenuKey,
+} from "@/lib/menu-access";
 import {
   can,
   hasRole,
   isAdminUser,
   isFisioScopedUser,
   isOperationalMembro,
+  normalizeRole,
+  type PrimaryRole,
 } from "@/lib/permissions";
 import type { AppRole } from "@/lib/types";
 
@@ -71,12 +79,82 @@ async function loadUserMenuEnabled(userId: string): Promise<Partial<Record<MenuK
   return map;
 }
 
+async function loadRoleMenuEnabled(role: PrimaryRole): Promise<Partial<Record<MenuKey, boolean>>> {
+  const { data, error } = await supabase
+    .from("menu_permissions")
+    .select("menu_key, enabled")
+    .eq("role", role);
+  if (error) return {};
+  const map: Partial<Record<MenuKey, boolean>> = {};
+  for (const row of data ?? []) {
+    if (ALL_MENU_KEYS.includes(row.menu_key as MenuKey)) {
+      map[row.menu_key as MenuKey] = row.enabled;
+    }
+  }
+  return map;
+}
+
 function hasAnyMenu(
   permissions: Partial<Record<MenuKey, boolean>>,
   keys: MenuKey[],
   defaults: Record<MenuKey, boolean>,
 ): boolean {
   return keys.some((key) => permissions[key] ?? defaults[key] ?? false);
+}
+
+function menuKeyEnabled(
+  menuKey: MenuKey,
+  permissions: Partial<Record<MenuKey, boolean>>,
+  defaults: Record<MenuKey, boolean>,
+): boolean {
+  return permissions[menuKey] ?? defaults[menuKey] ?? false;
+}
+
+async function resolveMenuPermissions(ctx: AccessContext): Promise<{
+  permissions: Partial<Record<MenuKey, boolean>>;
+  defaults: Record<MenuKey, boolean>;
+}> {
+  if (isFisioScopedUser(ctx.roles, ctx.fisioterapeutaId)) {
+    return { permissions: {}, defaults: DEFAULT_MENU_FOR_FISIO };
+  }
+
+  if (isOperationalMembro(ctx.roles, ctx.fisioterapeutaId)) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { permissions: {}, defaults: DEFAULT_MENU_FOR_OPERACIONAL };
+    const permissions = await loadUserMenuEnabled(session.user.id);
+    return { permissions, defaults: DEFAULT_MENU_FOR_OPERACIONAL };
+  }
+
+  const primary = normalizeRole(ctx.roles[0]) ?? "membro";
+  const defaults = DEFAULT_MENU_FOR_MEMBRO;
+  if (primary === "membro") {
+    const permissions = await loadRoleMenuEnabled("membro");
+    return { permissions, defaults };
+  }
+
+  return { permissions: {}, defaults };
+}
+
+async function isMenuEnabled(ctx: AccessContext, menuKey: MenuKey): Promise<boolean> {
+  if (isAdminUser(ctx.roles)) return true;
+  const { permissions, defaults } = await resolveMenuPermissions(ctx);
+  return menuKeyEnabled(menuKey, permissions, defaults);
+}
+
+/** Bloqueia acesso quando o menu key não está liberado para o perfil atual. */
+export async function assertMenuAccess(menuKey: MenuKey): Promise<void> {
+  const ctx = await loadAccessContext();
+  if (!ctx) throw redirect({ to: "/login" });
+
+  if (FINANCE_MENU_KEYS.includes(menuKey) && !can.viewFinance(ctx.roles, ctx.fisioterapeutaId)) {
+    throw redirect({ to: "/app" });
+  }
+
+  if (!(await isMenuEnabled(ctx, menuKey))) {
+    throw redirect({ to: "/app" });
+  }
 }
 
 /**

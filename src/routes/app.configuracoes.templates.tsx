@@ -13,6 +13,7 @@ import { TemplatePreviewPanel } from "@/components/domain/TemplatePreviewPanel";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
+import { assertMenuAccess } from "@/lib/route-access";
 import {
   CATEGORIA_META,
   categoriasTemplatesVisiveis,
@@ -61,6 +62,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/configuracoes/templates")({
   head: () => ({ meta: [{ title: "Templates versionados · CB MOVE" }] }),
+  beforeLoad: () => assertMenuAccess("cfg.templates"),
   component: TemplatesPage,
 });
 
