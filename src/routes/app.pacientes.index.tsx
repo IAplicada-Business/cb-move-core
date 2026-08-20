@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Search, MoreHorizontal, Users, UserCheck, Briefcase, Scale } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,6 +65,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { can } from "@/lib/permissions";
+import { matchesPatientSearch } from "@/lib/search-text";
 
 export const Route = createFileRoute("/app/pacientes/")({
   head: () => ({ meta: [{ title: "Pacientes · CB MOVE" }] }),
@@ -89,17 +90,26 @@ function PacientesPage() {
   const [editing, setEditing] = useState<Paciente | null>(null);
   const [deleting, setDeleting] = useState<Paciente | null>(null);
 
-  const { data: pacientes = [], isPending: pacientesPending } = useQuery({
+  const {
+    data: pacientesRaw = [],
+    isPending: pacientesPending,
+    isError,
+    error,
+  } = useQuery({
     queryKey: queryKeys.pacientes.list({
-      search,
       tipo: filterTipo === "todos" ? undefined : filterTipo,
     }),
     queryFn: () =>
       fetchPacientes({
-        search: search || undefined,
         tipo: filterTipo === "todos" ? undefined : filterTipo,
       }),
+    placeholderData: (prev) => prev,
   });
+
+  const pacientes = useMemo(() => {
+    if (!search.trim()) return pacientesRaw;
+    return pacientesRaw.filter((p) => matchesPatientSearch(p.nome, p.cpf, search));
+  }, [pacientesRaw, search]);
 
   const toggleAtivoMutation = useMutation({
     mutationFn: ({ id, ativo }: { id: string; ativo: boolean }) => setPacienteAtivo(id, ativo),
@@ -215,7 +225,12 @@ function PacientesPage() {
         </Select>
       </DataToolbar>
 
-      {pacientesPending && pacientes.length === 0 ? (
+      {isError ? (
+        <EmptyState
+          title="Erro ao carregar pacientes"
+          description={error instanceof Error ? error.message : "Tente novamente em instantes."}
+        />
+      ) : pacientesPending && pacientesRaw.length === 0 ? (
         <LoadingState />
       ) : pacientes.length === 0 ? (
         <EmptyState

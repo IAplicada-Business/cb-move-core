@@ -18,6 +18,7 @@ import { filterChipTriggerClass } from "@/components/domain/filter-chip-style";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { normalizeSearchText } from "@/lib/search-text";
 import { formatDate } from "@/lib/format";
 import { queryKeys } from "@/lib/queries/keys";
 import { fetchProntuariosConsolidados } from "@/lib/queries/prontuario-consolidado";
@@ -170,9 +171,10 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
 
   /** Filtro de período aplicado sobre a data da última evolução. */
   const filteredRows = useMemo(() => {
-    const termo = search.trim().toLowerCase();
+    const termo = search.trim();
+    const termoNorm = termo ? normalizeSearchText(termo) : "";
     return rows.filter((row) => {
-      if (termo && !row.pacienteNome.toLowerCase().includes(termo)) return false;
+      if (termoNorm && !normalizeSearchText(row.pacienteNome).includes(termoNorm)) return false;
       if (pacienteId !== ALL && row.pacienteId !== pacienteId) return false;
 
       if (fisio === SEM_FISIO) {

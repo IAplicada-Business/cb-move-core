@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { TranscricaoResult } from "@/components/domain/EvolucaoAudioRecorder";
@@ -60,6 +60,8 @@ import {
 type Props = {
   pacienteId: string;
   activeTab: ProntuarioPatientTab;
+  autoGravarEvolucao?: boolean;
+  onAutoGravarConsumed?: () => void;
   onTabChange: (tab: ProntuarioPatientTab | "visao-geral") => void;
   onSelectPaciente: (pacienteId: string, tab?: ProntuarioPatientTab) => void;
 };
@@ -67,6 +69,8 @@ type Props = {
 export function ProntuarioPacienteView({
   pacienteId,
   activeTab,
+  autoGravarEvolucao,
+  onAutoGravarConsumed,
   onTabChange,
   onSelectPaciente,
 }: Props) {
@@ -192,6 +196,16 @@ export function ProntuarioPacienteView({
     setDraftEvolucao(draft ?? null);
     setEvolucaoDialogOpen(true);
   }
+
+  useEffect(() => {
+    if (!autoGravarEvolucao || !canEdit || loadPaciente) return;
+    if (!paciente) return;
+    openNovaEvolucao({
+      data: new Date().toISOString().split("T")[0],
+      fisioterapeuta_id: fisioterapeutaId ?? null,
+    });
+    onAutoGravarConsumed?.();
+  }, [autoGravarEvolucao, canEdit, loadPaciente, paciente, fisioterapeutaId, onAutoGravarConsumed]);
 
   function handleTranscricao(result: TranscricaoResult) {
     const transcricao = result.transcricao_raw?.trim() ?? "";

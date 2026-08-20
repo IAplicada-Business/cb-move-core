@@ -34,6 +34,7 @@ import {
   type UserRow,
 } from "@/lib/queries/usuarios";
 import { can } from "@/lib/permissions";
+import { assertAdminAccess } from "@/lib/route-access";
 import { COLABORADORES_REFERENCIA } from "@/lib/colaboradores-referencia";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/default-password";
 import { DEFAULT_MENU_FOR_OPERACIONAL } from "@/lib/menu-access";
@@ -74,6 +75,7 @@ const usuariosSearchSchema = z.object({
 export const Route = createFileRoute("/app/usuarios")({
   head: () => ({ meta: [{ title: "Usuários · CB MOVE" }] }),
   validateSearch: usuariosSearchSchema,
+  beforeLoad: () => assertAdminAccess(),
   component: UsuariosPage,
 });
 

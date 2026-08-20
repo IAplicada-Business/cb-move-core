@@ -358,6 +358,7 @@ async function createAgendamento(input: {
   servico: string | null;
   status: StatusAgendamento;
   serie_id?: string | null;
+  criado_por?: string | null;
 }): Promise<void> {
   const { error } = await supabase.from("agendamentos").insert(input);
   if (error) throw error;
@@ -372,6 +373,7 @@ async function createAgendamentosLote(
     servico: string | null;
     status: StatusAgendamento;
     serie_id?: string | null;
+    criado_por?: string | null;
   }>,
 ): Promise<number> {
   if (inputs.length === 0) return 0;
@@ -699,6 +701,7 @@ function AgendaPage() {
       const isoDate = parseDDMMYYToISO(vals.data);
       if (!isoDate) throw new Error("Data inválida — use dd/mm/aa");
       const isSlot = STATUS_SLOT.includes(vals.statusSlot);
+      const criadoPor = user?.id ?? null;
 
       if (isSlot) {
         await createAgendamento({
@@ -708,6 +711,7 @@ function AgendaPage() {
           duracao_min: vals.duracao,
           servico: null,
           status: vals.statusSlot,
+          criado_por: criadoPor,
         });
         return { criados: 1 };
       }
@@ -733,6 +737,7 @@ function AgendaPage() {
             servico: vals.servico || null,
             status: vals.statusSlot,
             serie_id: serieId,
+            criado_por: criadoPor,
           })),
         );
         return { criados };
@@ -756,6 +761,7 @@ function AgendaPage() {
           servico: vals.servico || null,
           status: vals.statusSlot,
           serie_id: serieId,
+          criado_por: criadoPor,
         },
       ]);
       return { criados };

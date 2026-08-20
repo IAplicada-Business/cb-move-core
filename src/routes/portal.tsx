@@ -101,6 +101,8 @@ function PortalShell() {
               { to: "/portal/sessoes", label: "Sessões" },
               { to: "/portal/exercicios", label: "Exercícios" },
               { to: "/portal/laudos", label: "Documentos" },
+              { to: "/portal/historico", label: "Histórico" },
+              { to: "/portal/notas-fiscais", label: "Notas fiscais" },
               { to: "/portal/contato", label: "Contato" },
             ] as const
           ).map((item) => (
