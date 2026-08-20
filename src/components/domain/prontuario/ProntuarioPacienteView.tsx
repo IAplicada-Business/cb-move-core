@@ -161,6 +161,9 @@ export function ProntuarioPacienteView({
     mutationFn: createEvolucao,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.prontuario.evolucoes(pacienteId) });
+      qc.invalidateQueries({ queryKey: queryKeys.prontuario.sessoes(pacienteId) });
+      qc.invalidateQueries({ queryKey: queryKeys.sessoes.all });
+      qc.invalidateQueries({ queryKey: queryKeys.agendamentos.all });
       toast.success("Evolução registrada");
       closeEvolucaoDialog();
     },
