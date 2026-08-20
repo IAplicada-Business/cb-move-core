@@ -17,7 +17,12 @@ export function SidebarThemeFooter({ compact, className }: SidebarThemeFooterPro
   }
 
   return (
-    <div className={cn("w-full px-3 py-3", className)}>
+    <div
+      className={cn(
+        "w-full px-3 py-3 [&_[role=tablist]]:border-sidebar-border [&_[role=tablist]]:bg-sidebar-accent/40",
+        className,
+      )}
+    >
       <ThemeTabs size="sm" stretch layoutId="cb-sidebar-theme-tab-bg" className="w-full" />
     </div>
   );

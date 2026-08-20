@@ -9,7 +9,7 @@ type DashboardPageProps = {
 
 /** Espaçamento vertical padrão entre blocos de dashboard. */
 export function DashboardPage({ children, className }: DashboardPageProps) {
-  return <div className={cn("space-y-8", className)}>{children}</div>;
+  return <div className={cn("space-y-6 sm:space-y-8", className)}>{children}</div>;
 }
 
 export type DashboardSectionAccent = "cyan" | "purple" | "lime" | "orange" | "magenta";
@@ -23,35 +23,30 @@ const ACCENT_STRIP: Record<DashboardSectionAccent, string> = {
 };
 
 export const ACCENT_HEADER_BG: Record<DashboardSectionAccent, string> = {
-  cyan: "bg-gradient-to-r from-cb-cyan-050/90 via-cb-cyan-050/35 to-transparent dark:from-cb-cyan-900/70 dark:via-cb-cyan-800/35 dark:to-transparent",
+  cyan: "bg-gradient-to-r from-cb-cyan-050/95 via-cb-cyan-050/40 to-transparent dark:from-cb-cyan-900/50 dark:via-cb-cyan-800/20 dark:to-transparent",
   purple:
-    "bg-gradient-to-r from-[#F5F3FF]/90 via-[#F5F3FF]/35 to-transparent dark:from-cb-purple/35 dark:via-cb-purple/16 dark:to-transparent",
-  lime: "bg-gradient-to-r from-[#F7FEE7]/90 via-[#F7FEE7]/35 to-transparent dark:from-cb-lime/28 dark:via-cb-lime/12 dark:to-transparent",
+    "bg-gradient-to-r from-[#F5F3FF]/95 via-[#F5F3FF]/40 to-transparent dark:from-cb-purple/30 dark:via-cb-purple/12 dark:to-transparent",
+  lime: "bg-gradient-to-r from-[#F7FEE7]/95 via-[#F7FEE7]/40 to-transparent dark:from-cb-lime/24 dark:via-cb-lime/10 dark:to-transparent",
   orange:
-    "bg-gradient-to-r from-[#FFF7ED]/90 via-[#FFF7ED]/35 to-transparent dark:from-cb-orange/32 dark:via-cb-orange/14 dark:to-transparent",
+    "bg-gradient-to-r from-[#FFF7ED]/95 via-[#FFF7ED]/40 to-transparent dark:from-cb-orange/28 dark:via-cb-orange/12 dark:to-transparent",
   magenta:
-    "bg-gradient-to-r from-[#FDF2F8]/90 via-[#FDF2F8]/35 to-transparent dark:from-cb-magenta/32 dark:via-cb-magenta/14 dark:to-transparent",
+    "bg-gradient-to-r from-[#FDF2F8]/95 via-[#FDF2F8]/40 to-transparent dark:from-cb-magenta/28 dark:via-cb-magenta/12 dark:to-transparent",
 };
 
 type DashboardSectionProps = {
   title: ReactNode;
   description?: string;
-  /** Rótulo superior (ex.: Financeiro, Detalhamento). */
   eyebrow?: string;
-  /** Faixa lateral + fundo suave no cabeçalho. */
   accent?: DashboardSectionAccent;
-  /** Chip ao lado do título (ex.: competência). */
   badge?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
   noPadding?: boolean;
-  /** Cabeçalho compacto — widgets em grid. */
   compact?: boolean;
 };
 
-/** Chip compacto para competência ou metadado no cabeçalho de seção. */
 export function DashboardSectionBadge({
   children,
   accent = "cyan",
@@ -62,7 +57,7 @@ export function DashboardSectionBadge({
   className?: string;
 }) {
   const ring: Record<DashboardSectionAccent, string> = {
-    cyan: "ring-cb-cyan-100 text-cb-cyan-800 dark:ring-cb-cyan-700/40 dark:text-cb-cyan-300",
+    cyan: "ring-cb-cyan-200/80 text-cb-cyan-800 dark:ring-cb-cyan-700/40 dark:text-cb-cyan-300",
     purple: "ring-[#DDD6FE] text-cb-purple dark:ring-cb-purple/30 dark:text-[#c4b5fd]",
     lime: "ring-[#BEF264] text-[#3F6212] dark:ring-cb-lime/25 dark:text-cb-lime",
     orange: "ring-[#FED7AA] text-cb-orange dark:ring-cb-orange/30 dark:text-[#fdba74]",
@@ -72,7 +67,7 @@ export function DashboardSectionBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border border-border/80 bg-background/90 px-2.5 py-0.5",
+        "inline-flex items-center rounded-full border border-border/60 bg-background/90 px-3 py-0.5",
         "text-xs font-bold tabular-nums tracking-wide ring-1",
         ring[accent],
         className,
@@ -93,7 +88,6 @@ export type DashboardSectionHeaderProps = {
   compact?: boolean;
 };
 
-/** Cabeçalho padrão de painéis — faixa lateral, eyebrow e chip de contexto. */
 export function DashboardSectionHeader({
   title,
   description,
@@ -106,15 +100,18 @@ export function DashboardSectionHeader({
   return (
     <header
       className={cn(
-        "relative flex flex-wrap items-start justify-between gap-3 border-b border-border",
-        compact ? "px-4 py-4" : "px-6 py-5",
+        "relative flex flex-wrap items-start justify-between gap-3 border-b border-border/50",
+        compact ? "px-4 py-4 sm:px-5" : "px-5 py-5 sm:px-6",
         ACCENT_HEADER_BG[accent],
       )}
     >
-      <div className={cn("absolute inset-y-0 left-0 w-[3px]", ACCENT_STRIP[accent])} aria-hidden />
-      <div className="min-w-0 max-w-2xl pl-1">
+      <div
+        className={cn("absolute inset-y-0 left-0 w-1 rounded-r-full", ACCENT_STRIP[accent])}
+        aria-hidden
+      />
+      <div className="min-w-0 max-w-2xl pl-2">
         {eyebrow && (
-          <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-cb-muted">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cb-muted">
             {eyebrow}
           </p>
         )}
@@ -122,7 +119,7 @@ export function DashboardSectionHeader({
           <h2
             className={cn(
               "font-bold tracking-tight text-cb-ink",
-              compact ? "text-base" : "text-lg",
+              compact ? "text-base" : "text-lg sm:text-xl",
             )}
           >
             {title}
@@ -130,7 +127,7 @@ export function DashboardSectionHeader({
           {badge}
         </div>
         {!compact && description && (
-          <p className="mt-2 text-sm leading-relaxed text-cb-muted">{description}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-cb-muted">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -138,7 +135,6 @@ export function DashboardSectionHeader({
   );
 }
 
-/** Painel com cabeçalho destacado — evita blocos “só texto” estilo Drive. */
 export function DashboardSection({
   title,
   description,
@@ -153,13 +149,7 @@ export function DashboardSection({
   compact = false,
 }: DashboardSectionProps) {
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-[10px] border border-border bg-card",
-        "shadow-[0_1px_2px_rgba(15,75,80,0.06)]",
-        className,
-      )}
-    >
+    <section className={cn("cb-glass-card overflow-hidden", className)}>
       <DashboardSectionHeader
         title={title}
         description={description}
@@ -169,7 +159,7 @@ export function DashboardSection({
         actions={actions}
         compact={compact}
       />
-      <div className={cn(!noPadding && "p-6", bodyClassName)}>{children}</div>
+      <div className={cn(!noPadding && "p-5 sm:p-6", bodyClassName)}>{children}</div>
     </section>
   );
 }
@@ -188,5 +178,5 @@ const KPI_COLS: Record<NonNullable<KpiGridProps["columns"]>, string> = {
 };
 
 export function KpiGrid({ children, columns = 4, className }: KpiGridProps) {
-  return <div className={cn("grid gap-5", KPI_COLS[columns], className)}>{children}</div>;
+  return <div className={cn("grid gap-4 sm:gap-5", KPI_COLS[columns], className)}>{children}</div>;
 }

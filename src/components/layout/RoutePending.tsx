@@ -15,11 +15,11 @@ export function RoutePending() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-[88px] rounded-[10px] border border-border bg-muted/30" />
+            <div key={i} className="h-[96px] rounded-2xl border border-border/50 bg-muted/30" />
           ))}
         </div>
-        <div className="h-12 rounded-[10px] border border-border bg-muted/25" />
-        <div className="h-72 rounded-[10px] border border-border bg-muted/20" />
+        <div className="h-12 rounded-2xl border border-border/50 bg-muted/25" />
+        <div className="h-72 rounded-2xl border border-border/50 bg-muted/20" />
       </div>
     </div>
   );

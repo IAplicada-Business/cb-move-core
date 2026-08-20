@@ -7,15 +7,11 @@ type DataToolbarProps = {
   className?: string;
 };
 
-/**
- * Barra de filtros/busca dentro de card — padrão `.toolbar` do mockup.
- * Staged — usar nas rotas somente após autorização de produção.
- */
 export function DataToolbar({ children, className }: DataToolbarProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-2.5 rounded-[10px] border border-border bg-card px-3 py-2.5",
+        "cb-glass-toolbar flex flex-wrap items-center gap-2 px-3 py-2.5 sm:gap-2.5 sm:px-4 sm:py-3",
         className,
       )}
     >
@@ -33,7 +29,7 @@ export function DataToolbarSearch({ children, className }: DataToolbarSearchProp
   return (
     <div
       className={cn(
-        "flex min-w-[200px] flex-1 items-center gap-2 rounded-lg bg-background px-2.5 py-1.5 text-sm text-cb-muted",
+        "flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border/50 bg-background/60 px-3 py-2 text-sm text-cb-muted backdrop-blur-sm sm:min-w-[220px]",
         className,
       )}
     >

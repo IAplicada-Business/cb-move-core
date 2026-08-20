@@ -48,16 +48,16 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
 };
 
 const ACTIVE_NAV_CLS = cn(
-  "data-[active=true]:bg-cb-cyan-050 data-[active=true]:font-semibold data-[active=true]:text-cb-cyan-800",
-  "data-[active=true]:relative data-[active=true]:before:absolute data-[active=true]:before:left-0",
-  "data-[active=true]:before:top-1.5 data-[active=true]:before:bottom-1.5 data-[active=true]:before:w-[3px]",
-  "data-[active=true]:before:rounded-r-sm data-[active=true]:before:bg-cb-cyan-600",
-  "hover:bg-cb-cyan-050/80",
+  "data-[active=true]:bg-cb-cyan-600 data-[active=true]:font-semibold data-[active=true]:text-white",
+  "data-[active=true]:shadow-[0_4px_12px_rgba(63,181,188,0.35)]",
+  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+  "text-sidebar-foreground/80",
 );
 
 const SECTION_TRIGGER_CLS = cn(
-  "rounded-lg font-semibold text-cb-ink transition-colors",
-  "hover:bg-cb-cyan-050/80 data-[state=open]:bg-cb-cyan-050/60",
+  "rounded-xl font-semibold text-sidebar-foreground/90 transition-all duration-200",
+  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+  "data-[state=open]:bg-sidebar-accent/80",
   "h-10 group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0",
   "group-data-[collapsible=icon]:justify-center",
 );
@@ -67,7 +67,6 @@ function isItemActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
 
-/** Achata o item e seus submenus, marcando o nível para indentação. */
 function flattenNavItems(
   items: SidebarMenuItemDef[],
   depth = 0,
@@ -112,10 +111,10 @@ function SidebarNavItem({
     <SidebarMenuSubButton
       asChild
       isActive={active}
-      className={cn("h-9 flex-1 rounded-md", ACTIVE_NAV_CLS, className)}
+      className={cn("h-9 flex-1 rounded-xl", ACTIVE_NAV_CLS, className)}
     >
       <Link to={item.to} preload="intent">
-        <Icon className="h-4 w-4" />
+        <Icon className="h-4 w-4 shrink-0" />
         <span>{item.label}</span>
       </Link>
     </SidebarMenuSubButton>
@@ -134,7 +133,7 @@ function SidebarNavItem({
             <button
               type="button"
               aria-label={open ? `Recolher ${item.label}` : `Expandir ${item.label}`}
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-cb-muted transition-colors hover:bg-cb-cyan-050 hover:text-cb-ink"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sidebar-foreground/50 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <ChevronRight
                 className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-90")}
@@ -144,7 +143,7 @@ function SidebarNavItem({
         </div>
 
         <CollapsibleContent>
-          <SidebarMenuSub className="mx-0 mt-1 border-l border-cb-cyan-100 pl-3">
+          <SidebarMenuSub className="mx-0 mt-1 border-l border-sidebar-border pl-3">
             <SidebarNavItems items={children} pathname={pathname} className={className} />
           </SidebarMenuSub>
         </CollapsibleContent>
@@ -202,10 +201,13 @@ function SidebarNavSection({
                   asChild
                   tooltip={it.label}
                   isActive={active}
-                  className={cn(SECTION_TRIGGER_CLS, active && "text-cb-cyan-800")}
+                  className={cn(
+                    SECTION_TRIGGER_CLS,
+                    active && "bg-cb-cyan-600 text-white shadow-[0_4px_12px_rgba(63,181,188,0.35)]",
+                  )}
                 >
                   <Link to={it.to} preload="intent">
-                    <Icon className="h-4 w-4 shrink-0 text-cb-cyan-700" />
+                    <Icon className="h-4 w-4 shrink-0" />
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -224,12 +226,17 @@ function SidebarNavSection({
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
                     isActive={groupActive}
-                    className={cn(SECTION_TRIGGER_CLS, groupActive && "text-cb-cyan-800")}
+                    className={cn(SECTION_TRIGGER_CLS, groupActive && "bg-cb-cyan-600 text-white")}
                   >
-                    <GroupIcon className="h-4 w-4 shrink-0 text-cb-cyan-700" />
+                    <GroupIcon className="h-4 w-4 shrink-0" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="start" sideOffset={10} className="w-56">
+                <DropdownMenuContent
+                  side="right"
+                  align="start"
+                  sideOffset={10}
+                  className="w-56 rounded-xl"
+                >
                   <DropdownMenuLabel className="text-xs uppercase tracking-wide text-cb-muted">
                     {group.label}
                   </DropdownMenuLabel>
@@ -244,8 +251,8 @@ function SidebarNavSection({
                           preload="intent"
                           style={depth > 0 ? { paddingLeft: `${depth * 1 + 0.5}rem` } : undefined}
                           className={cn(
-                            "flex cursor-pointer items-center gap-2",
-                            active && "font-semibold text-cb-cyan-800",
+                            "flex cursor-pointer items-center gap-2 rounded-lg",
+                            active && "font-semibold text-cb-cyan-700",
                           )}
                         >
                           <Icon className="h-4 w-4" />
@@ -270,14 +277,12 @@ function SidebarNavSection({
           <SidebarMenu>
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton
-                  className={cn(SECTION_TRIGGER_CLS, groupActive && "text-cb-cyan-800")}
-                >
-                  <GroupIcon className="h-4 w-4 shrink-0 text-cb-cyan-700" />
+                <SidebarMenuButton className={cn(SECTION_TRIGGER_CLS, groupActive && "text-white")}>
+                  <GroupIcon className="h-4 w-4 shrink-0 text-cb-cyan-400" />
                   <span className="flex-1 truncate">{group.label}</span>
                   <ChevronRight
                     className={cn(
-                      "ml-auto h-4 w-4 shrink-0 text-cb-muted transition-transform duration-200",
+                      "ml-auto h-4 w-4 shrink-0 text-sidebar-foreground/50 transition-transform duration-200",
                       "group-data-[state=open]/section:rotate-90",
                     )}
                   />
@@ -285,7 +290,7 @@ function SidebarNavSection({
               </CollapsibleTrigger>
 
               <CollapsibleContent>
-                <SidebarMenuSub className="mx-2 border-l border-cb-cyan-100 pl-3">
+                <SidebarMenuSub className="mx-1 border-l border-sidebar-border pl-2.5">
                   <SidebarNavItems items={group.items} pathname={pathname} />
                 </SidebarMenuSub>
               </CollapsibleContent>
@@ -324,16 +329,20 @@ export function Sidebar() {
   }, [activeByGroup, groups, sidebarCollapsed]);
 
   return (
-    <SidebarPrimitive collapsible="icon" className="border-r-0 bg-sidebar">
+    <SidebarPrimitive
+      collapsible="icon"
+      className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+      style={{ background: "var(--cb-sidebar-bg)" }}
+    >
       <div className="cb-rainbow-strip h-[3px] shrink-0" aria-hidden />
 
-      <SidebarHeader className="h-12 shrink-0 flex-row items-center gap-0 px-3 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-        <div className="flex h-full w-full items-center gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+      <SidebarHeader className="h-14 shrink-0 flex-row items-center gap-0 border-b border-sidebar-border px-3 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+        <div className="flex h-full w-full items-center gap-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <button
             type="button"
             onClick={() => sidebarCollapsed && toggleSidebar()}
             className={cn(
-              "cb-pin-halo grid h-8 w-8 shrink-0 place-items-center rounded-full p-[2px]",
+              "cb-pin-halo grid h-9 w-9 shrink-0 place-items-center rounded-full p-[2px] shadow-[0_0_20px_rgba(63,181,188,0.3)]",
               sidebarCollapsed && "cursor-pointer transition-opacity hover:opacity-90",
             )}
             aria-label={sidebarCollapsed ? "Expandir menu" : undefined}
@@ -343,16 +352,16 @@ export function Sidebar() {
             </div>
           </button>
           <div className="min-w-0 flex-1 leading-none group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-extrabold tracking-wide text-cb-ink">CB MOVE</div>
-            <div className="truncate text-[9px] font-semibold uppercase tracking-[0.16em] text-cb-muted">
+            <div className="truncate text-sm font-extrabold tracking-wide text-white">CB MOVE</div>
+            <div className="truncate text-[9px] font-semibold uppercase tracking-[0.18em] text-cb-cyan-300/80">
               Neuroscience
             </div>
           </div>
-          <SidebarTrigger className="shrink-0 group-data-[collapsible=icon]:hidden" />
+          <SidebarTrigger className="shrink-0 text-sidebar-foreground/70 hover:text-white group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="gap-0.5 px-2 py-2 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-1.5">
+      <SidebarContent className="gap-1 px-2 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-1.5">
         {groups.map((g) => (
           <SidebarNavSection
             key={g.id}
@@ -366,19 +375,19 @@ export function Sidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:py-0">
+      <SidebarFooter className="gap-0 border-t border-sidebar-border p-0 group-data-[collapsible=icon]:py-0">
         <SidebarThemeFooter compact={sidebarCollapsed} />
 
         {isFisioScoped && fisioScopeLines.length > 0 && (
           <div className="px-3 py-3 group-data-[collapsible=icon]:hidden">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-cb-muted">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-sidebar-foreground/50">
               Sua visão inclui
             </p>
-            <ul className="mt-2 space-y-1.5 text-[11px] leading-snug text-cb-muted">
+            <ul className="mt-2 space-y-1.5 text-[11px] leading-snug text-sidebar-foreground/60">
               {fisioScopeLines.map((line) => (
                 <li key={line} className="flex gap-1.5">
                   <span
-                    className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cb-cyan-600"
+                    className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-cb-cyan-400"
                     aria-hidden
                   />
                   <span>{line}</span>

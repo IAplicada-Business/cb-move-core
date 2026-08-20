@@ -65,7 +65,7 @@ function ConfiguracoesPage() {
               <Link
                 key={card.href}
                 to={card.href}
-                className="group overflow-hidden rounded-[10px] border border-border bg-card shadow-[0_1px_2px_rgba(15,75,80,0.06)] transition-shadow hover:shadow-[0_4px_14px_rgba(15,75,80,0.08)]"
+                className="cb-glass-card cb-hover-lift group overflow-hidden"
               >
                 <div className={cnStrip(card.accent)} aria-hidden />
                 <div className="flex gap-4 p-6">

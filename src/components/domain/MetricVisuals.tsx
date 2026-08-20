@@ -30,13 +30,7 @@ export function StatusDistributionBar({
   if (total <= 0) return null;
 
   return (
-    <div
-      className={cn(
-        "rounded-[10px] border border-border bg-card px-5 py-4",
-        "shadow-[0_1px_2px_rgba(15,75,80,0.06)]",
-        className,
-      )}
-    >
+    <div className={cn("cb-glass-card px-5 py-4 sm:px-6", className)}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-cb-muted">
           {totalLabel}

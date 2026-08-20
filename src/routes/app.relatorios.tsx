@@ -513,13 +513,9 @@ function RelatoriosPage() {
       </KpiGrid>
 
       <Tabs value={aba} onValueChange={(v) => setAba(v as RelatoriosTab)}>
-        <TabsList className="h-auto bg-cb-cyan-050/60 p-1">
-          <TabsTrigger value="gerar" className="data-[state=active]:bg-white">
-            Gerar
-          </TabsTrigger>
-          <TabsTrigger value="historico" className="data-[state=active]:bg-white">
-            Histórico
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="gerar">Gerar</TabsTrigger>
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerar" className="mt-6">
@@ -545,7 +541,7 @@ function RelatoriosPage() {
                     key={tipo}
                     type="button"
                     onClick={() => setTipoSelecionado(tipo)}
-                    className="rounded-[10px] border border-border bg-background/50 p-5 text-left shadow-[0_1px_2px_rgba(15,75,80,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_14px_rgba(15,75,80,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-cyan-600"
+                    className="cb-glass-card cb-hover-lift p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cb-cyan-600 sm:p-6"
                   >
                     <div
                       className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${cfg.accent}`}
