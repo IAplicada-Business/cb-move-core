@@ -61,7 +61,7 @@ function LoginBrandMark() {
       </motion.div>
       <div className="text-center leading-tight">
         <p className="text-base font-extrabold tracking-wide text-white">CB MOVE</p>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cb-cyan-200">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cb-cyan-300">
           Neuroscience
         </p>
       </div>
