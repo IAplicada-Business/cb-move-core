@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { FileText, History, Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { DataToolbarSearch } from "@/components/brand/DataToolbar";
+import { DashboardSection } from "@/components/domain/DashboardSection";
 import { EmptyState } from "@/components/domain/EmptyState";
+import { FilterChip } from "@/components/domain/FilterChip";
 import { LoadingState } from "@/components/domain/LoadingState";
-import { MonthPicker } from "@/components/domain/MonthPicker";
 import { mesLabel } from "@/components/domain/prontuario/constants";
 import { tipoPacienteLabel } from "@/components/domain/prontuario/utils";
 import { queryKeys } from "@/lib/queries";
@@ -21,7 +23,6 @@ import { supabase } from "@/integrations/supabase/client";
 import type { PacienteTipo } from "@/lib/types";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -86,22 +87,17 @@ function statusBadge(row: RelatorioAtendimentoHistoricoRow) {
 }
 
 export function RelatoriosHistoricoTab() {
-  const now = new Date();
-  const [mes, setMes] = useState(now.getMonth() + 1);
-  const [ano, setAno] = useState(now.getFullYear());
   const [tipo, setTipo] = useState<PacienteTipo | "all">("all");
   const [convenioId, setConvenioId] = useState("__all__");
   const [search, setSearch] = useState("");
 
   const filters = useMemo(
     () => ({
-      mes,
-      ano,
       tipo,
       convenioId: tipo === "convenio" && convenioId !== "__all__" ? convenioId : undefined,
       search,
     }),
-    [mes, ano, tipo, convenioId, search],
+    [tipo, convenioId, search],
   );
 
   const historicoQuery = useQuery({
@@ -116,99 +112,75 @@ export function RelatoriosHistoricoTab() {
   });
 
   const rows = historicoQuery.data ?? [];
-  const assinados = rows.filter((r) => r.assinado).length;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Competência</label>
-          <MonthPicker
-            mes={mes}
-            ano={ano}
-            onChange={(m, a) => {
-              setMes(m);
-              setAno(a);
-            }}
-            className="w-[200px]"
-          />
-        </div>
+  const filterActions = (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <FilterChip
+        prefix="Tipo"
+        value={tipo}
+        options={TIPO_OPCOES.map((o) => ({ value: o.value, label: o.label }))}
+        onChange={(v) => {
+          setTipo(v as PacienteTipo | "all");
+          setConvenioId("__all__");
+        }}
+      />
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Tipo</label>
-          <Select
-            value={tipo}
-            onValueChange={(v) => {
-              setTipo(v as PacienteTipo | "all");
-              setConvenioId("__all__");
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIPO_OPCOES.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {tipo === "convenio" && (
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Convênio</label>
-            <Select value={convenioId} onValueChange={setConvenioId}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Todos os convênios" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Todos os convênios</SelectItem>
-                {(conveniosQuery.data ?? []).map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className="min-w-[220px] flex-1 space-y-1.5">
-          <label className="text-sm font-medium">Buscar paciente</label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Nome do paciente…"
-              className="pl-9"
-            />
-          </div>
-        </div>
-      </div>
-
-      {!historicoQuery.isLoading && rows.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {rows.length} relatório(s) em {mesLabel(mes, ano).toLowerCase()}
-          {assinados > 0 && ` · ${assinados} assinado(s)`}
-        </p>
+      {tipo === "convenio" && (
+        <Select value={convenioId} onValueChange={setConvenioId}>
+          <SelectTrigger className="h-9 w-[180px] rounded-lg text-xs">
+            <SelectValue placeholder="Convênio" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os convênios</SelectItem>
+            {(conveniosQuery.data ?? []).map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
-      {historicoQuery.isLoading ? (
-        <LoadingState />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={<History className="h-8 w-8" />}
-          title="Nenhum relatório nesta competência"
-          description="Altere os filtros ou gere relatórios na aba Gerar."
+      <DataToolbarSearch className="h-9 min-w-[220px] max-w-xs flex-none rounded-lg border border-border bg-background px-2.5">
+        <Search className="h-4 w-4 shrink-0" aria-hidden />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar paciente…"
+          aria-label="Buscar paciente"
+          className="h-8 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
         />
+      </DataToolbarSearch>
+    </div>
+  );
+
+  return (
+    <DashboardSection
+      eyebrow="Relatórios"
+      accent="cyan"
+      title="Histórico de relatórios"
+      actions={filterActions}
+      noPadding
+      bodyClassName="p-0"
+    >
+      {historicoQuery.isLoading ? (
+        <div className="p-6">
+          <LoadingState />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="p-6">
+          <EmptyState
+            icon={<History className="h-8 w-8" />}
+            title="Nenhum relatório encontrado"
+            description="Altere os filtros ou gere relatórios na aba Gerar."
+          />
+        </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Paciente</TableHead>
+              <TableHead>Competência</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Modelo</TableHead>
               <TableHead>Sessões</TableHead>
@@ -230,6 +202,9 @@ export function RelatoriosHistoricoTab() {
                   >
                     {r.paciente_nome}
                   </Link>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground capitalize">
+                  {mesLabel(r.competencia_mes, r.competencia_ano).toLowerCase()}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {tipoPacienteLabel(r.paciente_tipo, r.convenio_nome)}
@@ -261,11 +236,11 @@ export function RelatoriosHistoricoTab() {
       )}
 
       {!historicoQuery.isLoading && rows.some((r) => r.modelo_pdf === "documento_fisico") && (
-        <p className="flex items-start gap-2 text-xs text-muted-foreground">
+        <p className="flex items-start gap-2 border-t border-border px-6 py-4 text-xs text-muted-foreground">
           <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           Relatórios importados como documento físico também aparecem neste histórico.
         </p>
       )}
-    </div>
+    </DashboardSection>
   );
 }
