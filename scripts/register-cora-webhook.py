@@ -94,18 +94,31 @@ def main() -> None:
         access_token = token_res.json()["access_token"]
         auth_headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
 
-        endpoint_res = requests.post(
-            f"{api_base}/endpoints",
-            json={"url": webhook_url, "resource": "invoice", "trigger": "paid"},
-            headers={**auth_headers, "Idempotency-Key": str(uuid.uuid4())},
-            cert=cert,
-            timeout=30,
-        )
-        if not endpoint_res.ok:
-            print(f"Falha ao registrar endpoint ({endpoint_res.status_code}): {endpoint_res.text[:500]}", file=sys.stderr)
-            sys.exit(1)
-        endpoint = endpoint_res.json()
-        endpoint_id = endpoint["id"]
+        list_res = requests.get(f"{api_base}/endpoints", headers=auth_headers, cert=cert, timeout=30)
+        list_res.raise_for_status()
+        endpoints = list_res.json()
+        if not isinstance(endpoints, list):
+            endpoints = []
+
+        existing = next((ep for ep in endpoints if ep.get("url") == webhook_url), None)
+        if existing:
+            endpoint_id = existing["id"]
+            print(f"OK endpoint já existia id={endpoint_id}")
+        else:
+            endpoint_res = requests.post(
+                f"{api_base}/endpoints",
+                json={"url": webhook_url, "resource": "invoice", "trigger": "paid"},
+                headers={**auth_headers, "Idempotency-Key": str(uuid.uuid4())},
+                cert=cert,
+                timeout=30,
+            )
+            if not endpoint_res.ok:
+                print(
+                    f"Falha ao registrar endpoint ({endpoint_res.status_code}): {endpoint_res.text[:500]}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            endpoint_id = endpoint_res.json()["id"]
 
     upsert_config(supabase_url, service_key, "CORA_WEBHOOK_SHARED_SECRET", secret)
     upsert_config(supabase_url, service_key, "CORA_WEBHOOK_ENDPOINT_ID", endpoint_id)

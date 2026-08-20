@@ -7,7 +7,22 @@ Subtarefa: _Cutover Cora produção — mTLS prod, webhook prod, teste E2E bolet
 
 ```bash
 python scripts/verify-cora-ambiente.py
+python scripts/verify-cora-webhook-prod.py   # valida endpoint na API Cora (requer .env.app)
 ```
+
+### Snapshot Supabase (2026-08-20)
+
+| Chave                                   | Status                                             |
+| --------------------------------------- | -------------------------------------------------- |
+| `CORA_API_BASE`                         | `https://matls-clients.api.cora.com.br` (produção) |
+| `CORA_CLIENT_ID`                        | `int-4ko2cwTrOq2NBMyapma5OC`                       |
+| `CORA_CERTIFICATE` / `CORA_PRIVATE_KEY` | Configurados                                       |
+| `CORA_WEBHOOK_SHARED_SECRET`            | Configurado                                        |
+| `CORA_WEBHOOK_ENDPOINT_ID`              | `end_5nRjll5XjOwCLmkXk2ClgS`                       |
+| `CORA_AUTO_NF_ENABLED`                  | `true`                                             |
+| `FOCUSNFE_AMBIENTE`                     | `producao`                                         |
+
+> **Pendência:** confirmar que `CORA_WEBHOOK_ENDPOINT_ID` existe na API **produção** Cora (não é resíduo de stage). Rode `verify-cora-webhook-prod.py`; se falhar, `register-cora-webhook.py`.
 
 Esperado **antes** do cutover:
 
@@ -69,7 +84,20 @@ Deve retornar access token contra a base **produção**.
 Garante `CORA_WEBHOOK_SHARED_SECRET` e registra endpoint na API Cora (domínio mTLS):
 
 ```bash
+# 1) Validar endpoint já salvo no Supabase
+python scripts/verify-cora-webhook-prod.py
+
+# 2) Se inválido, registrar (idempotente — reutiliza URL existente se já cadastrada)
 python scripts/register-cora-webhook.py
+
+# 3) Confirmar de novo
+python scripts/verify-cora-webhook-prod.py
+```
+
+Com `--fix`, o verify re-registra automaticamente se o endpoint salvo não existir na Cora:
+
+```bash
+python scripts/verify-cora-webhook-prod.py --fix
 ```
 
 URL registrada:
@@ -113,8 +141,9 @@ Após gerar boleto:
 
 ## Critérios de aceite (board)
 
-- [ ] `CORA_API_BASE` = produção mTLS
-- [ ] Token mTLS prod OK
-- [ ] Webhook prod registrado + secret
+- [x] `CORA_API_BASE` = produção mTLS
+- [ ] Token mTLS prod OK (`python scripts/test-cora-token.py` com credenciais prod)
+- [ ] Webhook prod validado na API Cora (`python scripts/verify-cora-webhook-prod.py`)
+- [ ] `CORA_WEBHOOK_ENDPOINT_ID` sincronizado com endpoint ativo em produção
 - [ ] 1 boleto real emitido e **pago** → cobrança `pago` (+ NF se ligado)
 - [ ] Envio WhatsApp com **PDF** (não só link) após publicar n8n Fase 2
