@@ -219,12 +219,19 @@ export function UsuarioCadastroDialog({
   const title = isEdit ? TITULO_EDITAR[perfil] : TITULO_NOVO[perfil];
 
   function handlePerfilChange(next: UsuarioCadastroPerfil) {
-    if (editingExistingUser) return;
     setForm((current) => ({
       ...emptyCadastroForm(next),
       nome: current.nome,
       email: current.email,
       perfil: next,
+      ...(next === "fisio"
+        ? {
+            registro_profissional: current.registro_profissional,
+            ativo: current.ativo,
+          }
+        : {}),
+      ...(next === "cliente" ? { paciente_id: current.paciente_id } : {}),
+      ...(next === "operacional" ? { menu_permissions: current.menu_permissions } : {}),
     }));
     if (next !== "cliente") setPacienteQuery("");
   }
@@ -238,32 +245,26 @@ export function UsuarioCadastroDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Perfil de acesso</Label>
-            {editingExistingUser ? (
-              <p className="rounded-lg border bg-muted/20 px-3 py-2 text-sm font-medium">
-                {USUARIO_CADASTRO_PERFIL_OPTIONS.find((o) => o.value === perfil)?.label ?? perfil}
-              </p>
-            ) : (
-              <Select
-                value={perfil}
-                onValueChange={(v) => handlePerfilChange(v as UsuarioCadastroPerfil)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o perfil" />
-                </SelectTrigger>
-                <SelectContent>
-                  {USUARIO_CADASTRO_PERFIL_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {!editingExistingUser && (
-              <p className="text-xs text-muted-foreground">
-                Escolha o tipo de usuário antes de preencher os demais campos.
-              </p>
-            )}
+            <Select
+              value={perfil}
+              onValueChange={(v) => handlePerfilChange(v as UsuarioCadastroPerfil)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o perfil" />
+              </SelectTrigger>
+              <SelectContent>
+                {USUARIO_CADASTRO_PERFIL_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {editingExistingUser
+                ? "Ao salvar, o perfil e os vínculos (fisio, paciente, módulos) são atualizados."
+                : "Escolha o tipo de usuário antes de preencher os demais campos."}
+            </p>
           </div>
 
           <div className="space-y-1.5">
