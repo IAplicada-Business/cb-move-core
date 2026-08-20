@@ -18,7 +18,7 @@ const COPY: Record<
   admin: {
     title: "Entrar na equipe",
     subtitle: "Fisioterapeutas, secretaria e administração",
-    footnote: "Acesso restrito a usuários cadastrados pela administração.",
+    footnote: "",
     colaboradorLabel: "Colaborador",
     pacienteLabel: "Paciente",
   },
@@ -48,20 +48,20 @@ type LoginSignInCardProps = {
 
 function LoginBrandMark() {
   return (
-    <div className="mx-auto flex flex-col items-center gap-2">
+    <div className="mx-auto flex flex-col items-center gap-2.5">
       <motion.div
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", duration: 0.8 }}
-        className="cb-pin-halo grid h-12 w-12 place-items-center rounded-full p-[2px]"
+        className="cb-pin-halo grid h-14 w-14 place-items-center rounded-full p-[2px] shadow-[0_0_24px_rgba(63,181,188,0.35)]"
       >
-        <div className="grid h-full w-full place-items-center rounded-full bg-[#0a2830] text-xl font-bold text-cb-cyan-400">
-          ∞
+        <div className="grid h-full w-full place-items-center rounded-full bg-white text-cb-cyan-600">
+          <span className="text-2xl font-bold leading-none">∞</span>
         </div>
       </motion.div>
       <div className="text-center leading-tight">
-        <p className="text-sm font-extrabold tracking-wide text-white">CB MOVE</p>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cb-cyan-400/90">
+        <p className="text-base font-extrabold tracking-wide text-white">CB MOVE</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cb-cyan-200">
           Neuroscience
         </p>
       </div>
@@ -483,9 +483,11 @@ export function LoginSignInCard({
                     </div>
                   </motion.button>
 
-                  <p className="text-center text-[11px] leading-relaxed text-white/45">
-                    {copy.footnote}
-                  </p>
+                  {copy.footnote ? (
+                    <p className="text-center text-[11px] leading-relaxed text-white/45">
+                      {copy.footnote}
+                    </p>
+                  ) : null}
                 </form>
               </div>
             </div>
