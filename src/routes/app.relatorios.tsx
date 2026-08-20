@@ -565,15 +565,7 @@ function RelatoriosPage() {
         </TabsContent>
 
         <TabsContent value="historico" className="mt-6">
-          <DashboardSection
-            eyebrow="Relatórios"
-            accent="cyan"
-            title="Histórico de relatórios"
-            noPadding
-            bodyClassName="p-6"
-          >
-            <RelatoriosHistoricoTab />
-          </DashboardSection>
+          <RelatoriosHistoricoTab />
         </TabsContent>
       </Tabs>
 

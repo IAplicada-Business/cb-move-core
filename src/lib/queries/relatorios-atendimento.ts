@@ -22,8 +22,8 @@ export type RelatorioAtendimentoHistoricoRow = {
 };
 
 export type RelatorioHistoricoFilters = {
-  mes: number;
-  ano: number;
+  mes?: number;
+  ano?: number;
   tipo?: PacienteTipo | "all";
   convenioId?: string;
   search?: string;
@@ -56,16 +56,19 @@ export async function fetchRelatoriosAtendimentoHistorico(
 ): Promise<RelatorioAtendimentoHistoricoRow[]> {
   const { mes, ano, tipo = "all", convenioId, search } = filters;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("relatorios_atendimento")
     .select(
       `id, paciente_id, modelo, competencia_mes, competencia_ano, num_sessoes, pdf_url, xlsx_url, formato_arquivo, assinado, status, modelo_pdf, created_at,
       pacientes!inner(nome, tipo, convenio_id, convenios(nome))`,
     )
-    .eq("competencia_mes", mes)
-    .eq("competencia_ano", ano)
     .order("created_at", { ascending: false });
 
+  if (mes !== undefined && ano !== undefined) {
+    query = query.eq("competencia_mes", mes).eq("competencia_ano", ano);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as RelatorioRowDb[];
