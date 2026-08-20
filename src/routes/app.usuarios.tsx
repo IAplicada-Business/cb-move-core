@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lock, Search, Shield, Trash2, UserCheck, UserCog, Users } from "lucide-react";
+import { Lock, Search, Shield, Trash2, UserCheck, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -132,7 +132,6 @@ function UsuariosPage() {
   const isAdmin = can.manageUsers(roles);
 
   const [cadastroOpen, setCadastroOpen] = useState(false);
-  const [cadastroTipo, setCadastroTipo] = useState<UsuarioCadastroPerfil>("fisio");
   const [cadastroForm, setCadastroForm] = useState<CadastroFormState>(CADASTRO_FORM_DEFAULTS);
   const [pacienteQuery, setPacienteQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -156,8 +155,9 @@ function UsuariosPage() {
 
   const editingExistingUser = !!findUserByEmail(users, cadastroForm.email);
   const editingUserId = findUserByEmail(users, cadastroForm.email)?.id ?? null;
+  const cadastroPerfil = cadastroForm.perfil;
   const pacienteVinculadoId =
-    cadastroOpen && cadastroTipo === "cliente" && cadastroForm.paciente_id
+    cadastroOpen && cadastroPerfil === "cliente" && cadastroForm.paciente_id
       ? cadastroForm.paciente_id
       : null;
 
@@ -175,18 +175,18 @@ function UsuariosPage() {
       if (qErr) throw qErr;
       return data ?? [];
     },
-    enabled: isAdmin && cadastroOpen && cadastroTipo === "cliente",
+    enabled: isAdmin && cadastroOpen && cadastroPerfil === "cliente",
   });
 
   const { isFetching: loadingMenus } = useQuery({
     queryKey: queryKeys.usuarios.userMenuPermissions(editingUserId ?? "new"),
     queryFn: () => fetchUserMenuPermissions(editingUserId!),
-    enabled: isAdmin && cadastroOpen && cadastroTipo === "operacional" && !!editingUserId,
+    enabled: isAdmin && cadastroOpen && cadastroPerfil === "operacional" && !!editingUserId,
     staleTime: 0,
   });
 
   useEffect(() => {
-    if (!cadastroOpen || cadastroTipo !== "operacional" || !editingUserId) return;
+    if (!cadastroOpen || cadastroPerfil !== "operacional" || !editingUserId) return;
     let cancelled = false;
     void fetchUserMenuPermissions(editingUserId)
       .then((menus) => {
@@ -202,7 +202,7 @@ function UsuariosPage() {
     return () => {
       cancelled = true;
     };
-  }, [cadastroOpen, cadastroTipo, editingUserId]);
+  }, [cadastroOpen, cadastroPerfil, editingUserId]);
 
   const cadastroMutation = useMutation({
     mutationFn: async (input: {
@@ -317,7 +317,6 @@ function UsuariosPage() {
       }
     }
 
-    setCadastroTipo(perfil);
     setCadastroForm(form);
     setPacienteQuery("");
     setCadastroOpen(true);
@@ -332,8 +331,8 @@ function UsuariosPage() {
     });
   }
 
-  function openCadastroNovo(tipo: UsuarioCadastroPerfil) {
-    void openCadastro({ nome: "", email: "", perfil: tipo });
+  function openCadastroNovo() {
+    void openCadastro({ nome: "", email: "", perfil: "fisio" });
   }
 
   function handleSaveCadastro() {
@@ -348,22 +347,22 @@ function UsuariosPage() {
       return;
     }
     if (
-      (cadastroTipo === "fisio" || cadastroTipo === "operacional") &&
+      (cadastroPerfil === "fisio" || cadastroPerfil === "operacional") &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
     ) {
       toast.error("E-mail inválido.");
       return;
     }
-    if (cadastroTipo === "cliente" && !cadastroForm.paciente_id) {
+    if (cadastroPerfil === "cliente" && !cadastroForm.paciente_id) {
       toast.error("Selecione o paciente vinculado.");
       return;
     }
     cadastroMutation.mutate({
       nome,
       email,
-      perfil: cadastroTipo,
-      paciente_id: cadastroTipo === "cliente" ? cadastroForm.paciente_id : null,
-      ...(cadastroTipo === "fisio"
+      perfil: cadastroPerfil,
+      paciente_id: cadastroPerfil === "cliente" ? cadastroForm.paciente_id : null,
+      ...(cadastroPerfil === "fisio"
         ? {
             fisio: {
               registro_profissional: cadastroForm.registro_profissional.trim() || null,
@@ -371,7 +370,7 @@ function UsuariosPage() {
             },
           }
         : {}),
-      ...(cadastroTipo === "operacional"
+      ...(cadastroPerfil === "operacional"
         ? { menu_permissions: cadastroForm.menu_permissions }
         : {}),
     });
@@ -423,31 +422,10 @@ function UsuariosPage() {
         title="Usuários do sistema"
         description={`Cadastre administradores, equipe com módulos liberados, fisioterapeutas e clientes. Senha inicial ${DEFAULT_INITIAL_PASSWORD}.`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => openCadastroNovo("admin")} className="gap-2">
-              <Shield className="h-4 w-4" />
-              Administrador
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => openCadastroNovo("operacional")}
-              className="gap-2"
-            >
-              <UserCog className="h-4 w-4" />
-              Equipe
-            </Button>
-            <Button variant="outline" onClick={() => openCadastroNovo("cliente")} className="gap-2">
-              <Users className="h-4 w-4" />
-              Cliente
-            </Button>
-            <Button
-              onClick={() => openCadastroNovo("fisio")}
-              className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700"
-            >
-              <UserCheck className="h-4 w-4" />
-              Fisioterapeuta
-            </Button>
-          </div>
+          <Button onClick={openCadastroNovo} className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700">
+            <UserPlus className="h-4 w-4" />
+            Cadastrar
+          </Button>
         }
       />
 
@@ -588,7 +566,6 @@ function UsuariosPage() {
       <UsuarioCadastroDialog
         open={cadastroOpen}
         onOpenChange={setCadastroOpen}
-        tipo={cadastroTipo}
         form={cadastroForm}
         setForm={setCadastroForm}
         editingExistingUser={editingExistingUser}
@@ -597,7 +574,7 @@ function UsuariosPage() {
         setPacienteQuery={setPacienteQuery}
         pacientes={pacientes}
         loadingPacientes={loadingPacientes}
-        loadingMenus={loadingMenus && cadastroTipo === "operacional" && !!editingUserId}
+        loadingMenus={loadingMenus && cadastroPerfil === "operacional" && !!editingUserId}
         onSave={handleSaveCadastro}
         pending={cadastroMutation.isPending}
       />
