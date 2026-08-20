@@ -194,7 +194,8 @@ export function EvolucaoEditor({
 
       {sessoesDoDia.length === 0 && !sessoesDoDiaQuery.isLoading && (
         <p className="text-xs text-muted-foreground">
-          Nenhuma sessão registrada nesta data — a evolução será salva sem vínculo.
+          Nenhuma sessão nesta data — ao salvar, o sistema vincula ao agendamento do dia ou registra
+          atendimento avulso (frequência P) automaticamente.
         </p>
       )}
 

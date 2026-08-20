@@ -1634,6 +1634,10 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      buscar_pacientes_atendimento_avulso: {
+        Args: { p_query: string };
+        Returns: { id: string; nome: string }[];
+      };
       atualizar_cobrancas_vencidas: { Args: never; Returns: number };
       cobrancas_sem_nf: {
         Args: { p_ano: number; p_mes: number };
@@ -1786,6 +1790,51 @@ export type Database = {
           recebido: number;
           sessoes: number;
         }[];
+      };
+      registrar_atendimento_avulso: {
+        Args: { p_inicio?: string; p_paciente_id: string };
+        Returns: {
+          agendamento_id: string;
+          inicio: string;
+          paciente_id: string;
+        }[];
+      };
+      registrar_evolucao_com_atendimento: {
+        Args: {
+          p_criado_por?: string;
+          p_data: string;
+          p_fisioterapeuta_id: string;
+          p_fonte?: string;
+          p_objetivo?: string;
+          p_paciente_id: string;
+          p_plano?: string;
+          p_sessao_id?: string;
+          p_subjetivo?: string;
+          p_transcricao_raw?: string;
+        };
+        Returns: {
+          assinado_em: string | null;
+          assinado_por: string | null;
+          created_at: string;
+          criado_por: string | null;
+          data: string;
+          fisioterapeuta_id: string | null;
+          fonte: string | null;
+          id: string;
+          objetivo: string | null;
+          paciente_id: string;
+          plano: string | null;
+          sessao_id: string | null;
+          subjetivo: string | null;
+          transcricao_raw: string | null;
+          updated_at: string | null;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "prontuario_evolucoes";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
       };
       remarcar_agendamentos_lote: {
         Args: {

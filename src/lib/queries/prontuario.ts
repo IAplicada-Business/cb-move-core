@@ -353,7 +353,18 @@ export async function fetchEvolucoes(pacienteId: string): Promise<EvolucaoComRel
 export type EvolucaoInsert = Database["public"]["Tables"]["prontuario_evolucoes"]["Insert"];
 
 export async function createEvolucao(ev: EvolucaoInsert): Promise<Evolucao> {
-  const { data, error } = await supabase.from("prontuario_evolucoes").insert(ev).select().single();
+  const { data, error } = await supabase.rpc("registrar_evolucao_com_atendimento", {
+    p_paciente_id: ev.paciente_id,
+    p_fisioterapeuta_id: ev.fisioterapeuta_id ?? undefined,
+    p_data: ev.data,
+    p_subjetivo: ev.subjetivo ?? undefined,
+    p_objetivo: ev.objetivo ?? undefined,
+    p_plano: ev.plano ?? undefined,
+    p_transcricao_raw: ev.transcricao_raw ?? undefined,
+    p_fonte: ev.fonte ?? "manual",
+    p_sessao_id: ev.sessao_id ?? undefined,
+    p_criado_por: ev.criado_por ?? undefined,
+  });
   if (error) throw error;
   return data as Evolucao;
 }
