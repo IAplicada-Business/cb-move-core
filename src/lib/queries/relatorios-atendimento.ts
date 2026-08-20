@@ -69,6 +69,7 @@ export async function fetchRelatoriosAtendimentoHistorico(
   }
 
   const { data, error } = await query;
+  if (error) throw error;
 
   const rows = (data ?? []) as unknown as RelatorioRowDb[];
   const q = search?.trim().toLowerCase();
