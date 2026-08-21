@@ -1078,6 +1078,22 @@ function AgendaPage() {
       ? "Próx. mês"
       : "Próx. semana";
 
+  const periodNavActions = (
+    <>
+      <Button variant="outline" size="sm" onClick={navBack}>
+        <ChevronLeft className="h-4 w-4" />
+        {navLabelPrev}
+      </Button>
+      <Button variant="outline" size="sm" onClick={navForward}>
+        {navLabelNext}
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </>
+  );
+
+  const showPeriodNavInHeader =
+    visao === "mes" || visao === "dia" || visao === "frequencia" || visao === "divergencias";
+
   return (
     <DashboardPage>
       <PageHeader
@@ -1106,18 +1122,7 @@ function AgendaPage() {
         }
         actions={
           <>
-            {!isSubabaVisao || visao === "frequencia" || visao === "divergencias" ? (
-              <>
-                <Button variant="outline" size="sm" onClick={navBack}>
-                  <ChevronLeft className="h-4 w-4" />
-                  {navLabelPrev}
-                </Button>
-                <Button variant="outline" size="sm" onClick={navForward}>
-                  {navLabelNext}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            ) : null}
+            {showPeriodNavInHeader ? periodNavActions : null}
             <div className="flex flex-wrap items-center gap-2">
               {podeGerir && (
                 <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
@@ -1258,6 +1263,7 @@ function AgendaPage() {
               {DIAS_SEMANA_LABEL[diaSemanaIdx]} · {formatDateDDMMYY(diaSelecionado)}
             </DashboardSectionBadge>
           }
+          actions={periodNavActions}
           noPadding
           bodyClassName="space-y-4 p-4"
         >
