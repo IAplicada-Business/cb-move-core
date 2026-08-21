@@ -36,7 +36,6 @@ const CONFIG_MENU_KEYS: MenuKey[] = [
   "cfg.convenios",
   "cfg.instrumentos",
   "cfg.templates",
-  "cfg.ajuda",
 ];
 
 async function loadAccessContext(options?: {

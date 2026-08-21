@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
-import { PageHeader } from "@/components/brand/PageHeader";
-import { DashboardPage, DashboardSectionBadge } from "@/components/domain/DashboardSection";
+import { ConfiguracoesModuleHeader } from "@/components/layout/ConfiguracoesLayout";
+import { DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { assertMenuAccess } from "@/lib/route-access";
@@ -240,13 +240,8 @@ function InstrumentosPage() {
   }
 
   return (
-    <DashboardPage>
-      <PageHeader
-        crumbs={[
-          { label: "Sistema" },
-          { label: "Configurações", to: "/app/configuracoes" },
-          { label: "Instrumentos" },
-        ]}
+    <div className="space-y-5">
+      <ConfiguracoesModuleHeader
         title="Instrumentos clínicos"
         description="Catálogo de instrumentos de avaliação neurológica"
       />
@@ -430,6 +425,6 @@ function InstrumentosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardPage>
+    </div>
   );
 }
