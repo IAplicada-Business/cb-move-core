@@ -11,7 +11,7 @@ export function DataToolbar({ children, className }: DataToolbarProps) {
   return (
     <div
       className={cn(
-        "cb-glass-toolbar flex flex-wrap items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5",
+        "cb-glass-toolbar flex w-full min-w-0 flex-wrap items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5",
         className,
       )}
     >

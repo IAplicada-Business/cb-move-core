@@ -28,7 +28,7 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
   return (
     <header
       className={cn(
-        "cb-glass-card flex flex-col gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-6",
+        "cb-glass-card flex w-full min-w-0 flex-col gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-6",
         className,
       )}
     >
@@ -65,7 +65,7 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
             {title}
           </h1>
           {description && (
-            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-cb-muted">{description}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-cb-muted">{description}</p>
           )}
         </div>
       </div>

@@ -186,7 +186,7 @@ export function SemanaPadraoGridShell({
     <div className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-muted/15 to-card shadow-sm">
       <div className="overflow-x-auto p-3">
         <div
-          className="grid min-w-max gap-2"
+          className="grid w-full min-w-0 gap-2"
           style={{
             gridTemplateColumns: `80px repeat(${fisios.length}, minmax(108px, 1fr))`,
           }}

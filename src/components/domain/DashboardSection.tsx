@@ -9,7 +9,7 @@ type DashboardPageProps = {
 
 /** Espaçamento vertical padrão entre blocos de dashboard. */
 export function DashboardPage({ children, className }: DashboardPageProps) {
-  return <div className={cn("space-y-6 sm:space-y-7", className)}>{children}</div>;
+  return <div className={cn("w-full min-w-0 space-y-6 sm:space-y-7", className)}>{children}</div>;
 }
 
 export type DashboardSectionAccent = "cyan" | "purple" | "lime" | "orange" | "magenta";

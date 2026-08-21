@@ -159,7 +159,7 @@ function Dashboard() {
       </KpiGrid>
 
       {/* Hero analytics + sidebar — referência Behance SaaS */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] 2xl:grid-cols-[minmax(0,1fr)_380px]">
         <DashboardSection
           eyebrow="Analytics"
           accent="cyan"
