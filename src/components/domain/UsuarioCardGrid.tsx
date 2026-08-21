@@ -42,7 +42,7 @@ type UsuarioCardGridProps = {
 
 export function UsuarioCardGrid({ rows, currentUserId, onEdit, onDelete }: UsuarioCardGridProps) {
   return (
-    <BrandTable className="min-w-[760px]">
+    <BrandTable className="sm:min-w-[760px]">
       <BrandTableHeader>
         <BrandTableRow>
           <BrandTableHead>Nome</BrandTableHead>

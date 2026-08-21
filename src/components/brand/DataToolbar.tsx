@@ -2,10 +2,14 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/** Altura e largura padrão dos filtros em toolbars de listagem. */
-export const dataToolbarControlClass = "h-10 shrink-0";
-export const dataToolbarSelectClass = cn(dataToolbarControlClass, "w-48");
-export const dataToolbarFilterClass = cn(dataToolbarControlClass, "w-56");
+/**
+ * Altura e largura padrão dos filtros em toolbars de listagem.
+ * Largura total no mobile (empilha e facilita o toque); largura fixa a
+ * partir de sm: como no desktop.
+ */
+export const dataToolbarControlClass = "h-10 w-full shrink-0 sm:w-auto";
+export const dataToolbarSelectClass = cn(dataToolbarControlClass, "sm:w-48");
+export const dataToolbarFilterClass = cn(dataToolbarControlClass, "sm:w-56");
 
 type DataToolbarProps = {
   children: ReactNode;

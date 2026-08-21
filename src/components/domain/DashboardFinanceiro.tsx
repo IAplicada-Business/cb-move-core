@@ -651,7 +651,7 @@ export function DashboardFinanceiro() {
             onValueChange={(v) => executarExportacao(v as ExportOpcao)}
             disabled={!podeExportarReceita && !podeExportarExtrato}
           >
-            <SelectTrigger className="w-[168px] gap-2">
+            <SelectTrigger className="w-full gap-2 sm:w-[168px]">
               <Download className="h-4 w-4 shrink-0 opacity-70" />
               <SelectValue placeholder="Exportar…" />
             </SelectTrigger>
