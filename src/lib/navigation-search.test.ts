@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAgendaVisao, resolvePacienteTab, resolveRelatoriosTab } from "./navigation-search";
+import {
+  resolveAgendaVisao,
+  resolveNotasFiscaisTab,
+  resolvePacienteTab,
+  resolveRelatoriosTab,
+} from "./navigation-search";
 
 describe("navigation-search", () => {
   it("resolvePacienteTab defaults to dados", () => {
@@ -17,5 +22,10 @@ describe("navigation-search", () => {
   it("resolveRelatoriosTab defaults to gerar", () => {
     expect(resolveRelatoriosTab(undefined)).toBe("gerar");
     expect(resolveRelatoriosTab("historico")).toBe("historico");
+  });
+
+  it("resolveNotasFiscaisTab defaults to emissao", () => {
+    expect(resolveNotasFiscaisTab(undefined)).toBe("emissao");
+    expect(resolveNotasFiscaisTab("ir")).toBe("ir");
   });
 });

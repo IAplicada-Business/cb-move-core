@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
@@ -16,10 +16,12 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   ChevronRight,
+  Landmark,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { NotaFiscalDetailSheet } from "@/components/domain/NotaFiscalDetailSheet";
+import { RelatorioIrPanel } from "@/components/domain/RelatorioIrPanel";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { KpiCard } from "@/components/domain/KpiCard";
 import {
@@ -59,6 +61,11 @@ import {
 import type { NfStatus, PacienteTipo } from "@/lib/types";
 import { assertMenuAccess } from "@/lib/route-access";
 import { competenciaAtual, competenciaOpcoes } from "@/lib/competencia";
+import {
+  notasFiscaisTabSchema,
+  resolveNotasFiscaisTab,
+  type NotasFiscaisTab,
+} from "@/lib/navigation-search";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,9 +116,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/notas-fiscais")({
   head: () => ({ meta: [{ title: "Notas Fiscais · CB MOVE" }] }),
+  validateSearch: z.object({ tab: notasFiscaisTabSchema.optional() }),
   beforeLoad: () => assertMenuAccess("fin.notas-fiscais"),
   component: NotasFiscaisPage,
 });
@@ -787,6 +796,14 @@ function LinhaAEmitir({
 }
 
 function NotasFiscaisPage() {
+  const navigate = useNavigate();
+  const { tab: tabSearch } = Route.useSearch();
+  const aba = resolveNotasFiscaisTab(tabSearch);
+
+  function setAba(next: NotasFiscaisTab) {
+    navigate({ to: "/app/notas-fiscais", search: { tab: next } });
+  }
+
   const qc = useQueryClient();
   const compDefault = competenciaAtual();
   const [search, setSearch] = useState("");
@@ -1090,434 +1107,463 @@ function NotasFiscaisPage() {
         title="Notas Fiscais"
         description="Emissão, acompanhamento e envio de notas fiscais"
         actions={
-          <Button
-            size="sm"
-            className="bg-cb-cyan-600 hover:bg-cb-cyan-700"
-            onClick={() => abrirEmitir()}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Emitir NF
-          </Button>
-        }
-      />
-
-      <KpiGrid columns={5}>
-        <KpiCard
-          label="Total registradas"
-          value={nfStats.total}
-          accent="cyan"
-          icon={<FileText className="h-5 w-5" />}
-        />
-        <KpiCard
-          label="Emitidas"
-          value={nfStats.emitidas}
-          accent="lime"
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          share={nfStats.total > 0 ? (nfStats.emitidas / nfStats.total) * 100 : 0}
-        />
-        <KpiCard
-          label="Pendentes"
-          value={nfStats.pendentes}
-          accent="orange"
-          icon={<Clock className="h-5 w-5" />}
-        />
-        <KpiCard
-          label="Com erro"
-          value={nfStats.erros}
-          accent="magenta"
-          icon={<AlertCircle className="h-5 w-5" />}
-        />
-        <KpiCard
-          label="A emitir"
-          value={nfStats.aEmitir}
-          accent="purple"
-          icon={<Plus className="h-5 w-5" />}
-          hint="Cobranças sem NF"
-        />
-      </KpiGrid>
-
-      {(nfStats.total > 0 || nfStats.aEmitir > 0) && (
-        <StatusDistributionBar
-          totalLabel="Status das notas registradas"
-          formatValue={(n) => String(n)}
-          segments={[
-            { label: "Emitidas", value: nfStats.emitidas, colorClass: "bg-cb-lime" },
-            { label: "Pendentes", value: nfStats.pendentes, colorClass: "bg-cb-orange" },
-            { label: "Erro", value: nfStats.erros, colorClass: "bg-cb-magenta" },
-          ]}
-        />
-      )}
-
-      <DataToolbar>
-        <DataToolbarSearch>
-          <Search className="h-4 w-4 shrink-0 text-cb-muted" />
-          <Input
-            placeholder="Buscar por paciente, nº ou destinatário…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-          />
-        </DataToolbarSearch>
-        <Select
-          value={filtroStatus || FILTRO_TODOS}
-          onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as NfStatus))}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
-            <SelectItem value="pendente">Pendente</SelectItem>
-            <SelectItem value="processando">Processando</SelectItem>
-            <SelectItem value="emitida">Emitida</SelectItem>
-            <SelectItem value="cancelada">Cancelada</SelectItem>
-            <SelectItem value="erro">Erro</SelectItem>
-          </SelectContent>
-        </Select>
-        <CompetenciaFilterChip
-          value={filtroComp}
-          onChange={setFiltroComp}
-          extraOptions={[{ value: FILTRO_TODAS_COMP, label: "Todas" }]}
-        />
-        <Select
-          value={filtroTipo || FILTRO_TODOS}
-          onValueChange={(v) => setFiltroTipo(v === FILTRO_TODOS ? "" : (v as PacienteTipo))}
-        >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={FILTRO_TODOS}>Todos</SelectItem>
-            <SelectItem value="particular">Particular</SelectItem>
-            <SelectItem value="convenio">Convênio</SelectItem>
-            <SelectItem value="judicial">Judicial</SelectItem>
-            <SelectItem value="puc">PUC</SelectItem>
-          </SelectContent>
-        </Select>
-        {temFiltro && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSearch("");
-              setFiltroStatus("");
-              setFiltroTipo("");
-              setFiltroComp(compDefault);
-            }}
-          >
-            <X className="h-4 w-4 mr-1" />
-            Limpar
-          </Button>
-        )}
-      </DataToolbar>
-
-      {query.isPending && !query.data ? (
-        <LoadingState />
-      ) : query.isError ? (
-        <EmptyState
-          icon={<FileText className="h-8 w-8" />}
-          title="Erro ao carregar notas"
-          description={
-            query.error instanceof Error ? query.error.message : "Tente recarregar a página."
-          }
-        />
-      ) : nfs.length === 0 && aEmitir.length === 0 ? (
-        <EmptyState
-          icon={<FileText className="h-8 w-8" />}
-          title="Sem notas fiscais"
-          description="Emita a primeira nota fiscal ou verifique cobranças pendentes de NF."
-          action={
-            <Button size="sm" onClick={() => abrirEmitir()}>
+          aba === "emissao" ? (
+            <Button
+              size="sm"
+              className="bg-cb-cyan-600 hover:bg-cb-cyan-700"
+              onClick={() => abrirEmitir()}
+            >
               <Plus className="h-4 w-4 mr-1" />
               Emitir NF
             </Button>
-          }
-        />
-      ) : (
-        <div className="space-y-4">
-          <DashboardSection
-            eyebrow="Emissão"
-            accent="orange"
-            title="A emitir"
-            badge={
-              <DashboardSectionBadge accent="orange">
-                {semNfQuery.isPending && !semNfQuery.data
-                  ? "…"
-                  : compMes && compAno
-                    ? `${MESES_ABREV[compMes - 1]}/${compAno}`
-                    : `${aEmitir.length} sem NF`}
-              </DashboardSectionBadge>
-            }
-            description="Selecione cobranças sem NF e emita em lote via Focus. Use o filtro de competência acima para outro mês."
-            actions={
-              selectedCobrancas.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium">
-                    {selectedCobrancas.length} selecionada
-                    {selectedCobrancas.length > 1 ? "s" : ""}
-                    {selectedCobrancasElegiveis.length < selectedCobrancas.length && (
-                      <span className="text-destructive">
-                        {" "}
-                        ({selectedCobrancasElegiveis.length} elegível
-                        {selectedCobrancasElegiveis.length > 1 ? "eis" : ""})
-                      </span>
-                    )}
-                  </span>
-                  <Button
-                    size="sm"
-                    disabled={bulkBusy || selectedCobrancasElegiveis.length === 0}
-                    onClick={abrirConfirmBulkEmit}
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
-                    {bulkProgress
-                      ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
-                      : "Emitir selecionadas"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={bulkBusy}
-                    onClick={() => setSelectedCobrancaIds(new Set())}
-                  >
-                    Limpar
-                  </Button>
-                </div>
-              ) : undefined
-            }
-            noPadding
-          >
-            {semNfQuery.data && aEmitirSemDocumento > 0 && (
-              <p className="border-b border-border/60 bg-[#FFF7ED]/50 px-6 py-2 text-xs font-medium text-destructive">
-                {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para
-                selecionar, mas só emite após completar o cadastro em Pacientes.
-              </p>
-            )}
-            {semNfQuery.isError && (
-              <p className="border-b border-border/60 bg-destructive/5 px-6 py-2 text-xs font-medium text-destructive">
-                Erro ao carregar fila:{" "}
-                {semNfQuery.error instanceof Error ? semNfQuery.error.message : "Falha na consulta"}
-              </p>
-            )}
-            {semNfQuery.data &&
-              !semNfQuery.isError &&
-              aEmitir.length === 0 &&
-              compMes &&
-              compAno && (
-                <p className="border-b border-border/60 bg-[#FFF7ED]/50 px-6 py-2 text-xs font-medium text-cb-orange">
-                  Nenhuma cobrança sem NF nesta competência — troque o mês no filtro (ex.:
-                  Jun/2026).
-                </p>
-              )}
-            {semNfQuery.isPending && !semNfQuery.data ? (
-              <div className="px-4 py-6">
-                <LoadingState />
-              </div>
-            ) : aEmitir.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">
-                Nenhuma linha para selecionar nesta competência.
-                {compSugestoes
-                  .filter((o) => o.value !== filtroComp)
-                  .slice(0, 1)
-                  .map((o) => (
-                    <Button
-                      key={o.value}
-                      variant="link"
-                      className="h-auto p-0 ml-1 text-sm"
-                      onClick={() => setFiltroComp(o.value)}
-                    >
-                      Ver {o.label}
-                    </Button>
-                  ))}
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <input
-                        ref={selectAllRef}
-                        type="checkbox"
-                        className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                        checked={allCobrancasSelected}
-                        onChange={toggleSelectAllHeader}
-                        disabled={aEmitir.length === 0 || bulkBusy}
-                        aria-label="Selecionar todas as cobranças"
-                      />
-                    </TableHead>
-                    <TableHead className="w-24">Nº</TableHead>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Destinatário</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Pagamento</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="w-24"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {aEmitir.map((row) => (
-                    <LinhaAEmitir
-                      key={row.cobrancaId}
-                      row={row}
-                      selected={selectedCobrancaIds.has(row.cobrancaId)}
-                      onSelectedChange={(checked) => toggleRowSelection(row.cobrancaId, checked)}
-                      selectionDisabled={bulkBusy}
-                      onEmitir={() => abrirEmitir(row)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </DashboardSection>
+          ) : undefined
+        }
+      />
 
-          {nfsFocusPendentes.length > 0 && (
-            <DashboardSection
-              eyebrow="Integração"
+      <Tabs value={aba} onValueChange={(v) => setAba(v as NotasFiscaisTab)}>
+        <TabsList>
+          <TabsTrigger value="emissao">
+            <FileText className="h-4 w-4 shrink-0" />
+            Emissão
+          </TabsTrigger>
+          <TabsTrigger value="ir">
+            <Landmark className="h-4 w-4 shrink-0" />
+            IR por paciente
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="emissao" className="mt-6 space-y-6">
+          <KpiGrid columns={5}>
+            <KpiCard
+              label="Total registradas"
+              value={nfStats.total}
               accent="cyan"
-              title="Aguardando Focus"
-              badge={
-                <DashboardSectionBadge accent="cyan">
-                  {nfsFocusPendentes.length} pendente{nfsFocusPendentes.length > 1 ? "s" : ""}
-                </DashboardSectionBadge>
-              }
-              description="NF já criada no sistema; selecione e envie em lote à Focus NFe."
-              actions={
-                selectedNfs.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium">
-                      {selectedNfs.length} selecionada{selectedNfs.length > 1 ? "s" : ""}
-                    </span>
-                    <Button size="sm" disabled={bulkBusy} onClick={abrirConfirmBulkEmitNfs}>
-                      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`} />
-                      {bulkProgress
-                        ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
-                        : "Enviar à Focus"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={bulkBusy}
-                      onClick={() => setSelectedNfIds(new Set())}
-                    >
-                      Limpar
-                    </Button>
-                  </div>
-                ) : undefined
-              }
-              noPadding
-            >
-              <p className="px-6 py-3 text-sm text-cb-muted">
-                Use a lista de notas emitidas abaixo para selecionar e enviar à Focus.
-              </p>
-            </DashboardSection>
+              icon={<FileText className="h-5 w-5" />}
+            />
+            <KpiCard
+              label="Emitidas"
+              value={nfStats.emitidas}
+              accent="lime"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              share={nfStats.total > 0 ? (nfStats.emitidas / nfStats.total) * 100 : 0}
+            />
+            <KpiCard
+              label="Pendentes"
+              value={nfStats.pendentes}
+              accent="orange"
+              icon={<Clock className="h-5 w-5" />}
+            />
+            <KpiCard
+              label="Com erro"
+              value={nfStats.erros}
+              accent="magenta"
+              icon={<AlertCircle className="h-5 w-5" />}
+            />
+            <KpiCard
+              label="A emitir"
+              value={nfStats.aEmitir}
+              accent="purple"
+              icon={<Plus className="h-5 w-5" />}
+              hint="Cobranças sem NF"
+            />
+          </KpiGrid>
+
+          {(nfStats.total > 0 || nfStats.aEmitir > 0) && (
+            <StatusDistributionBar
+              totalLabel="Status das notas registradas"
+              formatValue={(n) => String(n)}
+              segments={[
+                { label: "Emitidas", value: nfStats.emitidas, colorClass: "bg-cb-lime" },
+                { label: "Pendentes", value: nfStats.pendentes, colorClass: "bg-cb-orange" },
+                { label: "Erro", value: nfStats.erros, colorClass: "bg-cb-magenta" },
+              ]}
+            />
           )}
 
-          <DashboardSection
-            eyebrow="Notas fiscais"
-            accent="purple"
-            title="Emitidas"
-            badge={
-              grupos.length > 0 ? (
-                <DashboardSectionBadge accent="purple">
-                  {nfs.length} nota{nfs.length > 1 ? "s" : ""}
-                </DashboardSectionBadge>
-              ) : undefined
-            }
-            actions={
-              grupos.length > 0 ? (
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setOpenGroups(grupos.map((g) => g.key))}
-                  >
-                    <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
-                    Expandir tudo
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setOpenGroups([])}>
-                    <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
-                    Recolher tudo
-                  </Button>
-                </div>
-              ) : undefined
-            }
-            noPadding
-          >
-            <Accordion type="multiple" value={openGroups} onValueChange={setOpenGroups}>
-              {grupos.map((grupo) => (
-                <AccordionItem
-                  key={grupo.key}
-                  value={grupo.key}
-                  className="border-b last:border-b-0"
-                >
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30">
-                    <div className="flex items-center justify-between flex-1 gap-2 pr-2 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {grupo.temErro && (
-                          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+          <DataToolbar>
+            <DataToolbarSearch>
+              <Search className="h-4 w-4 shrink-0 text-cb-muted" />
+              <Input
+                placeholder="Buscar por paciente, nº ou destinatário…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </DataToolbarSearch>
+            <Select
+              value={filtroStatus || FILTRO_TODOS}
+              onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as NfStatus))}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTRO_TODOS}>Todos os status</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="processando">Processando</SelectItem>
+                <SelectItem value="emitida">Emitida</SelectItem>
+                <SelectItem value="cancelada">Cancelada</SelectItem>
+                <SelectItem value="erro">Erro</SelectItem>
+              </SelectContent>
+            </Select>
+            <CompetenciaFilterChip
+              value={filtroComp}
+              onChange={setFiltroComp}
+              extraOptions={[{ value: FILTRO_TODAS_COMP, label: "Todas" }]}
+            />
+            <Select
+              value={filtroTipo || FILTRO_TODOS}
+              onValueChange={(v) => setFiltroTipo(v === FILTRO_TODOS ? "" : (v as PacienteTipo))}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FILTRO_TODOS}>Todos</SelectItem>
+                <SelectItem value="particular">Particular</SelectItem>
+                <SelectItem value="convenio">Convênio</SelectItem>
+                <SelectItem value="judicial">Judicial</SelectItem>
+                <SelectItem value="puc">PUC</SelectItem>
+              </SelectContent>
+            </Select>
+            {temFiltro && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setFiltroStatus("");
+                  setFiltroTipo("");
+                  setFiltroComp(compDefault);
+                }}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Limpar
+              </Button>
+            )}
+          </DataToolbar>
+
+          {query.isPending && !query.data ? (
+            <LoadingState />
+          ) : query.isError ? (
+            <EmptyState
+              icon={<FileText className="h-8 w-8" />}
+              title="Erro ao carregar notas"
+              description={
+                query.error instanceof Error ? query.error.message : "Tente recarregar a página."
+              }
+            />
+          ) : nfs.length === 0 && aEmitir.length === 0 ? (
+            <EmptyState
+              icon={<FileText className="h-8 w-8" />}
+              title="Sem notas fiscais"
+              description="Emita a primeira nota fiscal ou verifique cobranças pendentes de NF."
+              action={
+                <Button size="sm" onClick={() => abrirEmitir()}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Emitir NF
+                </Button>
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              <DashboardSection
+                eyebrow="Emissão"
+                accent="orange"
+                title="A emitir"
+                badge={
+                  <DashboardSectionBadge accent="orange">
+                    {semNfQuery.isPending && !semNfQuery.data
+                      ? "…"
+                      : compMes && compAno
+                        ? `${MESES_ABREV[compMes - 1]}/${compAno}`
+                        : `${aEmitir.length} sem NF`}
+                  </DashboardSectionBadge>
+                }
+                description="Selecione cobranças sem NF e emita em lote via Focus. Use o filtro de competência acima para outro mês."
+                actions={
+                  selectedCobrancas.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium">
+                        {selectedCobrancas.length} selecionada
+                        {selectedCobrancas.length > 1 ? "s" : ""}
+                        {selectedCobrancasElegiveis.length < selectedCobrancas.length && (
+                          <span className="text-destructive">
+                            {" "}
+                            ({selectedCobrancasElegiveis.length} elegível
+                            {selectedCobrancasElegiveis.length > 1 ? "eis" : ""})
+                          </span>
                         )}
-                        <span className="font-medium truncate">{grupo.label}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {grupo.nfs.length} nota{grupo.nfs.length > 1 ? "s" : ""}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium tabular-nums shrink-0">
-                        {brl(grupo.total)}
                       </span>
+                      <Button
+                        size="sm"
+                        disabled={bulkBusy || selectedCobrancasElegiveis.length === 0}
+                        onClick={abrirConfirmBulkEmit}
+                      >
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`}
+                        />
+                        {bulkProgress
+                          ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
+                          : "Emitir selecionadas"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={bulkBusy}
+                        onClick={() => setSelectedCobrancaIds(new Set())}
+                      >
+                        Limpar
+                      </Button>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {nfsFocusPendentes.length > 0 && (
-                            <TableHead className="w-10 pl-4">
-                              <input
-                                ref={selectAllNfRef}
-                                type="checkbox"
-                                className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                checked={allNfsFocusSelected}
-                                onChange={toggleSelectAllNfsHeader}
-                                disabled={nfsFocusPendentes.length === 0 || bulkBusy}
-                                aria-label="Selecionar todas pendentes de Focus"
-                              />
-                            </TableHead>
-                          )}
-                          <TableHead
-                            className={nfsFocusPendentes.length > 0 ? "w-24" : "w-24 pl-4"}
-                          >
-                            Nº
-                          </TableHead>
-                          <TableHead>Destinatário</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Emissão</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
-                          <TableHead className="w-10" aria-label="Detalhes" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {grupo.nfs.map((nf) => (
-                          <NFRow
-                            key={nf.id}
-                            nf={nf}
-                            hidePaciente
-                            selectable={nfsFocusPendentes.length > 0}
-                            selected={selectedNfIds.has(nf.id)}
-                            onSelectedChange={(checked) => toggleNfSelection(nf.id, checked)}
-                            selectionDisabled={bulkBusy}
-                            onOpen={() => setDetailNf(nf)}
+                  ) : undefined
+                }
+                noPadding
+              >
+                {semNfQuery.data && aEmitirSemDocumento > 0 && (
+                  <p className="border-b border-border/60 bg-[#FFF7ED]/50 px-6 py-2 text-xs font-medium text-destructive">
+                    {aEmitirSemDocumento} de {aEmitir.length} sem CPF/CNPJ no cadastro — dá para
+                    selecionar, mas só emite após completar o cadastro em Pacientes.
+                  </p>
+                )}
+                {semNfQuery.isError && (
+                  <p className="border-b border-border/60 bg-destructive/5 px-6 py-2 text-xs font-medium text-destructive">
+                    Erro ao carregar fila:{" "}
+                    {semNfQuery.error instanceof Error
+                      ? semNfQuery.error.message
+                      : "Falha na consulta"}
+                  </p>
+                )}
+                {semNfQuery.data &&
+                  !semNfQuery.isError &&
+                  aEmitir.length === 0 &&
+                  compMes &&
+                  compAno && (
+                    <p className="border-b border-border/60 bg-[#FFF7ED]/50 px-6 py-2 text-xs font-medium text-cb-orange">
+                      Nenhuma cobrança sem NF nesta competência — troque o mês no filtro (ex.:
+                      Jun/2026).
+                    </p>
+                  )}
+                {semNfQuery.isPending && !semNfQuery.data ? (
+                  <div className="px-4 py-6">
+                    <LoadingState />
+                  </div>
+                ) : aEmitir.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-muted-foreground">
+                    Nenhuma linha para selecionar nesta competência.
+                    {compSugestoes
+                      .filter((o) => o.value !== filtroComp)
+                      .slice(0, 1)
+                      .map((o) => (
+                        <Button
+                          key={o.value}
+                          variant="link"
+                          className="h-auto p-0 ml-1 text-sm"
+                          onClick={() => setFiltroComp(o.value)}
+                        >
+                          Ver {o.label}
+                        </Button>
+                      ))}
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">
+                          <input
+                            ref={selectAllRef}
+                            type="checkbox"
+                            className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                            checked={allCobrancasSelected}
+                            onChange={toggleSelectAllHeader}
+                            disabled={aEmitir.length === 0 || bulkBusy}
+                            aria-label="Selecionar todas as cobranças"
                           />
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </DashboardSection>
-        </div>
-      )}
+                        </TableHead>
+                        <TableHead className="w-24">Nº</TableHead>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Destinatário</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Pagamento</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead className="w-24"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {aEmitir.map((row) => (
+                        <LinhaAEmitir
+                          key={row.cobrancaId}
+                          row={row}
+                          selected={selectedCobrancaIds.has(row.cobrancaId)}
+                          onSelectedChange={(checked) =>
+                            toggleRowSelection(row.cobrancaId, checked)
+                          }
+                          selectionDisabled={bulkBusy}
+                          onEmitir={() => abrirEmitir(row)}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </DashboardSection>
+
+              {nfsFocusPendentes.length > 0 && (
+                <DashboardSection
+                  eyebrow="Integração"
+                  accent="cyan"
+                  title="Aguardando Focus"
+                  badge={
+                    <DashboardSectionBadge accent="cyan">
+                      {nfsFocusPendentes.length} pendente{nfsFocusPendentes.length > 1 ? "s" : ""}
+                    </DashboardSectionBadge>
+                  }
+                  description="NF já criada no sistema; selecione e envie em lote à Focus NFe."
+                  actions={
+                    selectedNfs.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-medium">
+                          {selectedNfs.length} selecionada{selectedNfs.length > 1 ? "s" : ""}
+                        </span>
+                        <Button size="sm" disabled={bulkBusy} onClick={abrirConfirmBulkEmitNfs}>
+                          <RefreshCw
+                            className={`h-3.5 w-3.5 mr-1 ${bulkBusy ? "animate-spin" : ""}`}
+                          />
+                          {bulkProgress
+                            ? `Emitindo ${bulkProgress.done}/${bulkProgress.total}…`
+                            : "Enviar à Focus"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={bulkBusy}
+                          onClick={() => setSelectedNfIds(new Set())}
+                        >
+                          Limpar
+                        </Button>
+                      </div>
+                    ) : undefined
+                  }
+                  noPadding
+                >
+                  <p className="px-6 py-3 text-sm text-cb-muted">
+                    Use a lista de notas emitidas abaixo para selecionar e enviar à Focus.
+                  </p>
+                </DashboardSection>
+              )}
+
+              <DashboardSection
+                eyebrow="Notas fiscais"
+                accent="purple"
+                title="Emitidas"
+                badge={
+                  grupos.length > 0 ? (
+                    <DashboardSectionBadge accent="purple">
+                      {nfs.length} nota{nfs.length > 1 ? "s" : ""}
+                    </DashboardSectionBadge>
+                  ) : undefined
+                }
+                actions={
+                  grupos.length > 0 ? (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setOpenGroups(grupos.map((g) => g.key))}
+                      >
+                        <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+                        Expandir tudo
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setOpenGroups([])}>
+                        <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
+                        Recolher tudo
+                      </Button>
+                    </div>
+                  ) : undefined
+                }
+                noPadding
+              >
+                <Accordion type="multiple" value={openGroups} onValueChange={setOpenGroups}>
+                  {grupos.map((grupo) => (
+                    <AccordionItem
+                      key={grupo.key}
+                      value={grupo.key}
+                      className="border-b last:border-b-0"
+                    >
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/40 data-[state=open]:bg-muted/30">
+                        <div className="flex items-center justify-between flex-1 gap-2 pr-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {grupo.temErro && (
+                              <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                            )}
+                            <span className="font-medium truncate">{grupo.label}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {grupo.nfs.length} nota{grupo.nfs.length > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium tabular-nums shrink-0">
+                            {brl(grupo.total)}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {nfsFocusPendentes.length > 0 && (
+                                <TableHead className="w-10 pl-4">
+                                  <input
+                                    ref={selectAllNfRef}
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border border-primary accent-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                                    checked={allNfsFocusSelected}
+                                    onChange={toggleSelectAllNfsHeader}
+                                    disabled={nfsFocusPendentes.length === 0 || bulkBusy}
+                                    aria-label="Selecionar todas pendentes de Focus"
+                                  />
+                                </TableHead>
+                              )}
+                              <TableHead
+                                className={nfsFocusPendentes.length > 0 ? "w-24" : "w-24 pl-4"}
+                              >
+                                Nº
+                              </TableHead>
+                              <TableHead>Destinatário</TableHead>
+                              <TableHead>Tipo</TableHead>
+                              <TableHead>Emissão</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Valor</TableHead>
+                              <TableHead className="w-10" aria-label="Detalhes" />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {grupo.nfs.map((nf) => (
+                              <NFRow
+                                key={nf.id}
+                                nf={nf}
+                                hidePaciente
+                                selectable={nfsFocusPendentes.length > 0}
+                                selected={selectedNfIds.has(nf.id)}
+                                onSelectedChange={(checked) => toggleNfSelection(nf.id, checked)}
+                                selectionDisabled={bulkBusy}
+                                onOpen={() => setDetailNf(nf)}
+                              />
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </DashboardSection>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ir" className="mt-6">
+          <RelatorioIrPanel />
+        </TabsContent>
+      </Tabs>
 
       <ModalEmitirNF
         open={modalEmitir}

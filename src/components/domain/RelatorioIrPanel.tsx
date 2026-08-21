@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
-import { DashboardSection, DashboardSectionBadge } from "@/components/domain/DashboardSection";
+import { DashboardSectionBadge } from "@/components/domain/DashboardSection";
 import { brl, formatDate } from "@/lib/format";
 import {
   downloadPdfBase64,
@@ -79,54 +79,53 @@ export function RelatorioIrPanel() {
   }
 
   return (
-    <DashboardSection
-      eyebrow="Relatórios"
-      accent="purple"
-      title="NFs por paciente — IR"
-      description="Consolida notas emitidas no ano para declaração de Imposto de Renda."
-      badge={
-        pacienteId ? (
-          <DashboardSectionBadge accent="purple">{brl(total)}</DashboardSectionBadge>
-        ) : undefined
-      }
-      actions={
-        <Button size="sm" onClick={() => void exportarPdf()} disabled={!pacienteId || exportando}>
-          <Download className="mr-1 h-4 w-4" />
-          {exportando ? "Gerando…" : "Exportar PDF"}
-        </Button>
-      }
-    >
-      <div className="space-y-4 p-4">
-        <div className="flex flex-wrap gap-3">
-          <div className="min-w-[220px] flex-1 space-y-1.5">
-            <Label>Paciente</Label>
-            <Select value={pacienteId || undefined} onValueChange={setPacienteId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione…" />
-              </SelectTrigger>
-              <SelectContent>
-                {pacientes.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="cb-glass-card overflow-hidden">
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap flex-1 gap-3">
+            <div className="min-w-[220px] flex-1 space-y-1.5">
+              <Label>Paciente</Label>
+              <Select value={pacienteId || undefined} onValueChange={setPacienteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pacientes.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-[120px] space-y-1.5">
+              <Label>Ano</Label>
+              <Select value={ano} onValueChange={setAno}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANOS.map((a) => (
+                    <SelectItem key={a} value={String(a)}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="w-[120px] space-y-1.5">
-            <Label>Ano</Label>
-            <Select value={ano} onValueChange={setAno}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANOS.map((a) => (
-                  <SelectItem key={a} value={String(a)}>
-                    {a}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            {pacienteId ? (
+              <DashboardSectionBadge accent="purple">{brl(total)}</DashboardSectionBadge>
+            ) : null}
+            <Button
+              size="sm"
+              onClick={() => void exportarPdf()}
+              disabled={!pacienteId || exportando}
+            >
+              <Download className="mr-1 h-4 w-4" />
+              {exportando ? "Gerando…" : "Exportar PDF"}
+            </Button>
           </div>
         </div>
 
@@ -173,6 +172,6 @@ export function RelatorioIrPanel() {
           </Table>
         )}
       </div>
-    </DashboardSection>
+    </div>
   );
 }

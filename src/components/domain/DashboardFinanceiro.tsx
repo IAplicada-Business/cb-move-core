@@ -60,7 +60,6 @@ import {
   parseCompetencia,
 } from "@/lib/competencia";
 import { financeiroKpisHistoricoOptions, receitaMensalOptions } from "@/lib/queries/options";
-import { RelatorioIrPanel } from "@/components/domain/RelatorioIrPanel";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
 import {
   fetchFinanceiroKpis,
@@ -1047,8 +1046,6 @@ export function DashboardFinanceiro() {
           criar a cobrança.
         </p>
       </DashboardSection>
-
-      <RelatorioIrPanel />
     </div>
   );
 }
