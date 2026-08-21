@@ -256,9 +256,9 @@ function InstrumentosPage() {
         />
       ) : (
         <BrandTableShell
-          eyebrow="Catálogo"
+          eyebrow="Instrumentos clínicos"
           accent="purple"
-          title="Instrumentos clínicos"
+          title="Catálogo"
           badge={
             <DashboardSectionBadge accent="purple">{instrumentos.length}</DashboardSectionBadge>
           }

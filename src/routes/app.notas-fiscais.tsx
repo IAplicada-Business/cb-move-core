@@ -1412,20 +1412,21 @@ function NotasFiscaisPage() {
                 )}
               </DashboardSection>
 
-              {nfsFocusPendentes.length > 0 && (
-                <DashboardSection
-                  eyebrow="Integração"
-                  accent="cyan"
-                  title="Aguardando Focus"
-                  badge={
-                    <DashboardSectionBadge accent="cyan">
-                      {nfsFocusPendentes.length} pendente{nfsFocusPendentes.length > 1 ? "s" : ""}
+              <DashboardSection
+                eyebrow="Notas fiscais"
+                accent="purple"
+                title="Emitidas"
+                badge={
+                  grupos.length > 0 ? (
+                    <DashboardSectionBadge accent="purple">
+                      {nfs.length} nota{nfs.length > 1 ? "s" : ""}
                     </DashboardSectionBadge>
-                  }
-                  description="NF já criada no sistema; selecione e envie em lote à Focus NFe."
-                  actions={
-                    selectedNfs.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-2">
+                  ) : undefined
+                }
+                actions={
+                  <div className="flex flex-wrap items-center gap-2">
+                    {nfsFocusPendentes.length > 0 && selectedNfs.length > 0 && (
+                      <>
                         <span className="text-xs font-medium">
                           {selectedNfs.length} selecionada{selectedNfs.length > 1 ? "s" : ""}
                         </span>
@@ -1445,45 +1446,25 @@ function NotasFiscaisPage() {
                         >
                           Limpar
                         </Button>
+                      </>
+                    )}
+                    {grupos.length > 0 && (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setOpenGroups(grupos.map((g) => g.key))}
+                        >
+                          <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+                          Expandir tudo
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setOpenGroups([])}>
+                          <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
+                          Recolher tudo
+                        </Button>
                       </div>
-                    ) : undefined
-                  }
-                  noPadding
-                >
-                  <p className="px-6 py-3 text-sm text-cb-muted">
-                    Use a lista de notas emitidas abaixo para selecionar e enviar à Focus.
-                  </p>
-                </DashboardSection>
-              )}
-
-              <DashboardSection
-                eyebrow="Notas fiscais"
-                accent="purple"
-                title="Emitidas"
-                badge={
-                  grupos.length > 0 ? (
-                    <DashboardSectionBadge accent="purple">
-                      {nfs.length} nota{nfs.length > 1 ? "s" : ""}
-                    </DashboardSectionBadge>
-                  ) : undefined
-                }
-                actions={
-                  grupos.length > 0 ? (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setOpenGroups(grupos.map((g) => g.key))}
-                      >
-                        <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
-                        Expandir tudo
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setOpenGroups([])}>
-                        <ChevronsDownUp className="h-3.5 w-3.5 mr-1" />
-                        Recolher tudo
-                      </Button>
-                    </div>
-                  ) : undefined
+                    )}
+                  </div>
                 }
                 noPadding
               >
