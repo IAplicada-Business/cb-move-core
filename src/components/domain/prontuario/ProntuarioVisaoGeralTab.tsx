@@ -293,11 +293,6 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
             <X className="h-3.5 w-3.5" /> Limpar
           </Button>
         )}
-
-        <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
-          {filteredRows.length} paciente{filteredRows.length !== 1 ? "s" : ""} ·{" "}
-          {kpis.totalEvolucoes} evoluç{kpis.totalEvolucoes === 1 ? "ão" : "ões"}
-        </p>
       </DataToolbar>
 
       {isLoading ? (
