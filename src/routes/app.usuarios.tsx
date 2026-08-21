@@ -525,7 +525,7 @@ function UsuariosPage() {
           value={filterPerfil}
           onValueChange={(v) => setFilterPerfil(v as UsuarioPerfilFilter)}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Perfil" />
           </SelectTrigger>
           <SelectContent>

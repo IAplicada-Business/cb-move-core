@@ -233,7 +233,7 @@ function PacientesPage() {
           value={filterTipo}
           onValueChange={(v) => setFilterTipo(v as PacienteTipo | "todos")}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
