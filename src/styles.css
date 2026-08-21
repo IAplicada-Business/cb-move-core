@@ -24,7 +24,7 @@
 
   --cb-ink: #2c2c2c;
   --cb-paper: #ffffff;
-  --cb-bg: #fafbfc;
+  --cb-bg: #eef3f6;
   --cb-muted: #6b7280;
   --cb-line: #e5e7eb;
 
@@ -34,16 +34,16 @@
   --t-convenio: var(--cb-purple);
   --t-puc: var(--cb-orange);
 
-  /* Superfícies modernas (soft-ui / glass) */
-  --cb-shadow-sm: 0 1px 3px rgb(15 75 80 / 6%), 0 1px 2px rgb(15 75 80 / 4%);
-  --cb-shadow-md: 0 4px 16px rgb(15 75 80 / 8%), 0 2px 6px rgb(15 75 80 / 4%);
-  --cb-shadow-lg: 0 12px 32px rgb(15 75 80 / 10%), 0 4px 12px rgb(15 75 80 / 6%);
-  --cb-glass-bg: rgb(255 255 255 / 72%);
-  --cb-glass-border: rgb(255 255 255 / 55%);
-  --cb-sidebar-bg: linear-gradient(180deg, #0f4b50 0%, #0a3538 48%, #082428 100%);
+  /* Superfícies modernas (soft-ui — cards sólidos + sombras suaves) */
+  --cb-shadow-sm: 0 1px 2px rgb(15 75 80 / 5%), 0 2px 8px rgb(15 75 80 / 4%);
+  --cb-shadow-md: 0 4px 6px rgb(15 75 80 / 4%), 0 12px 28px rgb(15 75 80 / 8%);
+  --cb-shadow-lg: 0 8px 16px rgb(15 75 80 / 6%), 0 24px 48px rgb(15 75 80 / 10%);
+  --cb-glass-bg: #ffffff;
+  --cb-glass-border: rgb(219 242 244 / 80%);
+  --cb-sidebar-bg: linear-gradient(175deg, #0f4b50 0%, #0a383c 42%, #071f22 100%);
 
   /* shadcn tokens mapeados para CB MOVE */
-  --radius: 1rem;
+  --radius: 1.25rem;
   --background: var(--cb-bg);
   --foreground: var(--cb-ink);
   --card: var(--cb-paper);
@@ -210,46 +210,44 @@
   background-color: var(--cb-bg);
   background-image:
     radial-gradient(
-      ellipse 80% 50% at 10% -10%,
-      color-mix(in srgb, var(--cb-cyan-600) 12%, transparent),
-      transparent 55%
+      ellipse 90% 60% at 0% -5%,
+      color-mix(in srgb, var(--cb-cyan-400) 18%, transparent),
+      transparent 58%
     ),
     radial-gradient(
-      ellipse 60% 40% at 95% 5%,
-      color-mix(in srgb, var(--cb-purple) 8%, transparent),
-      transparent 50%
+      ellipse 70% 50% at 100% 0%,
+      color-mix(in srgb, var(--cb-purple) 12%, transparent),
+      transparent 52%
     ),
     radial-gradient(
-      ellipse 50% 30% at 50% 100%,
-      color-mix(in srgb, var(--cb-cyan-400) 6%, transparent),
-      transparent 45%
+      ellipse 60% 40% at 50% 100%,
+      color-mix(in srgb, var(--cb-cyan-300) 10%, transparent),
+      transparent 48%
     );
 }
 
 @utility cb-glass-card {
-  border-radius: calc(var(--radius) + 4px);
-  border: 1px solid color-mix(in srgb, var(--cb-line) 80%, transparent);
-  background: var(--cb-glass-bg);
-  box-shadow: var(--cb-shadow-sm);
-  backdrop-filter: blur(12px) saturate(1.4);
+  border-radius: calc(var(--radius) + 0.25rem);
+  border: 1px solid color-mix(in srgb, var(--cb-cyan-100) 65%, var(--cb-line));
+  background: var(--cb-paper);
+  box-shadow: var(--cb-shadow-md);
 }
 
 @utility cb-glass-toolbar {
-  border-radius: calc(var(--radius) + 2px);
-  border: 1px solid color-mix(in srgb, var(--cb-line) 70%, transparent);
-  background: var(--cb-glass-bg);
+  border-radius: calc(var(--radius) + 0.125rem);
+  border: 1px solid color-mix(in srgb, var(--cb-cyan-100) 55%, var(--cb-line));
+  background: var(--cb-paper);
   box-shadow: var(--cb-shadow-sm);
-  backdrop-filter: blur(10px) saturate(1.3);
 }
 
 @utility cb-hover-lift {
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1),
+    box-shadow 0.22s ease;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--cb-shadow-md);
+    transform: translateY(-3px);
+    box-shadow: var(--cb-shadow-lg);
   }
 }
 

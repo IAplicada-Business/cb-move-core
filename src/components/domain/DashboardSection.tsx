@@ -9,28 +9,28 @@ type DashboardPageProps = {
 
 /** Espaçamento vertical padrão entre blocos de dashboard. */
 export function DashboardPage({ children, className }: DashboardPageProps) {
-  return <div className={cn("space-y-6 sm:space-y-8", className)}>{children}</div>;
+  return <div className={cn("space-y-6 sm:space-y-7", className)}>{children}</div>;
 }
 
 export type DashboardSectionAccent = "cyan" | "purple" | "lime" | "orange" | "magenta";
 
 const ACCENT_STRIP: Record<DashboardSectionAccent, string> = {
-  cyan: "bg-cb-cyan-600",
-  purple: "bg-cb-purple",
-  lime: "bg-cb-lime",
-  orange: "bg-cb-orange",
-  magenta: "bg-cb-magenta",
+  cyan: "bg-gradient-to-b from-cb-cyan-500 to-cb-cyan-700",
+  purple: "bg-gradient-to-b from-cb-purple to-[#6d28d9]",
+  lime: "bg-gradient-to-b from-cb-lime to-[#65a30d]",
+  orange: "bg-gradient-to-b from-cb-orange to-[#ea580c]",
+  magenta: "bg-gradient-to-b from-cb-magenta to-[#db2777]",
 };
 
 export const ACCENT_HEADER_BG: Record<DashboardSectionAccent, string> = {
-  cyan: "bg-gradient-to-r from-cb-cyan-050/95 via-cb-cyan-050/40 to-transparent dark:from-cb-cyan-900/50 dark:via-cb-cyan-800/20 dark:to-transparent",
+  cyan: "bg-gradient-to-r from-cb-cyan-050/90 via-white to-white dark:from-cb-cyan-900/40 dark:via-card dark:to-card",
   purple:
-    "bg-gradient-to-r from-[#F5F3FF]/95 via-[#F5F3FF]/40 to-transparent dark:from-cb-purple/30 dark:via-cb-purple/12 dark:to-transparent",
-  lime: "bg-gradient-to-r from-[#F7FEE7]/95 via-[#F7FEE7]/40 to-transparent dark:from-cb-lime/24 dark:via-cb-lime/10 dark:to-transparent",
+    "bg-gradient-to-r from-[#F5F3FF]/90 via-white to-white dark:from-cb-purple/25 dark:via-card dark:to-card",
+  lime: "bg-gradient-to-r from-[#F7FEE7]/90 via-white to-white dark:from-cb-lime/20 dark:via-card dark:to-card",
   orange:
-    "bg-gradient-to-r from-[#FFF7ED]/95 via-[#FFF7ED]/40 to-transparent dark:from-cb-orange/28 dark:via-cb-orange/12 dark:to-transparent",
+    "bg-gradient-to-r from-[#FFF7ED]/90 via-white to-white dark:from-cb-orange/20 dark:via-card dark:to-card",
   magenta:
-    "bg-gradient-to-r from-[#FDF2F8]/95 via-[#FDF2F8]/40 to-transparent dark:from-cb-magenta/28 dark:via-cb-magenta/12 dark:to-transparent",
+    "bg-gradient-to-r from-[#FDF2F8]/90 via-white to-white dark:from-cb-magenta/20 dark:via-card dark:to-card",
 };
 
 type DashboardSectionProps = {
@@ -57,18 +57,20 @@ export function DashboardSectionBadge({
   className?: string;
 }) {
   const ring: Record<DashboardSectionAccent, string> = {
-    cyan: "ring-cb-cyan-200/80 text-cb-cyan-800 dark:ring-cb-cyan-700/40 dark:text-cb-cyan-300",
-    purple: "ring-[#DDD6FE] text-cb-purple dark:ring-cb-purple/30 dark:text-[#c4b5fd]",
-    lime: "ring-[#BEF264] text-[#3F6212] dark:ring-cb-lime/25 dark:text-cb-lime",
-    orange: "ring-[#FED7AA] text-cb-orange dark:ring-cb-orange/30 dark:text-[#fdba74]",
-    magenta: "ring-[#FBCFE8] text-cb-magenta dark:ring-cb-magenta/30 dark:text-[#f9a8d4]",
+    cyan: "bg-cb-cyan-050 text-cb-cyan-800 ring-cb-cyan-100 dark:bg-cb-cyan-900/40 dark:text-cb-cyan-300 dark:ring-cb-cyan-700/40",
+    purple:
+      "bg-[#F5F3FF] text-cb-purple ring-[#DDD6FE] dark:bg-cb-purple/25 dark:text-[#c4b5fd] dark:ring-cb-purple/30",
+    lime: "bg-[#F7FEE7] text-[#3F6212] ring-[#BEF264] dark:bg-cb-lime/20 dark:text-cb-lime dark:ring-cb-lime/25",
+    orange:
+      "bg-[#FFF7ED] text-cb-orange ring-[#FED7AA] dark:bg-cb-orange/20 dark:text-[#fdba74] dark:ring-cb-orange/30",
+    magenta:
+      "bg-[#FDF2F8] text-cb-magenta ring-[#FBCFE8] dark:bg-cb-magenta/20 dark:text-[#f9a8d4] dark:ring-cb-magenta/30",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border border-border/60 bg-background/90 px-3 py-0.5",
-        "text-xs font-bold tabular-nums tracking-wide ring-1",
+        "inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tabular-nums tracking-wide ring-1",
         ring[accent],
         className,
       )}
@@ -100,25 +102,25 @@ export function DashboardSectionHeader({
   return (
     <header
       className={cn(
-        "relative flex flex-wrap items-start justify-between gap-3 border-b border-border/50",
+        "relative flex flex-wrap items-start justify-between gap-3 border-b border-border/40",
         compact ? "px-4 py-4 sm:px-5" : "px-5 py-5 sm:px-6",
         ACCENT_HEADER_BG[accent],
       )}
     >
       <div
-        className={cn("absolute inset-y-0 left-0 w-1 rounded-r-full", ACCENT_STRIP[accent])}
+        className={cn("absolute inset-y-3 left-0 w-1 rounded-r-full", ACCENT_STRIP[accent])}
         aria-hidden
       />
-      <div className="min-w-0 flex-1 pl-2">
+      <div className="min-w-0 flex-1 pl-3">
         {eyebrow && (
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-cb-muted">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cb-cyan-700 dark:text-cb-cyan-400">
             {eyebrow}
           </p>
         )}
         <div className={cn("flex flex-wrap items-center gap-2.5", eyebrow && "mt-1")}>
           <h2
             className={cn(
-              "font-bold tracking-tight text-cb-ink",
+              "font-extrabold tracking-tight text-cb-ink",
               compact ? "text-base" : "text-lg sm:text-xl",
             )}
           >

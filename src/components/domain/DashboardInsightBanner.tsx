@@ -25,7 +25,7 @@ export function DashboardInsightBanner({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl p-5 text-white shadow-[0_12px_32px_rgba(15,75,80,0.25)] sm:p-6",
+        "relative overflow-hidden rounded-2xl p-5 text-white shadow-[0_16px_40px_rgba(15,75,80,0.28)] sm:p-6",
         ok
           ? "bg-gradient-to-br from-cb-cyan-800 via-cb-cyan-900 to-[#1a4f6e]"
           : "bg-gradient-to-br from-cb-cyan-900 via-[#1a4f6e] to-cb-purple",
