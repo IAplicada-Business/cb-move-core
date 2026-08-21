@@ -266,9 +266,12 @@ export async function fetchOperacionalKpis(): Promise<OperacionalKpis> {
 }
 
 /** @deprecated Use fetchDashboardHome */
-export async function fetchProximasAgendas(limit = 15): Promise<ProximaAgenda[]> {
+export async function fetchProximasAgendas(
+  limit = 15,
+  fisioterapeutaId?: string | null,
+): Promise<ProximaAgenda[]> {
   const now = new Date();
-  const data = await fetchDashboardHome(now.getFullYear(), now.getMonth() + 1);
+  const data = await fetchDashboardHome(now.getFullYear(), now.getMonth() + 1, fisioterapeutaId);
   return data.proximasAgendas.slice(0, limit);
 }
 
