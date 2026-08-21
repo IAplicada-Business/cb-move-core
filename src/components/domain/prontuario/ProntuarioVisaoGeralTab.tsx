@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, FileText, Search, Users, X } from "lucide-react";
+import { ChevronDown, ClipboardList, FileText, Search, Users, X } from "lucide-react";
 
 import {
   DashboardSection,
@@ -39,6 +39,7 @@ type Props = {
 const ALL = "__all__";
 const SEM_FISIO = "__sem_fisio__";
 const SEM_RELATORIO = "__sem_relatorio__";
+const PRONTUARIO_PREVIEW_LIMIT = 5;
 
 function isRecentDate(isoDate: string | null, days = 30): boolean {
   if (!isoDate) return false;
@@ -114,6 +115,11 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
   const [status, setStatus] = useState(ALL);
   const [dataDe, setDataDe] = useState("");
   const [dataAte, setDataAte] = useState("");
+  const [showAllRows, setShowAllRows] = useState(false);
+
+  useEffect(() => {
+    setShowAllRows(false);
+  }, [search, pacienteId, fisio, status, dataDe, dataAte]);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: queryKeys.prontuariosConsolidados.list(),
@@ -215,6 +221,9 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
       semRelatorio,
     };
   }, [filteredRows]);
+
+  const hasMoreRows = filteredRows.length > PRONTUARIO_PREVIEW_LIMIT;
+  const visibleRows = showAllRows ? filteredRows : filteredRows.slice(0, PRONTUARIO_PREVIEW_LIMIT);
 
   return (
     <div className="space-y-8">
@@ -325,7 +334,7 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRows.map((row) => (
+              {visibleRows.map((row) => (
                 <TableRow key={row.pacienteId}>
                   <TableCell className="font-medium">{row.pacienteNome}</TableCell>
                   <TableCell>
@@ -352,6 +361,23 @@ export function ProntuarioVisaoGeralTab({ onOpenPaciente }: Props) {
               ))}
             </TableBody>
           </Table>
+          {hasMoreRows && !showAllRows && (
+            <div className="border-t border-border/40 px-5 py-4 text-center sm:px-6">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowAllRows(true)}
+              >
+                Ver mais
+                <ChevronDown className="h-4 w-4" />
+                <span className="text-cb-muted">
+                  ({filteredRows.length - PRONTUARIO_PREVIEW_LIMIT} restantes)
+                </span>
+              </Button>
+            </div>
+          )}
         </DashboardSection>
       )}
     </div>
