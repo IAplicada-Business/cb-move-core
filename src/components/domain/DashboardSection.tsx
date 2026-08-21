@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { HeaderInfoTooltip } from "@/components/brand/HeaderInfoTooltip";
 import { cn } from "@/lib/utils";
 
 type DashboardPageProps = {
@@ -126,11 +127,11 @@ export function DashboardSectionHeader({
           >
             {title}
           </h2>
+          {description ? (
+            <HeaderInfoTooltip description={description} iconClassName="h-3.5 w-3.5" />
+          ) : null}
           {badge}
         </div>
-        {!compact && description && (
-          <p className="mt-1.5 text-sm leading-relaxed text-cb-muted">{description}</p>
-        )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>

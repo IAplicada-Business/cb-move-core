@@ -1,4 +1,5 @@
 export { PageHeader, type PageHeaderCrumb } from "./PageHeader";
+export { HeaderInfoTooltip } from "./HeaderInfoTooltip";
 export {
   DataToolbar,
   DataToolbarSearch,

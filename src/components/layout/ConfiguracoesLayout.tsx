@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Building2, FilePlus2, Wrench, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { HeaderInfoTooltip } from "@/components/brand/HeaderInfoTooltip";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { internalTabItemClass } from "@/components/brand/internal-tab-nav";
 import { InternalTabNav } from "@/components/brand/InternalTabNav";
@@ -68,8 +69,12 @@ export function ConfiguracoesModuleHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 pb-1">
       <div className="min-w-0">
-        <h2 className="text-lg font-extrabold tracking-tight text-cb-ink sm:text-xl">{title}</h2>
-        {description && <p className="mt-1 text-sm leading-relaxed text-cb-muted">{description}</p>}
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-extrabold tracking-tight text-cb-ink sm:text-xl">{title}</h2>
+          {description ? (
+            <HeaderInfoTooltip description={description} iconClassName="h-3.5 w-3.5" />
+          ) : null}
+        </div>
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

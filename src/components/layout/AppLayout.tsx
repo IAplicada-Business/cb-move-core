@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "./Sidebar";
 import { AppTopbar } from "./AppTopbar";
 
@@ -19,16 +20,18 @@ function NavigationProgress() {
 
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider className="h-svh overflow-hidden bg-cb-bg dark:bg-background">
-      <Sidebar />
-      <SidebarInset className="relative min-h-0 overflow-hidden cb-app-bg">
-        <div className="cb-rainbow-strip h-[3px] shrink-0" aria-hidden />
-        <NavigationProgress />
-        <AppTopbar />
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto cb-app-bg">
-          <div className="w-full min-w-0 px-4 pb-8 pt-4 sm:px-5 md:px-6 lg:px-8">{children}</div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <TooltipProvider delayDuration={200}>
+      <SidebarProvider className="h-svh overflow-hidden bg-cb-bg dark:bg-background">
+        <Sidebar />
+        <SidebarInset className="relative min-h-0 overflow-hidden cb-app-bg">
+          <div className="cb-rainbow-strip h-[3px] shrink-0" aria-hidden />
+          <NavigationProgress />
+          <AppTopbar />
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto cb-app-bg">
+            <div className="w-full min-w-0 px-4 pb-8 pt-4 sm:px-5 md:px-6 lg:px-8">{children}</div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }
