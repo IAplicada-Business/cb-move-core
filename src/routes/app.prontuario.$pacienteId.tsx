@@ -1,15 +1,18 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { z } from "zod";
 
 import { ProntuarioPacienteView } from "@/components/domain/prontuario/ProntuarioPacienteView";
 import {
+  isLegacyPatientTab,
+  normalizePatientTab,
+  prontuarioLegacyPatientTabSchema,
   prontuarioPatientTabSchema,
-  resolvePatientTab,
   type ProntuarioPatientTab,
 } from "@/components/domain/prontuario/schemas";
 
 const prontuarioPacienteSearchSchema = z.object({
-  tab: prontuarioPatientTabSchema.optional(),
+  tab: z.union([prontuarioPatientTabSchema, prontuarioLegacyPatientTabSchema]).optional(),
   gravar: z.boolean().optional(),
 });
 
@@ -29,7 +32,18 @@ function ProntuarioPacienteRoute() {
   const { pacienteId } = Route.useParams();
   const { tab, gravar } = Route.useSearch();
   const navigate = useNavigate();
-  const activeTab = resolvePatientTab(tab);
+  const activeTab = normalizePatientTab(tab);
+
+  useEffect(() => {
+    if (tab && isLegacyPatientTab(tab)) {
+      navigate({
+        to: "/app/prontuario/$pacienteId",
+        params: { pacienteId },
+        search: { tab: activeTab, gravar },
+        replace: true,
+      });
+    }
+  }, [tab, activeTab, gravar, navigate, pacienteId]);
 
   function navigatePatient(next: {
     pacienteId?: string;

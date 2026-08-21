@@ -37,13 +37,12 @@ test.describe("prontuário — rota dedicada", () => {
       waitUntil: "domcontentloaded",
     });
     await expect(page).toHaveURL(
-      new RegExp(`/app/prontuario/${DEFAULT_PACIENTE_ID}(\\?tab=documentos)?`),
+      new RegExp(`/app/prontuario/${DEFAULT_PACIENTE_ID}(\\?tab=periodizacao-documentos)?`),
       { timeout: AUTH_TIMEOUT },
     );
-    await expect(page.getByRole("tab", { name: "Documentos", exact: true })).toHaveAttribute(
-      "data-state",
-      "active",
-    );
+    await expect(
+      page.getByRole("tab", { name: "Periodização e documentos", exact: true }),
+    ).toHaveAttribute("data-state", "active");
   });
 
   test("deep link abre paciente na evolução diária", async ({ page }) => {
