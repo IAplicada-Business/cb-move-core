@@ -1218,13 +1218,7 @@ function AgendaPage() {
           options={tipoOptions}
           onChange={setFilterTipo}
         />
-        {visao === "semana" && (
-          <p className="ml-auto text-xs font-medium tabular-nums text-muted-foreground">
-            {fisiosVisiveis.length} fisio{fisiosVisiveis.length !== 1 ? "s" : ""} · {BLOCOS_COUNT}{" "}
-            blocos · {INTERVALOS_COUNT} intervalos · sessão {duracaoSessaoLabel(SESSAO_DURACAO_MIN)}
-          </p>
-        )}
-        <div className={visao === "semana" || isSubabaVisao ? "" : "ml-auto"}>
+        <div className={isSubabaVisao ? "" : "ml-auto"}>
           {!isSubabaVisao && (
             <FilterChip
               prefix="Visão"
