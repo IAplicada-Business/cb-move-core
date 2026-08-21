@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /** Altura e largura padrão dos filtros em toolbars de listagem. */
 export const dataToolbarControlClass = "h-10 shrink-0";
 export const dataToolbarSelectClass = cn(dataToolbarControlClass, "w-48");
-export const dataToolbarFilterClass = cn(dataToolbarControlClass, "w-48");
+export const dataToolbarFilterClass = cn(dataToolbarControlClass, "w-56");
 
 type DataToolbarProps = {
   children: ReactNode;
