@@ -1123,14 +1123,11 @@ function AgendaPage() {
         actions={
           <>
             {showPeriodNavInHeader ? periodNavActions : null}
-            <div className="flex flex-wrap items-center gap-2">
-              {podeGerir && (
-                <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
-                  Horários
-                </Button>
-              )}
-              <AgendaSubabaNav activeVisao={visao} onVisaoChange={(next) => setVisao(next)} />
-            </div>
+            {podeGerir && (
+              <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
+                Horários
+              </Button>
+            )}
             {podeGerir && !isSubabaVisao && (
               <Button
                 onClick={() => setModalOpen(true)}
@@ -1142,6 +1139,8 @@ function AgendaPage() {
           </>
         }
       />
+
+      <AgendaSubabaNav activeVisao={visao} onVisaoChange={(next) => setVisao(next)} />
 
       {!isSubabaVisao && (
         <>

@@ -319,9 +319,9 @@ function ConveniosPage() {
         />
       ) : (
         <BrandTableShell
-          eyebrow="Cadastro"
+          eyebrow="Convênios"
           accent="cyan"
-          title="Convênios"
+          title="Cadastrados"
           badge={<DashboardSectionBadge accent="cyan">{convenios.length}</DashboardSectionBadge>}
         >
           <Table>
