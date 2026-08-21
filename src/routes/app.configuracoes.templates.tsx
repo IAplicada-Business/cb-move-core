@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { FileText, MoreHorizontal } from "lucide-react";
+import { FileText, FolderOpen, Mail, MoreHorizontal, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -236,12 +236,24 @@ function TemplatesPage() {
         />
       ) : (
         <Tabs defaultValue="nota_fiscal" className="space-y-4">
-          <TabsList className="flex h-auto flex-wrap gap-1">
-            {categoriasVisiveis.map((cat) => (
-              <TabsTrigger key={cat} value={cat} className="text-xs sm:text-sm">
-                {CATEGORIA_META[cat].label} ({filtrarTemplatesPorCategoria(templates, cat).length})
-              </TabsTrigger>
-            ))}
+          <TabsList>
+            {categoriasVisiveis.map((cat) => {
+              const CatIcon =
+                cat === "nota_fiscal"
+                  ? Receipt
+                  : cat === "email_nf"
+                    ? Mail
+                    : cat === "relatorio_atendimento"
+                      ? FileText
+                      : FolderOpen;
+              return (
+                <TabsTrigger key={cat} value={cat}>
+                  <CatIcon className="h-4 w-4 shrink-0" />
+                  {CATEGORIA_META[cat].label} ({filtrarTemplatesPorCategoria(templates, cat).length}
+                  )
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
           {categoriasVisiveis.map((cat) => (
             <TabsContent key={cat} value={cat} className="space-y-3">
