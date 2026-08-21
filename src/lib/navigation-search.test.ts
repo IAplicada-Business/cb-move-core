@@ -11,6 +11,7 @@ describe("navigation-search", () => {
   it("resolveAgendaVisao defaults to semana", () => {
     expect(resolveAgendaVisao(undefined)).toBe("semana");
     expect(resolveAgendaVisao("mes")).toBe("mes");
+    expect(resolveAgendaVisao("atualizacoes")).toBe("atualizacoes");
   });
 
   it("resolveRelatoriosTab defaults to gerar", () => {

@@ -27,11 +27,9 @@ type RecentAgendaItem = {
 export function DashboardRecentActivity({
   items,
   showFisio,
-  agendaHref = "/app/agenda",
 }: {
   items: RecentAgendaItem[];
   showFisio?: boolean;
-  agendaHref?: string;
 }) {
   return (
     <BrandTableShell
@@ -41,7 +39,9 @@ export function DashboardRecentActivity({
       description="Próximos agendamentos confirmados ou pendentes"
       actions={
         <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
-          <Link to={agendaHref}>Ver todas</Link>
+          <Link to="/app/agenda" search={{ visao: "atualizacoes" }}>
+            Ver mais
+          </Link>
         </Button>
       }
     >
@@ -62,7 +62,7 @@ export function DashboardRecentActivity({
             </BrandTableRow>
           </BrandTableHeader>
           <BrandTableBody>
-            {items.slice(0, 6).map((item) => (
+            {items.slice(0, 2).map((item) => (
               <BrandTableRow key={item.id}>
                 <BrandTableCell>
                   <span className="font-medium text-cb-ink">{item.pacienteNome}</span>

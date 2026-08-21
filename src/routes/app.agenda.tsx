@@ -16,9 +16,11 @@ import {
 import { toast } from "sonner";
 
 import {
+  AgendaAtualizacoesPanel,
   AgendaDayStrip,
   AgendaDivergenciasPanel,
   AgendaMonthCalendar,
+  AgendaSubabaNav,
   AgendaWeekGrid,
 } from "@/components/domain/agenda";
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
@@ -55,7 +57,12 @@ import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
 import { divergenciasAgendaOptions } from "@/lib/queries/options";
-import { agendaVisaoSchema, resolveAgendaVisao, type AgendaVisao } from "@/lib/navigation-search";
+import {
+  agendaVisaoSchema,
+  isAgendaSubabaVisao,
+  resolveAgendaVisao,
+  type AgendaVisao,
+} from "@/lib/navigation-search";
 import { assertMenuAccess } from "@/lib/route-access";
 import {
   fetchAgendamentoHistorico,
@@ -526,7 +533,7 @@ function AgendaPage() {
   const { data: agendamentos = [], isPending: agendaPending } = useQuery({
     queryKey: queryKeys.agendamentos.periodo(periodo.inicio, periodo.fim),
     queryFn: () => fetchAgendamentosPeriodoLocal(periodo.inicio, periodo.fim),
-    enabled: visao !== "frequencia" && visao !== "divergencias",
+    enabled: !isAgendaSubabaVisao(visao),
   });
 
   const mesAgenda = mesRef.getMonth() + 1;
@@ -1024,10 +1031,10 @@ function AgendaPage() {
   const visaoOptions = [
     { value: "semana", label: "Semana padrão" },
     { value: "dia", label: "Grade Seg–Sex" },
-    { value: "frequencia", label: "Frequência" },
-    { value: "divergencias", label: "Divergências" },
     { value: "mes", label: "Calendário" },
   ];
+
+  const isSubabaVisao = isAgendaSubabaVisao(visao);
 
   const headerTitle =
     visao === "mes"
@@ -1036,9 +1043,11 @@ function AgendaPage() {
         ? `Frequência · ${MESES[mesRef.getMonth()].slice(0, 3)}/${mesRef.getFullYear()}`
         : visao === "divergencias"
           ? `Divergências · ${MESES[mesRef.getMonth()].slice(0, 3)}/${mesRef.getFullYear()}`
-          : visao === "dia"
-            ? `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
-            : "Agenda · semana padrão";
+          : visao === "atualizacoes"
+            ? "Atualizações · próximos agendamentos"
+            : visao === "dia"
+              ? `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
+              : "Agenda · semana padrão";
 
   function navBack() {
     if (visao === "mes" || visao === "frequencia" || visao === "divergencias") {
@@ -1074,7 +1083,16 @@ function AgendaPage() {
       <PageHeader
         crumbs={[
           { label: "Operação" },
-          { label: visao === "frequencia" ? "Frequência" : "Agenda" },
+          {
+            label:
+              visao === "frequencia"
+                ? "Frequência"
+                : visao === "divergencias"
+                  ? "Divergências"
+                  : visao === "atualizacoes"
+                    ? "Atualizações"
+                    : "Agenda",
+          },
         ]}
         title={headerTitle}
         description={
@@ -1082,24 +1100,33 @@ function AgendaPage() {
             ? "Controle de frequência mensal por paciente"
             : visao === "divergencias"
               ? "Sessões realizadas sem evolução registrada no prontuário"
-              : "Planejamento semanal, grade diária e visão mensal"
+              : visao === "atualizacoes"
+                ? "Próximos agendamentos confirmados ou pendentes nos próximos 7 dias"
+                : "Planejamento semanal, grade diária e visão mensal"
         }
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={navBack}>
-              <ChevronLeft className="h-4 w-4" />
-              {navLabelPrev}
-            </Button>
-            <Button variant="outline" size="sm" onClick={navForward}>
-              {navLabelNext}
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {podeGerir && (
-              <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
-                Horários
-              </Button>
-            )}
-            {podeGerir && visao !== "frequencia" && visao !== "divergencias" && (
+            {!isSubabaVisao || visao === "frequencia" || visao === "divergencias" ? (
+              <>
+                <Button variant="outline" size="sm" onClick={navBack}>
+                  <ChevronLeft className="h-4 w-4" />
+                  {navLabelPrev}
+                </Button>
+                <Button variant="outline" size="sm" onClick={navForward}>
+                  {navLabelNext}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {podeGerir && (
+                <Button variant="outline" size="sm" onClick={() => setHorariosOpen(true)}>
+                  Horários
+                </Button>
+              )}
+              <AgendaSubabaNav activeVisao={visao} onVisaoChange={(next) => setVisao(next)} />
+            </div>
+            {podeGerir && !isSubabaVisao && (
               <Button
                 onClick={() => setModalOpen(true)}
                 className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700"
@@ -1111,7 +1138,7 @@ function AgendaPage() {
         }
       />
 
-      {visao !== "frequencia" && visao !== "divergencias" && (
+      {!isSubabaVisao && (
         <>
           <KpiGrid columns={4}>
             <KpiCard
@@ -1197,13 +1224,15 @@ function AgendaPage() {
             blocos · {INTERVALOS_COUNT} intervalos · sessão {duracaoSessaoLabel(SESSAO_DURACAO_MIN)}
           </p>
         )}
-        <div className={visao === "semana" ? "" : "ml-auto"}>
-          <FilterChip
-            prefix="Visão"
-            value={visao}
-            options={visaoOptions}
-            onChange={(v) => setVisao(v as VisaoAgenda)}
-          />
+        <div className={visao === "semana" || isSubabaVisao ? "" : "ml-auto"}>
+          {!isSubabaVisao && (
+            <FilterChip
+              prefix="Visão"
+              value={visao}
+              options={visaoOptions}
+              onChange={(v) => setVisao(v as VisaoAgenda)}
+            />
+          )}
         </div>
       </DataToolbar>
 
@@ -1213,6 +1242,8 @@ function AgendaPage() {
           items={divergencias}
           isLoading={divergenciasPending}
         />
+      ) : visao === "atualizacoes" ? (
+        <AgendaAtualizacoesPanel showFisio={!isFisioScoped} fisioterapeutaId={fisioScopeId} />
       ) : agendaPending && agendamentos.length === 0 && visao !== "frequencia" ? (
         <LoadingState />
       ) : visao === "frequencia" ? (

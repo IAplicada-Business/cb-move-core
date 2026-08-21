@@ -242,7 +242,9 @@ function Dashboard() {
               bodyClassName="px-4 pb-2 sm:px-6"
               actions={
                 <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
-                  <Link to="/app/agenda">Ver todas</Link>
+                  <Link to="/app/agenda" search={{ visao: "atualizacoes" }}>
+                    Ver mais
+                  </Link>
                 </Button>
               }
             >
@@ -254,7 +256,7 @@ function Dashboard() {
                   />
                 </div>
               ) : (
-                <AgendaPreviewList items={proximas} showFisio={!isFisioScoped} />
+                <AgendaPreviewList items={proximas.slice(0, 2)} showFisio={!isFisioScoped} />
               )}
             </DashboardSection>
           )}
