@@ -11,29 +11,21 @@ const CATEGORIAS_CONHECIDAS: TemplateCategoria[] = [
   "relatorio_atendimento",
 ];
 
-export const CATEGORIA_META: Record<
-  TemplateCategoria,
-  { label: string; descricao: string; tipos: string[] }
-> = {
+export const CATEGORIA_META: Record<TemplateCategoria, { label: string; tipos: string[] }> = {
   nota_fiscal: {
     label: "Notas fiscais",
-    descricao: "Modelos RQ.GPS.07.* usados na emissão de NFS-e por tipo de paciente.",
     tipos: ["nota_fiscal"],
   },
   email_nf: {
     label: "E-mails NF",
-    descricao: "Templates RQ.GPS.08.* enviados após emissão (n8n / send-nf-email).",
     tipos: ["email_nf"],
   },
   relatorio_atendimento: {
     label: "Relatórios de atendimento",
-    descricao:
-      "Modelos RQ.GPS.09.* vinculados à geração mensal por modelo (convencional, Unimed, etc.).",
     tipos: ["relatorio_atendimento"],
   },
   outros: {
     label: "Outros",
-    descricao: "Templates com tipo não mapeado nas categorias principais.",
     tipos: [],
   },
 };

@@ -250,7 +250,6 @@ function TemplatesPage() {
           </TabsList>
           {categoriasVisiveis.map((cat) => (
             <TabsContent key={cat} value={cat} className="space-y-3">
-              <p className="text-sm text-muted-foreground">{CATEGORIA_META[cat].descricao}</p>
               {renderTabela(filtrarTemplatesPorCategoria(templates, cat))}
             </TabsContent>
           ))}
