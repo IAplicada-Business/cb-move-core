@@ -19,16 +19,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/20 p-10 text-center backdrop-blur-sm sm:p-12",
+        "cb-glass-card flex flex-col items-center justify-center border-dashed p-10 text-center sm:p-14",
         className,
       )}
     >
-      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-cb-cyan-050 text-cb-cyan-600 ring-1 ring-cb-cyan-100 dark:bg-cb-cyan-900/30 dark:ring-cb-cyan-700/30">
-        {icon ?? <Inbox className="h-7 w-7" />}
+      <div className="mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-cb-cyan-050 to-cb-cyan-100 text-cb-cyan-600 ring-1 ring-cb-cyan-100 dark:from-cb-cyan-900/40 dark:to-cb-cyan-800/30 dark:ring-cb-cyan-700/40">
+        {icon ?? <Inbox className="h-8 w-8" />}
       </div>
-      <h3 className="text-base font-bold text-foreground">{title}</h3>
-      <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{description}</p>
-      {action && <div className="mt-5">{action}</div>}
+      <h3 className="text-lg font-extrabold text-foreground">{title}</h3>
+      <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }

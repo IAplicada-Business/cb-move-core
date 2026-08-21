@@ -57,17 +57,7 @@ export function BrandTableShell({
     );
   }
 
-  return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-[10px] border border-border bg-card",
-        "shadow-[0_1px_2px_rgba(15,75,80,0.06)]",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("cb-glass-card overflow-hidden", className)}>{children}</div>;
 }
 
 export function BrandTable({ className, ...props }: React.ComponentProps<typeof Table>) {
@@ -78,24 +68,11 @@ export function BrandTableHeader({
   className,
   ...props
 }: React.ComponentProps<typeof TableHeader>) {
-  return (
-    <TableHeader
-      className={cn("[&_tr]:border-b [&_tr]:bg-cb-cyan-050 dark:[&_tr]:bg-secondary", className)}
-      {...props}
-    />
-  );
+  return <TableHeader className={className} {...props} />;
 }
 
 export function BrandTableHead({ className, ...props }: React.ComponentProps<typeof TableHead>) {
-  return (
-    <TableHead
-      className={cn(
-        "h-11 px-4 text-[10.5px] font-bold uppercase tracking-[0.1em] text-cb-muted",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <TableHead className={className} {...props} />;
 }
 
 export function BrandTableBody(props: React.ComponentProps<typeof TableBody>) {
@@ -103,19 +80,11 @@ export function BrandTableBody(props: React.ComponentProps<typeof TableBody>) {
 }
 
 export function BrandTableRow({ className, ...props }: React.ComponentProps<typeof TableRow>) {
-  return (
-    <TableRow
-      className={cn(
-        "border-b hover:bg-cb-cyan-050/80 data-[state=selected]:bg-cb-cyan-050 dark:hover:bg-secondary/80 dark:data-[state=selected]:bg-secondary",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <TableRow className={className} {...props} />;
 }
 
 export function BrandTableCell({ className, ...props }: React.ComponentProps<typeof TableCell>) {
-  return <TableCell className={cn("px-4 py-3", className)} {...props} />;
+  return <TableCell className={className} {...props} />;
 }
 
 export function BrandTableNumCell({ className, ...props }: React.ComponentProps<typeof TableCell>) {

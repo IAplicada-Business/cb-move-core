@@ -9,10 +9,10 @@ function NavigationProgress() {
   if (!isPending) return null;
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[2px] overflow-hidden bg-cb-cyan-600/20"
+      className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] overflow-hidden bg-cb-cyan-600/15"
       aria-hidden
     >
-      <div className="h-full w-1/3 animate-[cb-nav-progress_0.9s_ease-in-out_infinite] bg-cb-cyan-500" />
+      <div className="h-full w-1/3 animate-[cb-nav-progress_0.9s_ease-in-out_infinite] bg-gradient-to-r from-cb-cyan-400 to-cb-cyan-600" />
     </div>
   );
 }
@@ -26,7 +26,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <NavigationProgress />
         <AppTopbar />
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden cb-app-bg">
-          <div className="w-full px-4 pb-8 pt-4 sm:px-5 md:px-6 lg:px-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1600px] px-4 pb-10 pt-5 sm:px-6 md:px-8">
+            {children}
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>

@@ -9,7 +9,7 @@ export function LoadingState({
 }) {
   if (compact) {
     return (
-      <div className="flex h-full w-full items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div className="flex h-full w-full items-center justify-center gap-2.5 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin text-cb-cyan-600" />
         {label}
       </div>
@@ -17,9 +17,9 @@ export function LoadingState({
   }
 
   return (
-    <div className="cb-glass-card flex items-center justify-center gap-2.5 p-10 text-sm text-muted-foreground sm:p-12">
-      <Loader2 className="h-5 w-5 animate-spin text-cb-cyan-600" />
-      {label}
+    <div className="cb-glass-card flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground sm:p-14">
+      <Loader2 className="h-6 w-6 animate-spin text-cb-cyan-600" />
+      <span className="font-medium">{label}</span>
     </div>
   );
 }

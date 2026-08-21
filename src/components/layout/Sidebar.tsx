@@ -49,16 +49,16 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
 
 const ACTIVE_NAV_CLS = cn(
   "data-[active=true]:bg-cb-cyan-600 data-[active=true]:font-semibold data-[active=true]:text-white",
-  "data-[active=true]:shadow-[0_4px_12px_rgba(63,181,188,0.35)]",
-  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-  "text-sidebar-foreground/80",
+  "data-[active=true]:shadow-[0_4px_16px_rgba(63,181,188,0.45)]",
+  "hover:bg-white/10 hover:text-white",
+  "text-sidebar-foreground/75",
 );
 
 const SECTION_TRIGGER_CLS = cn(
-  "rounded-xl font-semibold text-sidebar-foreground/90 transition-all duration-200",
-  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-  "data-[state=open]:bg-sidebar-accent/80",
-  "h-10 group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0",
+  "rounded-xl font-semibold text-sidebar-foreground/85 transition-all duration-200",
+  "hover:bg-white/10 hover:text-white",
+  "data-[state=open]:bg-white/8",
+  "h-11 group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-0",
   "group-data-[collapsible=icon]:justify-center",
 );
 
@@ -111,7 +111,7 @@ function SidebarNavItem({
     <SidebarMenuSubButton
       asChild
       isActive={active}
-      className={cn("h-9 flex-1 rounded-xl", ACTIVE_NAV_CLS, className)}
+      className={cn("h-10 flex-1 rounded-xl px-3", ACTIVE_NAV_CLS, className)}
     >
       <Link to={item.to} preload="intent">
         <Icon className="h-4 w-4 shrink-0" />
@@ -277,7 +277,9 @@ function SidebarNavSection({
           <SidebarMenu>
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton className={cn(SECTION_TRIGGER_CLS, groupActive && "text-white")}>
+                <SidebarMenuButton
+                  className={cn(SECTION_TRIGGER_CLS, groupActive && "bg-white/12 text-white")}
+                >
                   <GroupIcon className="h-4 w-4 shrink-0 text-cb-cyan-400" />
                   <span className="flex-1 truncate">{group.label}</span>
                   <ChevronRight
@@ -336,32 +338,34 @@ export function Sidebar() {
     >
       <div className="cb-rainbow-strip h-[3px] shrink-0" aria-hidden />
 
-      <SidebarHeader className="h-14 shrink-0 flex-row items-center gap-0 border-b border-sidebar-border px-3 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-        <div className="flex h-full w-full items-center gap-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+      <SidebarHeader className="h-[4.25rem] shrink-0 flex-row items-center gap-0 border-b border-white/10 px-3 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+        <div className="flex h-full w-full items-center gap-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <button
             type="button"
             onClick={() => sidebarCollapsed && toggleSidebar()}
             className={cn(
-              "cb-pin-halo grid h-9 w-9 shrink-0 place-items-center rounded-full p-[2px] shadow-[0_0_20px_rgba(63,181,188,0.3)]",
+              "cb-pin-halo grid h-10 w-10 shrink-0 place-items-center rounded-2xl p-[2px] shadow-[0_0_24px_rgba(63,181,188,0.4)]",
               sidebarCollapsed && "cursor-pointer transition-opacity hover:opacity-90",
             )}
             aria-label={sidebarCollapsed ? "Expandir menu" : undefined}
           >
-            <div className="grid h-full w-full place-items-center rounded-full bg-white text-cb-cyan-600">
-              <span className="text-base font-bold leading-none">∞</span>
+            <div className="grid h-full w-full place-items-center rounded-[14px] bg-white text-cb-cyan-600">
+              <span className="text-lg font-bold leading-none">∞</span>
             </div>
           </button>
           <div className="min-w-0 flex-1 leading-none group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-extrabold tracking-wide text-white">CB MOVE</div>
-            <div className="truncate text-[9px] font-semibold uppercase tracking-[0.18em] text-cb-cyan-300/80">
+            <div className="truncate text-[15px] font-extrabold tracking-wide text-white">
+              CB MOVE
+            </div>
+            <div className="truncate text-[9px] font-semibold uppercase tracking-[0.2em] text-cb-cyan-300">
               Neuroscience
             </div>
           </div>
-          <SidebarTrigger className="shrink-0 text-sidebar-foreground/70 hover:text-white group-data-[collapsible=icon]:hidden" />
+          <SidebarTrigger className="shrink-0 rounded-lg text-sidebar-foreground/70 hover:bg-white/10 hover:text-white group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="gap-1 px-2 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-1.5">
+      <SidebarContent className="gap-1.5 px-2.5 py-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         {groups.map((g) => (
           <SidebarNavSection
             key={g.id}

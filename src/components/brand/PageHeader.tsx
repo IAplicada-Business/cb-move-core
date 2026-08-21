@@ -28,14 +28,14 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
   return (
     <header
       className={cn(
-        "flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between",
+        "cb-glass-card flex flex-col gap-4 p-5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:p-6",
         className,
       )}
     >
       <div className="min-w-0 space-y-2">
         {crumbs.length > 0 && (
           <Breadcrumb>
-            <BreadcrumbList className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cb-muted">
+            <BreadcrumbList className="text-[10px] font-bold uppercase tracking-[0.16em] text-cb-muted">
               {crumbs.map((crumb, index) => {
                 const isLast = index === crumbs.length - 1;
 
@@ -47,7 +47,7 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
                           {crumb.label}
                         </BreadcrumbPage>
                       ) : (
-                        <BreadcrumbLink asChild className="text-cb-muted hover:text-cb-ink">
+                        <BreadcrumbLink asChild className="text-cb-muted hover:text-cb-cyan-700">
                           <Link to={crumb.to}>{crumb.label}</Link>
                         </BreadcrumbLink>
                       )}
@@ -61,11 +61,11 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
         )}
 
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-extrabold tracking-[-0.03em] text-cb-ink sm:text-[30px]">
+          <h1 className="text-[26px] font-extrabold tracking-[-0.04em] text-cb-ink sm:text-[32px]">
             {title}
           </h1>
           {description && (
-            <p className="mt-1.5 max-w-4xl text-sm leading-relaxed text-cb-muted">{description}</p>
+            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-cb-muted">{description}</p>
           )}
         </div>
       </div>
