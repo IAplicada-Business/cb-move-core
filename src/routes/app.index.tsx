@@ -21,7 +21,6 @@ import { AtividadeSemanalAreaChart } from "@/components/domain/charts/AtividadeS
 import { PacientesPorTipoBarChart } from "@/components/domain/charts/PacientesPorTipoBarChart";
 import { DivergenciaTrendLineChart } from "@/components/domain/charts/TrendLineCharts";
 import { PageHeader } from "@/components/brand/PageHeader";
-import { DataToolbar } from "@/components/brand/DataToolbar";
 import { dashboardHomeOptions } from "@/lib/queries/options";
 import { useAuth } from "@/lib/auth";
 import { can, isFisioScopedUser } from "@/lib/permissions";
@@ -72,46 +71,44 @@ function Dashboard() {
             : "Visão operacional — pacientes, equipe, agendas e conformidade do prontuário"
         }
         actions={
-          podeVerFinanceiro ? (
-            <Button variant="outline" size="sm" asChild className="gap-2">
-              <Link to="/app/financeiro">
-                <TrendingUp className="h-4 w-4" />
-                Financeiro
-              </Link>
-            </Button>
-          ) : undefined
+          <>
+            <p className="text-sm text-cb-muted">
+              Competência ·{" "}
+              <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
+            </p>
+            {!isMesAtual && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => {
+                  setMes(mesAtual);
+                  setAno(anoAtual);
+                }}
+              >
+                Mês atual
+              </Button>
+            )}
+            <MonthPicker
+              mes={mes}
+              ano={ano}
+              onChange={(nextMes, nextAno) => {
+                setMes(nextMes);
+                setAno(nextAno);
+              }}
+            />
+            {podeVerFinanceiro && (
+              <Button variant="outline" size="sm" asChild className="gap-2">
+                <Link to="/app/financeiro">
+                  <TrendingUp className="h-4 w-4" />
+                  Financeiro
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
-
-      <DataToolbar className="justify-between gap-3">
-        <p className="text-sm text-cb-muted">
-          Competência · <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {!isMesAtual && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 text-xs"
-              onClick={() => {
-                setMes(mesAtual);
-                setAno(anoAtual);
-              }}
-            >
-              Mês atual
-            </Button>
-          )}
-          <MonthPicker
-            mes={mes}
-            ano={ano}
-            onChange={(nextMes, nextAno) => {
-              setMes(nextMes);
-              setAno(nextAno);
-            }}
-          />
-        </div>
-      </DataToolbar>
 
       <KpiGrid columns={isFisioScoped ? 3 : 4}>
         <KpiCard
