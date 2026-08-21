@@ -17,11 +17,9 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
 import { GaugeChart } from "@/components/domain/charts/GaugeChart";
-import { AtividadeSemanalAreaChart } from "@/components/domain/charts/AtividadeSemanalAreaChart";
 import { PacientesPorTipoBarChart } from "@/components/domain/charts/PacientesPorTipoBarChart";
 import { DivergenciaTrendLineChart } from "@/components/domain/charts/TrendLineCharts";
 import { PageHeader } from "@/components/brand/PageHeader";
-import { DataToolbar } from "@/components/brand/DataToolbar";
 import { dashboardHomeOptions } from "@/lib/queries/options";
 import { useAuth } from "@/lib/auth";
 import { can, isFisioScopedUser } from "@/lib/permissions";
@@ -72,46 +70,44 @@ function Dashboard() {
             : "Visão operacional — pacientes, equipe, agendas e conformidade do prontuário"
         }
         actions={
-          podeVerFinanceiro ? (
-            <Button variant="outline" size="sm" asChild className="gap-2">
-              <Link to="/app/financeiro">
-                <TrendingUp className="h-4 w-4" />
-                Financeiro
-              </Link>
-            </Button>
-          ) : undefined
+          <>
+            <p className="text-sm text-cb-muted">
+              Competência ·{" "}
+              <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
+            </p>
+            {!isMesAtual && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => {
+                  setMes(mesAtual);
+                  setAno(anoAtual);
+                }}
+              >
+                Mês atual
+              </Button>
+            )}
+            <MonthPicker
+              mes={mes}
+              ano={ano}
+              onChange={(nextMes, nextAno) => {
+                setMes(nextMes);
+                setAno(nextAno);
+              }}
+            />
+            {podeVerFinanceiro && (
+              <Button variant="outline" size="sm" asChild className="gap-2">
+                <Link to="/app/financeiro">
+                  <TrendingUp className="h-4 w-4" />
+                  Financeiro
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
-
-      <DataToolbar className="justify-between gap-3">
-        <p className="text-sm text-cb-muted">
-          Competência · <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {!isMesAtual && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 text-xs"
-              onClick={() => {
-                setMes(mesAtual);
-                setAno(anoAtual);
-              }}
-            >
-              Mês atual
-            </Button>
-          )}
-          <MonthPicker
-            mes={mes}
-            ano={ano}
-            onChange={(nextMes, nextAno) => {
-              setMes(nextMes);
-              setAno(nextAno);
-            }}
-          />
-        </div>
-      </DataToolbar>
 
       <KpiGrid columns={isFisioScoped ? 3 : 4}>
         <KpiCard
@@ -160,22 +156,38 @@ function Dashboard() {
 
       {/* Hero analytics + sidebar — referência Behance SaaS */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] 2xl:grid-cols-[minmax(0,1fr)_380px]">
-        <DashboardSection
-          eyebrow="Analytics"
-          accent="cyan"
-          title="Atividade da semana"
-          badge={<DashboardSectionBadge accent="cyan">7 dias</DashboardSectionBadge>}
-          description="Volume de sessões realizadas por dia"
-          noPadding
-          bodyClassName="px-4 pb-4 pt-2 sm:px-6 min-h-[320px]"
-          className="min-h-[380px]"
-        >
-          {noData ? (
-            <LoadingState />
-          ) : (
-            <AtividadeSemanalAreaChart data={data?.atividadeSemanal ?? []} />
-          )}
-        </DashboardSection>
+        <div className="flex flex-col gap-6">
+          <DashboardSection
+            eyebrow="Pacientes"
+            accent="purple"
+            title="Ativos por tipo"
+            description="Composição da carteira clínica"
+            noPadding
+            bodyClassName="px-4 pb-4 pt-2 sm:px-6"
+          >
+            {noData ? (
+              <LoadingState />
+            ) : (
+              <PacientesPorTipoBarChart data={data?.pacientesPorTipo ?? []} />
+            )}
+          </DashboardSection>
+
+          <DashboardSection
+            eyebrow="Prontuário"
+            accent="orange"
+            title="Divergências vs agendas"
+            badge={<DashboardSectionBadge accent="orange">4 semanas</DashboardSectionBadge>}
+            description="Sessões realizadas e pendências por semana"
+            noPadding
+            bodyClassName="px-4 pb-4 pt-2 sm:px-6"
+          >
+            {noData ? (
+              <LoadingState />
+            ) : (
+              <DivergenciaTrendLineChart data={data?.divergenciaTrend ?? []} />
+            )}
+          </DashboardSection>
+        </div>
 
         <aside className="flex flex-col gap-6">
           <DashboardInsightBanner
@@ -261,39 +273,6 @@ function Dashboard() {
             </DashboardSection>
           )}
         </aside>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DashboardSection
-          eyebrow="Pacientes"
-          accent="purple"
-          title="Ativos por tipo"
-          description="Composição da carteira clínica"
-          noPadding
-          bodyClassName="px-4 pb-4 pt-2 sm:px-6"
-        >
-          {noData ? (
-            <LoadingState />
-          ) : (
-            <PacientesPorTipoBarChart data={data?.pacientesPorTipo ?? []} />
-          )}
-        </DashboardSection>
-
-        <DashboardSection
-          eyebrow="Prontuário"
-          accent="orange"
-          title="Divergências vs agendas"
-          badge={<DashboardSectionBadge accent="orange">4 semanas</DashboardSectionBadge>}
-          description="Sessões realizadas e pendências por semana"
-          noPadding
-          bodyClassName="px-4 pb-4 pt-2 sm:px-6"
-        >
-          {noData ? (
-            <LoadingState />
-          ) : (
-            <DivergenciaTrendLineChart data={data?.divergenciaTrend ?? []} />
-          )}
-        </DashboardSection>
       </div>
     </DashboardPage>
   );

@@ -70,7 +70,8 @@ function PeriodoFilterChip({
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className={filterChipTriggerClass}>
-          Última evolução: {periodoLabel(de, ate)} <span className="text-muted-foreground">▾</span>
+          <span className="min-w-0 truncate">Última evolução: {periodoLabel(de, ate)}</span>
+          <span className="shrink-0 text-muted-foreground">▾</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto space-y-3 p-3">
