@@ -25,13 +25,12 @@ import {
 } from "@/components/domain/MetricVisuals";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { CompetenciaFilterChip } from "@/components/domain/CompetenciaFilterChip";
-import { ReceitaMensalChart, ReceitaMensalLegend } from "@/components/domain/ReceitaMensalChart";
 import {
-  RecebimentoGaugeChart,
-  RecebimentoPorConvenioPie,
-} from "@/components/domain/charts/RecebimentoCharts";
-import { TopConveniosBarChart } from "@/components/domain/charts/TopConveniosBarChart";
-import { CobrancaTrendLineChart } from "@/components/domain/charts/TrendLineCharts";
+  FinanceiroHistoricoChart,
+  FinanceiroHistoricoLegend,
+  FinanceiroHistoricoModoToggle,
+  type FinanceiroHistoricoModo,
+} from "@/components/domain/ReceitaMensalChart";
 import { DataToolbar } from "@/components/brand/DataToolbar";
 import {
   BrandTable,
@@ -60,7 +59,6 @@ import {
   parseCompetencia,
 } from "@/lib/competencia";
 import { financeiroKpisHistoricoOptions, receitaMensalOptions } from "@/lib/queries/options";
-import { RelatorioIrPanel } from "@/components/domain/RelatorioIrPanel";
 import { fetchExtratoFinanceiro } from "@/lib/queries/extrato-financeiro";
 import {
   fetchFinanceiroKpis,
@@ -250,8 +248,6 @@ function recebimentoPct(faturado: number, recebido: number) {
   return Math.min(100, Math.round((recebido / faturado) * 100));
 }
 
-const FINANCE_WIDGET_BODY = "flex h-[220px] w-full items-center justify-center px-4 pb-4 pt-3";
-
 type ReceitaConvenioRow = {
   convenio: string;
   pacientes: number;
@@ -398,6 +394,7 @@ export function DashboardFinanceiro() {
   const mes = parsedComp?.mes ?? now.getMonth() + 1;
   const ano = parsedComp?.ano ?? now.getFullYear();
   const [filtroConvenio, setFiltroConvenio] = useState<string | null>(null);
+  const [historicoModo, setHistoricoModo] = useState<FinanceiroHistoricoModo>("receita");
   const [exportSelectKey, setExportSelectKey] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -443,6 +440,9 @@ export function DashboardFinanceiro() {
 
   const totalFaturadoConvenio = receitaVisivel.reduce((s, r) => s + r.faturado, 0);
   const totalRecebidoConvenio = receitaVisivel.reduce((s, r) => s + r.recebido, 0);
+
+  const historicoTitulo =
+    historicoModo === "receita" ? "Receita mensal por tipo" : "Pago vs pendente";
 
   useEffect(() => {
     setFiltroConvenio(null);
@@ -600,6 +600,10 @@ export function DashboardFinanceiro() {
   const kpisError = kpisQuery.isError || statusKpisQuery.isError;
   const loadingReceita = !receitaQuery.data && receitaQuery.isPending;
   const loadingExtrato = !extratoQuery.data && extratoQuery.isPending;
+  const loadingHistorico =
+    historicoModo === "receita"
+      ? !receitaMensalQuery.data && receitaMensalQuery.isPending
+      : !historicoQuery.data && historicoQuery.isPending;
 
   const tipoBarItems = (["particular", "judicial", "convenio", "puc"] as PacienteTipo[]).map(
     (tipo) => ({
@@ -608,11 +612,6 @@ export function DashboardFinanceiro() {
       colorClass: TIPO_BAR_COLORS[tipo],
     }),
   );
-
-  const recebimentoPctMeta =
-    totalFaturadoConvenio > 0
-      ? Math.min(100, Math.round((totalRecebidoConvenio / totalFaturadoConvenio) * 100))
-      : 0;
 
   return (
     <div className="space-y-6">
@@ -757,97 +756,30 @@ export function DashboardFinanceiro() {
       )}
 
       <DashboardSection
-        eyebrow="Financeiro"
-        accent="purple"
-        title="Receita mensal por tipo"
+        eyebrow="Histórico"
+        accent="orange"
+        title={historicoTitulo}
         description="Últimos 6 meses — janela rolling, independente da competência selecionada"
-        actions={<ReceitaMensalLegend />}
+        badge={<DashboardSectionBadge accent="orange">6 meses</DashboardSectionBadge>}
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <FinanceiroHistoricoModoToggle modo={historicoModo} onModoChange={setHistoricoModo} />
+            <FinanceiroHistoricoLegend modo={historicoModo} />
+          </div>
+        }
         noPadding
         bodyClassName="px-4 pb-4 pt-2 sm:px-6"
       >
-        <ReceitaMensalChart data={receitaMensalQuery.data ?? []} />
+        {loadingHistorico ? (
+          <LoadingState compact />
+        ) : (
+          <FinanceiroHistoricoChart
+            modo={historicoModo}
+            receitaData={receitaMensalQuery.data ?? []}
+            pagamentosData={historicoQuery.data ?? []}
+          />
+        )}
       </DashboardSection>
-
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardSection
-          eyebrow="Recebimento"
-          accent="lime"
-          title="Meta de recebimento"
-          badge={
-            <DashboardSectionBadge accent="lime">
-              {competenciaCurta(mes, ano)}
-            </DashboardSectionBadge>
-          }
-          compact
-          noPadding
-          bodyClassName={FINANCE_WIDGET_BODY}
-        >
-          {loadingReceita ? (
-            <LoadingState compact />
-          ) : (
-            <RecebimentoGaugeChart
-              recebido={totalRecebidoConvenio}
-              faturado={totalFaturadoConvenio}
-              className="h-full w-full"
-            />
-          )}
-        </DashboardSection>
-
-        <DashboardSection
-          eyebrow="Share"
-          title="Recebimento por convênio"
-          badge={
-            <DashboardSectionBadge accent="purple">
-              {recebimentoPctMeta}% recebido
-            </DashboardSectionBadge>
-          }
-          accent="purple"
-          compact
-          noPadding
-          bodyClassName={FINANCE_WIDGET_BODY}
-        >
-          {loadingReceita ? (
-            <LoadingState compact />
-          ) : (
-            <RecebimentoPorConvenioPie
-              className="h-[200px] w-full"
-              rows={receitaVisivel.map((r) => ({ convenio: r.convenio, recebido: r.recebido }))}
-            />
-          )}
-        </DashboardSection>
-
-        <DashboardSection
-          eyebrow="Convênios"
-          accent="cyan"
-          title="Top convênios (faturado)"
-          badge={
-            <DashboardSectionBadge accent="cyan">
-              {competenciaCurta(mes, ano)}
-            </DashboardSectionBadge>
-          }
-          compact
-          noPadding
-          bodyClassName={FINANCE_WIDGET_BODY}
-        >
-          {loadingReceita ? (
-            <LoadingState compact />
-          ) : (
-            <TopConveniosBarChart className="h-[200px] w-full" rows={receitaVisivel} />
-          )}
-        </DashboardSection>
-
-        <DashboardSection
-          eyebrow="Histórico"
-          accent="orange"
-          title="Pago vs pendente"
-          badge={<DashboardSectionBadge accent="orange">6 meses</DashboardSectionBadge>}
-          compact
-          noPadding
-          bodyClassName={FINANCE_WIDGET_BODY}
-        >
-          <CobrancaTrendLineChart className="h-[220px] w-full" data={historicoQuery.data ?? []} />
-        </DashboardSection>
-      </div>
 
       {!loadingKpis && totalReceita > 0 ? (
         <DashboardSection
@@ -1047,8 +979,6 @@ export function DashboardFinanceiro() {
           criar a cobrança.
         </p>
       </DashboardSection>
-
-      <RelatorioIrPanel />
     </div>
   );
 }

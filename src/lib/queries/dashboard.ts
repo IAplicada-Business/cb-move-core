@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { competenciaLabelCurto } from "@/lib/competencia";
 import type { PacienteTipo, StatusAgendamento } from "@/lib/types";
 
 function toIsoDate(d: Date): string {
@@ -352,7 +353,7 @@ export async function fetchReceitaMensal(
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     buckets.set(key, {
-      mes: d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
+      mes: competenciaLabelCurto(d.getMonth() + 1, d.getFullYear()),
       particular: 0,
       judicial: 0,
       convenio: 0,

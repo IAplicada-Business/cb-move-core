@@ -2,9 +2,11 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Building2, FilePlus2, Wrench, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { HeaderInfoTooltip } from "@/components/brand/HeaderInfoTooltip";
 import { PageHeader } from "@/components/brand/PageHeader";
+import { internalTabItemClass } from "@/components/brand/internal-tab-nav";
+import { InternalTabNav } from "@/components/brand/InternalTabNav";
 import { DashboardPage } from "@/components/domain/DashboardSection";
-import { cn } from "@/lib/utils";
 
 const TABS: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/app/configuracoes/convenios", label: "Convênios", icon: Building2 },
@@ -27,10 +29,7 @@ export function ConfiguracoesLayout() {
         description="Gerencie cadastros base, templates e parâmetros do CB MOVE."
       />
 
-      <nav
-        className="cb-glass-toolbar flex w-full min-w-0 flex-wrap gap-1.5 p-1.5"
-        aria-label="Módulos de configuração"
-      >
+      <InternalTabNav aria-label="Módulos de configuração">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = isTabActive(pathname, tab.to);
@@ -39,19 +38,15 @@ export function ConfiguracoesLayout() {
               key={tab.to}
               to={tab.to}
               preload="intent"
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all",
-                active
-                  ? "bg-cb-cyan-600 text-white shadow-[0_4px_14px_rgba(63,181,188,0.35)]"
-                  : "text-cb-muted hover:bg-cb-cyan-050 hover:text-cb-ink dark:hover:bg-secondary/80",
-              )}
+              aria-current={active ? "page" : undefined}
+              className={internalTabItemClass(active)}
             >
               <Icon className="h-4 w-4 shrink-0" />
               {tab.label}
             </Link>
           );
         })}
-      </nav>
+      </InternalTabNav>
 
       <div className="min-w-0 w-full">
         <Outlet />
@@ -74,8 +69,12 @@ export function ConfiguracoesModuleHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 pb-1">
       <div className="min-w-0">
-        <h2 className="text-lg font-extrabold tracking-tight text-cb-ink sm:text-xl">{title}</h2>
-        {description && <p className="mt-1 text-sm leading-relaxed text-cb-muted">{description}</p>}
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-extrabold tracking-tight text-cb-ink sm:text-xl">{title}</h2>
+          {description ? (
+            <HeaderInfoTooltip description={description} iconClassName="h-3.5 w-3.5" />
+          ) : null}
+        </div>
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

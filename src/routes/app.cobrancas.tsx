@@ -28,7 +28,11 @@ import {
 import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
 import { CompetenciaFilterChip } from "@/components/domain/CompetenciaFilterChip";
 import { PageHeader } from "@/components/brand/PageHeader";
-import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
+import {
+  DataToolbar,
+  DataToolbarSearch,
+  dataToolbarSelectClass,
+} from "@/components/brand/DataToolbar";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
@@ -1321,7 +1325,7 @@ function CobrancasPage() {
             placeholder="Buscar por paciente…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            className="h-full min-h-0 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
           />
         </DataToolbarSearch>
 
@@ -1335,7 +1339,7 @@ function CobrancasPage() {
           value={filtroStatus || FILTRO_TODOS}
           onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as CobrancaStatus))}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className={dataToolbarSelectClass}>
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -1355,7 +1359,7 @@ function CobrancasPage() {
           value={filtroFormaPgto || FILTRO_TODOS}
           onValueChange={(v) => setFiltroFormaPgto(v === FILTRO_TODOS ? "" : (v as FormaPagamento))}
         >
-          <SelectTrigger className="w-44">
+          <SelectTrigger className={dataToolbarSelectClass}>
             <SelectValue placeholder="Forma pgto" />
           </SelectTrigger>
           <SelectContent>

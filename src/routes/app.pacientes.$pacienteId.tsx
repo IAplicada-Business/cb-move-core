@@ -138,27 +138,18 @@ function PacienteDetalhe() {
         onValueChange={(v) => setActiveTab(v as PacienteTab)}
         className="mt-2"
       >
-        <TabsList className="h-auto w-full justify-start gap-1 rounded-2xl border border-border/70 bg-muted/30 p-1.5">
-          <TabsTrigger
-            value="dados"
-            className="gap-1.5 rounded-xl px-4 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
-          >
-            <User className="h-3.5 w-3.5" />
+        <TabsList>
+          <TabsTrigger value="dados">
+            <User className="h-4 w-4 shrink-0" />
             Dados
           </TabsTrigger>
-          <TabsTrigger
-            value="comparecimento"
-            className="gap-1.5 rounded-xl px-4 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
-          >
-            <ClipboardCheck className="h-3.5 w-3.5" />
+          <TabsTrigger value="comparecimento">
+            <ClipboardCheck className="h-4 w-4 shrink-0" />
             Comparecimento
           </TabsTrigger>
           {podeVerFinanceiro && (
-            <TabsTrigger
-              value="financeiro"
-              className="gap-1.5 rounded-xl px-4 py-2 data-[state=active]:bg-card data-[state=active]:shadow-sm"
-            >
-              <Receipt className="h-3.5 w-3.5" />
+            <TabsTrigger value="financeiro">
+              <Receipt className="h-4 w-4 shrink-0" />
               Financeiro
             </TabsTrigger>
           )}

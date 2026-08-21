@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 
+import { HeaderInfoTooltip } from "@/components/brand/HeaderInfoTooltip";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -61,12 +62,12 @@ export function PageHeader({ crumbs, title, description, actions, className }: P
         )}
 
         <div className="min-w-0 flex-1">
-          <h1 className="text-[26px] font-extrabold tracking-[-0.04em] text-cb-ink sm:text-[32px]">
-            {title}
-          </h1>
-          {description && (
-            <p className="mt-1.5 text-sm leading-relaxed text-cb-muted">{description}</p>
-          )}
+          <div className="flex items-center gap-2">
+            <h1 className="text-[26px] font-extrabold tracking-[-0.04em] text-cb-ink sm:text-[32px]">
+              {title}
+            </h1>
+            {description ? <HeaderInfoTooltip description={description} /> : null}
+          </div>
         </div>
       </div>
 

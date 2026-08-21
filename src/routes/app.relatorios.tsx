@@ -9,6 +9,8 @@ import {
   Gavel,
   GraduationCap,
   Loader2,
+  Sparkles,
+  History,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -514,8 +516,14 @@ function RelatoriosPage() {
 
       <Tabs value={aba} onValueChange={(v) => setAba(v as RelatoriosTab)}>
         <TabsList>
-          <TabsTrigger value="gerar">Gerar</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
+          <TabsTrigger value="gerar">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            Gerar
+          </TabsTrigger>
+          <TabsTrigger value="historico">
+            <History className="h-4 w-4 shrink-0" />
+            Histórico
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerar" className="mt-6">

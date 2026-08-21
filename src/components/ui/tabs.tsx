@@ -1,6 +1,10 @@
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 
+import {
+  INTERNAL_TAB_NAV_LIST_CLASS,
+  INTERNAL_TAB_TRIGGER_CLASS,
+} from "@/components/brand/internal-tab-nav";
 import { cn } from "@/lib/utils";
 
 const Tabs = TabsPrimitive.Root;
@@ -9,14 +13,7 @@ const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(
-      "inline-flex h-auto w-full flex-wrap items-center justify-start gap-1 rounded-2xl bg-cb-cyan-050/60 p-1.5 text-cb-muted dark:bg-secondary/60 sm:w-auto",
-      className,
-    )}
-    {...props}
-  />
+  <TabsPrimitive.List ref={ref} className={cn(INTERNAL_TAB_NAV_LIST_CLASS, className)} {...props} />
 ));
 TabsList.displayName = TabsPrimitive.List.displayName;
 
@@ -26,14 +23,7 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
-    className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold ring-offset-background cursor-pointer transition-all",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
-      "text-cb-muted hover:text-cb-ink",
-      "data-[state=active]:bg-cb-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-[0_4px_14px_rgba(63,181,188,0.35)]",
-      className,
-    )}
+    className={cn(INTERNAL_TAB_TRIGGER_CLASS, className)}
     {...props}
   />
 ));

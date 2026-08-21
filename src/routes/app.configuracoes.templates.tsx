@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { FileText, MoreHorizontal } from "lucide-react";
+import { FileText, FolderOpen, Mail, MoreHorizontal, Receipt } from "lucide-react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
-import { ConfiguracoesModuleHeader } from "@/components/layout/ConfiguracoesLayout";
 import { TemplatePreviewPanel } from "@/components/domain/TemplatePreviewPanel";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +17,6 @@ import {
   categoriasTemplatesVisiveis,
   filtrarTemplatesPorCategoria,
   MODELO_LABEL,
-  TEMPLATES_PAGE_DESCRICAO,
   TIPO_LABEL,
 } from "@/lib/domain/templates-versionados";
 import { isTemplateConteudoRascunho } from "@/lib/domain/template-preview";
@@ -221,11 +219,6 @@ function TemplatesPage() {
 
   return (
     <div className="space-y-5">
-      <ConfiguracoesModuleHeader
-        title="Templates versionados"
-        description={TEMPLATES_PAGE_DESCRICAO}
-      />
-
       {isLoading ? (
         <LoadingState />
       ) : templates.length === 0 ? (
@@ -236,12 +229,24 @@ function TemplatesPage() {
         />
       ) : (
         <Tabs defaultValue="nota_fiscal" className="space-y-4">
-          <TabsList className="flex h-auto flex-wrap gap-1">
-            {categoriasVisiveis.map((cat) => (
-              <TabsTrigger key={cat} value={cat} className="text-xs sm:text-sm">
-                {CATEGORIA_META[cat].label} ({filtrarTemplatesPorCategoria(templates, cat).length})
-              </TabsTrigger>
-            ))}
+          <TabsList>
+            {categoriasVisiveis.map((cat) => {
+              const CatIcon =
+                cat === "nota_fiscal"
+                  ? Receipt
+                  : cat === "email_nf"
+                    ? Mail
+                    : cat === "relatorio_atendimento"
+                      ? FileText
+                      : FolderOpen;
+              return (
+                <TabsTrigger key={cat} value={cat}>
+                  <CatIcon className="h-4 w-4 shrink-0" />
+                  {CATEGORIA_META[cat].label} ({filtrarTemplatesPorCategoria(templates, cat).length}
+                  )
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
           {categoriasVisiveis.map((cat) => (
             <TabsContent key={cat} value={cat} className="space-y-3">

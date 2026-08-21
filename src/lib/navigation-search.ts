@@ -19,6 +19,9 @@ export type AgendaSubabaVisao = z.infer<typeof agendaSubabaVisaoSchema>;
 export const relatoriosTabSchema = z.enum(["gerar", "historico"]);
 export type RelatoriosTab = z.infer<typeof relatoriosTabSchema>;
 
+export const notasFiscaisTabSchema = z.enum(["emissao", "ir"]);
+export type NotasFiscaisTab = z.infer<typeof notasFiscaisTabSchema>;
+
 export function resolvePacienteTab(tab: PacienteTab | undefined): PacienteTab {
   return tab ?? "dados";
 }
@@ -33,4 +36,8 @@ export function isAgendaSubabaVisao(visao: AgendaVisao): visao is AgendaSubabaVi
 
 export function resolveRelatoriosTab(tab: RelatoriosTab | undefined): RelatoriosTab {
   return tab ?? "gerar";
+}
+
+export function resolveNotasFiscaisTab(tab: NotasFiscaisTab | undefined): NotasFiscaisTab {
+  return tab ?? "emissao";
 }

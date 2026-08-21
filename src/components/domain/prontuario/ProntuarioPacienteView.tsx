@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
+import { CalendarClock, ClipboardList, FileStack, FileText, LayoutGrid } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -334,11 +334,23 @@ export function ProntuarioPacienteView({
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
-          <TabsTrigger value="evolucao-diaria">Evolução diária</TabsTrigger>
-          <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
-          <TabsTrigger value="periodizacao-documentos">Periodização e documentos</TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="visao-geral">
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            Visão geral
+          </TabsTrigger>
+          <TabsTrigger value="evolucao-diaria">
+            <CalendarClock className="h-4 w-4 shrink-0" />
+            Evolução diária
+          </TabsTrigger>
+          <TabsTrigger value="avaliacoes">
+            <ClipboardList className="h-4 w-4 shrink-0" />
+            Avaliações
+          </TabsTrigger>
+          <TabsTrigger value="periodizacao-documentos">
+            <FileStack className="h-4 w-4 shrink-0" />
+            Periodização e documentos
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="evolucao-diaria" className="mt-0">

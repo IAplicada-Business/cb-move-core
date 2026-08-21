@@ -36,9 +36,13 @@ export const MENU_GROUPS: MenuGroupDef[] = [
     label: "Operação",
     items: [
       { key: "app.dashboard", to: "/app", label: "Dashboard" },
-      { key: "app.pacientes", to: "/app/pacientes", label: "Pacientes" },
-      { key: "app.prontuario", to: "/app/prontuario", label: "Prontuário" },
       { key: "app.agenda", to: "/app/agenda", label: "Agenda" },
+      {
+        key: "app.pacientes",
+        to: "/app/pacientes",
+        label: "Pacientes",
+        children: [{ key: "app.prontuario", to: "/app/prontuario", label: "Prontuário" }],
+      },
     ],
   },
   {
