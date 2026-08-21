@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Building2, FilePlus2, Sparkles, Wrench } from "lucide-react";
+import { Building2, FilePlus2, HelpCircle, Sparkles, Wrench } from "lucide-react";
 
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DashboardPage, DashboardSection } from "@/components/domain/DashboardSection";
@@ -40,6 +40,13 @@ const CARDS = [
     description: "Consumo de tokens Anthropic Claude (admin).",
     icon: Sparkles,
     accent: "bg-cb-orange",
+  },
+  {
+    href: "/app/configuracoes/ajuda",
+    title: "Central de ajuda",
+    description: "Tutoriais em vídeo para usar o CB MOVE com facilidade.",
+    icon: HelpCircle,
+    accent: "bg-cb-cyan-600",
   },
 ] as const;
 

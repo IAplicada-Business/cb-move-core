@@ -5,7 +5,6 @@ export type MenuKey =
   | "app.pacientes"
   | "app.prontuario"
   | "app.agenda"
-  | "app.ajuda"
   | "fin.cobrancas"
   | "fin.notas-fiscais"
   | "fin.financeiro"
@@ -15,7 +14,8 @@ export type MenuKey =
   | "cfg.geral"
   | "cfg.convenios"
   | "cfg.instrumentos"
-  | "cfg.templates";
+  | "cfg.templates"
+  | "cfg.ajuda";
 
 export type MenuItemDef = {
   key: MenuKey;
@@ -40,7 +40,6 @@ export const MENU_GROUPS: MenuGroupDef[] = [
       { key: "app.pacientes", to: "/app/pacientes", label: "Pacientes" },
       { key: "app.prontuario", to: "/app/prontuario", label: "Prontuário" },
       { key: "app.agenda", to: "/app/agenda", label: "Agenda" },
-      { key: "app.ajuda", to: "/app/ajuda", label: "Ajuda" },
     ],
   },
   {
@@ -77,6 +76,7 @@ export const MENU_GROUPS: MenuGroupDef[] = [
       { key: "cfg.convenios", to: "/app/configuracoes/convenios", label: "Convênios" },
       { key: "cfg.instrumentos", to: "/app/configuracoes/instrumentos", label: "Instrumentos" },
       { key: "cfg.templates", to: "/app/configuracoes/templates", label: "Templates" },
+      { key: "cfg.ajuda", to: "/app/configuracoes/ajuda", label: "Ajuda" },
     ],
   },
 ];
@@ -95,7 +95,6 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "app.pacientes": true,
   "app.prontuario": true,
   "app.agenda": true,
-  "app.ajuda": true,
   "fin.cobrancas": false,
   "fin.notas-fiscais": false,
   "fin.financeiro": false,
@@ -106,6 +105,7 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "cfg.convenios": false,
   "cfg.instrumentos": false,
   "cfg.templates": false,
+  "cfg.ajuda": true,
 };
 
 /** Menu padrão do fisioterapeuta (visão clínica filtrada). */
@@ -120,7 +120,6 @@ export const DEFAULT_MENU_FOR_OPERACIONAL: Record<MenuKey, boolean> = {
   "app.pacientes": true,
   "app.prontuario": true,
   "app.agenda": true,
-  "app.ajuda": true,
   "fin.cobrancas": true,
   "fin.notas-fiscais": false,
   "fin.financeiro": false,
@@ -131,6 +130,7 @@ export const DEFAULT_MENU_FOR_OPERACIONAL: Record<MenuKey, boolean> = {
   "cfg.convenios": true,
   "cfg.instrumentos": false,
   "cfg.templates": false,
+  "cfg.ajuda": true,
 };
 
 /** Rótulos do menu lateral quando o usuário é fisio (dados filtrados por paciente). */

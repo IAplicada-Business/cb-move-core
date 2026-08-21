@@ -9,7 +9,6 @@ const COPY: Record<
   AuthContext,
   {
     title: string;
-    subtitle: string;
     footnote: string;
     colaboradorLabel: string;
     pacienteLabel: string;
@@ -17,14 +16,12 @@ const COPY: Record<
 > = {
   admin: {
     title: "Entrar na equipe",
-    subtitle: "Fisioterapeutas, secretaria e administração",
     footnote: "",
     colaboradorLabel: "Colaborador",
     pacienteLabel: "Paciente",
   },
   paciente: {
     title: "Portal do paciente",
-    subtitle: "Acompanhe relatórios, documentos e evolução do tratamento",
     footnote: "Primeiro acesso? Use a senha informada pela administração.",
     colaboradorLabel: "Colaborador",
     pacienteLabel: "Paciente",
@@ -343,14 +340,6 @@ export function LoginSignInCard({
                     >
                       {copy.title}
                     </motion.h1>
-                    <motion.p
-                      key={copy.subtitle}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-xs text-white/55"
-                    >
-                      {copy.subtitle}
-                    </motion.p>
                   </div>
                 </div>
 

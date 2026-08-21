@@ -9,67 +9,48 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
-import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
-import { Route as PortalRouteImport } from './routes/portal'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as DesignPreviewRouteImport } from './routes/design-preview'
-import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PortalIndexRouteImport } from './routes/portal.index'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as DesignPreviewRouteImport } from './routes/design-preview'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PortalRouteImport } from './routes/portal'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
+import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
 import { Route as AppIndexRouteImport } from './routes/app.index'
-import { Route as PortalSessoesRouteImport } from './routes/portal.sessoes'
-import { Route as PortalNotasFiscaisRouteImport } from './routes/portal.notas-fiscais'
-import { Route as PortalLaudosRouteImport } from './routes/portal.laudos'
-import { Route as PortalHistoricoRouteImport } from './routes/portal.historico'
-import { Route as PortalExerciciosRouteImport } from './routes/portal.exercicios'
-import { Route as PortalContatoRouteImport } from './routes/portal.contato'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AppUsuariosRouteImport } from './routes/app.usuarios'
-import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
-import { Route as AppProntuariosRouteImport } from './routes/app.prontuarios'
-import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
-import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
-import { Route as AppNotasFiscaisRouteImport } from './routes/app.notas-fiscais'
-import { Route as AppFisiosRouteImport } from './routes/app.fisios'
-import { Route as AppFinanceiroRouteImport } from './routes/app.financeiro'
-import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
-import { Route as AppCobrancasRouteImport } from './routes/app.cobrancas'
-import { Route as AppAjudaRouteImport } from './routes/app.ajuda'
 import { Route as AppAgendaRouteImport } from './routes/app.agenda'
-import { Route as AppProntuarioIndexRouteImport } from './routes/app.prontuario.index'
-import { Route as AppPacientesIndexRouteImport } from './routes/app.pacientes.index'
+import { Route as AppAjudaRouteImport } from './routes/app.ajuda'
+import { Route as AppCobrancasRouteImport } from './routes/app.cobrancas'
+import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
+import { Route as AppFinanceiroRouteImport } from './routes/app.financeiro'
+import { Route as AppFisiosRouteImport } from './routes/app.fisios'
+import { Route as AppNotasFiscaisRouteImport } from './routes/app.notas-fiscais'
+import { Route as AppPacientesRouteImport } from './routes/app.pacientes'
+import { Route as AppProntuarioRouteImport } from './routes/app.prontuario'
+import { Route as AppProntuariosRouteImport } from './routes/app.prontuarios'
+import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
+import { Route as AppUsuariosRouteImport } from './routes/app.usuarios'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as PortalIndexRouteImport } from './routes/portal.index'
+import { Route as PortalContatoRouteImport } from './routes/portal.contato'
+import { Route as PortalExerciciosRouteImport } from './routes/portal.exercicios'
+import { Route as PortalHistoricoRouteImport } from './routes/portal.historico'
+import { Route as PortalLaudosRouteImport } from './routes/portal.laudos'
+import { Route as PortalNotasFiscaisRouteImport } from './routes/portal.notas-fiscais'
+import { Route as PortalSessoesRouteImport } from './routes/portal.sessoes'
 import { Route as AppConfiguracoesIndexRouteImport } from './routes/app.configuracoes.index'
-import { Route as AppProntuarioPacienteIdRouteImport } from './routes/app.prontuario.$pacienteId'
-import { Route as AppPacientesPacienteIdRouteImport } from './routes/app.pacientes.$pacienteId'
-import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
-import { Route as AppConfiguracoesInstrumentosRouteImport } from './routes/app.configuracoes.instrumentos'
-import { Route as AppConfiguracoesCreditosRouteImport } from './routes/app.configuracoes.creditos'
+import { Route as AppConfiguracoesAjudaRouteImport } from './routes/app.configuracoes.ajuda'
 import { Route as AppConfiguracoesConveniosRouteImport } from './routes/app.configuracoes.convenios'
+import { Route as AppConfiguracoesCreditosRouteImport } from './routes/app.configuracoes.creditos'
+import { Route as AppConfiguracoesInstrumentosRouteImport } from './routes/app.configuracoes.instrumentos'
+import { Route as AppConfiguracoesTemplatesRouteImport } from './routes/app.configuracoes.templates'
+import { Route as AppPacientesIndexRouteImport } from './routes/app.pacientes.index'
+import { Route as AppPacientesPacienteIdRouteImport } from './routes/app.pacientes.$pacienteId'
+import { Route as AppProntuarioIndexRouteImport } from './routes/app.prontuario.index'
+import { Route as AppProntuarioPacienteIdRouteImport } from './routes/app.prontuario.$pacienteId'
 
-const SemAcessoRoute = SemAcessoRouteImport.update({
-  id: '/sem-acesso',
-  path: '/sem-acesso',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
-  id: '/redefinir-senha',
-  path: '/redefinir-senha',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortalRoute = PortalRouteImport.update({
-  id: '/portal',
-  path: '/portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DesignPreviewRoute = DesignPreviewRouteImport.update({
-  id: '/design-preview',
-  path: '/design-preview',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -77,109 +58,34 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DesignPreviewRoute = DesignPreviewRouteImport.update({
+  id: '/design-preview',
+  path: '/design-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PortalIndexRoute = PortalIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PortalRoute,
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SemAcessoRoute = SemAcessoRouteImport.update({
+  id: '/sem-acesso',
+  path: '/sem-acesso',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const PortalSessoesRoute = PortalSessoesRouteImport.update({
-  id: '/sessoes',
-  path: '/sessoes',
-  getParentRoute: () => PortalRoute,
-} as any)
-const PortalNotasFiscaisRoute = PortalNotasFiscaisRouteImport.update({
-  id: '/notas-fiscais',
-  path: '/notas-fiscais',
-  getParentRoute: () => PortalRoute,
-} as any)
-const PortalLaudosRoute = PortalLaudosRouteImport.update({
-  id: '/laudos',
-  path: '/laudos',
-  getParentRoute: () => PortalRoute,
-} as any)
-const PortalHistoricoRoute = PortalHistoricoRouteImport.update({
-  id: '/historico',
-  path: '/historico',
-  getParentRoute: () => PortalRoute,
-} as any)
-const PortalExerciciosRoute = PortalExerciciosRouteImport.update({
-  id: '/exercicios',
-  path: '/exercicios',
-  getParentRoute: () => PortalRoute,
-} as any)
-const PortalContatoRoute = PortalContatoRouteImport.update({
-  id: '/contato',
-  path: '/contato',
-  getParentRoute: () => PortalRoute,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppUsuariosRoute = AppUsuariosRouteImport.update({
-  id: '/usuarios',
-  path: '/usuarios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
-  id: '/relatorios',
-  path: '/relatorios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProntuariosRoute = AppProntuariosRouteImport.update({
-  id: '/prontuarios',
-  path: '/prontuarios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProntuarioRoute = AppProntuarioRouteImport.update({
-  id: '/prontuario',
-  path: '/prontuario',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPacientesRoute = AppPacientesRouteImport.update({
-  id: '/pacientes',
-  path: '/pacientes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotasFiscaisRoute = AppNotasFiscaisRouteImport.update({
-  id: '/notas-fiscais',
-  path: '/notas-fiscais',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFisiosRoute = AppFisiosRouteImport.update({
-  id: '/fisios',
-  path: '/fisios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFinanceiroRoute = AppFinanceiroRouteImport.update({
-  id: '/financeiro',
-  path: '/financeiro',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCobrancasRoute = AppCobrancasRouteImport.update({
-  id: '/cobrancas',
-  path: '/cobrancas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAjudaRoute = AppAjudaRouteImport.update({
-  id: '/ajuda',
-  path: '/ajuda',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAgendaRoute = AppAgendaRouteImport.update({
@@ -187,41 +93,115 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProntuarioIndexRoute = AppProntuarioIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppProntuarioRoute,
+const AppAjudaRoute = AppAjudaRouteImport.update({
+  id: '/ajuda',
+  path: '/ajuda',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppPacientesIndexRoute = AppPacientesIndexRouteImport.update({
+const AppCobrancasRoute = AppCobrancasRouteImport.update({
+  id: '/cobrancas',
+  path: '/cobrancas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFinanceiroRoute = AppFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFisiosRoute = AppFisiosRouteImport.update({
+  id: '/fisios',
+  path: '/fisios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotasFiscaisRoute = AppNotasFiscaisRouteImport.update({
+  id: '/notas-fiscais',
+  path: '/notas-fiscais',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPacientesRoute = AppPacientesRouteImport.update({
+  id: '/pacientes',
+  path: '/pacientes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProntuarioRoute = AppProntuarioRouteImport.update({
+  id: '/prontuario',
+  path: '/prontuario',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProntuariosRoute = AppProntuariosRouteImport.update({
+  id: '/prontuarios',
+  path: '/prontuarios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsuariosRoute = AppUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppPacientesRoute,
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalContatoRoute = PortalContatoRouteImport.update({
+  id: '/contato',
+  path: '/contato',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalExerciciosRoute = PortalExerciciosRouteImport.update({
+  id: '/exercicios',
+  path: '/exercicios',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalHistoricoRoute = PortalHistoricoRouteImport.update({
+  id: '/historico',
+  path: '/historico',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalLaudosRoute = PortalLaudosRouteImport.update({
+  id: '/laudos',
+  path: '/laudos',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalNotasFiscaisRoute = PortalNotasFiscaisRouteImport.update({
+  id: '/notas-fiscais',
+  path: '/notas-fiscais',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalSessoesRoute = PortalSessoesRouteImport.update({
+  id: '/sessoes',
+  path: '/sessoes',
+  getParentRoute: () => PortalRoute,
 } as any)
 const AppConfiguracoesIndexRoute = AppConfiguracoesIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppConfiguracoesRoute,
 } as any)
-const AppProntuarioPacienteIdRoute = AppProntuarioPacienteIdRouteImport.update({
-  id: '/$pacienteId',
-  path: '/$pacienteId',
-  getParentRoute: () => AppProntuarioRoute,
+const AppConfiguracoesAjudaRoute = AppConfiguracoesAjudaRouteImport.update({
+  id: '/ajuda',
+  path: '/ajuda',
+  getParentRoute: () => AppConfiguracoesRoute,
 } as any)
-const AppPacientesPacienteIdRoute = AppPacientesPacienteIdRouteImport.update({
-  id: '/$pacienteId',
-  path: '/$pacienteId',
-  getParentRoute: () => AppPacientesRoute,
-} as any)
-const AppConfiguracoesTemplatesRoute =
-  AppConfiguracoesTemplatesRouteImport.update({
-    id: '/templates',
-    path: '/templates',
-    getParentRoute: () => AppConfiguracoesRoute,
-  } as any)
-const AppConfiguracoesInstrumentosRoute =
-  AppConfiguracoesInstrumentosRouteImport.update({
-    id: '/instrumentos',
-    path: '/instrumentos',
+const AppConfiguracoesConveniosRoute =
+  AppConfiguracoesConveniosRouteImport.update({
+    id: '/convenios',
+    path: '/convenios',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
 const AppConfiguracoesCreditosRoute =
@@ -230,12 +210,38 @@ const AppConfiguracoesCreditosRoute =
     path: '/creditos',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
-const AppConfiguracoesConveniosRoute =
-  AppConfiguracoesConveniosRouteImport.update({
-    id: '/convenios',
-    path: '/convenios',
+const AppConfiguracoesInstrumentosRoute =
+  AppConfiguracoesInstrumentosRouteImport.update({
+    id: '/instrumentos',
+    path: '/instrumentos',
     getParentRoute: () => AppConfiguracoesRoute,
   } as any)
+const AppConfiguracoesTemplatesRoute =
+  AppConfiguracoesTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AppConfiguracoesRoute,
+  } as any)
+const AppPacientesIndexRoute = AppPacientesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPacientesRoute,
+} as any)
+const AppPacientesPacienteIdRoute = AppPacientesPacienteIdRouteImport.update({
+  id: '/$pacienteId',
+  path: '/$pacienteId',
+  getParentRoute: () => AppPacientesRoute,
+} as any)
+const AppProntuarioIndexRoute = AppProntuarioIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppProntuarioRoute,
+} as any)
+const AppProntuarioPacienteIdRoute = AppProntuarioPacienteIdRouteImport.update({
+  id: '/$pacienteId',
+  path: '/$pacienteId',
+  getParentRoute: () => AppProntuarioRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -266,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/portal/sessoes': typeof PortalSessoesRoute
   '/app/': typeof AppIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/app/configuracoes/ajuda': typeof AppConfiguracoesAjudaRoute
   '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
   '/app/configuracoes/creditos': typeof AppConfiguracoesCreditosRoute
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
@@ -300,6 +307,7 @@ export interface FileRoutesByTo {
   '/portal/sessoes': typeof PortalSessoesRoute
   '/app': typeof AppIndexRoute
   '/portal': typeof PortalIndexRoute
+  '/app/configuracoes/ajuda': typeof AppConfiguracoesAjudaRoute
   '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
   '/app/configuracoes/creditos': typeof AppConfiguracoesCreditosRoute
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
@@ -340,6 +348,7 @@ export interface FileRoutesById {
   '/portal/sessoes': typeof PortalSessoesRoute
   '/app/': typeof AppIndexRoute
   '/portal/': typeof PortalIndexRoute
+  '/app/configuracoes/ajuda': typeof AppConfiguracoesAjudaRoute
   '/app/configuracoes/convenios': typeof AppConfiguracoesConveniosRoute
   '/app/configuracoes/creditos': typeof AppConfiguracoesCreditosRoute
   '/app/configuracoes/instrumentos': typeof AppConfiguracoesInstrumentosRoute
@@ -381,6 +390,7 @@ export interface FileRouteTypes {
     | '/portal/sessoes'
     | '/app/'
     | '/portal/'
+    | '/app/configuracoes/ajuda'
     | '/app/configuracoes/convenios'
     | '/app/configuracoes/creditos'
     | '/app/configuracoes/instrumentos'
@@ -415,6 +425,7 @@ export interface FileRouteTypes {
     | '/portal/sessoes'
     | '/app'
     | '/portal'
+    | '/app/configuracoes/ajuda'
     | '/app/configuracoes/convenios'
     | '/app/configuracoes/creditos'
     | '/app/configuracoes/instrumentos'
@@ -454,6 +465,7 @@ export interface FileRouteTypes {
     | '/portal/sessoes'
     | '/app/'
     | '/portal/'
+    | '/app/configuracoes/ajuda'
     | '/app/configuracoes/convenios'
     | '/app/configuracoes/creditos'
     | '/app/configuracoes/instrumentos'
@@ -478,39 +490,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sem-acesso': {
-      id: '/sem-acesso'
-      path: '/sem-acesso'
-      fullPath: '/sem-acesso'
-      preLoaderRoute: typeof SemAcessoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/redefinir-senha': {
-      id: '/redefinir-senha'
-      path: '/redefinir-senha'
-      fullPath: '/redefinir-senha'
-      preLoaderRoute: typeof RedefinirSenhaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portal': {
-      id: '/portal'
-      path: '/portal'
-      fullPath: '/portal'
-      preLoaderRoute: typeof PortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/design-preview': {
-      id: '/design-preview'
-      path: '/design-preview'
-      fullPath: '/design-preview'
-      preLoaderRoute: typeof DesignPreviewRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -520,151 +504,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/design-preview': {
+      id: '/design-preview'
+      path: '/design-preview'
+      fullPath: '/design-preview'
+      preLoaderRoute: typeof DesignPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/portal/': {
-      id: '/portal/'
-      path: '/'
-      fullPath: '/portal/'
-      preLoaderRoute: typeof PortalIndexRouteImport
-      parentRoute: typeof PortalRoute
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sem-acesso': {
+      id: '/sem-acesso'
+      path: '/sem-acesso'
+      fullPath: '/sem-acesso'
+      preLoaderRoute: typeof SemAcessoRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/': {
       id: '/app/'
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/portal/sessoes': {
-      id: '/portal/sessoes'
-      path: '/sessoes'
-      fullPath: '/portal/sessoes'
-      preLoaderRoute: typeof PortalSessoesRouteImport
-      parentRoute: typeof PortalRoute
-    }
-    '/portal/notas-fiscais': {
-      id: '/portal/notas-fiscais'
-      path: '/notas-fiscais'
-      fullPath: '/portal/notas-fiscais'
-      preLoaderRoute: typeof PortalNotasFiscaisRouteImport
-      parentRoute: typeof PortalRoute
-    }
-    '/portal/laudos': {
-      id: '/portal/laudos'
-      path: '/laudos'
-      fullPath: '/portal/laudos'
-      preLoaderRoute: typeof PortalLaudosRouteImport
-      parentRoute: typeof PortalRoute
-    }
-    '/portal/historico': {
-      id: '/portal/historico'
-      path: '/historico'
-      fullPath: '/portal/historico'
-      preLoaderRoute: typeof PortalHistoricoRouteImport
-      parentRoute: typeof PortalRoute
-    }
-    '/portal/exercicios': {
-      id: '/portal/exercicios'
-      path: '/exercicios'
-      fullPath: '/portal/exercicios'
-      preLoaderRoute: typeof PortalExerciciosRouteImport
-      parentRoute: typeof PortalRoute
-    }
-    '/portal/contato': {
-      id: '/portal/contato'
-      path: '/contato'
-      fullPath: '/portal/contato'
-      preLoaderRoute: typeof PortalContatoRouteImport
-      parentRoute: typeof PortalRoute
-    }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/usuarios': {
-      id: '/app/usuarios'
-      path: '/usuarios'
-      fullPath: '/app/usuarios'
-      preLoaderRoute: typeof AppUsuariosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/relatorios': {
-      id: '/app/relatorios'
-      path: '/relatorios'
-      fullPath: '/app/relatorios'
-      preLoaderRoute: typeof AppRelatoriosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/prontuarios': {
-      id: '/app/prontuarios'
-      path: '/prontuarios'
-      fullPath: '/app/prontuarios'
-      preLoaderRoute: typeof AppProntuariosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/prontuario': {
-      id: '/app/prontuario'
-      path: '/prontuario'
-      fullPath: '/app/prontuario'
-      preLoaderRoute: typeof AppProntuarioRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/pacientes': {
-      id: '/app/pacientes'
-      path: '/pacientes'
-      fullPath: '/app/pacientes'
-      preLoaderRoute: typeof AppPacientesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/notas-fiscais': {
-      id: '/app/notas-fiscais'
-      path: '/notas-fiscais'
-      fullPath: '/app/notas-fiscais'
-      preLoaderRoute: typeof AppNotasFiscaisRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/fisios': {
-      id: '/app/fisios'
-      path: '/fisios'
-      fullPath: '/app/fisios'
-      preLoaderRoute: typeof AppFisiosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/financeiro': {
-      id: '/app/financeiro'
-      path: '/financeiro'
-      fullPath: '/app/financeiro'
-      preLoaderRoute: typeof AppFinanceiroRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/configuracoes': {
-      id: '/app/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/app/configuracoes'
-      preLoaderRoute: typeof AppConfiguracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/cobrancas': {
-      id: '/app/cobrancas'
-      path: '/cobrancas'
-      fullPath: '/app/cobrancas'
-      preLoaderRoute: typeof AppCobrancasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/ajuda': {
-      id: '/app/ajuda'
-      path: '/ajuda'
-      fullPath: '/app/ajuda'
-      preLoaderRoute: typeof AppAjudaRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/agenda': {
@@ -674,19 +553,138 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/prontuario/': {
-      id: '/app/prontuario/'
-      path: '/'
-      fullPath: '/app/prontuario/'
-      preLoaderRoute: typeof AppProntuarioIndexRouteImport
-      parentRoute: typeof AppProntuarioRoute
+    '/app/ajuda': {
+      id: '/app/ajuda'
+      path: '/ajuda'
+      fullPath: '/app/ajuda'
+      preLoaderRoute: typeof AppAjudaRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/app/pacientes/': {
-      id: '/app/pacientes/'
+    '/app/cobrancas': {
+      id: '/app/cobrancas'
+      path: '/cobrancas'
+      fullPath: '/app/cobrancas'
+      preLoaderRoute: typeof AppCobrancasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/configuracoes': {
+      id: '/app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/app/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/financeiro': {
+      id: '/app/financeiro'
+      path: '/financeiro'
+      fullPath: '/app/financeiro'
+      preLoaderRoute: typeof AppFinanceiroRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/fisios': {
+      id: '/app/fisios'
+      path: '/fisios'
+      fullPath: '/app/fisios'
+      preLoaderRoute: typeof AppFisiosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/notas-fiscais': {
+      id: '/app/notas-fiscais'
+      path: '/notas-fiscais'
+      fullPath: '/app/notas-fiscais'
+      preLoaderRoute: typeof AppNotasFiscaisRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/pacientes': {
+      id: '/app/pacientes'
+      path: '/pacientes'
+      fullPath: '/app/pacientes'
+      preLoaderRoute: typeof AppPacientesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prontuario': {
+      id: '/app/prontuario'
+      path: '/prontuario'
+      fullPath: '/app/prontuario'
+      preLoaderRoute: typeof AppProntuarioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/prontuarios': {
+      id: '/app/prontuarios'
+      path: '/prontuarios'
+      fullPath: '/app/prontuarios'
+      preLoaderRoute: typeof AppProntuariosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/relatorios': {
+      id: '/app/relatorios'
+      path: '/relatorios'
+      fullPath: '/app/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/usuarios': {
+      id: '/app/usuarios'
+      path: '/usuarios'
+      fullPath: '/app/usuarios'
+      preLoaderRoute: typeof AppUsuariosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal/': {
+      id: '/portal/'
       path: '/'
-      fullPath: '/app/pacientes/'
-      preLoaderRoute: typeof AppPacientesIndexRouteImport
-      parentRoute: typeof AppPacientesRoute
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/contato': {
+      id: '/portal/contato'
+      path: '/contato'
+      fullPath: '/portal/contato'
+      preLoaderRoute: typeof PortalContatoRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/exercicios': {
+      id: '/portal/exercicios'
+      path: '/exercicios'
+      fullPath: '/portal/exercicios'
+      preLoaderRoute: typeof PortalExerciciosRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/historico': {
+      id: '/portal/historico'
+      path: '/historico'
+      fullPath: '/portal/historico'
+      preLoaderRoute: typeof PortalHistoricoRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/laudos': {
+      id: '/portal/laudos'
+      path: '/laudos'
+      fullPath: '/portal/laudos'
+      preLoaderRoute: typeof PortalLaudosRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/notas-fiscais': {
+      id: '/portal/notas-fiscais'
+      path: '/notas-fiscais'
+      fullPath: '/portal/notas-fiscais'
+      preLoaderRoute: typeof PortalNotasFiscaisRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/sessoes': {
+      id: '/portal/sessoes'
+      path: '/sessoes'
+      fullPath: '/portal/sessoes'
+      preLoaderRoute: typeof PortalSessoesRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/app/configuracoes/': {
       id: '/app/configuracoes/'
@@ -695,39 +693,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesIndexRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
-    '/app/prontuario/$pacienteId': {
-      id: '/app/prontuario/$pacienteId'
-      path: '/$pacienteId'
-      fullPath: '/app/prontuario/$pacienteId'
-      preLoaderRoute: typeof AppProntuarioPacienteIdRouteImport
-      parentRoute: typeof AppProntuarioRoute
-    }
-    '/app/pacientes/$pacienteId': {
-      id: '/app/pacientes/$pacienteId'
-      path: '/$pacienteId'
-      fullPath: '/app/pacientes/$pacienteId'
-      preLoaderRoute: typeof AppPacientesPacienteIdRouteImport
-      parentRoute: typeof AppPacientesRoute
-    }
-    '/app/configuracoes/templates': {
-      id: '/app/configuracoes/templates'
-      path: '/templates'
-      fullPath: '/app/configuracoes/templates'
-      preLoaderRoute: typeof AppConfiguracoesTemplatesRouteImport
-      parentRoute: typeof AppConfiguracoesRoute
-    }
-    '/app/configuracoes/instrumentos': {
-      id: '/app/configuracoes/instrumentos'
-      path: '/instrumentos'
-      fullPath: '/app/configuracoes/instrumentos'
-      preLoaderRoute: typeof AppConfiguracoesInstrumentosRouteImport
-      parentRoute: typeof AppConfiguracoesRoute
-    }
-    '/app/configuracoes/creditos': {
-      id: '/app/configuracoes/creditos'
-      path: '/creditos'
-      fullPath: '/app/configuracoes/creditos'
-      preLoaderRoute: typeof AppConfiguracoesCreditosRouteImport
+    '/app/configuracoes/ajuda': {
+      id: '/app/configuracoes/ajuda'
+      path: '/ajuda'
+      fullPath: '/app/configuracoes/ajuda'
+      preLoaderRoute: typeof AppConfiguracoesAjudaRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
     '/app/configuracoes/convenios': {
@@ -737,10 +707,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppConfiguracoesConveniosRouteImport
       parentRoute: typeof AppConfiguracoesRoute
     }
+    '/app/configuracoes/creditos': {
+      id: '/app/configuracoes/creditos'
+      path: '/creditos'
+      fullPath: '/app/configuracoes/creditos'
+      preLoaderRoute: typeof AppConfiguracoesCreditosRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/instrumentos': {
+      id: '/app/configuracoes/instrumentos'
+      path: '/instrumentos'
+      fullPath: '/app/configuracoes/instrumentos'
+      preLoaderRoute: typeof AppConfiguracoesInstrumentosRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/configuracoes/templates': {
+      id: '/app/configuracoes/templates'
+      path: '/templates'
+      fullPath: '/app/configuracoes/templates'
+      preLoaderRoute: typeof AppConfiguracoesTemplatesRouteImport
+      parentRoute: typeof AppConfiguracoesRoute
+    }
+    '/app/pacientes/': {
+      id: '/app/pacientes/'
+      path: '/'
+      fullPath: '/app/pacientes/'
+      preLoaderRoute: typeof AppPacientesIndexRouteImport
+      parentRoute: typeof AppPacientesRoute
+    }
+    '/app/pacientes/$pacienteId': {
+      id: '/app/pacientes/$pacienteId'
+      path: '/$pacienteId'
+      fullPath: '/app/pacientes/$pacienteId'
+      preLoaderRoute: typeof AppPacientesPacienteIdRouteImport
+      parentRoute: typeof AppPacientesRoute
+    }
+    '/app/prontuario/': {
+      id: '/app/prontuario/'
+      path: '/'
+      fullPath: '/app/prontuario/'
+      preLoaderRoute: typeof AppProntuarioIndexRouteImport
+      parentRoute: typeof AppProntuarioRoute
+    }
+    '/app/prontuario/$pacienteId': {
+      id: '/app/prontuario/$pacienteId'
+      path: '/$pacienteId'
+      fullPath: '/app/prontuario/$pacienteId'
+      preLoaderRoute: typeof AppProntuarioPacienteIdRouteImport
+      parentRoute: typeof AppProntuarioRoute
+    }
   }
 }
 
 interface AppConfiguracoesRouteChildren {
+  AppConfiguracoesAjudaRoute: typeof AppConfiguracoesAjudaRoute
   AppConfiguracoesConveniosRoute: typeof AppConfiguracoesConveniosRoute
   AppConfiguracoesCreditosRoute: typeof AppConfiguracoesCreditosRoute
   AppConfiguracoesInstrumentosRoute: typeof AppConfiguracoesInstrumentosRoute
@@ -749,6 +769,7 @@ interface AppConfiguracoesRouteChildren {
 }
 
 const AppConfiguracoesRouteChildren: AppConfiguracoesRouteChildren = {
+  AppConfiguracoesAjudaRoute: AppConfiguracoesAjudaRoute,
   AppConfiguracoesConveniosRoute: AppConfiguracoesConveniosRoute,
   AppConfiguracoesCreditosRoute: AppConfiguracoesCreditosRoute,
   AppConfiguracoesInstrumentosRoute: AppConfiguracoesInstrumentosRoute,
