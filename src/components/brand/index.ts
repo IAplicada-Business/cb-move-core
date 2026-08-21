@@ -1,5 +1,10 @@
 export { PageHeader, type PageHeaderCrumb } from "./PageHeader";
-export { DataToolbar, DataToolbarSearch } from "./DataToolbar";
+export {
+  DataToolbar,
+  DataToolbarSearch,
+  dataToolbarSelectClass,
+  dataToolbarFilterClass,
+} from "./DataToolbar";
 export {
   BrandTableShell,
   BrandTable,

@@ -28,7 +28,10 @@ export function FilterChip({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className={cn(filterChipTriggerClass, className)}>
-          {prefix}: {current} <span className="text-muted-foreground">▾</span>
+          <span className="min-w-0 truncate">
+            {prefix}: {current}
+          </span>
+          <span className="shrink-0 text-muted-foreground">▾</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">

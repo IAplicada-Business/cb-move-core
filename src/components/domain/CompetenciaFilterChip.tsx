@@ -6,11 +6,13 @@ export function CompetenciaFilterChip({
   onChange,
   extraOptions = [],
   prefix = "Competência",
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
   extraOptions?: FilterChipOption[];
   prefix?: string;
+  className?: string;
 }) {
   return (
     <FilterChip
@@ -18,6 +20,7 @@ export function CompetenciaFilterChip({
       value={value}
       options={[...extraOptions, ...competenciaOpcoes()]}
       onChange={onChange}
+      className={className}
     />
   );
 }

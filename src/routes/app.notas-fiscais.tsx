@@ -33,7 +33,11 @@ import {
 import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
 import { CompetenciaFilterChip } from "@/components/domain/CompetenciaFilterChip";
 import { PageHeader } from "@/components/brand/PageHeader";
-import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
+import {
+  DataToolbar,
+  DataToolbarSearch,
+  dataToolbarSelectClass,
+} from "@/components/brand/DataToolbar";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
@@ -1187,14 +1191,14 @@ function NotasFiscaisPage() {
                 placeholder="Buscar por paciente, nº ou destinatário…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                className="h-full min-h-0 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
               />
             </DataToolbarSearch>
             <Select
               value={filtroStatus || FILTRO_TODOS}
               onValueChange={(v) => setFiltroStatus(v === FILTRO_TODOS ? "" : (v as NfStatus))}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className={dataToolbarSelectClass}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -1215,7 +1219,7 @@ function NotasFiscaisPage() {
               value={filtroTipo || FILTRO_TODOS}
               onValueChange={(v) => setFiltroTipo(v === FILTRO_TODOS ? "" : (v as PacienteTipo))}
             >
-              <SelectTrigger className="w-36">
+              <SelectTrigger className={dataToolbarSelectClass}>
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
