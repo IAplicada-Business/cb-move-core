@@ -90,18 +90,18 @@ export function DivergenciaPreviewList({ items }: { items: DivergenciaItem[] }) 
   return (
     <div className="space-y-2">
       {visiveis.map((d) => {
-        const label = new Date(`${d.data}T12:00:00`).toLocaleDateString("pt-BR", {
-          day: "2-digit",
-          month: "short",
-        });
+        const dataObj = new Date(`${d.data}T12:00:00`);
+        const dia = dataObj.getDate();
+        const mes = dataObj.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
 
         return (
           <div
             key={`${d.pacienteId}_${d.data}`}
             className="flex items-center gap-3 rounded-xl border border-[#FDE68A]/80 bg-[#FFFBEB]/60 p-4"
           >
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white text-xs font-bold uppercase text-[#92400E] ring-1 ring-[#FDE68A]">
-              {label}
+            <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-white text-[#92400E] ring-1 ring-[#FDE68A]">
+              <span className="text-sm font-extrabold leading-none tabular-nums">{dia}</span>
+              <span className="text-[9px] font-bold uppercase leading-none opacity-80">{mes}</span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-cb-ink">{d.pacienteNome}</p>
