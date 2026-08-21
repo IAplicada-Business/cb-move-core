@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
 import { ConfiguracoesModuleHeader } from "@/components/layout/ConfiguracoesLayout";
-import { TemplatePreviewPanel } from "@/components/domain/TemplatePreviewPanel";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
@@ -18,7 +17,6 @@ import {
   categoriasTemplatesVisiveis,
   filtrarTemplatesPorCategoria,
   MODELO_LABEL,
-  TEMPLATES_PAGE_DESCRICAO,
   TIPO_LABEL,
 } from "@/lib/domain/templates-versionados";
 import { isTemplateConteudoRascunho } from "@/lib/domain/template-preview";
@@ -221,11 +219,6 @@ function TemplatesPage() {
 
   return (
     <div className="space-y-5">
-      <ConfiguracoesModuleHeader
-        title="Templates versionados"
-        description={TEMPLATES_PAGE_DESCRICAO}
-      />
-
       {isLoading ? (
         <LoadingState />
       ) : templates.length === 0 ? (
