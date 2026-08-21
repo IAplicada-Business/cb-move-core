@@ -6,9 +6,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { InternalTabNav, InternalTabNavButton } from "@/components/brand/InternalTabNav";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isAgendaSubabaVisao, type AgendaVisao } from "@/lib/navigation-search";
-import { cn } from "@/lib/utils";
 
 const SUBABAS: Array<{ value: AgendaVisao; label: string; icon: LucideIcon }> = [
   { value: "semana", label: "Agenda geral", icon: CalendarRange },
@@ -24,26 +23,20 @@ type Props = {
 };
 
 export function AgendaSubabaNav({ activeVisao, onVisaoChange, className }: Props) {
+  const tabsValue = isAgendaSubabaVisao(activeVisao) ? activeVisao : "semana";
   return (
-    <InternalTabNav
-      className={cn("inline-flex sm:w-auto", className)}
-      aria-label="Subabas da agenda"
-    >
-      {SUBABAS.map((tab) => {
-        const Icon = tab.icon;
-        const active =
-          tab.value === "semana" ? !isAgendaSubabaVisao(activeVisao) : activeVisao === tab.value;
-        return (
-          <InternalTabNavButton
-            key={tab.value}
-            active={active}
-            onClick={() => onVisaoChange(tab.value)}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {tab.label}
-          </InternalTabNavButton>
-        );
-      })}
-    </InternalTabNav>
+    <Tabs value={tabsValue} onValueChange={(v) => onVisaoChange(v as AgendaVisao)}>
+      <TabsList className={className} aria-label="Subabas da agenda">
+        {SUBABAS.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              <Icon className="h-4 w-4 shrink-0" />
+              {tab.label}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </Tabs>
   );
 }

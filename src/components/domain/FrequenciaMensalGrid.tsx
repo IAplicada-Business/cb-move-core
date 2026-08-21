@@ -183,10 +183,6 @@ export function FrequenciaMensalGrid({ mes, ano, filterFisio, filterTipo, filtro
           placeholder="Buscar paciente"
           className="max-w-xs h-9"
         />
-        <p className="text-xs text-muted-foreground">
-          Consolidado da tabela <strong>sessões</strong> — registre P/F/FJ/NJ/RC/NR no painel do
-          agendamento (visão Semana).
-        </p>
         <Button
           type="button"
           variant="outline"

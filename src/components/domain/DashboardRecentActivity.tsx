@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 
 import {
   BrandTable,
@@ -11,7 +11,6 @@ import {
 } from "@/components/brand/BrandTable";
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { EmptyState } from "@/components/domain/EmptyState";
-import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import type { StatusAgendamento } from "@/lib/types";
 
@@ -27,23 +26,27 @@ type RecentAgendaItem = {
 export function DashboardRecentActivity({
   items,
   showFisio,
+  eyebrow = "Agenda",
+  title = "Atividade recente",
+  description = "Próximos agendamentos confirmados ou pendentes",
+  limit = 5,
+  actions,
 }: {
   items: RecentAgendaItem[];
   showFisio?: boolean;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
+  limit?: number;
+  actions?: ReactNode;
 }) {
   return (
     <BrandTableShell
-      eyebrow="Agenda"
+      eyebrow={eyebrow}
       accent="lime"
-      title="Atividade recente"
-      description="Próximos agendamentos confirmados ou pendentes"
-      actions={
-        <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
-          <Link to="/app/agenda" search={{ visao: "atualizacoes" }}>
-            Ver mais
-          </Link>
-        </Button>
-      }
+      title={title}
+      description={description}
+      actions={actions}
     >
       {items.length === 0 ? (
         <div className="px-6 py-8">
@@ -62,7 +65,7 @@ export function DashboardRecentActivity({
             </BrandTableRow>
           </BrandTableHeader>
           <BrandTableBody>
-            {items.slice(0, 2).map((item) => (
+            {items.slice(0, limit).map((item) => (
               <BrandTableRow key={item.id}>
                 <BrandTableCell>
                   <span className="font-medium text-cb-ink">{item.pacienteNome}</span>
