@@ -10,7 +10,7 @@ import {
   DashboardSectionBadge,
   KpiGrid,
 } from "@/components/domain/DashboardSection";
-import { DivergenciaPreviewList, AgendaPreviewList } from "@/components/domain/DashboardLists";
+import { AgendaPreviewList } from "@/components/domain/DashboardLists";
 import { DashboardInsightBanner } from "@/components/domain/DashboardInsightBanner";
 import { MonthPicker, monthPickerLabel } from "@/components/domain/MonthPicker";
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -52,7 +52,6 @@ function Dashboard() {
 
   const kpis = data?.kpis;
   const proximas = data?.proximasAgendas ?? [];
-  const divergencias = data?.divergencias ?? [];
   const divergenciaCount = kpis?.divergenciaProntuario ?? 0;
   const sessoesRealizadas = kpis?.sessoesRealizadasMes ?? 0;
   const conformidadePct =
@@ -294,29 +293,6 @@ function Dashboard() {
           )}
         </DashboardSection>
       </div>
-
-      {divergenciaCount > 0 && (
-        <DashboardSection
-          eyebrow="Atenção"
-          accent="magenta"
-          title="Divergências prontuário × agenda"
-          badge={
-            <DashboardSectionBadge accent="magenta">{divergencias.length}</DashboardSectionBadge>
-          }
-          description={`Sessões realizadas em ${periodoLabel} sem evolução registrada no mesmo dia`}
-          actions={
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/app/prontuario" search={{ tab: "visao-geral" }}>
-                Ver todos
-              </Link>
-            </Button>
-          }
-          noPadding
-          bodyClassName="p-6"
-        >
-          {noData ? <LoadingState /> : <DivergenciaPreviewList items={divergencias} />}
-        </DashboardSection>
-      )}
     </DashboardPage>
   );
 }

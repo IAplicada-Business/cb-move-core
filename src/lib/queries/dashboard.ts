@@ -272,11 +272,61 @@ export async function fetchProximasAgendas(limit = 15): Promise<ProximaAgenda[]>
   return data.proximasAgendas.slice(0, limit);
 }
 
-/** @deprecated Use fetchDashboardHome */
+/** Sessões realizadas no mês sem evolução no prontuário no mesmo dia. */
+export async function fetchDivergenciasProntuarioMes(
+  ano: number,
+  mes: number,
+  fisioterapeutaId?: string | null,
+): Promise<DivergenciaProntuario[]> {
+  const mesInicio = new Date(ano, mes - 1, 1);
+  const mesFim = new Date(ano, mes, 1);
+
+  let realizadosQuery = supabase
+    .from("agendamentos")
+    .select("paciente_id, inicio, pacientes(nome)")
+    .eq("status", "realizado")
+    .gte("inicio", mesInicio.toISOString())
+    .lt("inicio", mesFim.toISOString())
+    .order("inicio", { ascending: false });
+  if (fisioterapeutaId) realizadosQuery = realizadosQuery.eq("fisioterapeuta_id", fisioterapeutaId);
+
+  const [realizadosResult, evolucoesResult] = await Promise.all([
+    realizadosQuery,
+    supabase
+      .from("prontuario_evolucoes")
+      .select("paciente_id, data")
+      .gte("data", toIsoDate(mesInicio))
+      .lt("data", toIsoDate(mesFim)),
+  ]);
+
+  if (realizadosResult.error) throw realizadosResult.error;
+  if (evolucoesResult.error) throw evolucoesResult.error;
+
+  const evolucoesChaves = new Set(
+    (evolucoesResult.data ?? []).map((e) => `${e.paciente_id}_${e.data}`),
+  );
+
+  const divergencias: DivergenciaProntuario[] = [];
+  for (const a of realizadosResult.data ?? []) {
+    if (!a.paciente_id) continue;
+    const data = a.inicio.slice(0, 10);
+    if (evolucoesChaves.has(`${a.paciente_id}_${data}`)) continue;
+    const pac = a.pacientes as { nome: string } | null;
+    divergencias.push({
+      pacienteId: a.paciente_id,
+      pacienteNome: pac?.nome ?? "—",
+      data,
+    });
+  }
+
+  return divergencias;
+}
+
+/** @deprecated Use fetchDivergenciasProntuarioMes */
 export async function fetchDivergenciasProntuario(limit = 20): Promise<DivergenciaProntuario[]> {
   const now = new Date();
-  const data = await fetchDashboardHome(now.getFullYear(), now.getMonth() + 1);
-  return data.divergencias.slice(0, limit);
+  const data = await fetchDivergenciasProntuarioMes(now.getFullYear(), now.getMonth() + 1);
+  return data.slice(0, limit);
 }
 
 export async function fetchReceitaMensal(

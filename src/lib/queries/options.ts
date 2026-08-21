@@ -1,5 +1,9 @@
-import type { DashboardHomeData } from "./dashboard";
-import { fetchDashboardHome, fetchReceitaMensal } from "./dashboard";
+import type { DashboardHomeData, DivergenciaProntuario } from "./dashboard";
+import {
+  fetchDashboardHome,
+  fetchDivergenciasProntuarioMes,
+  fetchReceitaMensal,
+} from "./dashboard";
 import { fetchFinanceiroKpisHistorico, fetchFinanceiroKpisPorTipo } from "./financeiro";
 import { queryKeys } from "./keys";
 
@@ -35,4 +39,16 @@ export function financeiroKpisHistoricoOptions() {
   };
 }
 
-export type { DashboardHomeData };
+export function divergenciasAgendaOptions(
+  ano: number,
+  mes: number,
+  fisioterapeutaId?: string | null,
+) {
+  return {
+    queryKey: [...queryKeys.dashboard.divergencias(ano, mes), fisioterapeutaId ?? null] as const,
+    queryFn: () => fetchDivergenciasProntuarioMes(ano, mes, fisioterapeutaId),
+    staleTime: 30_000,
+  };
+}
+
+export type { DashboardHomeData, DivergenciaProntuario };

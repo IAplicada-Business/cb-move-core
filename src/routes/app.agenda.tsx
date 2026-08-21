@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AgendaDayStrip, AgendaMonthCalendar, AgendaWeekGrid } from "@/components/domain/agenda";
+import {
+  AgendaDayStrip,
+  AgendaDivergenciasPanel,
+  AgendaMonthCalendar,
+  AgendaWeekGrid,
+} from "@/components/domain/agenda";
 import { DateInputDDMMYY } from "@/components/domain/DateInputDDMMYY";
 import { TimeInputHHMM } from "@/components/domain/TimeInputHHMM";
 import { EmptyState } from "@/components/domain/EmptyState";
@@ -49,6 +54,7 @@ import {
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { TipoBadge } from "@/components/domain/TipoBadge";
 import { queryKeys } from "@/lib/queries";
+import { divergenciasAgendaOptions } from "@/lib/queries/options";
 import { agendaVisaoSchema, resolveAgendaVisao, type AgendaVisao } from "@/lib/navigation-search";
 import { assertMenuAccess } from "@/lib/route-access";
 import {
@@ -505,7 +511,7 @@ function AgendaPage() {
   }, [fisioScopeId]);
 
   const periodo = useMemo(() => {
-    if (visao === "mes" || visao === "frequencia") {
+    if (visao === "mes" || visao === "frequencia" || visao === "divergencias") {
       const y = mesRef.getFullYear();
       const m = mesRef.getMonth();
       const inicio = toDateStr(new Date(y, m, 1));
@@ -520,7 +526,16 @@ function AgendaPage() {
   const { data: agendamentos = [], isPending: agendaPending } = useQuery({
     queryKey: queryKeys.agendamentos.periodo(periodo.inicio, periodo.fim),
     queryFn: () => fetchAgendamentosPeriodoLocal(periodo.inicio, periodo.fim),
-    enabled: visao !== "frequencia",
+    enabled: visao !== "frequencia" && visao !== "divergencias",
+  });
+
+  const mesAgenda = mesRef.getMonth() + 1;
+  const anoAgenda = mesRef.getFullYear();
+  const periodoDivergenciasLabel = `${MESES[mesRef.getMonth()].toLowerCase()} de ${anoAgenda}`;
+
+  const { data: divergencias = [], isPending: divergenciasPending } = useQuery({
+    ...divergenciasAgendaOptions(anoAgenda, mesAgenda, fisioScopeId),
+    enabled: visao === "divergencias",
   });
 
   const { data: fisios = [] } = useQuery({
@@ -1010,6 +1025,7 @@ function AgendaPage() {
     { value: "semana", label: "Semana padrão" },
     { value: "dia", label: "Grade Seg–Sex" },
     { value: "frequencia", label: "Frequência" },
+    { value: "divergencias", label: "Divergências" },
     { value: "mes", label: "Calendário" },
   ];
 
@@ -1018,12 +1034,14 @@ function AgendaPage() {
       ? `Agenda · ${MESES[mesRef.getMonth()]}/${mesRef.getFullYear()}`
       : visao === "frequencia"
         ? `Frequência · ${MESES[mesRef.getMonth()].slice(0, 3)}/${mesRef.getFullYear()}`
-        : visao === "dia"
-          ? `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
-          : "Agenda · semana padrão";
+        : visao === "divergencias"
+          ? `Divergências · ${MESES[mesRef.getMonth()].slice(0, 3)}/${mesRef.getFullYear()}`
+          : visao === "dia"
+            ? `Agenda · Semana de ${semanaBase.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`
+            : "Agenda · semana padrão";
 
   function navBack() {
-    if (visao === "mes" || visao === "frequencia") {
+    if (visao === "mes" || visao === "frequencia" || visao === "divergencias") {
       setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() - 1, 1));
     } else {
       const nova = addDays(semanaBase, -7);
@@ -1033,7 +1051,7 @@ function AgendaPage() {
   }
 
   function navForward() {
-    if (visao === "mes" || visao === "frequencia") {
+    if (visao === "mes" || visao === "frequencia" || visao === "divergencias") {
       setMesRef(new Date(mesRef.getFullYear(), mesRef.getMonth() + 1, 1));
     } else {
       const nova = addDays(semanaBase, 7);
@@ -1042,8 +1060,14 @@ function AgendaPage() {
     }
   }
 
-  const navLabelPrev = visao === "mes" || visao === "frequencia" ? "Mês ant." : "Semana ant.";
-  const navLabelNext = visao === "mes" || visao === "frequencia" ? "Próx. mês" : "Próx. semana";
+  const navLabelPrev =
+    visao === "mes" || visao === "frequencia" || visao === "divergencias"
+      ? "Mês ant."
+      : "Semana ant.";
+  const navLabelNext =
+    visao === "mes" || visao === "frequencia" || visao === "divergencias"
+      ? "Próx. mês"
+      : "Próx. semana";
 
   return (
     <DashboardPage>
@@ -1056,7 +1080,9 @@ function AgendaPage() {
         description={
           visao === "frequencia"
             ? "Controle de frequência mensal por paciente"
-            : "Planejamento semanal, grade diária e visão mensal"
+            : visao === "divergencias"
+              ? "Sessões realizadas sem evolução registrada no prontuário"
+              : "Planejamento semanal, grade diária e visão mensal"
         }
         actions={
           <>
@@ -1073,7 +1099,7 @@ function AgendaPage() {
                 Horários
               </Button>
             )}
-            {podeGerir && visao !== "frequencia" && (
+            {podeGerir && visao !== "frequencia" && visao !== "divergencias" && (
               <Button
                 onClick={() => setModalOpen(true)}
                 className="gap-2 bg-cb-cyan-600 hover:bg-cb-cyan-700"
@@ -1085,7 +1111,7 @@ function AgendaPage() {
         }
       />
 
-      {visao !== "frequencia" && (
+      {visao !== "frequencia" && visao !== "divergencias" && (
         <>
           <KpiGrid columns={4}>
             <KpiCard
@@ -1181,7 +1207,13 @@ function AgendaPage() {
         </div>
       </DataToolbar>
 
-      {agendaPending && agendamentos.length === 0 && visao !== "frequencia" ? (
+      {visao === "divergencias" ? (
+        <AgendaDivergenciasPanel
+          periodoLabel={periodoDivergenciasLabel}
+          items={divergencias}
+          isLoading={divergenciasPending}
+        />
+      ) : agendaPending && agendamentos.length === 0 && visao !== "frequencia" ? (
         <LoadingState />
       ) : visao === "frequencia" ? (
         <FrequenciaMensalGrid

@@ -64,8 +64,8 @@ export function DashboardInsightBanner({
               className="mt-4 h-8 rounded-full bg-white px-4 text-xs font-semibold text-cb-cyan-900 hover:bg-white/90"
               asChild
             >
-              <Link to="/app/prontuario" search={{ tab: "visao-geral" }}>
-                Ver prontuários
+              <Link to="/app/agenda" search={{ visao: "divergencias" }}>
+                Ver divergências
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Link>
             </Button>
