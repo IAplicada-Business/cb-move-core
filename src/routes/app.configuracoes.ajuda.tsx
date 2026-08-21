@@ -55,6 +55,13 @@ function AjudaPage() {
           </div>
         ))}
       </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        Dúvidas técnicas? Fale com a <strong>IAplicada Business</strong> pelo e-mail{" "}
+        <a href="mailto:mariana@iaplicada.com" className="underline">
+          mariana@iaplicada.com
+        </a>
+      </div>
     </DashboardPage>
   );
 }
