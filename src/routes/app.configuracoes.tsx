@@ -1,14 +1,17 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { assertConfigAccess, assertMenuAccess } from "@/lib/route-access";
+import { ConfiguracoesLayout } from "@/components/layout/ConfiguracoesLayout";
+import { assertConfigAccess } from "@/lib/route-access";
 
 export const Route = createFileRoute("/app/configuracoes")({
   beforeLoad: async ({ location }) => {
-    if (location.pathname === "/app/configuracoes/ajuda") {
-      await assertMenuAccess("cfg.ajuda");
-      return;
+    if (
+      location.pathname === "/app/configuracoes/ajuda" ||
+      location.pathname === "/app/configuracoes/creditos"
+    ) {
+      throw redirect({ to: "/app/configuracoes/convenios" });
     }
     await assertConfigAccess();
   },
-  component: () => <Outlet />,
+  component: ConfiguracoesLayout,
 });

@@ -14,8 +14,7 @@ export type MenuKey =
   | "cfg.geral"
   | "cfg.convenios"
   | "cfg.instrumentos"
-  | "cfg.templates"
-  | "cfg.ajuda";
+  | "cfg.templates";
 
 export type MenuItemDef = {
   key: MenuKey;
@@ -72,11 +71,16 @@ export const MENU_GROUPS: MenuGroupDef[] = [
     id: "cfg",
     label: "Configurações",
     items: [
-      { key: "cfg.geral", to: "/app/configuracoes", label: "Geral" },
-      { key: "cfg.convenios", to: "/app/configuracoes/convenios", label: "Convênios" },
-      { key: "cfg.instrumentos", to: "/app/configuracoes/instrumentos", label: "Instrumentos" },
-      { key: "cfg.templates", to: "/app/configuracoes/templates", label: "Templates" },
-      { key: "cfg.ajuda", to: "/app/configuracoes/ajuda", label: "Ajuda" },
+      {
+        key: "cfg.geral",
+        to: "/app/configuracoes/convenios",
+        label: "Configurações",
+        children: [
+          { key: "cfg.convenios", to: "/app/configuracoes/convenios", label: "Convênios" },
+          { key: "cfg.instrumentos", to: "/app/configuracoes/instrumentos", label: "Instrumentos" },
+          { key: "cfg.templates", to: "/app/configuracoes/templates", label: "Templates" },
+        ],
+      },
     ],
   },
 ];
@@ -105,7 +109,6 @@ export const DEFAULT_MENU_FOR_MEMBRO: Record<MenuKey, boolean> = {
   "cfg.convenios": false,
   "cfg.instrumentos": false,
   "cfg.templates": false,
-  "cfg.ajuda": true,
 };
 
 /** Menu padrão do fisioterapeuta (visão clínica filtrada). */
@@ -130,7 +133,6 @@ export const DEFAULT_MENU_FOR_OPERACIONAL: Record<MenuKey, boolean> = {
   "cfg.convenios": true,
   "cfg.instrumentos": false,
   "cfg.templates": false,
-  "cfg.ajuda": true,
 };
 
 /** Rótulos do menu lateral quando o usuário é fisio (dados filtrados por paciente). */

@@ -38,7 +38,6 @@ import {
   Building2,
   Wrench,
   FilePlus2,
-  HelpCircle,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -56,7 +55,6 @@ const ICONS: Record<string, LucideIcon> = {
   "/app/configuracoes/convenios": Building2,
   "/app/configuracoes/instrumentos": Wrench,
   "/app/configuracoes/templates": FilePlus2,
-  "/app/configuracoes/ajuda": HelpCircle,
 };
 
 export type SidebarMenuItem = Omit<MenuItemDef, "children"> & {
