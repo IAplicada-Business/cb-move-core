@@ -28,7 +28,7 @@ export function ConfiguracoesLayout() {
       />
 
       <nav
-        className="cb-glass-toolbar flex flex-wrap gap-1.5 p-1.5"
+        className="cb-glass-toolbar flex w-full min-w-0 flex-wrap gap-1.5 p-1.5"
         aria-label="Módulos de configuração"
       >
         {TABS.map((tab) => {
@@ -53,7 +53,7 @@ export function ConfiguracoesLayout() {
         })}
       </nav>
 
-      <div className="min-w-0">
+      <div className="min-w-0 w-full">
         <Outlet />
       </div>
     </DashboardPage>
@@ -75,9 +75,7 @@ export function ConfiguracoesModuleHeader({
     <div className="flex flex-wrap items-start justify-between gap-3 pb-1">
       <div className="min-w-0">
         <h2 className="text-lg font-extrabold tracking-tight text-cb-ink sm:text-xl">{title}</h2>
-        {description && (
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-cb-muted">{description}</p>
-        )}
+        {description && <p className="mt-1 text-sm leading-relaxed text-cb-muted">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>

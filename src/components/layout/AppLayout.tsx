@@ -25,10 +25,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <div className="cb-rainbow-strip h-[3px] shrink-0" aria-hidden />
         <NavigationProgress />
         <AppTopbar />
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden cb-app-bg">
-          <div className="mx-auto w-full max-w-[1600px] px-4 pb-10 pt-5 sm:px-6 md:px-8">
-            {children}
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto cb-app-bg">
+          <div className="w-full min-w-0 px-4 pb-8 pt-4 sm:px-5 md:px-6 lg:px-8">{children}</div>
         </div>
       </SidebarInset>
     </SidebarProvider>

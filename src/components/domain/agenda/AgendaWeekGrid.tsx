@@ -54,7 +54,7 @@ export function AgendaWeekGrid({
     <div className="overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-muted/20 to-card shadow-sm">
       <div className="overflow-x-auto p-3">
         <div
-          className="grid min-w-[720px] gap-2"
+          className="grid w-full min-w-0 gap-2"
           style={{ gridTemplateColumns: "56px repeat(5, minmax(0, 1fr))" }}
         >
           <div />
