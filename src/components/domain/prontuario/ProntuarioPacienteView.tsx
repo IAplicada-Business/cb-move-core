@@ -8,14 +8,12 @@ import { AssinaturaPerfilDialog } from "@/components/domain/AssinaturaPerfilDial
 import { EmptyState } from "@/components/domain/EmptyState";
 import { EvolucaoEditor } from "@/components/domain/EvolucaoEditor";
 import { LoadingState } from "@/components/domain/LoadingState";
-import { PacientePeriodizacaoTab } from "@/components/domain/PacientePeriodizacaoTab";
 import { ProntuarioAvaliacoesTab } from "@/components/domain/prontuario/ProntuarioAvaliacoesTab";
-import { ProntuarioDocumentosTab } from "@/components/domain/prontuario/ProntuarioDocumentosTab";
 import { ProntuarioEvolucaoDiariaTab } from "@/components/domain/prontuario/ProntuarioEvolucaoDiariaTab";
-import { ProntuarioHistoricoStatusTab } from "@/components/domain/prontuario/ProntuarioHistoricoStatusTab";
+import { ProntuarioPeriodizacaoDocumentosTab } from "@/components/domain/prontuario/ProntuarioPeriodizacaoDocumentosTab";
 import { ProntuarioPatientHero } from "@/components/domain/prontuario/ProntuarioPatientHero";
 import { ProntuarioToolbar } from "@/components/domain/prontuario/ProntuarioToolbar";
-import { TAB_TRIGGER_CLS, type ProntuarioPatientTab } from "@/components/domain/prontuario/schemas";
+import type { ProntuarioPatientTab } from "@/components/domain/prontuario/schemas";
 import { countSessoesRealizadas } from "@/components/domain/prontuario/utils";
 import {
   AlertDialog,
@@ -113,19 +111,19 @@ export function ProntuarioPacienteView({
   const { data: evolucoes = [], isLoading: loadEvolucoes } = useQuery({
     queryKey: queryKeys.prontuario.evolucoes(pacienteId),
     queryFn: () => fetchEvolucoes(pacienteId),
-    enabled: activeTab === "evolucao-diaria" || activeTab === "historico",
+    enabled: activeTab === "evolucao-diaria" || activeTab === "periodizacao-documentos",
   });
 
   const { data: relatorios = [], isLoading: loadRelatorios } = useQuery({
     queryKey: queryKeys.prontuario.relatorios(pacienteId),
     queryFn: () => fetchRelatoriosPaciente(pacienteId),
-    enabled: activeTab === "documentos" || activeTab === "historico",
+    enabled: activeTab === "periodizacao-documentos",
   });
 
   const { data: instrumentosAplicados = [], isLoading: loadAvaliacoes } = useQuery({
     queryKey: queryKeys.prontuario.avaliacoes(pacienteId),
     queryFn: () => fetchInstrumentosAplicados(pacienteId),
-    enabled: activeTab === "avaliacoes" || activeTab === "periodizacao",
+    enabled: activeTab === "avaliacoes" || activeTab === "periodizacao-documentos",
   });
 
   const { data: fisios = [] } = useQuery({
@@ -336,25 +334,11 @@ export function ProntuarioPacienteView({
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-5">
-        <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0">
-          <TabsTrigger value="visao-geral" className={TAB_TRIGGER_CLS}>
-            Visão Geral Prontuários
-          </TabsTrigger>
-          <TabsTrigger value="evolucao-diaria" className={TAB_TRIGGER_CLS}>
-            Evolução diária
-          </TabsTrigger>
-          <TabsTrigger value="avaliacoes" className={TAB_TRIGGER_CLS}>
-            Avaliações clínicas
-          </TabsTrigger>
-          <TabsTrigger value="documentos" className={TAB_TRIGGER_CLS}>
-            Documentos
-          </TabsTrigger>
-          <TabsTrigger value="periodizacao" className={TAB_TRIGGER_CLS}>
-            Periodização
-          </TabsTrigger>
-          <TabsTrigger value="historico" className={TAB_TRIGGER_CLS}>
-            Histórico de documentos
-          </TabsTrigger>
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
+          <TabsTrigger value="evolucao-diaria">Evolução diária</TabsTrigger>
+          <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
+          <TabsTrigger value="periodizacao-documentos">Periodização e documentos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="evolucao-diaria" className="mt-0">
@@ -395,40 +379,24 @@ export function ProntuarioPacienteView({
           />
         </TabsContent>
 
-        <TabsContent value="documentos" className="mt-0">
-          <ProntuarioDocumentosTab
-            pacienteId={pacienteId}
-            relatorios={relatorios}
-            loading={loadRelatorios}
-            canEdit={canEdit}
-            competenciaMes={competenciaMes}
-            competenciaAno={competenciaAno}
-            gerando={gerandoRelatorio}
-            onGerar={handleGerarRelatorio}
-            onFinalizar={handleFinalizarRelatorio}
-            finalizandoId={finalizandoRelatorioId}
-          />
-        </TabsContent>
-
-        <TabsContent value="periodizacao" className="mt-0">
-          <PacientePeriodizacaoTab
+        <TabsContent value="periodizacao-documentos" className="mt-0">
+          <ProntuarioPeriodizacaoDocumentosTab
             pacienteId={pacienteId}
             paciente={paciente}
             readOnly={!canEdit}
             avaliacoesCount={instrumentosAplicados.length}
-            onNavigateTab={(tab) => handleTabChange(tab)}
-          />
-        </TabsContent>
-
-        <TabsContent value="historico" className="mt-0">
-          <ProntuarioHistoricoStatusTab
-            evolucoes={evolucoes}
             relatorios={relatorios}
-            loading={loadEvolucoes || loadRelatorios}
+            evolucoes={evolucoes}
+            loadingRelatorios={loadRelatorios}
+            loadingEvolucoes={loadEvolucoes}
             competenciaMes={competenciaMes}
             competenciaAno={competenciaAno}
-            onOpenDocumentos={() => handleTabChange("documentos")}
-            onOpenEvolucao={() => handleTabChange("evolucao-diaria")}
+            gerandoRelatorio={gerandoRelatorio}
+            finalizandoRelatorioId={finalizandoRelatorioId}
+            onGerarRelatorio={handleGerarRelatorio}
+            onFinalizarRelatorio={handleFinalizarRelatorio}
+            onNavigateAvaliacoes={() => handleTabChange("avaliacoes")}
+            onNavigateEvolucao={() => handleTabChange("evolucao-diaria")}
           />
         </TabsContent>
       </Tabs>

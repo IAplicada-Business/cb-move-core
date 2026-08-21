@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import {
+  normalizePatientTab,
   prontuarioPatientTabSchema,
   prontuarioTabSchema,
 } from "@/components/domain/prontuario/schemas";
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/app/prontuario")({
       throw redirect({ to: "/app/prontuario" });
     }
     const parsedTab = search.tab
-      ? prontuarioPatientTabSchema.safeParse(search.tab)
+      ? prontuarioPatientTabSchema.safeParse(normalizePatientTab(search.tab))
       : { success: false as const };
     throw redirect({
       to: "/app/prontuario/$pacienteId",

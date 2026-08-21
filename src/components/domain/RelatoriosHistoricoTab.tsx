@@ -197,7 +197,7 @@ export function RelatoriosHistoricoTab() {
                   <Link
                     to="/app/prontuario/$pacienteId"
                     params={{ pacienteId: r.paciente_id }}
-                    search={{ tab: "documentos" }}
+                    search={{ tab: "periodizacao-documentos" }}
                     className="font-medium text-cb-cyan-800 hover:underline"
                   >
                     {r.paciente_nome}

@@ -44,7 +44,6 @@ type Props = {
   loading: boolean;
   competenciaMes: number;
   competenciaAno: number;
-  onOpenDocumentos?: () => void;
   onOpenEvolucao?: () => void;
 };
 
@@ -54,7 +53,6 @@ export function ProntuarioHistoricoStatusTab({
   loading,
   competenciaMes,
   competenciaAno,
-  onOpenDocumentos,
   onOpenEvolucao,
 }: Props) {
   const competenciaLabel = monthPickerLabel(competenciaMes, competenciaAno);
@@ -73,21 +71,12 @@ export function ProntuarioHistoricoStatusTab({
       <EmptyState
         icon={<FileText className="h-8 w-8" />}
         title="Nenhum documento assinado nesta competência"
-        description={`Em ${competenciaLabel.toLowerCase()} ainda não há evoluções assinadas nem relatórios finalizados. Assine evoluções na aba Evolução diária ou gere relatórios na aba Documentos.`}
+        description={`Em ${competenciaLabel.toLowerCase()} ainda não há evoluções assinadas nem relatórios finalizados. Assine evoluções na aba Evolução diária ou gere relatórios na seção Documentos.`}
         action={
-          onOpenEvolucao || onOpenDocumentos ? (
-            <div className="flex flex-wrap justify-center gap-2">
-              {onOpenEvolucao ? (
-                <Button variant="outline" onClick={onOpenEvolucao}>
-                  Ir para Evolução diária
-                </Button>
-              ) : null}
-              {onOpenDocumentos ? (
-                <Button variant="outline" onClick={onOpenDocumentos}>
-                  Ir para Documentos
-                </Button>
-              ) : null}
-            </div>
+          onOpenEvolucao ? (
+            <Button variant="outline" onClick={onOpenEvolucao}>
+              Ir para Evolução diária
+            </Button>
           ) : undefined
         }
       />

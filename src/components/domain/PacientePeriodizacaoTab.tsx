@@ -72,7 +72,7 @@ type Props = {
   paciente?: Paciente;
   readOnly?: boolean;
   avaliacoesCount?: number;
-  onNavigateTab?: (tab: "avaliacoes" | "documentos") => void;
+  onNavigateTab?: (tab: "avaliacoes") => void;
 };
 
 function ChecklistItem({
