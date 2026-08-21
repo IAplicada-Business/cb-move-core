@@ -71,10 +71,6 @@ function Dashboard() {
         }
         actions={
           <>
-            <p className="text-sm text-cb-muted">
-              Competência ·{" "}
-              <span className="font-semibold capitalize text-cb-ink">{periodoLabel}</span>
-            </p>
             {!isMesAtual && (
               <Button
                 type="button"
@@ -241,39 +237,39 @@ function Dashboard() {
               ]}
             />
           )}
-
-          {noData ? (
-            <LoadingState />
-          ) : (
-            <DashboardSection
-              eyebrow="Agenda"
-              accent="lime"
-              title="Atividade recente"
-              description="Próximos agendamentos confirmados ou pendentes"
-              noPadding
-              bodyClassName="px-4 pb-2 sm:px-6"
-              actions={
-                <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
-                  <Link to="/app/agenda" search={{ visao: "atualizacoes" }}>
-                    Ver mais
-                  </Link>
-                </Button>
-              }
-            >
-              {proximas.length === 0 ? (
-                <div className="px-2 py-8">
-                  <EmptyState
-                    title="Nenhuma agenda próxima"
-                    description="Novos agendamentos aparecerão aqui."
-                  />
-                </div>
-              ) : (
-                <AgendaPreviewList items={proximas.slice(0, 2)} showFisio={!isFisioScoped} />
-              )}
-            </DashboardSection>
-          )}
         </aside>
       </div>
+
+      {noData ? (
+        <LoadingState />
+      ) : (
+        <DashboardSection
+          eyebrow="Agenda"
+          accent="lime"
+          title="Atividade recente"
+          description="Próximos agendamentos confirmados ou pendentes"
+          noPadding
+          bodyClassName="px-4 pb-2 sm:px-6"
+          actions={
+            <Button variant="ghost" size="sm" className="h-8 text-xs" asChild>
+              <Link to="/app/agenda" search={{ visao: "atualizacoes" }}>
+                Ver mais
+              </Link>
+            </Button>
+          }
+        >
+          {proximas.length === 0 ? (
+            <div className="px-2 py-8">
+              <EmptyState
+                title="Nenhuma agenda próxima"
+                description="Novos agendamentos aparecerão aqui."
+              />
+            </div>
+          ) : (
+            <AgendaPreviewList items={proximas.slice(0, 2)} showFisio={!isFisioScoped} />
+          )}
+        </DashboardSection>
+      )}
     </DashboardPage>
   );
 }
