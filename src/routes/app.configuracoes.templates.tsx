@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/domain/EmptyState";
 import { LoadingState } from "@/components/domain/LoadingState";
 import { BrandTableShell } from "@/components/brand/BrandTable";
-import { ConfiguracoesModuleHeader } from "@/components/layout/ConfiguracoesLayout";
+import { TemplatePreviewPanel } from "@/components/domain/TemplatePreviewPanel";
 import { queryKeys } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
