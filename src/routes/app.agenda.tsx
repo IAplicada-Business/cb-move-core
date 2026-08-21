@@ -4,15 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CalendarClock,
-  CheckCircle2,
-  Plus,
-  Search,
-  UserX,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -32,10 +24,7 @@ import {
   DashboardSection,
   DashboardSectionBadge,
   DashboardSectionHeader,
-  KpiGrid,
 } from "@/components/domain/DashboardSection";
-import { KpiCard } from "@/components/domain/KpiCard";
-import { StatusDistributionBar } from "@/components/domain/MetricVisuals";
 import { PageHeader } from "@/components/brand/PageHeader";
 import { DataToolbar, DataToolbarSearch } from "@/components/brand/DataToolbar";
 import { FilterChip } from "@/components/domain/FilterChip";
@@ -901,18 +890,6 @@ function AgendaPage() {
     [agendamentos, filterFisio, filterTipo, buscaGrade, fisioScopeId],
   );
 
-  const agendaStats = useMemo(() => {
-    const paraStats = filtered.filter((a) => !STATUS_SLOT.includes(a.status));
-    return {
-      total: paraStats.length,
-      confirmados: paraStats.filter((a) => a.status === "confirmado").length,
-      realizados: paraStats.filter((a) => a.status === "realizado").length,
-      faltos: paraStats.filter((a) => a.status === "faltou").length,
-      cancelados: paraStats.filter((a) => a.status === "cancelado").length,
-      agendados: paraStats.filter((a) => a.status === "agendado").length,
-    };
-  }, [filtered]);
-
   function labelHistorico(item: HistoricoRow) {
     const siglaAnterior = parseSiglaHistorico(item.status_anterior);
     const siglaNova = parseSiglaHistorico(item.status_novo);
@@ -1141,60 +1118,6 @@ function AgendaPage() {
       />
 
       <AgendaSubabaNav activeVisao={visao} onVisaoChange={(next) => setVisao(next)} />
-
-      {!isSubabaVisao && (
-        <>
-          <KpiGrid columns={4}>
-            <KpiCard
-              label="No período"
-              value={agendaStats.total}
-              accent="cyan"
-              icon={<CalendarClock className="h-5 w-5" />}
-            />
-            <KpiCard
-              label="Confirmados"
-              value={agendaStats.confirmados}
-              accent="lime"
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              share={
-                agendaStats.total > 0 ? (agendaStats.confirmados / agendaStats.total) * 100 : 0
-              }
-            />
-            <KpiCard
-              label="Realizados"
-              value={agendaStats.realizados}
-              accent="purple"
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              share={agendaStats.total > 0 ? (agendaStats.realizados / agendaStats.total) * 100 : 0}
-            />
-            <KpiCard
-              label="Faltos"
-              value={agendaStats.faltos}
-              accent="orange"
-              icon={<UserX className="h-5 w-5" />}
-              share={agendaStats.total > 0 ? (agendaStats.faltos / agendaStats.total) * 100 : 0}
-            />
-          </KpiGrid>
-
-          {agendaStats.total > 0 && (
-            <StatusDistributionBar
-              totalLabel="Status no período"
-              formatValue={(n) => String(n)}
-              segments={[
-                { label: "Agendado", value: agendaStats.agendados, colorClass: "bg-cb-orange" },
-                { label: "Confirmado", value: agendaStats.confirmados, colorClass: "bg-cb-lime" },
-                { label: "Realizado", value: agendaStats.realizados, colorClass: "bg-cb-purple" },
-                { label: "Faltou", value: agendaStats.faltos, colorClass: "bg-cb-magenta" },
-                {
-                  label: "Cancelado",
-                  value: agendaStats.cancelados,
-                  colorClass: "bg-muted-foreground/40",
-                },
-              ]}
-            />
-          )}
-        </>
-      )}
 
       <DataToolbar>
         {visao === "semana" && (

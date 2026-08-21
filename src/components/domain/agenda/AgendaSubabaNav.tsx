@@ -1,10 +1,17 @@
-import { BellRing, CalendarDays, TriangleAlert, type LucideIcon } from "lucide-react";
+import {
+  BellRing,
+  CalendarDays,
+  CalendarRange,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 
 import { InternalTabNav, InternalTabNavButton } from "@/components/brand/InternalTabNav";
-import type { AgendaSubabaVisao, AgendaVisao } from "@/lib/navigation-search";
+import { isAgendaSubabaVisao, type AgendaVisao } from "@/lib/navigation-search";
 import { cn } from "@/lib/utils";
 
-const SUBABAS: Array<{ value: AgendaSubabaVisao; label: string; icon: LucideIcon }> = [
+const SUBABAS: Array<{ value: AgendaVisao; label: string; icon: LucideIcon }> = [
+  { value: "semana", label: "Agenda geral", icon: CalendarRange },
   { value: "frequencia", label: "Frequência", icon: CalendarDays },
   { value: "divergencias", label: "Divergências", icon: TriangleAlert },
   { value: "atualizacoes", label: "Atualizações", icon: BellRing },
@@ -12,7 +19,7 @@ const SUBABAS: Array<{ value: AgendaSubabaVisao; label: string; icon: LucideIcon
 
 type Props = {
   activeVisao: AgendaVisao;
-  onVisaoChange: (visao: AgendaSubabaVisao) => void;
+  onVisaoChange: (visao: AgendaVisao) => void;
   className?: string;
 };
 
@@ -24,7 +31,8 @@ export function AgendaSubabaNav({ activeVisao, onVisaoChange, className }: Props
     >
       {SUBABAS.map((tab) => {
         const Icon = tab.icon;
-        const active = activeVisao === tab.value;
+        const active =
+          tab.value === "semana" ? !isAgendaSubabaVisao(activeVisao) : activeVisao === tab.value;
         return (
           <InternalTabNavButton
             key={tab.value}
