@@ -1,7 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Plus, Search, MoreHorizontal, Users, UserCheck, Briefcase, Scale } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Users,
+  UserCheck,
+  Briefcase,
+  Scale,
+  ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { KpiCard } from "@/components/domain/KpiCard";
@@ -72,6 +81,8 @@ export const Route = createFileRoute("/app/pacientes/")({
   component: PacientesPage,
 });
 
+const PACIENTES_PREVIEW_LIMIT = 5;
+
 function maskCPF(cpf: string | null | undefined) {
   if (!cpf) return "—";
   const v = cpf.replace(/\D/g, "").padStart(11, "0").slice(0, 11);
@@ -89,6 +100,11 @@ function PacientesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Paciente | null>(null);
   const [deleting, setDeleting] = useState<Paciente | null>(null);
+  const [showAllPacientes, setShowAllPacientes] = useState(false);
+
+  useEffect(() => {
+    setShowAllPacientes(false);
+  }, [search, filterTipo]);
 
   const {
     data: pacientesRaw = [],
@@ -148,6 +164,11 @@ function PacientesPage() {
   const nJudicial = pacientes.filter((p) => p.tipo === "judicial").length;
 
   const nPuc = pacientes.filter((p) => p.tipo === "puc").length;
+
+  const hasMorePacientes = pacientes.length > PACIENTES_PREVIEW_LIMIT;
+  const pacientesVisiveis = showAllPacientes
+    ? pacientes
+    : pacientes.slice(0, PACIENTES_PREVIEW_LIMIT);
 
   return (
     <DashboardPage>
@@ -270,7 +291,7 @@ function PacientesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pacientes.map((p) => (
+              {pacientesVisiveis.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     <Link
@@ -358,6 +379,23 @@ function PacientesPage() {
               ))}
             </TableBody>
           </Table>
+          {hasMorePacientes && !showAllPacientes && (
+            <div className="border-t border-border/40 px-5 py-4 text-center sm:px-6">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowAllPacientes(true)}
+              >
+                Ver mais
+                <ChevronDown className="h-4 w-4" />
+                <span className="text-cb-muted">
+                  ({pacientes.length - PACIENTES_PREVIEW_LIMIT} restantes)
+                </span>
+              </Button>
+            </div>
+          )}
         </DashboardSection>
       )}
 
