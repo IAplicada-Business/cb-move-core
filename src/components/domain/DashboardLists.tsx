@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarClock } from "lucide-react";
+import { useState } from "react";
 
 import { StatusBadge } from "@/components/domain/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -79,10 +80,16 @@ type DivergenciaItem = {
   data: string;
 };
 
+const DIVERGENCIA_PREVIEW_LIMIT = 5;
+
 export function DivergenciaPreviewList({ items }: { items: DivergenciaItem[] }) {
+  const [expandido, setExpandido] = useState(false);
+  const visiveis = expandido ? items : items.slice(0, DIVERGENCIA_PREVIEW_LIMIT);
+  const restantes = items.length - visiveis.length;
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {items.map((d) => {
+    <div className="space-y-2">
+      {visiveis.map((d) => {
         const label = new Date(`${d.data}T12:00:00`).toLocaleDateString("pt-BR", {
           day: "2-digit",
           month: "short",
@@ -108,6 +115,17 @@ export function DivergenciaPreviewList({ items }: { items: DivergenciaItem[] }) 
           </div>
         );
       })}
+      {restantes > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs"
+          onClick={() => setExpandido(true)}
+        >
+          Ver mais {restantes}
+        </Button>
+      )}
     </div>
   );
 }
