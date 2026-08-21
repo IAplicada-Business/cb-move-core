@@ -38,6 +38,7 @@ import {
   Building2,
   Wrench,
   FilePlus2,
+  CircleHelp,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -118,7 +119,7 @@ export function useMenuAccess() {
           {
             ...rest,
             label: isFisioScoped ? (FISIO_MENU_LABELS[item.key] ?? item.label) : item.label,
-            icon: ICONS[item.to] ?? HelpCircle,
+            icon: ICONS[item.to] ?? CircleHelp,
             ...(children.length > 0 ? { children } : {}),
           },
         ];
